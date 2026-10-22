@@ -2,7 +2,7 @@
 
 > Written 2026-10-19. The skeleton's topic matcher and config code were compile- and unit-tested; the Paho/MQTT parts, CMake config and scripts were **not** run on a Pi yet. Items marked ⚠️ are assumptions.
 
-## Goal
+## Goal  
 
 A C++ monorepo in Gitea, Mosquitto running on the Pi, and a fixed edit → build → deploy → test loop:
 

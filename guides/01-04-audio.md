@@ -75,11 +75,13 @@ Look at the `Audio` section. Expected ⚠️ names and numbers vary:
 ```
 Audio
  ├─ Devices:
- │      54. Jabra SPEAK 510 USB                [alsa]
+ │      45. Jabra SPEAK 510 USB                [alsa]
+ │      46. Built-in Audio                      [alsa]
+ │      47. Built-in Audio                      [alsa]
  ├─ Sinks:
- │  *   61. Jabra SPEAK 510 USB Analog Stereo  [vol: 0.60]
+ │  *   48. Jabra SPEAK 510 USB Analog Stereo  [vol: 0.40]
  ├─ Sources:
- │  *   62. Jabra SPEAK 510 USB Mono           [vol: 1.00]
+ │  *   49. Jabra SPEAK 510 USB Mono           [vol: 1.00]
 ```
 
 - **Sinks** = outputs (speaker), **Sources** = inputs (microphone).
@@ -88,8 +90,8 @@ Audio
 If a default points elsewhere (e.g. HDMI), set it with the number from **your** output:
 
 ```bash
-wpctl set-default 61   # Jabra sink
-wpctl set-default 62   # Jabra source
+wpctl set-default 48   # Jabra sink
+wpctl set-default 49   # Jabra source
 ```
 
 WirePlumber remembers the choice across reboots ⚠️ (stored per device name, not per number).
