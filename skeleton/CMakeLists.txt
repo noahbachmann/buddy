@@ -7,7 +7,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_compile_options(-Wall -Wextra -Wpedantic)
 
-# System packages (Debian 13): libpaho-mqttpp-dev, nlohmann-json3-dev
+# System packages (Debian 13): libpaho-mqtt-dev, libpaho-mqttpp-dev, libssl-dev, nlohmann-json3-dev
 find_package(PahoMqttCpp REQUIRED)
 find_package(nlohmann_json 3 REQUIRED)
 

@@ -23,7 +23,7 @@ int main() {
             return;
         }
         const auto now_ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-        std::cout << "[pong] got #" << msg["n"].get<long>() << ", latency "
+        std::cout << "[pong] received #" << msg["n"].get<long>() << ", latency "
                   << (now_ms - msg["ts_ms"].get<long long>()) << " ms" << std::endl;
     });
 

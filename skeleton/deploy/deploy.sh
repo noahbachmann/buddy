@@ -10,7 +10,7 @@ set -euo pipefail
 
 HOST="${BUDDY_HOST:-buddy}"
 SERVICES=(ping pong)
-ROOT="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"   # project root = parent of deploy/
 
 setup=false
 if [[ "${1:-}" == "--setup" ]]; then setup=true; shift; fi
@@ -23,7 +23,7 @@ fi
 
 echo "→ sync → $HOST:~/buddy/src"
 ssh "$HOST" 'mkdir -p ~/buddy/src'
-rsync -az --delete \
+rsync -az --delete --progress \
     --exclude '.git/' --exclude '.idea/' --exclude 'cmake-build-*/' --exclude '/build*/' \
     "$ROOT/" "$HOST:buddy/src/"
 

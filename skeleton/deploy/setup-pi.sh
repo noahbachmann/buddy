@@ -9,7 +9,7 @@ sudo apt-get update
 sudo apt-get install -y \
     build-essential cmake ninja-build gdb rsync git ccache pkg-config \
     mosquitto mosquitto-clients \
-    libpaho-mqttpp-dev nlohmann-json3-dev
+    libpaho-mqtt-dev libpaho-mqttpp-dev libssl-dev nlohmann-json3-dev
 
 echo "→ mosquitto (localhost only for now)"
 sudo systemctl enable --now mosquitto
@@ -18,7 +18,7 @@ echo "→ lingering: user services start at boot and survive SSH logout"
 sudo loginctl enable-linger "$USER"
 
 echo "→ directories + config"
-mkdir -p ~/buddy/src ~/buddy/bin ~/buddy/config ~/.config/systemd/user
+mkdir -p ~/buddy/dev ~/buddy/src ~/buddy/bin ~/buddy/config ~/.config/systemd/user
 if [[ ! -f ~/buddy/config/buddy.env ]]; then
     cp buddy.env.example ~/buddy/config/buddy.env
 fi
