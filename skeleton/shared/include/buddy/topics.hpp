@@ -23,8 +23,9 @@ inline std::string status(std::string_view service) {
 inline constexpr std::string_view dev_ping = "buddy/dev/ping";                // event
 
 // Phase 1 (names fixed now so later services agree)
-inline constexpr std::string_view ears_wake       = "buddy/ears/wake";        // event
-inline constexpr std::string_view ears_transcript = "buddy/ears/transcript";  // event
+inline constexpr std::string_view ears_wake       = "buddy/ears/wake";        // event {"model","score"}
+inline constexpr std::string_view ears_state      = "buddy/ears/state";       // event, retained {"state": idle|listening|transcribing}
+inline constexpr std::string_view ears_transcript = "buddy/ears/transcript";  // event {"text","language","audio_ms","stt_ms"}
 inline constexpr std::string_view brain_intent    = "buddy/brain/intent";     // event
 inline constexpr std::string_view voice_say       = "buddy/voice/say";        // command
 inline constexpr std::string_view voice_state     = "buddy/voice/state";      // event
