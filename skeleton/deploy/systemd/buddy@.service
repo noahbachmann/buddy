@@ -1,0 +1,19 @@
+# Template for all Buddy services, run as systemd *user* units of the Pi user.
+#   systemctl --user start buddy@pong   →  runs ~/buddy/bin/buddy-pong
+# User units (not system units) because audio runs in the user's PipeWire session.
+[Unit]
+Description=Buddy service: %i
+# Give up after 5 crashes within 60 s (then: systemctl --user reset-failed buddy@%i)
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+WorkingDirectory=%h/buddy
+EnvironmentFile=-%h/buddy/config/buddy.env
+ExecStart=%h/buddy/bin/buddy-%i
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target
