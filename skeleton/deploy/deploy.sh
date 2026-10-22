@@ -3,13 +3,13 @@
 #
 # Usage: deploy/deploy.sh [--setup] [service ...]
 #   --setup   run deploy/setup-pi.sh on the Pi first (asks for your sudo password)
-#   service   e.g. "pong"; default: all services in SERVICES
+#   service   e.g. "ears"; default: all services in SERVICES
 #
 # Env: BUDDY_HOST (default "buddy", the alias from ~/.ssh/config)
 set -euo pipefail
 
 HOST="${BUDDY_HOST:-buddy}"
-SERVICES=(ping pong)
+SERVICES=(ears)  # ping, pong: 1.5 test services, still built but no longer deployed
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"   # project root = parent of deploy/
 
 setup=false
