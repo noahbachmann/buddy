@@ -37,8 +37,8 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 | | 1.3 OS setup | ⬜ |
 | | 1.4 Audio setup | ⬜ |
 | | 1.5 Project skeleton, MQTT & dev workflow | ⬜ |
-| | 1.6 Wake word | ⬜ |
-| | 1.7 Speech-to-text | ⬜ |
+| | 1.6 Wake word | 🟨 |
+| | 1.7 Speech-to-text | 🟨 |
 | | 1.8 Brain / intent router | ⬜ |
 | | 1.9 Spotify skill | ⬜ |
 | | 1.10 Voice replies (TTS) | ⬜ |
@@ -63,6 +63,8 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 | D5 | Languages | C++ only (CMake), for all services and the Pico firmware. No Python, Kotlin or Java in the repo. | ✅ |
 | D6 | Dev workflow | CLion on the PC, Full Remote Mode over SSH: sources stay local (and in Gitea), CLion syncs them to the Pi, builds with the Pi's CMake/GCC, runs and debugs with the Pi's GDB. | ✅ |
 | D7 | Runtime packaging | systemd user units on the Pi (`buddy@<service>`, lingering on), Mosquitto from apt. Docker only for services offloaded to a LAN host later. | ✅ |
+| D8 | Audio capture | ears reads the ALSA `default` device (= PipeWire via `pipewire-alsa`), 16 kHz mono s16. Wake word, VAD and STT live in one service (`ears`) sharing that stream. | ✅ |
+| D9 | ML libraries | ONNX Runtime: Microsoft's prebuilt aarch64 release in `/opt/onnxruntime` (Debian's package spams the log). whisper.cpp: pinned tag built via CMake FetchContent. Models in `~/buddy/models` via `deploy/fetch-models.sh`, not in Git. | ✅ |
 
 Update this table when a decision is made or changed.
 
