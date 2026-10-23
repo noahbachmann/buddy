@@ -56,3 +56,29 @@ Play my Focus playlist.
 Play something by Daft Punk on Spotify.
 Can you play my playlist Chill Vibes, please?
 Turn the music down a bit.
+# Lights (for a later smart home skill: brain doesn't understand these yet, but whisper learns them now).
+# Edit the rooms and scene names to yours.
+Turn on the lights.
+Turn off the lights.
+Lights on.
+Lights off.
+Turn on the light in the living room.
+Turn off the bedroom lights.
+Switch on the kitchen light.
+Switch off the desk lamp.
+Turn on the lights in the office.
+Dim the lights.
+Dim the living room to thirty percent.
+Set the lights to fifty percent.
+Make it brighter.
+Brighter, please.
+Make the lights darker.
+Set the bedroom light to warm white.
+Make the lights cold white.
+Turn the lights blue.
+Set the living room to red.
+Change the desk lamp to green.
+Activate the movie scene.
+Turn on the reading light.
+Good night, turn everything off.
+Are the kitchen lights on?
