@@ -39,6 +39,7 @@ Steps 1.8 and 1.9 share one guide: the brain is only testable end-to-end once a 
 - **Two Spotify parts, two jobs.** Soloist *is* the speaker: Spotify's official headless Spotify Connect client (released August 2026), like a smart speaker without a box. It shows up as "Buddy" in your Spotify app and plays audio. The Web API is the *remote control*: our `spotify` service tells Spotify's servers "play X on the device Buddy", and they tell Soloist. Soloist is a closed binary, installed like Mosquitto; our code stays C++ (D5).
 - **Why not librespot.** The first version used librespot (open source, via raspotify). It connected, but every track failed with `error audio key 0 1` / `Service unavailable { audio key error }`: Spotify's servers refuse the decryption key to librespot for many accounts, mostly but not only newer ones ([librespot #1649](https://github.com/librespot-org/librespot/issues/1649)). No client-side fix exists. Soloist uses Spotify's own playback engine, so it isn't affected. `setup-pi.sh` removes the old librespot setup.
 - **How Soloist runs here.** As the user unit `buddy-soloist` (a user unit reaches `dev`'s PipeWire session, see 1.4; Soloist plays via PulseAudio protocol through `pipewire-pulse`). Spotify doesn't allow redistributing it, and **builds expire after 90 days** (exit code 10), so `deploy/soloist-update.sh` downloads the current build from Spotify, and a weekly timer repeats that. It needs an **API key** from the developer dashboard (Premium). Its cache is limited to 512 MB to spare the microSD ⚠️.
+- **Closed source, so sandboxed.** Soloist isn't open source: the GitHub repo `spotify/soloist` only holds a README, and nobody outside Spotify can check what the binary does beyond streaming (e.g. what it reports back). So `buddy-soloist.service` runs it in a systemd sandbox: your home directory is replaced by an empty one with only `~/.local/share/soloist` (pairing) and `~/.cache/soloist` (cache) mapped in, so it **can't read** `buddy.env`, the Spotify token, `~/.ssh` or anything else of yours. The rest of the system is read-only, it can't gain privileges, and only normal network and system calls are allowed. Its API key therefore lives in its own file, `~/buddy/config/soloist.env`. The update script never runs the binary outside the sandbox either (it compares checksums instead of asking for the version). Still visible to it: the network (it must stream) and the PipeWire socket (it must play). ⚠️ The sandbox options weren't tested on the Pi: if Soloist won't start, see Troubleshooting.
 - **Logging in, two separate logins:**
   1. *Soloist* pairs once via Spotify Connect discovery: you pick "Buddy" in the Spotify app, and it stores the login itself.
   2. *buddy-spotify* gets a Web API token via OAuth with PKCE. You log in once in a browser and it stores a **refresh token** in `~/buddy/config/spotify-token.json` (mode 600). It uses that token to get a fresh 1-hour access token whenever needed. PKCE means no client secret is stored on the Pi.
@@ -73,7 +74,7 @@ buddy/voice/say        {"text":"Playing Daft Punk."}                (QoS 1)
 
 | Topic | Choice | Why |
 |---|---|---|
-| Spotify playback | Spotify Soloist as user unit `buddy-soloist`, updated weekly | librespot gets no audio keys on many accounts; Soloist is official. User unit reaches PipeWire |
+| Spotify playback | Spotify Soloist as sandboxed user unit `buddy-soloist`, updated weekly, key in `soloist.env` | librespot gets no audio keys on many accounts; Soloist is official but closed source, so it only sees its own files |
 | Web API auth | Authorization Code + PKCE, refresh token in `~/buddy/config/spotify-token.json` | No secret on the Pi; works headless |
 | HTTP client | libcurl (apt) | Standard, arm64 package |
 | Intents | Regex rules behind `IntentParser` | Simple first (golden rule 3); swappable for an LLM later |
@@ -96,8 +97,8 @@ New in the setup output:
 → libpiper 1.8.0 → /opt/libpiper           (first time: several minutes, compiles espeak-ng)
 → removing librespot (replaced by Soloist)   (only if the old setup ran)
 → Spotify Soloist
-  ✓ soloist (new) → <version>
-  ⚠ BUDDY_SOLOIST_API_KEY not set in ~/buddy/config/buddy.env: buddy-soloist not started
+  ✓ soloist (new) → 3f9a…   (first 12 hex digits of the binary's SHA-256)
+  ⚠ SOLOIST_API_KEY not set in ~/buddy/config/soloist.env: buddy-soloist not started
 → models (wake word, VAD, speech-to-text, voice)
   ✓ en_US-lessac-medium.onnx     61M
 ...
@@ -119,16 +120,28 @@ New in the setup output:
 
 ### 3. Configure
 
+The Soloist key goes into its **own** file (only the sandboxed Soloist reads it):
+
+```bash
+ssh buddy nano ~/buddy/config/soloist.env
+```
+
+```bash
+SOLOIST_API_KEY=<the Soloist key>
+SOLOIST_DEVICE_NAME=Buddy
+```
+
+The Client ID goes into `buddy.env` (uncomment the line):
+
 ```bash
 ssh buddy nano ~/buddy/config/buddy.env
 ```
 
-Add (uncomment) at least:
-
 ```bash
-BUDDY_SOLOIST_API_KEY=<the Soloist key>
 BUDDY_SPOTIFY_CLIENT_ID=0123456789abcdef0123456789abcdef
 ```
+
+If you rename the device, change `SOLOIST_DEVICE_NAME` and `BUDDY_SPOTIFY_DEVICE` together.
 
 ### 4. Start Soloist, pair it, test the audio path
 
@@ -137,7 +150,7 @@ ssh buddy systemctl --user restart buddy-soloist
 ssh buddy journalctl --user -u buddy-soloist -n 20 --no-pager
 ```
 
-Expected: no errors, `systemctl --user is-active buddy-soloist` → `active`. Now on your phone/PC (same Wi-Fi): Spotify → play any song → the device icon (speaker symbol) → **Buddy**. The music should come from the Jabra within a few seconds.
+Expected: no errors, `systemctl --user is-active buddy-soloist` → `active`. Check that the sandbox is on: `ssh buddy systemd-analyze --user security buddy-soloist | tail -1` should rate it around `OK` or better, not `UNSAFE` ⚠️. Now on your phone/PC (same Wi-Fi): Spotify → play any song → the device icon (speaker symbol) → **Buddy**. The music should come from the Jabra within a few seconds.
 
 This proves Soloist, PipeWire and the Jabra work, independent of our code. Soloist stays paired across restarts. Leave it paused for now.
 
@@ -253,7 +266,10 @@ BUDDY_SPOTIFY_DEFAULT_URI=spotify:playlist:37i9dQZF1DXcBWIGoYBM5M
 |---|---|---|
 | CMake: `Could NOT find CURL` or `LIBPIPER_INCLUDE_DIR-NOTFOUND` | Setup not re-run | `deploy/deploy.sh --setup` |
 | "Buddy" missing in the Spotify app | Soloist not running, or phone on another network | `systemctl --user status buddy-soloist`; `journalctl --user -u buddy-soloist`; same Wi-Fi |
-| `BUDDY_SOLOIST_API_KEY is not set` in the Soloist log | Key missing in `buddy.env` | Step 3, then `systemctl --user restart buddy-soloist` |
+| `SOLOIST_API_KEY is not set` in the Soloist log | Key missing in `soloist.env` | Step 3, then `systemctl --user restart buddy-soloist` |
+| Soloist fails at start with `status=226/NAMESPACE`, `218/CAPABILITIES` or `Failed to set up mount namespacing` | A sandbox option isn't supported in a user unit on this kernel ⚠️ | `journalctl --user -u buddy-soloist -n 30`. In `deploy/systemd/buddy-soloist.service`, comment out sandbox blocks one at a time (start with `ProtectHome`/`Bind*Paths`, then `PrivateDevices`), `deploy/deploy.sh`, retry. Tell Claude which one, so it can be fixed properly |
+| Soloist runs but logs `Read-only file system` / `Permission denied` | It writes somewhere outside its two folders | Note the path from the log; add it to `BindPaths=` only if it's harmless (a Soloist-specific folder) |
+| Soloist runs but plays nothing; log mentions PulseAudio/connection refused | Sandbox blocks the PipeWire socket ⚠️ | Check `ls /run/user/1000/pulse/native`; temporarily comment out `ProtectSystem` to confirm |
 | Soloist log: key rejected ⚠️ | Wrong/revoked key | Generate a new one (step 2.2) |
 | `buddy-soloist` stopped, exit code 10 | Build expired (90 days) and the timer didn't run | `bash ~/buddy/src/deploy/soloist-update.sh` |
 | Old librespot error `error audio key 0 1` | Spotify refuses keys to librespot | Fixed by switching to Soloist: `git pull`, `deploy/deploy.sh --setup` |
