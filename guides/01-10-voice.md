@@ -26,7 +26,7 @@ Buddy talks back: "Playing Daft Punk.", "Sorry, I didn't catch that.", "Spotify 
 
 ```
  brain / spotify ──buddy/voice/say {"text"}──► voice ──► Piper: text → phonemes → audio ──► ALSA default ──► PipeWire ──► Jabra
-                                                 │                                            (mixed with librespot)
+                                                 │                                            (mixed with Soloist)  
                                                  └─► buddy/voice/state {"state":"speaking"|"idle"}  (retained)
 ```
 
@@ -142,7 +142,7 @@ With music paused:
 
 - "Hey Jarvis, play Daft Punk" → "Playing Daft Punk." then the music.
 - "Hey Jarvis, what's the weather" → "Sorry, I didn't catch that."
-- `ssh buddy systemctl --user stop buddy-librespot`, then "Hey Jarvis, play Spotify" → "Spotify isn't running on Buddy." Then `systemctl --user start buddy-librespot` again.
+- `ssh buddy systemctl --user stop buddy-soloist`, then "Hey Jarvis, play Spotify" → "Spotify isn't running on Buddy." Then `systemctl --user start buddy-soloist` again.
 
 With music playing: "Hey Jarvis, play Queen" → the reply is audible over the music (it may be hard to hear at high volume; 1.11 fixes that).
 

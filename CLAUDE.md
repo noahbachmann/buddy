@@ -65,7 +65,7 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 | D7 | Runtime packaging | systemd user units on the Pi (`buddy@<service>`, lingering on), Mosquitto from apt. Docker only for services offloaded to a LAN host later. | ✅ |
 | D8 | Audio capture | ears reads the ALSA `default` device (= PipeWire via `pipewire-alsa`), 16 kHz mono s16. Wake word, VAD and STT live in one service (`ears`) sharing that stream. | ✅ |
 | D9 | ML libraries | ONNX Runtime: Microsoft's prebuilt aarch64 release in `/opt/onnxruntime` (Debian's package spams the log). whisper.cpp: pinned tag built via CMake FetchContent. Models in `~/buddy/models` via `deploy/fetch-models.sh`, not in Git. | ✅ |
-| D10 | Spotify | librespot from the pinned raspotify `.deb` as user unit `buddy-librespot` (PulseAudio backend → PipeWire); raspotify's system service disabled. Web API via libcurl, OAuth PKCE, refresh token in `~/buddy/config/spotify-token.json`. | ✅ |
+| D10 | Spotify | Spotify Soloist (official headless Connect client) as user unit `buddy-soloist`, binary fetched from Spotify by `deploy/soloist-update.sh` + weekly timer (builds expire after 90 days). Not librespot: Spotify refuses it audio keys on many accounts. Web API via libcurl, OAuth PKCE, refresh token in `~/buddy/config/spotify-token.json`. | ✅ |
 | D11 | Intents & replies | brain: regex rules behind `IntentParser` (LLM-replaceable), routes to `buddy/<skill>/cmd`. The service that knows the outcome publishes `buddy/voice/say`. | ✅ |
 | D12 | TTS | libpiper v1.8.0 built from source by `setup-pi.sh` into `/opt/libpiper` (against `/opt/onnxruntime`); voices via `fetch-models.sh`. | ✅ |
 
@@ -84,7 +84,7 @@ Update this table when a decision is made or changed.
         ▼                ▼                               ▼                ▼
    [voice] TTS     [spotify] skill                [motion] ──USB──► Pico (servos, eyes)
         │                │
-        └──► Jabra speaker ◄──┘ (librespot)
+        └──► Jabra speaker ◄──┘ (Soloist)
 ```
 
 - Every component is a small, independent service with one job.
@@ -107,7 +107,7 @@ Update this table when a decision is made or changed.
 | 1.6 Wake word | Buddy reacts to "Hey buddy" | openWakeWord models run via ONNX Runtime C++ (rhasspy's archived `openwakeword-cpp` as reference). Stock model ("hey jarvis") first. A custom "Hey buddy" model is optional: trained once in a hosted notebook (Google Colab), which outputs an `.onnx` file. No Python in the repo or on the Pi. | Triggers reliably from 2–3 m, few false positives |
 | 1.7 Speech-to-text | Command after wake word → text | Silero VAD (end of speech, via ONNX Runtime C++) + whisper.cpp. English or High German. Pick model size by speed vs accuracy. | "Play Spotify" arrives on MQTT within ~1–2 s |
 | 1.8 Brain | Text → intent → skill topic | Keyword/regex rules (play, pause, next, louder, quieter) behind an interface an LLM can replace later | Transcripts routed to the right skill topic |
-| 1.9 Spotify skill | Control Spotify by voice | raspotify / librespot (Pi = Spotify Connect device), Spotify Web API (Development Mode) via a C++ HTTP client, OAuth refresh, audio via Jabra | "Hey buddy, play Spotify / pause / next song" works |
+| 1.9 Spotify skill | Control Spotify by voice | Spotify Soloist (Pi = Spotify Connect device), Spotify Web API (Development Mode) via a C++ HTTP client, OAuth refresh, audio via Jabra | "Hey buddy, play Spotify / pause / next song" works |
 | 1.10 Voice replies | Buddy talks back | Piper via libpiper (C++). Short confirmations. | Buddy answers commands audibly |
 | 1.11 Ducking & AEC | Buddy hears you over music | Volume ducking/pause on wake word. PipeWire echo-cancel (WebRTC AEC) only if needed — test the Jabra's own behaviour first. | Wake word works over music at normal volume |
 | 1.12 Boot & hardening | Starts alone, recovers from errors | systemd units, journald, restart policies, audio device detection after boot | After a power cycle, "Hey buddy, play Spotify" works untouched |
@@ -198,7 +198,7 @@ Pi paths: `~/buddy/{dev,src,build-release,bin,config}`. Runtime config: `~/buddy
 ## How to work
 
 1. Anchor every answer to the current step in the progress table. Don't jump ahead unless asked, but flag decisions that affect later phases (e.g. MQTT topic names that motion will reuse).
-2. Search before giving install commands, versions or API details. These change fast: Raspberry Pi OS, PipeWire, openWakeWord, ONNX Runtime, whisper.cpp, Piper / libpiper, CLion, librespot / raspotify, Spotify Web API (Development Mode limits).
+2. Search before giving install commands, versions or API details. These change fast: Raspberry Pi OS, PipeWire, openWakeWord, ONNX Runtime, whisper.cpp, Piper / libpiper, CLion, Spotify Soloist, Spotify Web API (Development Mode limits).
 3. Enforce the golden rules. Warn clearly about anything risky: power, wiring, heat, servo current.
 4. Small runnable increments. Every step ends with a concrete test matching its "Done when".
 5. State assumptions. Ask at most one question when blocked.
