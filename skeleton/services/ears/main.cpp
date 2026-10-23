@@ -4,6 +4,7 @@
 //   buddy-ears --wav f.wav  offline test: reads a 16 kHz mono WAV, prints instead of publishing (no MQTT)
 //
 // Config (env, see deploy/buddy.env.example): BUDDY_EARS_*, BUDDY_WAKE_*, BUDDY_VAD_*, BUDDY_STT_*, BUDDY_MODELS_DIR
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <cstring>
@@ -34,6 +35,8 @@ using Publish = std::function<void(std::string_view topic, const nlohmann::json&
 struct Config {
     std::string device = env_string("BUDDY_EARS_DEVICE", "default");
     bool debug = env_int("BUDDY_EARS_DEBUG", 0) != 0;
+    // Buddy hearing itself: even with echo cancellation, a reply could contain something wake-word-like.
+    bool ignore_while_speaking = env_int("BUDDY_EARS_IGNORE_WHILE_SPEAKING", 1) != 0;
     std::string models = env_string("BUDDY_MODELS_DIR", env_string("HOME", ".") + "/buddy/models");
     WakeWordConfig wake{
         .melspectrogram_path = models + "/melspectrogram.onnx",
@@ -63,8 +66,9 @@ long ms_since(Clock::time_point t) {
 }
 
 // The actual pipeline. Returns when the audio source ends or on shutdown.
+// speaking: true while voice talks (buddy/voice/state); nullptr offline.
 void run(const Config& cfg, AudioSource& source, WakeWord& wake, Endpointer& endpointer, Stt& stt,
-         const Publish& publish) {
+         const Publish& publish, const std::atomic<bool>* speaking) {
     enum class State { Idle, Listening } state = State::Idle;
     auto set_state = [&](const char* s) { publish(topic::ears_state, {{"state", s}}, true); };
 
@@ -86,6 +90,11 @@ void run(const Config& cfg, AudioSource& source, WakeWord& wake, Endpointer& end
             if (cfg.debug && wake.last_score() >= 0.1f)
                 std::cout << "[ears] " << pos() << " score " << wake.last_score() << std::endl;
             if (!heard) continue;
+            if (cfg.ignore_while_speaking && speaking && *speaking) {
+                std::cout << "[ears] " << pos() << " wake word ignored: Buddy is speaking" << std::endl;
+                wake.reset();
+                continue;
+            }
 
             std::cout << "[ears] " << pos() << " wake word (score " << wake.last_score() << ")" << std::endl;
             publish(topic::ears_wake, {{"model", wake.name()}, {"score", wake.last_score()}}, false);
@@ -175,16 +184,21 @@ int main(int argc, char** argv) {
         const Publish print = [](std::string_view topic, const nlohmann::json& msg, bool) {
             std::cout << "  → " << topic << " " << msg.dump() << std::endl;
         };
-        run(*cfg, *source, *wake, endpointer, *stt, print);
+        run(*cfg, *source, *wake, endpointer, *stt, print, nullptr);
         return 0;
     }
 
+    std::atomic<bool> speaking{false};
     Mqtt mqtt("ears", mqtt_config_from_env());
+    mqtt.subscribe(topic::voice_state, [&](const std::string&, const std::string& payload) {
+        const auto msg = nlohmann::json::parse(payload, nullptr, /*allow_exceptions=*/false);
+        speaking = msg.is_object() && msg.value("state", "") == "speaking";
+    });
     if (!mqtt.start()) return 0;
     const Publish publish = [&mqtt](std::string_view topic, const nlohmann::json& msg, bool retained) {
         mqtt.publish(topic, msg.dump(), 0, retained);
     };
-    run(*cfg, *source, *wake, endpointer, *stt, publish);
+    run(*cfg, *source, *wake, endpointer, *stt, publish, &speaking);
 
     publish(topic::ears_state, {{"state", "offline"}}, true);
     mqtt.stop();
