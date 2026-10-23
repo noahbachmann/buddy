@@ -54,6 +54,8 @@ Steps 1.8 and 1.9 share one guide: the brain is only testable end-to-end once a 
 |---|---|---|
 | "play Spotify", "play", "play music", "resume", "continue" | `play` | Resume on Buddy; if Buddy isn't active yet, transfer playback to it |
 | "play Daft Punk", "play Bohemian Rhapsody", "play Peach by Kevin Abstract", "play chill playlist" | `play` + `query` | Search (top 5): exact artist name → artist; else the track whose title matches best; "<song> by <artist>" filters by both; "… playlist" → playlists only |
+| "play my playlist Chill Vibes", "play my Chill Vibes playlist" | `play_playlist` + `query` | Your own/followed playlists (`GET /me/playlists`): exact name, else the one containing the most spoken words |
+| "play my playlist" | `play_playlist` | `BUDDY_SPOTIFY_DEFAULT_URI` (step 8) |
 | "pause", "stop", "stop the music" | `pause` | `PUT /me/player/pause` |
 | "next", "skip", "next song", "play the next song" | `next` | `POST /me/player/next` |
 | "previous", "go back", "last song" | `previous` | `POST /me/player/previous` |
@@ -240,9 +242,9 @@ journalctl --user-unit buddy@spotify -n 20 --no-pager
 # [spotify] play "daft punk" ok (450 ms)   ⚠️ expected 200–600 ms: device lookup + search + play
 ```
 
-### 8. Optional: something to play from scratch
+### 8. Optional: default playlist
 
-"Play" resumes your last playback. If there's nothing to resume (new account, long idle), set a fallback playlist in `buddy.env` (share link → `spotify:playlist:<id>`):
+"Play my playlist" (no name) plays it, and plain "play" falls back to it when there's nothing to resume (new account, long idle). Take the playlist's share link, e.g. `https://open.spotify.com/playlist/4DESbYIkRWMwxvqBYjVygh?si=…`: the part between `playlist/` and `?` is the ID. In `buddy.env`:
 
 ```bash
 BUDDY_SPOTIFY_DEFAULT_URI=spotify:playlist:37i9dQZF1DXcBWIGoYBM5M
@@ -281,6 +283,7 @@ BUDDY_SPOTIFY_DEFAULT_URI=spotify:playlist:37i9dQZF1DXcBWIGoYBM5M
 | Login page: `INVALID_CLIENT: Invalid redirect URI` | Redirect URI differs from the dashboard | Must be exactly `http://127.0.0.1:8888/callback` in both places (no trailing slash) |
 | `state mismatch` | Pasted the URL of an older login attempt | Run `--login` again, use only its URL |
 | `not logged in: run buddy-spotify --login` | No token file | Step 5 |
+| "I'm not allowed to read your playlists yet" | Token from a login before the playlist permission was added (2026-10-23) | Step 5 again (`--login`); Spotify asks to approve the new permission |
 | `token request rejected … invalid_grant` | Refresh token revoked (app access removed, password changed) | Step 5 again |
 | `device "Buddy" not found` | Soloist down or not paired | `systemctl --user restart buddy-soloist`; redo step 4 |
 | `HTTP 404 NO_ACTIVE_DEVICE` / "There's nothing to play" | Nothing to resume | Step 8, or start something once from the app |
