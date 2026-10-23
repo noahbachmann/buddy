@@ -6,11 +6,8 @@
 //
 // Config (env, see deploy/buddy.env.example): BUDDY_SPOTIFY_*
 #include <chrono>
-#include <condition_variable>
 #include <cstring>
-#include <deque>
 #include <iostream>
-#include <mutex>
 #include <optional>
 #include <string>
 
@@ -21,6 +18,7 @@
 #include "buddy/config.hpp"
 #include "buddy/lifecycle.hpp"
 #include "buddy/mqtt.hpp"
+#include "buddy/queue.hpp"
 #include "buddy/topics.hpp"
 #include "http.hpp"
 #include "player.hpp"
@@ -50,37 +48,12 @@ struct Command {
     std::string query;
 };
 
-// Commands arrive on Paho's callback thread; HTTP calls run on the main thread so a slow Spotify
-// response never blocks MQTT.
-class Queue {
-public:
-    void push(Command c) {
-        {
-            std::lock_guard lock(mutex_);
-            items_.push_back(std::move(c));
-        }
-        cv_.notify_one();
-    }
-    std::optional<Command> pop(std::chrono::milliseconds timeout) {
-        std::unique_lock lock(mutex_);
-        if (!cv_.wait_for(lock, timeout, [&] { return !items_.empty(); })) return std::nullopt;
-        Command c = std::move(items_.front());
-        items_.pop_front();
-        return c;
-    }
-
-private:
-    std::mutex mutex_;
-    std::condition_variable cv_;
-    std::deque<Command> items_;
-};
-
 int serve(Player& player, Auth& auth) {
     if (!auth.logged_in())
         std::cout << "[spotify] not logged in yet: run ~/buddy/bin/buddy-spotify --login (commands will fail)"
                   << std::endl;
 
-    Queue queue;
+    BlockingQueue<Command> queue;  // HTTP runs on this thread, not on Paho's
     Mqtt mqtt("spotify", mqtt_config_from_env());
     mqtt.subscribe(topic::spotify_cmd, [&](const std::string&, const std::string& payload) {
         const auto msg = json::parse(payload, nullptr, /*allow_exceptions=*/false);
