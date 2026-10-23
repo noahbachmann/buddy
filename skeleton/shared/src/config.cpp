@@ -7,12 +7,12 @@ namespace {
 
 template <typename T, typename Parse>
 T env_number(const char* name, T fallback, Parse parse) {
-    const char* value = std::getenv(name);
-    if (!value || !*value) return fallback;
+    const std::string value = buddy::env_string(name, "");
+    if (value.empty()) return fallback;
     try {
         std::size_t used = 0;
-        const T result = parse(std::string(value), &used);
-        if (value[used] == '\0') return result;
+        const T result = parse(value, &used);
+        if (used == value.size()) return result;
     } catch (const std::exception&) {
     }
     throw std::invalid_argument(std::string(name) + "=\"" + value + "\" is not a valid number");
@@ -24,7 +24,14 @@ namespace buddy {
 
 std::string env_string(const char* name, std::string fallback) {
     const char* value = std::getenv(name);
-    return (value && *value) ? std::string(value) : fallback;
+    if (!value) return fallback;
+    // Trailing spaces and "\r" (buddy.env saved with Windows line endings) are invisible in an editor
+    // but break IDs and paths.
+    std::string s(value);
+    const auto first = s.find_first_not_of(" \t\r\n");
+    if (first == std::string::npos) return fallback;
+    s = s.substr(first, s.find_last_not_of(" \t\r\n") - first + 1);
+    return s;
 }
 
 int env_int(const char* name, int fallback) {
