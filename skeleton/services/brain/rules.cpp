@@ -11,6 +11,7 @@ const std::vector<std::pair<std::regex, std::string>>& rewrites() {
     static const std::vector<std::pair<std::regex, std::string>> r = {
         // whisper spellings of "Spotify"
         {std::regex(R"(\bspot+(y|i)? ?(f(y|i|ie|ai))\b)"), "spotify"},
+        {std::regex(R"(\bspot (to|the|a|of) ?(find|fine|fly|five)\b)"), "spotify"},  // seen 2026-10-23: "Play spot to find"
         // politeness and addressing, at either end
         {std::regex(R"(^(hey |ok |okay )?(buddy |jarvis )?(please |can you |could you |would you |will you )*)"), ""},
         {std::regex(R"(( please| for me| buddy| thanks| thank you)+$)"), ""},
