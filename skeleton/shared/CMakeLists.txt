@@ -1,6 +1,7 @@
 add_library(buddy_shared STATIC
     src/config.cpp
     src/mqtt.cpp
+    src/systemd.cpp
     src/topics.cpp
 )
 target_include_directories(buddy_shared PUBLIC include)

@@ -1,19 +1,34 @@
 # Template for all Buddy services, run as systemd *user* units of the Pi user.
 #   systemctl --user start buddy@pong   →  runs ~/buddy/bin/buddy-pong
 # User units (not system units) because audio runs in the user's PipeWire session.
+#
+# Recovery (1.12, D14):
+#   crash          → restart after 1 s, backing off to 30 s on repeated crashes, never giving up
+#   hang           → no watchdog ping for WatchdogSec (shared/systemd.hpp) → killed and restarted
+#   Mosquitto down → not an error: services wait and reconnect by themselves
 [Unit]
 Description=Buddy service: %i
-# Give up after 5 crashes within 60 s (then: systemctl --user reset-failed buddy@%i)
-StartLimitIntervalSec=60
-StartLimitBurst=5
+# Ordering only: services that don't use audio don't need PipeWire, and ears/voice retry their device anyway.
+After=pipewire.service pipewire-pulse.service wireplumber.service
+StartLimitIntervalSec=0
 
 [Service]
-Type=simple
+# READY=1 once models and config are loaded (Mqtt::start): `systemctl start` and deploy.sh report the real result.
+Type=notify
+NotifyAccess=main
+WatchdogSec=60
 WorkingDirectory=%h/buddy
 EnvironmentFile=-%h/buddy/config/buddy.env
 ExecStart=%h/buddy/bin/buddy-%i
 Restart=always
-RestartSec=2
+RestartSec=1
+RestartSteps=5
+RestartMaxDelaySec=30
+TimeoutStopSec=10
+# Files a service creates (Spotify token, WAVs) are private to the user
+UMask=0077
+# Runaway guard; ears with ggml-small.en uses ~500 MB
+MemoryMax=1G
 
 [Install]
 WantedBy=default.target

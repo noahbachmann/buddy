@@ -21,6 +21,7 @@
 #include "buddy/config.hpp"
 #include "buddy/lifecycle.hpp"
 #include "buddy/mqtt.hpp"
+#include "buddy/systemd.hpp"
 #include "buddy/topics.hpp"
 #include "stt.hpp"
 #include "vad.hpp"
@@ -84,6 +85,7 @@ void run(const Config& cfg, AudioSource& source, WakeWord& wake, Endpointer& end
 
     while (running() && source.read(chunk)) {
         ++chunks;
+        systemd::notify_watchdog();  // audio flows and the pipeline keeps up; a stalled device or hung whisper stops this
 
         if (state == State::Idle) {
             levels.push(chunk);

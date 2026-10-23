@@ -17,6 +17,7 @@
 #include "buddy/config.hpp"
 #include "buddy/lifecycle.hpp"
 #include "buddy/mqtt.hpp"
+#include "buddy/systemd.hpp"
 #include "buddy/topics.hpp"
 #include "rules.hpp"
 
@@ -90,7 +91,10 @@ int main(int argc, char** argv) {
     });
 
     if (!mqtt.start()) return 0;
-    while (running()) std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    while (running()) {
+        systemd::notify_watchdog();
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    }
 
     mqtt.stop();
     return 0;

@@ -26,6 +26,7 @@
 #include "buddy/config.hpp"
 #include "buddy/lifecycle.hpp"
 #include "buddy/mqtt.hpp"
+#include "buddy/systemd.hpp"
 #include "buddy/topics.hpp"
 
 extern char** environ;
@@ -118,6 +119,7 @@ int main(int argc, char** argv) {
     bool ducked = false;
     auto quiet_since = Clock::now();
     while (running()) {
+        systemd::notify_watchdog();
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
         const bool busy = listening || speaking;
         if (busy) {

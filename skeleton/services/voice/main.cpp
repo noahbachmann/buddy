@@ -18,6 +18,7 @@
 #include "buddy/lifecycle.hpp"
 #include "buddy/mqtt.hpp"
 #include "buddy/queue.hpp"
+#include "buddy/systemd.hpp"
 #include "buddy/topics.hpp"
 #include "tts.hpp"
 
@@ -128,6 +129,7 @@ int main(int argc, char** argv) {
     auto set_state = [&](const char* s) { mqtt.publish(topic::voice_state, json{{"state", s}}.dump(), 1, true); };
     set_state("idle");
     while (running()) {
+        systemd::notify_watchdog();
         auto text = queue.pop(std::chrono::milliseconds(200));
         if (!text || text->empty()) continue;
         set_state("speaking");

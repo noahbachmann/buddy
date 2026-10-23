@@ -9,6 +9,7 @@
 #include <alsa/asoundlib.h>
 
 #include "buddy/lifecycle.hpp"
+#include "buddy/systemd.hpp"
 
 namespace buddy::ears {
 
@@ -60,6 +61,7 @@ void AlsaSource::capture_loop() {
                 warned_open = true;
             }
             if (pcm) snd_pcm_close(pcm);
+            systemd::notify_watchdog();  // waiting for the device is healthy, not hung
             std::this_thread::sleep_for(2s);
             continue;
         }

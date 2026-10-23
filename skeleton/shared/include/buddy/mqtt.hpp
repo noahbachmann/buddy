@@ -4,6 +4,8 @@
 //  - last will: buddy/<service>/status = "offline" (retained)
 //  - on every (re)connect: publishes "online" and (re)subscribes
 //  - automatic reconnect; the first connect retries until the broker is reachable
+//  - start() tells systemd READY=1 (call it after loading models/config) and keeps the watchdog fed while it waits
+//  - exceptions from handlers and publish() are logged, never thrown into Paho's thread
 
 #include <functional>
 #include <string>
@@ -26,7 +28,7 @@ public:
     Mqtt(const Mqtt&) = delete;
     Mqtt& operator=(const Mqtt&) = delete;
 
-    // Register before start(). Filters may use MQTT wildcards (+, #).
+    // Register before start(). Filters may use MQTT wildcards (+, #). Handlers run on Paho's thread: keep them short.
     void subscribe(std::string_view filter, Handler handler);
 
     // Blocks until connected or shutdown was requested. Returns false on shutdown.

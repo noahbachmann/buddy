@@ -41,10 +41,10 @@ cmake -S src -B build-release -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
     -DCMAKE_INSTALL_PREFIX="$HOME/buddy" > /dev/null
-cmake --build build-release
-
+targets=()
 units=()
-for s in "$@"; do units+=("buddy@$s"); done
+for s in "$@"; do targets+=("buddy-$s"); units+=("buddy@$s"); done
+cmake --build build-release --target "${targets[@]}"
 
 # Stop before install: overwriting a running binary fails ("Text file busy"). Install only the services
 # being deployed (one CMake component each), so other services keep running their current binary.
@@ -54,11 +54,15 @@ install -m 644 src/deploy/systemd/buddy@.service src/deploy/systemd/buddy-solois
     src/deploy/systemd/buddy-soloist-update.timer ~/.config/systemd/user/
 systemctl --user daemon-reload
 systemctl --user enable --quiet "${units[@]}"
-systemctl --user start "${units[@]}"
+# Type=notify: start returns once every service has loaded its models (READY=1), or fails.
+systemctl --user start "${units[@]}" || true
 
-sleep 1
+failed=0
 for u in "${units[@]}"; do
-    printf '  %-16s %s\n' "$u" "$(systemctl --user is-active "$u" || true)"
+    state="$(systemctl --user is-active "$u" || true)"
+    printf '  %-16s %s\n' "$u" "$state"
+    [[ "$state" == active ]] || failed=1
 done
+exit "$failed"
 REMOTE
-echo "✓ deployed. Logs: deploy/logs.sh <service>"
+echo "✓ deployed. Logs: deploy/logs.sh <service>, health: deploy/status.sh"

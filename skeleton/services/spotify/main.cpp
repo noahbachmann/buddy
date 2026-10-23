@@ -19,6 +19,7 @@
 #include "buddy/lifecycle.hpp"
 #include "buddy/mqtt.hpp"
 #include "buddy/queue.hpp"
+#include "buddy/systemd.hpp"
 #include "buddy/topics.hpp"
 #include "http.hpp"
 #include "player.hpp"
@@ -67,6 +68,7 @@ int serve(Player& player, Auth& auth) {
 
     json state = {{"playing", nullptr}, {"volume", nullptr}};
     while (running()) {
+        systemd::notify_watchdog();
         const auto cmd = queue.pop(std::chrono::milliseconds(200));
         if (!cmd) continue;
         const auto t0 = std::chrono::steady_clock::now();

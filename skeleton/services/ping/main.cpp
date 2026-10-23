@@ -8,6 +8,7 @@
 #include "buddy/config.hpp"
 #include "buddy/lifecycle.hpp"
 #include "buddy/mqtt.hpp"
+#include "buddy/systemd.hpp"
 #include "buddy/topics.hpp"
 
 int main() {
@@ -22,6 +23,7 @@ int main() {
         const nlohmann::json msg{{"n", n}, {"ts_ms", ts_ms}};
         mqtt.publish(buddy::topic::dev_ping, msg.dump());
         if (n % 10 == 0) std::cout << "[ping] sent #" << n << std::endl;
+        buddy::systemd::notify_watchdog();
         std::this_thread::sleep_for(1s);
     }
 
