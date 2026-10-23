@@ -88,7 +88,10 @@ Auth::Auth(AuthConfig cfg, Http& http) : cfg_(std::move(cfg)), http_(http) {
     std::ifstream f(cfg_.token_file);
     if (!f) return;
     const auto j = json::parse(f, nullptr, /*allow_exceptions=*/false);
-    if (!j.is_discarded() && j.contains("refresh_token")) refresh_token_ = j["refresh_token"];
+    if (!j.is_discarded() && j.contains("refresh_token") && j["refresh_token"].is_string())
+        refresh_token_ = j["refresh_token"];
+    else  // a broken file must not crash the service at every start
+        std::cout << "[spotify] " << cfg_.token_file << " has no refresh token: run buddy-spotify --login" << std::endl;
 }
 
 void Auth::login(std::istream& in, std::ostream& out) {
