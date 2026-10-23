@@ -258,7 +258,7 @@ Clean up: `rm ~/test-raw.wav ~/test-aec.wav`.
 | mixer log: `duck failed` / `restore failed` | Sink missing (PipeWire restarted, config gone) | Step 2; `pactl list short sinks` |
 | Music jumps up before the reply | Reply slower than the hold time | `BUDDY_MIXER_HOLD_MS=2500` |
 | Music stays quiet | mixer stopped while ducked | `~/buddy/bin/buddy-mixer --restore`; `systemctl --user status buddy@mixer` (it also restores when it starts) |
-| Wake word still misses over loud music | Echo residue louder than you | Lower the music a bit, `BUDDY_WAKE_THRESHOLD=0.4`, or the custom wake word (`guides/01-06-custom-wake-word.md`, trained with music in the background) |
+| Wake word still misses over loud music | Echo residue louder than you | Lower the music a bit, `BUDDY_WAKE_THRESHOLD=0.4`, or the custom wake word (`guides/01-02-06-summary.md` → "Custom Hey buddy", trained with music in the background) |
 | Commands cut off or missed after the wake word | ears' level gate uses the background *before* the wake word (music) | `BUDDY_VAD_LEVEL_GATE=0.3`, or more ducking |
 
 ## Notes for later phases
