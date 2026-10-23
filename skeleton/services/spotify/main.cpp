@@ -101,6 +101,13 @@ int main(int argc, char** argv) {
     try {
         cfg.emplace();
         if (cfg->auth.client_id.empty()) throw std::invalid_argument("BUDDY_SPOTIFY_CLIENT_ID is not set");
+        // Spotify client IDs are 32 hex digits. Anything else is usually the client secret or the
+        // Soloist key pasted by mistake; Spotify then answers "INVALID_CLIENT" at login.
+        const auto& id = cfg->auth.client_id;
+        if (id.size() != 32 || id.find_first_not_of("0123456789abcdef") != std::string::npos)
+            std::cerr << "[spotify] warning: BUDDY_SPOTIFY_CLIENT_ID has " << id.size()
+                      << " characters, expected 32 hex digits (dashboard → your app → Settings → Client ID)"
+                      << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "[spotify] " << e.what() << std::endl;
         return 1;
