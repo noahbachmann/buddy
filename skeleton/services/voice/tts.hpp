@@ -17,6 +17,7 @@ struct TtsConfig {
     std::string espeak_data_path;  // espeak-ng-data installed with libpiper
     float length_scale = 1.0f;     // > 1 slower, < 1 faster
     float gain = 1.0f;             // applied before converting to 16-bit
+    int threads = 3;               // ONNX threads; needs setup-pi.sh's patched libpiper, stock libpiper uses 1
 };
 
 class Tts {

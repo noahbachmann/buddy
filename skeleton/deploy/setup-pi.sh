@@ -31,30 +31,36 @@ sudo ln -sfn "/opt/onnxruntime-$ORT_VERSION" /opt/onnxruntime
 
 # libpiper (1.10): Piper's C/C++ library, built from source against the ONNX Runtime above. Its build
 # also downloads and compiles espeak-ng (phonemes) via git. ⚠️ takes several minutes on the Pi.
+# Patched (-buddy1): libpiper hard-codes 1 ONNX thread; ours reads PIPER_INTRA_OP_THREADS (buddy-voice sets it
+# from BUDDY_VOICE_THREADS). 3 threads: first audio ~830 → ~450 ms on the Pi 5 (measured 2026-10-23).
 PIPER_VERSION=1.8.0
+PIPER_BUILD="$PIPER_VERSION-buddy1"
 PIPER_SHA256=0a22987a6157f14e2fb7cf4aa702b547467fd0448bea9f233abd503c3ff4a0e1  # source tarball
-echo "→ libpiper $PIPER_VERSION → /opt/libpiper"
-if [[ ! -f "/opt/libpiper-$PIPER_VERSION/lib/libpiper.so" ]]; then
+echo "→ libpiper $PIPER_BUILD → /opt/libpiper"
+if [[ ! -f "/opt/libpiper-$PIPER_BUILD/lib/libpiper.so" ]]; then
     tmp="$(mktemp -d)"
     curl -fL --progress-bar -o "$tmp/piper.tgz" \
         "https://github.com/OHF-Voice/piper1-gpl/archive/refs/tags/v$PIPER_VERSION.tar.gz"
     echo "$PIPER_SHA256  $tmp/piper.tgz" | sha256sum -c --quiet
     tar xzf "$tmp/piper.tgz" -C "$tmp"
+    src="$tmp/piper1-gpl-$PIPER_VERSION/libpiper/src/piper.cpp"
+    sed -i 's|SetIntraOpNumThreads(1);|SetIntraOpNumThreads(getenv("PIPER_INTRA_OP_THREADS") ? atoi(getenv("PIPER_INTRA_OP_THREADS")) : 1);|' "$src"
+    grep -q PIPER_INTRA_OP_THREADS "$src" || { echo "libpiper patch didn't apply (source changed?)" >&2; exit 1; }
     # DISABLE_FIND_PACKAGE: libpiper tries find_package(onnxruntime) first, which picks up the release's
     # broken CMake config (points at lib64/, see third_party/). Skipped, it uses ONNXRUNTIME_DIR directly.
     cmake -S "$tmp/piper1-gpl-$PIPER_VERSION/libpiper" -B "$tmp/build" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_DISABLE_FIND_PACKAGE_onnxruntime=ON \
         -DONNXRUNTIME_DIR=/opt/onnxruntime \
-        -DCMAKE_INSTALL_PREFIX="/opt/libpiper-$PIPER_VERSION" > /dev/null
+        -DCMAKE_INSTALL_PREFIX="/opt/libpiper-$PIPER_BUILD" > /dev/null
     cmake --build "$tmp/build"
     sudo cmake --install "$tmp/build" > /dev/null
     rm -rf "$tmp"
 fi
-sudo ln -sfn "/opt/libpiper-$PIPER_VERSION" /opt/libpiper
+sudo ln -sfn "/opt/libpiper-$PIPER_BUILD" /opt/libpiper
 # libpiper.so is installed without a RUNPATH, so it can't find libonnxruntime.so.1 (an executable's RUNPATH
 # doesn't cover its libraries' dependencies). Give it one; $ORIGIN also covers libs next to it.
-sudo patchelf --set-rpath '$ORIGIN:/opt/onnxruntime/lib' "/opt/libpiper-$PIPER_VERSION/lib/libpiper.so"
+sudo patchelf --set-rpath '$ORIGIN:/opt/onnxruntime/lib' "/opt/libpiper-$PIPER_BUILD/lib/libpiper.so"
 
 # Before 2026-10-23 Buddy used librespot (raspotify .deb); Spotify refuses it audio keys. Remove it.
 if systemctl --user cat buddy-librespot >/dev/null 2>&1; then

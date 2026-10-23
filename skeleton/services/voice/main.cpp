@@ -46,6 +46,7 @@ struct Config {
         .espeak_data_path = env_string("BUDDY_VOICE_ESPEAK_DATA", "/opt/libpiper/share/espeak-ng-data"),
         .length_scale = env_float("BUDDY_VOICE_LENGTH_SCALE", 1.0f),
         .gain = env_float("BUDDY_VOICE_GAIN", 1.0f),
+        .threads = env_int("BUDDY_VOICE_THREADS", 3),
     };
 };
 
