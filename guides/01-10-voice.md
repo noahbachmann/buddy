@@ -11,7 +11,7 @@ Buddy talks back: "Playing Daft Punk.", "Sorry, I didn't catch that.", "Spotify 
 ## Prerequisites
 
 - 1.8 + 1.9 done: the brain and spotify services publish replies on `buddy/voice/say`.
-- `deploy/deploy.sh --setup` run after 2026-10-23 (it builds libpiper and downloads the default voice; 1.8 step 1 already did this).
+- `deploy/deploy.sh --setup` (on the PC) run after 2026-10-23 (it builds libpiper and downloads the default voice; 1.8 step 1 already did this).
 
 ## Parts / tools
 
@@ -66,10 +66,11 @@ Replies are queued and spoken one after another. Texts longer than 400 character
 
 ## Steps
 
+All commands run on the Pi, in your SSH session.
+
 ### 1. Check libpiper and the voice
 
 ```bash
-ssh buddy
 ls /opt/libpiper/lib/libpiper.so /opt/libpiper/share/espeak-ng-data/phontab
 ls -lh ~/buddy/models/en_US-lessac-medium.onnx*
 ```
@@ -120,9 +121,9 @@ Speed and loudness, same file: `BUDDY_VOICE_LENGTH_SCALE=1.1` (slower), `BUDDY_V
 ### 5. Via MQTT
 
 ```bash
-ssh buddy systemctl --user restart buddy@voice
-ssh buddy "mosquitto_sub -v -t 'buddy/voice/#'" &
-ssh buddy "mosquitto_pub -q 1 -t buddy/voice/say -m '{\"text\":\"Testing over MQTT.\"}'"
+systemctl --user restart buddy@voice
+mosquitto_sub -v -t 'buddy/voice/#'        # leave running; in a second SSH session:
+mosquitto_pub -q 1 -t buddy/voice/say -m '{"text":"Testing over MQTT."}'
 ```
 
 Expected: Buddy says it, and:
@@ -134,7 +135,7 @@ buddy/voice/state {"state":"speaking"}
 buddy/voice/state {"state":"idle"}
 ```
 
-Stop the background subscriber with `kill %1`.
+Stop the subscriber with Ctrl+C.
 
 ### 6. End to end
 
@@ -142,11 +143,11 @@ With music paused:
 
 - "Hey Jarvis, play Daft Punk" → "Playing Daft Punk." then the music.
 - "Hey Jarvis, what's the weather" → "Sorry, I didn't catch that."
-- `ssh buddy systemctl --user stop buddy-soloist`, then "Hey Jarvis, play Spotify" → "Spotify isn't running on Buddy." Then `systemctl --user start buddy-soloist` again.
+- `systemctl --user stop buddy-soloist`, then "Hey Jarvis, play Spotify" → "Spotify isn't running on Buddy." Then `systemctl --user start buddy-soloist` again.
 
 With music playing: "Hey Jarvis, play Queen" → the reply is audible over the music (it may be hard to hear at high volume; 1.11 fixes that).
 
-Timing: `deploy/logs.sh voice` shows "first audio after … ms" per reply.
+Timing: `journalctl --user-unit buddy@voice -n 20` shows "first audio after … ms" per reply.
 
 ## Verify
 
@@ -162,13 +163,13 @@ Timing: `deploy/logs.sh voice` shows "first audio after … ms" per reply.
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| setup: `imported target "onnxruntime::onnxruntime" references … lib64/libonnxruntime.so…` | libpiper picked up ONNX Runtime's broken CMake config (setup-pi.sh before 2026-10-23 fix) | `git pull`, run `deploy/deploy.sh --setup` again |
+| setup: `imported target "onnxruntime::onnxruntime" references … lib64/libonnxruntime.so…` | libpiper picked up ONNX Runtime's broken CMake config (setup-pi.sh before 2026-10-23 fix) | On the PC: `git pull`, `deploy/deploy.sh --setup` again |
 | setup: libpiper build fails cloning espeak-ng | No network to GitHub, or `git` missing | `git --version`; retry `setup-pi.sh` |
 | setup: libpiper build killed / Pi freezes | Out of memory while compiling | Close CLion's remote build; retry. ⚠️ Shouldn't happen on 8 GB |
 | `voice model not found` | Model not downloaded / name typo | `fetch-models.sh <voice>`; `BUDDY_VOICE_MODEL` needs the `.onnx` ending |
 | `voice config not found … .onnx.json` | JSON missing next to the model | `fetch-models.sh <voice>` downloads both |
 | `espeak-ng data not found` | libpiper installed elsewhere | `ls /opt/libpiper/share`; set `BUDDY_VOICE_ESPEAK_DATA` |
-| `error while loading shared libraries: libpiper.so` | Binary built before libpiper existed | `deploy/deploy.sh voice` (rebuild) |
+| `error while loading shared libraries: libpiper.so` | Binary built before libpiper existed | On the PC: `deploy/deploy.sh voice` (rebuild) |
 | `cannot open audio device "default"` | PipeWire not running for this user | 1.4 step 3; `systemctl --user status pipewire` |
 | First syllable missing | Jabra sink waking from suspend takes longer than the 100 ms lead-in | Raise the lead silence in `audio_sink.cpp` (`AlsaSink::begin`) to 200–300 ms |
 | Robotic / wrong pronunciation of names | espeak-ng phonemes | Write the reply phonetically, or another voice |

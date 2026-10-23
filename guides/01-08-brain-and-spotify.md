@@ -84,7 +84,7 @@ buddy/voice/say        {"text":"Playing Daft Punk."}                (QoS 1)
 
 ### 1. Update the Pi
  
-The build now needs libcurl, and (for 1.10) libpiper. `--setup` installs both plus Spotify Soloist. From the repo on your PC:
+The build now needs libcurl, and (for 1.10) libpiper. `--setup` installs both plus Spotify Soloist. **On your PC**, in the repo (all other commands in this guide run on the Pi, in your SSH session):
 
 ```bash
 git pull
@@ -123,7 +123,7 @@ New in the setup output:
 The Soloist key goes into its **own** file (only the sandboxed Soloist reads it):
 
 ```bash
-ssh buddy nano ~/buddy/config/soloist.env
+nano ~/buddy/config/soloist.env
 ```
 
 ```bash
@@ -134,7 +134,7 @@ SOLOIST_DEVICE_NAME=Buddy
 The Client ID goes into `buddy.env` (uncomment the line):
 
 ```bash
-ssh buddy nano ~/buddy/config/buddy.env
+nano ~/buddy/config/buddy.env
 ```
 
 ```bash
@@ -146,11 +146,11 @@ If you rename the device, change `SOLOIST_DEVICE_NAME` and `BUDDY_SPOTIFY_DEVICE
 ### 4. Start Soloist, pair it, test the audio path
 
 ```bash
-ssh buddy systemctl --user restart buddy-soloist
-ssh buddy journalctl --user-unit buddy-soloist -n 30 --no-pager
+systemctl --user restart buddy-soloist
+journalctl --user-unit buddy-soloist -n 30 --no-pager
 ```
 
-Expected: no errors, `systemctl --user is-active buddy-soloist` → `active`. Check that the sandbox is on: `ssh buddy systemd-analyze --user security buddy-soloist | tail -1` should rate it around `OK` or better, not `UNSAFE` ⚠️. Now on your phone/PC (same Wi-Fi): Spotify → play any song → the device icon (speaker symbol) → **Buddy**. The music should come from the Jabra within a few seconds.
+Expected: no errors, `systemctl --user is-active buddy-soloist` → `active`. Check that the sandbox is on: `systemd-analyze --user security buddy-soloist | tail -1` should rate it around `OK` or better, not `UNSAFE` ⚠️. Now on your phone/PC (same Wi-Fi): Spotify → play any song → the device icon (speaker symbol) → **Buddy**. The music should come from the Jabra within a few seconds.
 
 This proves Soloist, PipeWire and the Jabra work, independent of our code. Soloist stays paired across restarts. Leave it paused for now.
 
@@ -159,7 +159,8 @@ This proves Soloist, PipeWire and the Jabra work, independent of our code. Soloi
 Manual runs don't get systemd's `EnvironmentFile`, so load `buddy.env` first:
 
 ```bash
-ssh -t buddy 'set -a; . ~/buddy/config/buddy.env; set +a; ~/buddy/bin/buddy-spotify --login'
+set -a; . ~/buddy/config/buddy.env; set +a
+~/buddy/bin/buddy-spotify --login
 ```
 
 Expected:
@@ -185,7 +186,7 @@ Open the URL on your PC, log in, click **Agree**. The browser shows "This site c
 **Brain** (no MQTT, no Spotify):
 
 ```bash
-ssh buddy '~/buddy/bin/buddy-brain --test "Play Spotify." "Pause." "Play Daft Punk." "Turn it up." "What time is it?"'
+~/buddy/bin/buddy-brain --test "Play Spotify." "Pause." "Play Daft Punk." "Turn it up." "What time is it?"
 ```
 
 Expected:
@@ -201,7 +202,6 @@ Expected:
 **Spotify** (real API, no MQTT). One command per line; listen to the Jabra between them:
 
 ```bash
-ssh buddy
 set -a; . ~/buddy/config/buddy.env; set +a
 ~/buddy/bin/buddy-spotify --cmd play                  # ok            (resumes on Buddy)
 ~/buddy/bin/buddy-spotify --cmd volume_down           # ok
@@ -220,8 +220,8 @@ failed, says: "Spotify isn't running on Buddy."
 ### 7. Live, end to end
 
 ```bash
-ssh buddy systemctl --user restart buddy@spotify
-ssh buddy "mosquitto_sub -v -t 'buddy/#'"
+systemctl --user restart buddy@spotify
+mosquitto_sub -v -t 'buddy/#'
 ```
 
 Say "Hey Jarvis, play Spotify". Expected (other lines omitted):
@@ -236,7 +236,7 @@ buddy/spotify/state {"playing":true,"volume":null}
 Then "Hey Jarvis, next song", "… louder", "… pause", "… play Daft Punk". Timing per command in the log:
 
 ```bash
-deploy/logs.sh spotify
+journalctl --user-unit buddy@spotify -n 20 --no-pager
 # [spotify] play "daft punk" ok (450 ms)   ⚠️ expected 200–600 ms: device lookup + search + play
 ```
 
@@ -256,7 +256,7 @@ BUDDY_SPOTIFY_DEFAULT_URI=spotify:playlist:37i9dQZF1DXcBWIGoYBM5M
 - [ ] Live: "play Spotify", "pause", "next song", "louder", "quieter" each work ≥ 9 of 10 times from 2–3 m.
 - [ ] Live: "play <artist>" starts that artist.
 - [ ] Nonsense after the wake word → `{"intent":"unknown"}` on `buddy/brain/intent` and `{"text":"Sorry, …"}` on `buddy/voice/say`.
-- [ ] After `ssh buddy sudo reboot`: "play Spotify" works without touching anything (Soloist pairing and token survive).
+- [ ] After `sudo reboot`: "play Spotify" works without touching anything (Soloist pairing and token survive).
 
 **Done when:** "Hey buddy, play Spotify / pause / next song" works.
 
@@ -264,18 +264,19 @@ BUDDY_SPOTIFY_DEFAULT_URI=spotify:playlist:37i9dQZF1DXcBWIGoYBM5M
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| CMake: `Could NOT find CURL` or `LIBPIPER_INCLUDE_DIR-NOTFOUND` | Setup not re-run | `deploy/deploy.sh --setup` |
-| "Buddy" missing in the Spotify app | Soloist not running, or phone on another network | `systemctl --user status buddy-soloist`; `deploy/logs.sh buddy-soloist`; same Wi-Fi |
+| CMake: `Could NOT find CURL` or `LIBPIPER_INCLUDE_DIR-NOTFOUND` | Setup not re-run | On the PC: `deploy/deploy.sh --setup` |
+| "Buddy" missing in the Spotify app | Soloist not running, or phone on another network | `systemctl --user status buddy-soloist`; `journalctl --user-unit buddy-soloist -n 30`; same Wi-Fi |
 | `SOLOIST_API_KEY is not set` in the Soloist log | Key missing in `soloist.env` | Step 3, then `systemctl --user restart buddy-soloist` |
-| Soloist fails at start with `status=226/NAMESPACE`, `218/CAPABILITIES` or `Failed to set up mount namespacing` | A sandbox option isn't supported in a user unit on this kernel ⚠️ | `deploy/logs.sh buddy-soloist`. In `deploy/systemd/buddy-soloist.service`, comment out sandbox blocks one at a time (start with `ProtectHome`/`Bind*Paths`, then `PrivateDevices`), `deploy/deploy.sh`, retry. Tell Claude which one, so it can be fixed properly |
+| Soloist fails at start with `status=226/NAMESPACE`, `218/CAPABILITIES` or `Failed to set up mount namespacing` | A sandbox option isn't supported in a user unit on this kernel ⚠️ | `journalctl --user-unit buddy-soloist -n 30`. On the PC, in `deploy/systemd/buddy-soloist.service`, comment out sandbox blocks one at a time (start with `ProtectHome`/`Bind*Paths`, then `PrivateDevices`), run `deploy/deploy.sh`, retry. Tell Claude which one, so it can be fixed properly |
 | Soloist runs but logs `Read-only file system` / `Permission denied` | It writes somewhere outside its two folders | Note the path from the log; add it to `BindPaths=` only if it's harmless (a Soloist-specific folder) |
 | Soloist runs but plays nothing; log mentions PulseAudio/connection refused | Sandbox blocks the PipeWire socket ⚠️ | Check `ls /run/user/1000/pulse/native`; temporarily comment out `ProtectSystem` to confirm |
 | Soloist log: key rejected ⚠️ | Wrong/revoked key | Generate a new one (step 2.2) |
 | `buddy-soloist` stopped, exit code 10 | Build expired (90 days) and the timer didn't run | `bash ~/buddy/src/deploy/soloist-update.sh` |
-| Old librespot error `error audio key 0 1` | Spotify refuses keys to librespot | Fixed by switching to Soloist: `git pull`, `deploy/deploy.sh --setup` |
-| `journalctl --user …`: `No journal files were found` | The Pi keeps the journal in RAM: no per-user journal files | Use `journalctl --user-unit <unit>` or `deploy/logs.sh <unit>` |
+| Old librespot error `error audio key 0 1` | Spotify refuses keys to librespot | Fixed by switching to Soloist: on the PC `git pull`, `deploy/deploy.sh --setup` |
+| `journalctl --user …`: `No journal files were found` | The Pi keeps the journal in RAM: no per-user journal files | Use `journalctl --user-unit <unit>` (on the PC: `deploy/logs.sh <unit>`) |
 | Soloist plays but nothing is heard | PipeWire session missing or wrong sink | `wpctl status` while playing: Soloist must appear under Streams, Jabra default sink (1.4 step 4) |
 | `BUDDY_SPOTIFY_CLIENT_ID is not set` | Manual run without loading `buddy.env`, or not set | `set -a; . ~/buddy/config/buddy.env; set +a` |
+| Login page: `INVALID_CLIENT: Invalid client` / "client_id: Invalid" | Wrong value in `BUDDY_SPOTIFY_CLIENT_ID`: the client secret or Soloist key instead of the Client ID, or hidden characters | `grep SPOTIFY_CLIENT_ID ~/buddy/config/buddy.env \| cat -A` must show 32 characters of `0-9a-f` then `$` (no `^M`, spaces or quotes). Compare with dashboard → app → Settings → Client ID. `buddy-spotify` warns at start if the format is off |
 | Login page: `INVALID_CLIENT: Invalid redirect URI` | Redirect URI differs from the dashboard | Must be exactly `http://127.0.0.1:8888/callback` in both places (no trailing slash) |
 | `state mismatch` | Pasted the URL of an older login attempt | Run `--login` again, use only its URL |
 | `not logged in: run buddy-spotify --login` | No token file | Step 5 |
