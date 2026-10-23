@@ -25,9 +25,12 @@ set(LIBPIPER_ROOT /opt/libpiper CACHE PATH "libpiper install prefix")
 find_path(LIBPIPER_INCLUDE_DIR piper.h PATHS ${LIBPIPER_ROOT}/include NO_DEFAULT_PATH REQUIRED)
 find_library(LIBPIPER_LIBRARY piper PATHS ${LIBPIPER_ROOT}/lib NO_DEFAULT_PATH REQUIRED)
 add_library(piper::piper SHARED IMPORTED GLOBAL)
+# libpiper.so has no RUNPATH of its own, and the executable's RUNPATH doesn't cover indirect dependencies.
+# Linking ONNX Runtime into consumers puts /opt/onnxruntime/lib into their RUNPATH and loads it directly.
 set_target_properties(piper::piper PROPERTIES
     IMPORTED_LOCATION ${LIBPIPER_LIBRARY}
     INTERFACE_INCLUDE_DIRECTORIES ${LIBPIPER_INCLUDE_DIR}
+    INTERFACE_LINK_LIBRARIES onnxruntime::onnxruntime
 )
 
 # whisper.cpp (speech-to-text, step 1.7). Static, CPU only; GGML_NATIVE tunes it for the CPU it is
