@@ -46,8 +46,25 @@ json best_item(const json& results, const char* type, const std::string& name) {
     return first;
 }
 
+// Levenshtein distance: letters to insert, delete or change to turn a into b.
+size_t edit_distance(const std::string& a, const std::string& b) {
+    std::vector<size_t> row(b.size() + 1);
+    for (size_t j = 0; j <= b.size(); ++j) row[j] = j;
+    for (size_t i = 1; i <= a.size(); ++i) {
+        size_t diag = row[0];
+        row[0] = i;
+        for (size_t j = 1; j <= b.size(); ++j) {
+            const size_t up = row[j];
+            row[j] = std::min({row[j] + 1, row[j - 1] + 1, diag + (a[i - 1] == b[j - 1] ? 0 : 1)});
+            diag = up;
+        }
+    }
+    return row[b.size()];
+}
+
 // How well a playlist name matches what was said: exact (ignoring case/punctuation) > contains it >
-// number of spoken words found in the name. 0 = no match. Tolerates whisper dropping or adding a word.
+// per spoken word: 2 if it's in the name, 1 if a name word is close to it (whisper: "type" for "hype").
+// 0 = no match. Tolerates whisper dropping, adding or slightly misspelling a word.
 int match_score(const std::string& name, const std::string& spoken) {
     if (squash(name) == squash(spoken)) return 1000;
     if (!squash(spoken).empty() && squash(name).find(squash(spoken)) != std::string::npos) return 500;
@@ -62,8 +79,19 @@ int match_score(const std::string& name, const std::string& spoken) {
     };
     const auto in_name = words(name);
     int score = 0;
-    for (const auto& w : words(spoken))
-        if (std::find(in_name.begin(), in_name.end(), w) != in_name.end()) ++score;
+    for (const auto& w : words(spoken)) {
+        if (std::find(in_name.begin(), in_name.end(), w) != in_name.end()) {
+            score += 2;
+            continue;
+        }
+        const size_t allowed = w.size() >= 7 ? 2 : w.size() >= 3 ? 1 : 0;  // "a"/"my" must match exactly
+        for (const auto& n : in_name) {
+            if (allowed > 0 && edit_distance(w, n) <= allowed) {
+                score += 1;
+                break;
+            }
+        }
+    }
     return score;
 }
 
