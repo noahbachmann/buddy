@@ -25,19 +25,23 @@ std::string squash(const std::string& s) {
     return out;
 }
 
-// First non-null item of search result list `type` ("tracks", "artists", …), or null.
-// Spotify sometimes returns null entries in playlist results.
-json first_item(const json& results, const char* type) {
-    if (!results.contains(type) || !results[type].contains("items")) return nullptr;
-    for (const auto& item : results[type]["items"])
-        if (item.is_object()) return item;
-    return nullptr;
-}
-
 std::string error_reason(const HttpResponse& r) {
     const auto j = json::parse(r.body, nullptr, /*allow_exceptions=*/false);
     if (j.is_discarded() || !j.contains("error") || !j["error"].is_object()) return r.body;
     return j["error"].value("reason", j["error"].value("message", r.body));
+}
+
+// Among the first non-null items of list `type`, the first whose name equals `name` (ignoring case and
+// punctuation), else the first one, else null. Spotify's top hit is often a related song or artist.
+json best_item(const json& results, const char* type, const std::string& name) {
+    if (!results.contains(type) || !results[type].contains("items")) return nullptr;
+    json first = nullptr;
+    for (const auto& item : results[type]["items"]) {
+        if (!item.is_object()) continue;
+        if (squash(item.value("name", "")) == squash(name)) return item;
+        if (first.is_null()) first = item;
+    }
+    return first;
 }
 
 Result failed(std::string say) {
@@ -110,20 +114,36 @@ Result Player::play(const Device& d, const std::string& query) {
     const std::string on = "?device_id=" + d.id;
 
     if (!query.empty()) {
-        // "… playlist" searches playlists only; otherwise an exact artist name wins, then the best track.
+        // "… playlist" searches playlists only. "<song> by <artist>" searches with field filters, which
+        // matches far better than the plain text. Otherwise an exact artist name wins, then the best track.
         std::string q = lower(query);
         const bool want_playlist = q.size() > 9 && q.ends_with(" playlist");
         if (want_playlist) q.resize(q.size() - 9);
-        const auto r = api("GET", "/search?q=" + url_encode(q) + "&type=" +
-                                      (want_playlist ? "playlist" : "artist,track,playlist") + "&limit=1");
-        expect_ok(r, "search");
-        const json results = json::parse(r.body);
+        std::string title = q;  // the name a track result should have
+        std::string search = q;
+        std::string types = want_playlist ? "playlist" : "artist,track,playlist";
+        if (const auto by = q.rfind(" by "); !want_playlist && by != std::string::npos && by > 0) {
+            title = q.substr(0, by);
+            search = "track:" + title + " artist:" + q.substr(by + 4);
+            types = "track";
+        }
+        auto search_for = [&](const std::string& text, const std::string& type) {
+            const auto r = api("GET", "/search?q=" + url_encode(text) + "&type=" + type + "&limit=5");
+            expect_ok(r, "search");
+            return json::parse(r.body);
+        };
+        json results = search_for(search, types);
+        if (types == "track" && best_item(results, "tracks", title).is_null()) {
+            // Filters too strict (e.g. misheard artist): fall back to the plain text.
+            std::cout << "[spotify] no result for " << search << ", retrying as plain text" << std::endl;
+            results = search_for(q, "artist,track,playlist");
+        }
 
         json body;
         std::string say;
-        const json artist = first_item(results, "artists");
-        const json track = first_item(results, "tracks");
-        const json playlist = first_item(results, "playlists");
+        const json artist = best_item(results, "artists", q);
+        const json track = best_item(results, "tracks", title);
+        const json playlist = best_item(results, "playlists", q);
         if (!artist.is_null() && !want_playlist && squash(artist["name"]) == squash(q)) {
             body = {{"context_uri", artist["uri"]}};
             say = "Playing " + artist["name"].get<std::string>() + ".";
