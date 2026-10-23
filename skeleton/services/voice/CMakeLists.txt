@@ -10,4 +10,4 @@ target_link_libraries(buddy-voice PRIVATE
 )
 # Keep the path to /opt/libpiper/lib in the installed binary (no ldconfig / LD_LIBRARY_PATH needed).
 set_target_properties(buddy-voice PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
-install(TARGETS buddy-voice RUNTIME DESTINATION bin)
+install(TARGETS buddy-voice RUNTIME DESTINATION bin COMPONENT voice)

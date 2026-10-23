@@ -9,4 +9,4 @@ target_link_libraries(buddy-spotify PRIVATE
     CURL::libcurl
     OpenSSL::Crypto
 )
-install(TARGETS buddy-spotify RUNTIME DESTINATION bin)
+install(TARGETS buddy-spotify RUNTIME DESTINATION bin COMPONENT spotify)

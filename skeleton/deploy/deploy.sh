@@ -46,9 +46,10 @@ cmake --build build-release
 units=()
 for s in "$@"; do units+=("buddy@$s"); done
 
-# Stop before install: overwriting a running binary fails ("Text file busy").
+# Stop before install: overwriting a running binary fails ("Text file busy"). Install only the services
+# being deployed (one CMake component each), so other services keep running their current binary.
 systemctl --user stop "${units[@]}" 2>/dev/null || true
-cmake --install build-release > /dev/null
+for s in "$@"; do cmake --install build-release --component "$s" > /dev/null; done
 install -m 644 src/deploy/systemd/buddy@.service src/deploy/systemd/buddy-soloist*.service \
     src/deploy/systemd/buddy-soloist-update.timer ~/.config/systemd/user/
 systemctl --user daemon-reload

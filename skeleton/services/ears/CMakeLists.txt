@@ -14,4 +14,4 @@ target_link_libraries(buddy-ears PRIVATE
 )
 # Keep the path to /opt/onnxruntime/lib in the installed binary (no ldconfig / LD_LIBRARY_PATH needed).
 set_target_properties(buddy-ears PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
-install(TARGETS buddy-ears RUNTIME DESTINATION bin)
+install(TARGETS buddy-ears RUNTIME DESTINATION bin COMPONENT ears)
