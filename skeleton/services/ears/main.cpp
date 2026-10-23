@@ -5,6 +5,7 @@
 //
 // Config (env, see deploy/buddy.env.example): BUDDY_EARS_*, BUDDY_WAKE_*, BUDDY_VAD_*, BUDDY_STT_*, BUDDY_MODELS_DIR
 #include <chrono>
+#include <cmath>
 #include <cstring>
 #include <functional>
 #include <iostream>
@@ -46,7 +47,8 @@ struct Config {
         .threshold = env_float("BUDDY_VAD_THRESHOLD", 0.5f),
         .silence_ms = env_int("BUDDY_VAD_SILENCE_MS", 700),
         .start_timeout_ms = env_int("BUDDY_VAD_START_TIMEOUT_MS", 4000),
-        .max_ms = env_int("BUDDY_VAD_MAX_MS", 10000),
+        .max_ms = env_int("BUDDY_VAD_MAX_MS", 5000),
+        .level_gate = env_float("BUDDY_VAD_LEVEL_GATE", 0.4f),
     };
     SttConfig stt{
         .model_path = models + "/" + env_string("BUDDY_STT_MODEL", "ggml-base.en.bin"),
@@ -67,6 +69,7 @@ void run(const Config& cfg, AudioSource& source, WakeWord& wake, Endpointer& end
     auto set_state = [&](const char* s) { publish(topic::ears_state, {{"state", s}}, true); };
 
     std::vector<int16_t> command;
+    LevelHistory levels;
     Chunk chunk;
     long chunks = 0;  // audio position, for logs: chunks × 80 ms
     auto pos = [&] { return std::to_string(chunks * 80 / 1000.0).substr(0, 5) + " s"; };
@@ -78,6 +81,7 @@ void run(const Config& cfg, AudioSource& source, WakeWord& wake, Endpointer& end
         ++chunks;
 
         if (state == State::Idle) {
+            levels.push(chunk);
             const bool heard = wake.process(chunk);
             if (cfg.debug && wake.last_score() >= 0.1f)
                 std::cout << "[ears] " << pos() << " score " << wake.last_score() << std::endl;
@@ -87,7 +91,15 @@ void run(const Config& cfg, AudioSource& source, WakeWord& wake, Endpointer& end
             publish(topic::ears_wake, {{"model", wake.name()}, {"score", wake.last_score()}}, false);
             set_state("listening");
             wake.reset();
-            endpointer.start();
+            const LevelGate gate = levels.gate(endpointer.config().level_gate);
+            levels.clear();  // the next wake word gets a fresh background, not this command
+            std::cout << "[ears] levels: ";
+            if (gate.measured())
+                std::cout << "background " << std::lround(gate.background_db) << " dB, voice "
+                          << std::lround(gate.voice_db) << " dB, ";
+            if (gate.active()) std::cout << "gate " << std::lround(gate.gate_db) << " dB" << std::endl;
+            else std::cout << "gate off" << std::endl;
+            endpointer.start(gate);
             command.clear();
             state = State::Listening;
             continue;
@@ -100,6 +112,9 @@ void run(const Config& cfg, AudioSource& source, WakeWord& wake, Endpointer& end
         if (result == Endpointer::Result::NoSpeech) {
             std::cout << "[ears] " << pos() << " no command after wake word" << std::endl;
         } else {
+            if (result == Endpointer::Result::TooLong)
+                std::cout << "[ears] " << pos() << " command cut at " << endpointer.config().max_ms << " ms"
+                          << std::endl;
             set_state("transcribing");
             const auto t0 = Clock::now();
             try {
