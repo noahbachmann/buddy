@@ -30,7 +30,7 @@ done
 
 echo
 echo "  MQTT status (retained):"
-timeout 2 mosquitto_sub -v -t 'buddy/+/status' -W 1 2>/dev/null | sed 's/^/    /' || true
+timeout 4 mosquitto_sub -v -t 'buddy/+/status' -W 2 2>/dev/null | sed 's/^/    /' || true
 
 if [[ "$lines" -gt 0 ]]; then
     for u in $units; do
