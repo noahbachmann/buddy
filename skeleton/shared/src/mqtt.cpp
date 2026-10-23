@@ -101,7 +101,8 @@ bool Mqtt::start() {
                 systemd::notify_status("waiting for the broker");
                 next_log = Clock::now() + 30s;
             }
-            std::this_thread::sleep_for(delay);
+            for (auto until = Clock::now() + delay; running() && Clock::now() < until;)
+                std::this_thread::sleep_for(100ms);  // stays responsive to SIGTERM
             delay = std::min<std::chrono::milliseconds>(delay * 2, 5s);
         }
     }
