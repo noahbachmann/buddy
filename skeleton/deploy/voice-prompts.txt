@@ -1,0 +1,58 @@
+# Sentences for record-voice.sh: one per line, written the way Buddy should transcribe them.
+# Replace the example artists, songs and playlists with your own: names whisper gets wrong
+# are where fine-tuning helps most. Say each one naturally; repeat runs give more variety.
+#
+# Plain commands
+Play Spotify.
+Play some music.
+Pause.
+Pause the music.
+Stop the music.
+Resume.
+Continue the music.
+Next song.
+Skip this song.
+Play the next song.
+Previous song.
+Go back.
+Play the last song again.
+Louder.
+Turn it up.
+Volume up.
+Make it louder.
+Quieter.
+Turn it down.
+Turn down the music.
+Volume down.
+Make it softer.
+# With "please", "can you", Buddy
+Can you play some music, please?
+Please pause the music.
+Could you turn it down?
+Buddy, next song please.
+Turn up the volume, please.
+# Artists (edit)
+Play Daft Punk.
+Play Queen.
+Play Coldplay on Spotify.
+Play Eminem.
+Play Taylor Swift.
+Play Linkin Park.
+Play Hans Zimmer.
+Play Imagine Dragons.
+# Songs by artists (edit)
+Play Around the World by Daft Punk.
+Play Bohemian Rhapsody by Queen.
+Play Lose Yourself by Eminem.
+Play Numb by Linkin Park.
+Play Time by Hans Zimmer.
+# Your playlists (edit)
+Play my playlist.
+Play my playlist Chill Vibes.
+Play my Chill Vibes playlist.
+Play my playlist Workout.
+Play my Focus playlist.
+# Longer and quieter ones: whisper should still get them
+Play something by Daft Punk on Spotify.
+Can you play my playlist Chill Vibes, please?
+Turn the music down a bit.
