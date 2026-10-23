@@ -2,6 +2,7 @@
 //
 //   buddy-ears              live: ALSA "default" device, publishes on MQTT
 //   buddy-ears --wav f.wav  offline test: reads a 16 kHz mono WAV, prints instead of publishing (no MQTT)
+//   buddy-ears --transcribe f.wav…  speech-to-text only, one line per file: "<file>\t<ms>\t<text>" (compare models)
 //
 // Config (env, see deploy/buddy.env.example): BUDDY_EARS_*, BUDDY_WAKE_*, BUDDY_VAD_*, BUDDY_STT_*, BUDDY_MODELS_DIR
 #include <atomic>
@@ -146,16 +147,46 @@ void run(const Config& cfg, AudioSource& source, WakeWord& wake, Endpointer& end
     }
 }
 
+// Speech-to-text on whole files, no wake word or VAD. Same model, language and prompt as live.
+int transcribe(Stt& stt, int argc, char** argv) {
+    for (int i = 2; i < argc; ++i) {
+        try {
+            WavSource wav(argv[i]);
+            std::vector<int16_t> audio;
+            Chunk chunk;
+            while (wav.read(chunk)) audio.insert(audio.end(), chunk.begin(), chunk.end());
+            const auto t0 = Clock::now();
+            const Transcript t = stt.transcribe(audio);
+            std::cout << argv[i] << "\t" << ms_since(t0) << "\t" << t.text << std::endl;
+        } catch (const std::exception& e) {
+            std::cerr << "[ears] " << argv[i] << ": " << e.what() << std::endl;
+        }
+    }
+    return 0;
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
     install_signal_handlers();
 
     const char* wav = nullptr;
+    const bool stt_only = argc >= 3 && std::strcmp(argv[1], "--transcribe") == 0;
     if (argc == 3 && std::strcmp(argv[1], "--wav") == 0) wav = argv[2];
-    else if (argc != 1) {
-        std::cerr << "usage: " << argv[0] << " [--wav file.wav]" << std::endl;
+    else if (argc != 1 && !stt_only) {
+        std::cerr << "usage: " << argv[0] << " [--wav file.wav | --transcribe file.wav…]" << std::endl;
         return 2;
+    }
+
+    if (stt_only) {
+        try {
+            const Config cfg;
+            Stt stt(cfg.stt);
+            return transcribe(stt, argc, argv);
+        } catch (const std::exception& e) {
+            std::cerr << "[ears] " << e.what() << std::endl;
+            return 1;
+        }
     }
 
     // Everything that can fail on bad config or missing models fails here, before touching MQTT.
