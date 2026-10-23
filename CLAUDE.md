@@ -10,7 +10,8 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 |---|---|
 | `CLAUDE.md` | Roadmap, architecture, decisions, progress, rules (this file) |
 | `buddy-hardware.md` | Current parts and tools |
-| `guides/XX-YY-name.md` | Detailed guide per step, e.g. `guides/01-02-assembly.md` |
+| `guides/XX-YY-name.md` | Detailed guide per step, e.g. `guides/01-12-boot-hardening.md`. Older finished steps are condensed into `guides/01-02-06-summary.md`; keep the 5 newest guides in full |
+| `skeleton/CLAUDE.md` | Code quick reference: service pattern, shared helpers, test entry points |
 
 - Read this file and `buddy-hardware.md` before answering about setup, parts or next steps.
 - The progress table is the current status.
@@ -32,18 +33,9 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 
 | Phase | Step | Status |
 |---|---|---|
-| 1 – Voice | 1.1 Order hardware | ✅ |
-| | 1.2 Assemble the Pi | ⬜ |
-| | 1.3 OS setup | ⬜ |
-| | 1.4 Audio setup | ⬜ |
-| | 1.5 Project skeleton, MQTT & dev workflow | ⬜ |
-| | 1.6 Wake word | 🟨 |
-| | 1.7 Speech-to-text | 🟨 |
-| | 1.8 Brain / intent router | 🟨 |
-| | 1.9 Spotify skill | 🟨 |
-| | 1.10 Voice replies (TTS) | 🟨 |
-| | 1.11 Music ducking & echo cancellation | 🟨 |
-| | 1.12 Run on boot & hardening | ⬜ |
+| 1 – Voice | 1.1 – 1.10 Hardware, OS, audio, skeleton, wake word, STT, brain, Spotify, voice | ✅ |
+| | 1.11 Music ducking & echo cancellation (Dev, needs voice recordings) | 🟨 |
+| | 1.12 Run on boot & hardening (open: Dev's power-cycle test) | 🟨 |
 | 2 – Head | 2.1 – 2.6 | ⬜ |
 | 3 – Hand | 3.1 – 3.4 | ⬜ |
 | 4 – Arm & vision | 4.1 – 4.3 | ⬜ |
@@ -69,6 +61,7 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 | D11 | Intents & replies | brain: regex rules behind `IntentParser` (LLM-replaceable), routes to `buddy/<skill>/cmd`. The service that knows the outcome publishes `buddy/voice/say`. | ✅ |
 | D12 | TTS | libpiper v1.8.0 built from source by `setup-pi.sh` into `/opt/libpiper` (against `/opt/onnxruntime`); voices via `fetch-models.sh`. | ✅ |
 | D13 | Echo cancellation & ducking | PipeWire echo-cancel (WebRTC, monitor mode = reference is everything the Jabra plays) → `buddy_aec_source`. Music plays into virtual sink `buddy_music`; service `mixer` (Pi only) turns it down via `pactl` while ears listens or voice speaks. Config `deploy/pipewire/buddy-audio.conf`. Defaults stay the Jabra. | ✅ |
+| D14 | Recovery | `buddy@.service` is `Type=notify` with `WatchdogSec=60` (READY from `Mqtt::start`, pings from each main loop, `shared/systemd.hpp`, no libsystemd). Crashes restart with backoff 1 → 30 s and never give up. No core files. Soloist starts after NTP sync. | ✅ |
 
 Update this table when a decision is made or changed.
 
@@ -100,20 +93,31 @@ Update this table when a decision is made or changed.
 
 ## Phase 1 – Voice assistant
 
-| Step | Goal | Key tools | Done when |
+| Step | Result | Guide |
+|---|---|---|
+| 1.1 – 1.6 | Pi assembled, OS, PipeWire audio, C++ skeleton + MQTT + CLion workflow, openWakeWord ("hey jarvis") in ears | `guides/01-02-06-summary.md` |
+| 1.7 Speech-to-text | Silero VAD + whisper.cpp (`ggml-base.en`) in ears → `buddy/ears/transcript` | `guides/01-07-speech-to-text.md` |
+| 1.8 / 1.9 Brain & Spotify | Regex intents → `buddy/spotify/cmd`; Soloist + Web API (OAuth PKCE) | `guides/01-08-brain-and-spotify.md` |
+| 1.10 Voice | libpiper TTS, `buddy/voice/say` | `guides/01-10-voice.md` |
+
+| Open step | Goal | Done when | Guide |
 |---|---|---|---|
-| 1.1 Order hardware | All parts on the desk | Spotify Premium account (Web API) | ✅ |
-| 1.2 Assemble the Pi | Cooler fitted, Jabra connected, safe placement | Active Cooler | The Pi powers on |
-| 1.3 OS setup | Headless OS booting from microSD | Raspberry Pi Imager, RPi OS Lite 64-bit, SSH. Hostname `buddy`, SSH key and Wi-Fi set in Imager. | `ssh buddy.local` works |
-| 1.4 Audio setup | Record from and play through the Jabra | PipeWire / WirePlumber, `pw-record` / `pw-play`, `arecord` / `aplay` | A test recording plays back clearly |
-| 1.5 Skeleton, MQTT & workflow | Repo, message bus, service template, edit→build→deploy→test loop | Git (Gitea), Mosquitto, CMake, CLion Full Remote Mode, runtime per D7 | A dummy service publishes, another receives |
-| 1.6 Wake word | Buddy reacts to "Hey buddy" | openWakeWord models run via ONNX Runtime C++ (rhasspy's archived `openwakeword-cpp` as reference). Stock model ("hey jarvis") first. A custom "Hey buddy" model is optional: trained once in a hosted notebook (Google Colab), which outputs an `.onnx` file. No Python in the repo or on the Pi. | Triggers reliably from 2–3 m, few false positives |
-| 1.7 Speech-to-text | Command after wake word → text | Silero VAD (end of speech, via ONNX Runtime C++) + whisper.cpp. English or High German. Pick model size by speed vs accuracy. | "Play Spotify" arrives on MQTT within ~1–2 s |
-| 1.8 Brain | Text → intent → skill topic | Keyword/regex rules (play, pause, next, louder, quieter) behind an interface an LLM can replace later | Transcripts routed to the right skill topic |
-| 1.9 Spotify skill | Control Spotify by voice | Spotify Soloist (Pi = Spotify Connect device), Spotify Web API (Development Mode) via a C++ HTTP client, OAuth refresh, audio via Jabra | "Hey buddy, play Spotify / pause / next song" works |
-| 1.10 Voice replies | Buddy talks back | Piper via libpiper (C++). Short confirmations. | Buddy answers commands audibly |
-| 1.11 Ducking & AEC | Buddy hears you over music | Volume ducking/pause on wake word. PipeWire echo-cancel (WebRTC AEC) only if needed — test the Jabra's own behaviour first. | Wake word works over music at normal volume |
-| 1.12 Boot & hardening | Starts alone, recovers from errors | systemd units, journald, restart policies, audio device detection after boot | After a power cycle, "Hey buddy, play Spotify" works untouched |
+| 1.11 Ducking & AEC (Dev) | Buddy hears you over music: PipeWire echo-cancel, ducking via mixer; optional STT fine-tuning on own voice | Wake word works over music at normal volume | `guides/01-11-ducking-echo-cancel.md`, `guides/01-11-custom-stt.md` |
+| 1.12 Boot & hardening | Starts alone, recovers from crashes/hangs/audio hiccups (D14) | After a power cycle, "Hey Jarvis, play Spotify" works untouched | `guides/01-12-boot-hardening.md` |
+
+### Deferred: needs voice recordings (pick up with/after 1.11)
+
+Measure on real clips (`deploy/record-voice.sh`, then `deploy/stt-eval.sh` / `buddy-ears --wav`), never on synthetic speech alone.
+
+- **STT speed:** whisper's encoder always processes a 30 s window. `whisper_full_params.audio_ctx` sized to the command
+  (≈ 50 per second of audio + margin) should cut `stt_ms` a lot; risk: accuracy on very short commands. Also
+  `temperature_inc = 0` (no re-decoding on uncertain results: lower worst-case latency) and model size (tiny/base/small).
+- **Wake word CPU:** ears idles at ~8 % of one core. Profiled 2026-10-23: `embedding_model.onnx` is 3.7 of 4.2 ms per 80 ms
+  chunk, glue code ~0.25 ms, denormal flushing no effect. Only behaviour-changing options remain: quantized embedding
+  model, or skipping inference during silence. Both need score comparisons on recordings.
+- **Tuning:** `BUDDY_WAKE_THRESHOLD`/`PATIENCE`, VAD silence and level gate, custom "Hey buddy" (summary guide).
+- **1.11 on the Pi:** `pactl` is missing (`pulseaudio-utils` not installed): mixer can't duck until `deploy.sh --setup` runs.
+  `BUDDY_EARS_DEVICE` still `default` (raw mic, no echo cancellation).
 
 ## Phase 2 – Head & personality
 
@@ -177,7 +181,7 @@ buddy/
 | Inner (try things) | CLion Full Remote Mode → Run/Debug. Syncs to `~/buddy/dev` on the Pi, builds Debug there, runs/debugs there. Stop the deployed unit first (same MQTT client id). |
 | Keep | `git commit && git push` (Gitea) |
 | Deploy | `deploy/deploy.sh [service…]` → rsync to `~/buddy/src`, Release build, install to `~/buddy/bin`, restart `buddy@<service>` |
-| Test | `deploy/logs.sh <service>`, `ssh buddy "mosquitto_sub -v -t 'buddy/#'"` |
+| Test | `deploy/logs.sh <service>`, `deploy/status.sh [-l]`, `ssh buddy "mosquitto_sub -v -t 'buddy/#'"` |
 | First-time Pi setup | `deploy/deploy.sh --setup` (runs `deploy/setup-pi.sh`) |
 
 Pi paths: `~/buddy/{dev,src,build-release,bin,config}`. Runtime config: `~/buddy/config/buddy.env` (not in Git). SSH alias `buddy` → `dev@buddy.local`.
@@ -190,7 +194,7 @@ Pi paths: `~/buddy/{dev,src,build-release,bin,config}`. Runtime config: `~/buddy
 - Every service: `buddy/<service>/status` = `online`/`offline` (retained, last will). MQTT client id `buddy-<service>`.
 - Config only via `BUDDY_*` environment variables. Never hard-code hosts.
 - Log to stdout (journald). Keep logs quiet in steady state: microSD wear.
-- New service checklist: folder + CMake target with `install(… COMPONENT <name>)`, `add_subdirectory`, topics in `topics.hpp`, name in `SERVICES` in `deploy.sh`.
+- New service checklist: folder + CMake target with `install(… COMPONENT <name>)`, `add_subdirectory`, topics in `topics.hpp`, name in `SERVICES` in `deploy.sh`, `systemd::notify_watchdog()` in the main loop (D14).
 
 ## Golden rules
 
