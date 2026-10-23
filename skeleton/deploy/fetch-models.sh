@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# Download the ML models ears needs into ~/buddy/models (not in Git: too big). Runs ON the Pi; setup-pi.sh calls it.
+# Download the ML models ears and voice need into ~/buddy/models (not in Git: too big). Runs ON the Pi; setup-pi.sh calls it.
 # Idempotent: existing files are kept.
 #
-# Usage: fetch-models.sh [whisper-model ...]
-#   whisper-model  e.g. ggml-tiny.en.bin, ggml-small.en.bin, ggml-base.bin (multilingual)
-#                  default: ggml-base.en.bin. List: https://huggingface.co/ggerganov/whisper.cpp/tree/main
+# Usage: fetch-models.sh [model ...]
+#   whisper model  ggml-*.bin, e.g. ggml-tiny.en.bin, ggml-small.en.bin, ggml-base.bin (multilingual)
+#                  List: https://huggingface.co/ggerganov/whisper.cpp/tree/main
+#   Piper voice    <locale>-<name>-<quality>, e.g. en_GB-alan-medium, de_DE-thorsten-medium
+#                  List and samples: https://rhasspy.github.io/piper-samples/
+#   default: ggml-base.en.bin en_US-lessac-medium
 set -euo pipefail
 DIR="${BUDDY_MODELS_DIR:-$HOME/buddy/models}"
 mkdir -p "$DIR"
@@ -34,9 +37,20 @@ fetch "$OWW/hey_jarvis_v0.1.onnx" hey_jarvis_v0.1.onnx 94a13cfe60075b132f6a472e7
 fetch https://raw.githubusercontent.com/snakers4/silero-vad/v6.2.3/src/silero_vad/data/silero_vad.onnx \
     silero_vad.onnx 1a153a22f4509e292a94e67d6f9b85e8deb25b4988682b7e174c65279d8788e3
 
-# whisper.cpp GGML models (no pinned checksum: Hugging Face serves the current file)
+# whisper.cpp GGML models and Piper voices (no pinned checksums: Hugging Face serves the current file)
+PIPER=https://huggingface.co/rhasspy/piper-voices/resolve/main
 models=("$@")
-[[ ${#models[@]} -eq 0 ]] && models=(ggml-base.en.bin)
+[[ ${#models[@]} -eq 0 ]] && models=(ggml-base.en.bin en_US-lessac-medium)
 for m in "${models[@]}"; do
-    fetch "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/$m" "$m"
+    if [[ "$m" == ggml-*.bin ]]; then
+        fetch "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/$m" "$m"
+    elif [[ "$m" =~ ^(([a-z]+)_[A-Z]+)-(.+)-(x_low|low|medium|high)$ ]]; then
+        # en_US-lessac-medium → en/en_US/lessac/medium/en_US-lessac-medium.onnx (+ .onnx.json)
+        dir="$PIPER/${BASH_REMATCH[2]}/${BASH_REMATCH[1]}/${BASH_REMATCH[3]}/${BASH_REMATCH[4]}"
+        fetch "$dir/$m.onnx" "$m.onnx"
+        fetch "$dir/$m.onnx.json" "$m.onnx.json"
+    else
+        echo "  ✗ $m: not a whisper model (ggml-*.bin) or Piper voice (en_US-lessac-medium)" >&2
+        exit 1
+    fi
 done

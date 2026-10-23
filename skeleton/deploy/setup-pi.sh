@@ -28,6 +28,27 @@ if [[ ! -f "/opt/onnxruntime-$ORT_VERSION/lib/libonnxruntime.so" ]]; then
 fi
 sudo ln -sfn "/opt/onnxruntime-$ORT_VERSION" /opt/onnxruntime
 
+# libpiper (1.10): Piper's C/C++ library, built from source against the ONNX Runtime above. Its build
+# also downloads and compiles espeak-ng (phonemes) via git. ⚠️ takes several minutes on the Pi.
+PIPER_VERSION=1.8.0
+PIPER_SHA256=0a22987a6157f14e2fb7cf4aa702b547467fd0448bea9f233abd503c3ff4a0e1  # source tarball
+echo "→ libpiper $PIPER_VERSION → /opt/libpiper"
+if [[ ! -f "/opt/libpiper-$PIPER_VERSION/lib/libpiper.so" ]]; then
+    tmp="$(mktemp -d)"
+    curl -fL --progress-bar -o "$tmp/piper.tgz" \
+        "https://github.com/OHF-Voice/piper1-gpl/archive/refs/tags/v$PIPER_VERSION.tar.gz"
+    echo "$PIPER_SHA256  $tmp/piper.tgz" | sha256sum -c --quiet
+    tar xzf "$tmp/piper.tgz" -C "$tmp"
+    cmake -S "$tmp/piper1-gpl-$PIPER_VERSION/libpiper" -B "$tmp/build" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DONNXRUNTIME_DIR=/opt/onnxruntime \
+        -DCMAKE_INSTALL_PREFIX="/opt/libpiper-$PIPER_VERSION" > /dev/null
+    cmake --build "$tmp/build"
+    sudo cmake --install "$tmp/build" > /dev/null
+    rm -rf "$tmp"
+fi
+sudo ln -sfn "/opt/libpiper-$PIPER_VERSION" /opt/libpiper
+
 # Spotify Connect (1.9): raspotify's .deb only for its librespot binary. Pinned like ONNX Runtime;
 # to update, change all three (https://github.com/dtcooper/raspotify/releases).
 RASPOTIFY_VERSION=0.48.4
@@ -63,7 +84,7 @@ install -m 644 systemd/buddy-librespot.service ~/.config/systemd/user/
 systemctl --user daemon-reload
 systemctl --user enable --now buddy-librespot
 
-echo "→ models (wake word, VAD, speech-to-text)"
+echo "→ models (wake word, VAD, speech-to-text, voice)"
 bash ./fetch-models.sh
 
 echo "✓ setup done"

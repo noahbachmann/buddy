@@ -18,6 +18,18 @@ set_target_properties(onnxruntime::onnxruntime PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES ${ONNXRUNTIME_INCLUDE_DIR}
 )
 
+# libpiper (text-to-speech, step 1.10): built from source by deploy/setup-pi.sh into /opt/libpiper, against
+# the ONNX Runtime above. Not FetchContent: its CMakeLists reads ${CMAKE_SOURCE_DIR}/../setup.py, so it only
+# builds as its own top-level project. Its espeak-ng data lands in /opt/libpiper/share/espeak-ng-data.
+set(LIBPIPER_ROOT /opt/libpiper CACHE PATH "libpiper install prefix")
+find_path(LIBPIPER_INCLUDE_DIR piper.h PATHS ${LIBPIPER_ROOT}/include NO_DEFAULT_PATH REQUIRED)
+find_library(LIBPIPER_LIBRARY piper PATHS ${LIBPIPER_ROOT}/lib NO_DEFAULT_PATH REQUIRED)
+add_library(piper::piper SHARED IMPORTED GLOBAL)
+set_target_properties(piper::piper PROPERTIES
+    IMPORTED_LOCATION ${LIBPIPER_LIBRARY}
+    INTERFACE_INCLUDE_DIRECTORIES ${LIBPIPER_INCLUDE_DIR}
+)
+
 # whisper.cpp (speech-to-text, step 1.7). Static, CPU only; GGML_NATIVE tunes it for the CPU it is
 # built on, which is the Pi itself (D6).
 # CMP0077 NEW: whisper's option() calls must respect the variables set here (its CMakeLists is old-style).
