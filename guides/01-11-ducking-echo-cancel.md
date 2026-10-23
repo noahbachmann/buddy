@@ -157,7 +157,7 @@ Expected: in `test-aec.wav` the music is much quieter or gone, and your voice is
 ### 5. Switch ears to the echo-cancelled mic
 
 ```bash
-nano ~/buddy/config/buddy.env
+micro ~/buddy/config/buddy.env
 ```
 
 Add (or uncomment and change):

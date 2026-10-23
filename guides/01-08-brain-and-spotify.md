@@ -125,7 +125,7 @@ New in the setup output:
 The Soloist key goes into its **own** file (only the sandboxed Soloist reads it):
 
 ```bash
-nano ~/buddy/config/soloist.env
+micro ~/buddy/config/soloist.env
 ```
 
 ```bash
@@ -136,7 +136,7 @@ SOLOIST_DEVICE_NAME=Buddy
 The Client ID goes into `buddy.env` (uncomment the line):
 
 ```bash
-nano ~/buddy/config/buddy.env
+micro ~/buddy/config/buddy.env
 ```
 
 ```bash

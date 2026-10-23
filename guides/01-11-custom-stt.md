@@ -40,7 +40,7 @@ Commands run in your SSH session on the Pi unless marked **on the PC**.
 
 ```bash
 bash ~/buddy/src/deploy/record-voice.sh
-nano ~/buddy/voice-data/prompts.txt
+micro ~/buddy/voice-data/prompts.txt
 ```
 
 The first run only creates `prompts.txt`. Replace the example artists, songs and playlists with ones you'd really ask for, especially those whisper gets wrong. Write each line the way it should be transcribed ("Play Around the World by Daft Punk."). Aim for 50–80 lines.
@@ -66,7 +66,7 @@ Use different sentences than in training, or at least a different day and positi
 ```bash
 mkdir -p ~/buddy/voice-test
 cp ~/buddy/voice-data/prompts.txt ~/buddy/voice-test/prompts.txt
-nano ~/buddy/voice-test/prompts.txt      # rephrase lines, add 5–10 new ones
+micro ~/buddy/voice-test/prompts.txt      # rephrase lines, add 5–10 new ones
 bash ~/buddy/src/deploy/record-voice.sh ~/buddy/voice-test
 ```
 
