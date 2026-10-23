@@ -60,6 +60,10 @@ RuleParser::RuleParser() {
     add(R"((turn (it|the music|the volume|this) down|turn down (the )?(music|volume)|(make it )?(quieter|softer)|volume down))",
         "volume_down");
     add(R"((resume|continue|unpause)( (the )?(music|spotify|playing|playback|song))?)", "play");
+    // Own playlists: "play my playlist chill vibes", "play my chill vibes playlist", "play my playlist"
+    add(R"(play (from )?my (playlist|list)( on spotify)?)", "play_playlist");
+    add(R"(play (from )?my (playlist|list) (.+?)( on spotify)?)", "play_playlist", 3);
+    add(R"(play my (.+?) (playlist|list)( on spotify)?)", "play_playlist", 1);
     add(R"(play (.+?)( on spotify)?)", "play", 1);
     add(R"(play|music)", "play");
 }
