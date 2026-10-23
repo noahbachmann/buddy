@@ -1,6 +1,7 @@
 // spotify: voice commands → Spotify Web API, played by Spotify Soloist ("Buddy" Spotify Connect device) on the Pi.
 //
-//   buddy-spotify                      live: buddy/spotify/cmd in, buddy/spotify/state + buddy/voice/say out
+//   buddy-spotify                      live: buddy/spotify/cmd in, buddy/spotify/state + buddy/voice/say out;
+//                                      buddy/ears/wake warms up token, connection and device (Player::warm_up)
 //   buddy-spotify --login              once: OAuth login, saves the refresh token
 //   buddy-spotify --cmd <action> [q]   test: runs one command and prints the result (no MQTT)
 //
@@ -45,7 +46,7 @@ struct Config {
 };
 
 struct Command {
-    std::string action;
+    std::string action;  // empty = warm-up
     std::string query;
 };
 
@@ -58,12 +59,14 @@ int serve(Player& player, Auth& auth) {
     Mqtt mqtt("spotify", mqtt_config_from_env());
     mqtt.subscribe(topic::spotify_cmd, [&](const std::string&, const std::string& payload) {
         const auto msg = json::parse(payload, nullptr, /*allow_exceptions=*/false);
-        if (msg.is_discarded() || !msg.contains("action") || !msg["action"].is_string()) {
+        if (msg.is_discarded() || !msg.contains("action") || !msg["action"].is_string() || msg["action"] == "") {
             std::cout << "[spotify] bad command: " << payload << std::endl;
             return;
         }
         queue.push({msg["action"], msg.value("query", "")});
     });
+    // Most commands come right after a wake word: do the slow parts while the user is still talking.
+    mqtt.subscribe(topic::ears_wake, [&](const std::string&, const std::string&) { queue.push({}); });
     if (!mqtt.start()) return 0;
 
     json state = {{"playing", nullptr}, {"volume", nullptr}};
@@ -71,6 +74,10 @@ int serve(Player& player, Auth& auth) {
         systemd::notify_watchdog();
         const auto cmd = queue.pop(std::chrono::milliseconds(200));
         if (!cmd) continue;
+        if (cmd->action.empty()) {
+            player.warm_up();
+            continue;
+        }
         const auto t0 = std::chrono::steady_clock::now();
         const Result r = player.run(cmd->action, cmd->query);
         const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0);

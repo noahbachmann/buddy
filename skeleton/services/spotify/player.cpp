@@ -137,8 +137,31 @@ Result Player::run(const std::string& action, const std::string& query) {
     }
 }
 
+void Player::warm_up() {
+    try {
+        warm_device_ = device();
+        warmed_at_ = std::chrono::steady_clock::now();
+    } catch (const std::exception& e) {
+        warm_device_.reset();
+        std::cout << "[spotify] warm-up: " << e.what() << std::endl;
+    }
+}
+
 Result Player::dispatch(const std::string& action, const std::string& query) {
-    const Device d = device();
+    // A warmed-up device is used once: its volume and "active" flag are only seconds old.
+    const bool warm = warm_device_ && std::chrono::steady_clock::now() - warmed_at_ < std::chrono::seconds(15);
+    const std::optional<Device> cached = std::exchange(warm_device_, std::nullopt);
+    if (!warm) return dispatch(device(), action, query);
+    try {
+        return dispatch(*cached, action, query);
+    } catch (const Failure& e) {
+        if (e.status != 404) throw;  // 404 = device id gone (Soloist restarted since the warm-up): look it up again
+        std::cout << "[spotify] " << action << ": " << e.what() << ", retrying with a fresh device lookup" << std::endl;
+        return dispatch(device(), action, query);
+    }
+}
+
+Result Player::dispatch(const Device& d, const std::string& action, const std::string& query) {
     const std::string on = "?device_id=" + d.id;
 
     if (action == "play") return play(d, query);
@@ -295,10 +318,10 @@ void Player::expect_ok(const HttpResponse& r, const std::string& what) {
     if (r.status / 100 == 2) return;
     const std::string reason = error_reason(r);
     const std::string detail = what + ": HTTP " + std::to_string(r.status) + " " + reason;
-    if (reason == "PREMIUM_REQUIRED") throw Failure(detail, "Spotify Premium is required for that.");
-    if (r.status == 429) throw Failure(detail, "Spotify is busy, try again in a minute.");
-    if (r.status == 404) throw Failure(detail, "There's nothing to play on " + cfg_.device_name + ".");
-    throw Failure(detail, "Spotify didn't accept that.");
+    if (reason == "PREMIUM_REQUIRED") throw Failure(detail, "Spotify Premium is required for that.", r.status);
+    if (r.status == 429) throw Failure(detail, "Spotify is busy, try again in a minute.", r.status);
+    if (r.status == 404) throw Failure(detail, "There's nothing to play on " + cfg_.device_name + ".", r.status);
+    throw Failure(detail, "Spotify didn't accept that.", r.status);
 }
 
 } // namespace buddy::spotify

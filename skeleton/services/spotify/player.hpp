@@ -1,8 +1,10 @@
 #pragma once
 // Spotify Web API player calls for one Spotify Connect device: Spotify Soloist on the Pi, named "Buddy".
 // Every command first looks the device up (GET /me/player/devices), so it also works right after
-// Soloist restarted with a new device id.
+// Soloist restarted with a new device id. warm_up() does that lookup ahead of time (on the wake word, while
+// the user is still talking); the next command within 15 s uses it and saves a round trip.
 
+#include <chrono>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -35,6 +37,10 @@ public:
     // Result{ok = false, say = "…"} and a log line.
     Result run(const std::string& action, const std::string& query);
 
+    // Refreshes the access token, opens the HTTPS connection and looks the device up. Never throws; failures
+    // are only logged (the command that follows reports them properly).
+    void warm_up();
+
 private:
     struct Device {
         std::string id;
@@ -43,11 +49,14 @@ private:
     };
     // Error with a short sentence for voice; what() is the detail for the log.
     struct Failure : std::runtime_error {
-        Failure(const std::string& detail, std::string say) : std::runtime_error(detail), say(std::move(say)) {}
+        Failure(const std::string& detail, std::string say, long status = 0)
+            : std::runtime_error(detail), say(std::move(say)), status(status) {}
         std::string say;
+        long status;  // HTTP status, 0 = not an HTTP error
     };
 
     Result dispatch(const std::string& action, const std::string& query);
+    Result dispatch(const Device& d, const std::string& action, const std::string& query);
     Result play(const Device& d, const std::string& query);
     Result play_playlist(const Device& d, const std::string& name);  // your own/followed; empty = default
     HttpResponse api(const std::string& method, const std::string& path, const nlohmann::json& body = nullptr);
@@ -57,6 +66,8 @@ private:
     PlayerConfig cfg_;
     Auth& auth_;
     Http& http_;
+    std::optional<Device> warm_device_;
+    std::chrono::steady_clock::time_point warmed_at_{};
 };
 
 } // namespace buddy::spotify
