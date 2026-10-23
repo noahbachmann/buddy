@@ -159,14 +159,7 @@ Subtract the times you said it. Target ⚠️: ≤ 1 false trigger per few hours
 
 ## Optional: custom "Hey buddy" model
 
-⚠️ Not tested yet. openWakeWord ships a training notebook that generates thousands of synthetic "hey buddy" clips with TTS, trains the small third model and exports an `.onnx`, all in Google Colab (free GPU, ~1 h). Nothing Python lands in the repo or on the Pi (D5).
-
-1. Open the "automatic model training" notebook linked in the openWakeWord README (`notebooks/automatic_model_training.ipynb`) in Colab.
-2. Target phrase `hey buddy`; also try spellings like `hey buddie` if pronunciation comes out wrong. Run all cells.
-3. Download `hey_buddy.onnx` → `scp hey_buddy.onnx buddy:buddy/models/`.
-4. In `~/buddy/config/buddy.env`: `BUDDY_WAKE_MODEL=hey_buddy.onnx`, restart, redo steps 4–5.
-
-"Buddy" is short and common in speech, so expect more false triggers than "Hey Jarvis". Keep the stock model if the custom one isn't clearly better.
+See `guides/01-06-custom-wake-word.md`. openWakeWord's own training notebook is broken on current Colab, so that guide uses a community notebook that patches it, and compares the result against Jarvis before you switch.
 
 ## Notes for later phases
 
