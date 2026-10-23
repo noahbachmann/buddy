@@ -145,25 +145,27 @@ Update this table when a decision is made or changed.
 
 ---
 
-## Repo structure (planned)
+## Repo structure
 
 ```
 buddy/
 ├── CLAUDE.md                ← this file
 ├── buddy-hardware.md        ← current hardware & software
 ├── guides/                  ← one guide per step
-├── shared/                  ← MQTT topic constants (one header) + shared C++ helpers
-├── services/
-│   ├── ears/                ← wake word, VAD, STT
-│   ├── brain/               ← intent routing
-│   ├── voice/               ← TTS
-│   ├── spotify/             ← Spotify skill
-│   ├── mixer/               ← music ducking
-│   └── motion/              ← Pi side of motor control
-├── firmware/
-│   └── pico/                ← servo & display control
-├── cad/                     ← Onshape exports (STEP)
-└── deploy/                  ← systemd units, configs, deploy scripts
+├── skeleton/                ← C++ project root (CMake); paths below and in "Dev workflow" are relative to it
+│   ├── shared/              ← MQTT topic constants (one header) + shared C++ helpers
+│   ├── third_party/         ← ONNX Runtime, libpiper (prebuilt in /opt), whisper.cpp (FetchContent)
+│   ├── services/
+│   │   ├── ping/, pong/     ← MQTT smoke test (1.5)
+│   │   ├── ears/            ← wake word, VAD, STT
+│   │   ├── brain/           ← intent routing
+│   │   ├── voice/           ← TTS
+│   │   ├── spotify/         ← Spotify skill
+│   │   ├── mixer/           ← music ducking
+│   │   └── motion/          ← Pi side of motor control (planned)
+│   └── deploy/              ← systemd units, PipeWire config, setup/deploy/model scripts
+├── parts/                   ← printable parts: STLs, arm/ in parametric OpenSCAD
+└── firmware/pico/           ← servo & display control (planned)
 ```
 
 ---
