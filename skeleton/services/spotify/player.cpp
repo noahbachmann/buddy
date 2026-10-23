@@ -165,7 +165,7 @@ Player::Device Player::device() {
         return {.id = d["id"], .active = d.value("is_active", false),
                 .volume = d["volume_percent"].is_number() ? d["volume_percent"].get<int>() : 50};
     }
-    throw Failure("device \"" + cfg_.device_name + "\" not found (librespot not running or not logged in?)",
+    throw Failure("device \"" + cfg_.device_name + "\" not found (buddy-soloist not running or not paired?)",
                   "Spotify isn't running on " + cfg_.device_name + ".");
 }
 

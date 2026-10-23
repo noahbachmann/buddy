@@ -1,7 +1,7 @@
 #pragma once
-// Spotify Web API player calls for one Spotify Connect device: librespot on the Pi, named "Buddy".
+// Spotify Web API player calls for one Spotify Connect device: Spotify Soloist on the Pi, named "Buddy".
 // Every command first looks the device up (GET /me/player/devices), so it also works right after
-// librespot restarted with a new device id.
+// Soloist restarted with a new device id.
 
 #include <optional>
 #include <stdexcept>
@@ -15,7 +15,7 @@
 namespace buddy::spotify {
 
 struct PlayerConfig {
-    std::string device_name = "Buddy";  // BUDDY_SPOTIFY_DEVICE = librespot --name
+    std::string device_name = "Buddy";  // BUDDY_SPOTIFY_DEVICE = soloist --device-name
     int volume_step = 10;               // BUDDY_SPOTIFY_VOLUME_STEP, percent
     std::string default_uri;            // BUDDY_SPOTIFY_DEFAULT_URI, played when there is nothing to resume
 };

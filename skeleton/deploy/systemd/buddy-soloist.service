@@ -1,0 +1,38 @@
+# Spotify Connect device "Buddy": Spotify Soloist, Spotify's official headless Connect client.
+# Replaces librespot, which Spotify refuses audio keys for on many accounts (librespot issue #1649).
+# User unit: plays through the user's PipeWire session (PulseAudio protocol via pipewire-pulse).
+#
+# Needs BUDDY_SOLOIST_API_KEY in buddy.env (developer dashboard → Spotify Soloist API Key, Premium).
+# Pairing (once): Spotify app on a phone/PC in the same Wi-Fi → devices → "Buddy".
+# The binary is installed and kept current by deploy/soloist-update.sh (buddy-soloist-update.timer).
+[Unit]
+Description=Buddy: Spotify Connect (Spotify Soloist)
+After=pipewire.service pipewire-pulse.service
+Wants=pipewire-pulse.service
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+Type=simple
+# Device name = what buddy-spotify looks for. buddy.env may override it.
+Environment=BUDDY_SPOTIFY_DEVICE=Buddy
+EnvironmentFile=-%h/buddy/config/buddy.env
+ExecStartPre=/bin/sh -c '[ -n "$BUDDY_SOLOIST_API_KEY" ] || { echo "BUDDY_SOLOIST_API_KEY is not set in ~/buddy/config/buddy.env"; exit 1; }'
+# Soloist restores its login once at start and doesn't retry; at boot the network may not be up yet.
+# Wait up to 2 min until Spotify resolves, then start anyway.
+ExecStartPre=/bin/sh -c 'end=$$(($$(date +%%s) + 120)); while [ "$$(date +%%s)" -lt "$$end" ]; do timeout 3 getent ahosts apresolve.spotify.com >/dev/null 2>&1 && exit 0; sleep 2; done; exit 0'
+TimeoutStartSec=3min
+# ⚠️ The API key is visible in `ps` (Soloist only takes it as an argument).
+# --cache-size in MB: small, to spare the microSD. --ws: local WebSocket API on loopback only (for 1.11).
+ExecStart=%h/buddy/bin/soloist \
+    --device-name ${BUDDY_SPOTIFY_DEVICE} \
+    --api-key ${BUDDY_SOLOIST_API_KEY} \
+    --cache-size 512 \
+    --ws 127.0.0.1:24879
+Restart=on-failure
+RestartSec=10
+# Exit code 10 = build expired: restarting won't help, the update timer fetches a new build.
+RestartPreventExitStatus=10
+
+[Install]
+WantedBy=default.target

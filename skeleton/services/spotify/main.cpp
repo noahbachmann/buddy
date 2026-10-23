@@ -1,4 +1,4 @@
-// spotify: voice commands → Spotify Web API, played by librespot ("Buddy" Spotify Connect device) on the Pi.
+// spotify: voice commands → Spotify Web API, played by Spotify Soloist ("Buddy" Spotify Connect device) on the Pi.
 //
 //   buddy-spotify                      live: buddy/spotify/cmd in, buddy/spotify/state + buddy/voice/say out
 //   buddy-spotify --login              once: OAuth login, saves the refresh token

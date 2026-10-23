@@ -52,22 +52,13 @@ if [[ ! -f "/opt/libpiper-$PIPER_VERSION/lib/libpiper.so" ]]; then
 fi
 sudo ln -sfn "/opt/libpiper-$PIPER_VERSION" /opt/libpiper
 
-# Spotify Connect (1.9): raspotify's .deb only for its librespot binary. Pinned like ONNX Runtime;
-# to update, change all three (https://github.com/dtcooper/raspotify/releases).
-RASPOTIFY_VERSION=0.48.4
-RASPOTIFY_DEB=raspotify_0.48.4.librespot.v0.8.0-99b6088_arm64.deb
-RASPOTIFY_SHA256=4d272678f475ad18961563951b6c36e5395c8a85b8d5607d1e3e9f94671108e2
-echo "→ librespot (raspotify $RASPOTIFY_VERSION)"
-if [[ "$(dpkg-query -W -f='${Version}' raspotify 2>/dev/null || true)" != "$RASPOTIFY_VERSION"~* ]]; then
-    tmp="$(mktemp -d)"
-    curl -fL --progress-bar -o "$tmp/$RASPOTIFY_DEB" \
-        "https://github.com/dtcooper/raspotify/releases/download/$RASPOTIFY_VERSION/$RASPOTIFY_DEB"
-    echo "$RASPOTIFY_SHA256  $tmp/$RASPOTIFY_DEB" | sha256sum -c --quiet
-    sudo apt-get install -y "$tmp/$RASPOTIFY_DEB"
-    rm -rf "$tmp"
+# Before 2026-10-23 Buddy used librespot (raspotify .deb); Spotify refuses it audio keys. Remove it.
+if systemctl --user cat buddy-librespot >/dev/null 2>&1; then
+    echo "→ removing librespot (replaced by Soloist)"
+    systemctl --user disable --now buddy-librespot 2>/dev/null || true
+    rm -rf ~/.config/systemd/user/buddy-librespot.service ~/.cache/librespot
 fi
-# Its system service can't reach our PipeWire session; buddy-librespot (user unit) replaces it.
-sudo systemctl disable --now raspotify 2>/dev/null || true
+if dpkg-query -W raspotify >/dev/null 2>&1; then sudo apt-get purge -y raspotify; fi
 
 echo "→ mosquitto (localhost only for now)"
 sudo systemctl enable --now mosquitto
@@ -82,10 +73,20 @@ if [[ ! -f ~/buddy/config/buddy.env ]]; then
 fi
 chmod 600 ~/buddy/config/buddy.env
 
-echo "→ librespot user unit"
-install -m 644 systemd/buddy-librespot.service ~/.config/systemd/user/
+# Spotify Connect (1.9): Spotify Soloist in ~/buddy/bin, kept current by a weekly timer.
+# buddy-soloist starts once BUDDY_SOLOIST_API_KEY is in buddy.env (guide 1.8, step 3).
+echo "→ Spotify Soloist"
+bash ./soloist-update.sh
+install -m 644 systemd/buddy-soloist.service systemd/buddy-soloist-update.service \
+    systemd/buddy-soloist-update.timer ~/.config/systemd/user/
 systemctl --user daemon-reload
-systemctl --user enable --now buddy-librespot
+systemctl --user enable --now buddy-soloist-update.timer
+systemctl --user enable buddy-soloist
+if grep -q '^BUDDY_SOLOIST_API_KEY=.' ~/buddy/config/buddy.env; then
+    systemctl --user restart buddy-soloist
+else
+    echo "  ⚠ BUDDY_SOLOIST_API_KEY not set in ~/buddy/config/buddy.env: buddy-soloist not started"
+fi
 
 echo "→ models (wake word, VAD, speech-to-text, voice)"
 bash ./fetch-models.sh
