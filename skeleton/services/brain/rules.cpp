@@ -14,6 +14,8 @@ const std::vector<std::pair<std::regex, std::string>>& rewrites() {
         // politeness and addressing, at either end
         {std::regex(R"(^(hey |ok |okay )?(buddy |jarvis )?(please |can you |could you |would you |will you )*)"), ""},
         {std::regex(R"(( please| for me| buddy| thanks| thank you)+$)"), ""},
+        // whisper sometimes hears "play" as past tense or third person
+        {std::regex(R"(^(played|plays|playing) )"), "play "},
     };
     return r;
 }
