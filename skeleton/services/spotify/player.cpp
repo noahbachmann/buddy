@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cctype>
 #include <iostream>
+#include <utility>
+#include <vector>
 
 namespace buddy::spotify {
 
@@ -42,6 +44,27 @@ json best_item(const json& results, const char* type, const std::string& name) {
         if (first.is_null()) first = item;
     }
     return first;
+}
+
+// How well a playlist name matches what was said: exact (ignoring case/punctuation) > contains it >
+// number of spoken words found in the name. 0 = no match. Tolerates whisper dropping or adding a word.
+int match_score(const std::string& name, const std::string& spoken) {
+    if (squash(name) == squash(spoken)) return 1000;
+    if (!squash(spoken).empty() && squash(name).find(squash(spoken)) != std::string::npos) return 500;
+    auto words = [](const std::string& s) {
+        std::vector<std::string> out;
+        std::string w;
+        for (const unsigned char c : s + " ") {
+            if (std::isalnum(c)) w += static_cast<char>(std::tolower(c));
+            else if (!w.empty()) out.push_back(std::exchange(w, ""));
+        }
+        return out;
+    };
+    const auto in_name = words(name);
+    int score = 0;
+    for (const auto& w : words(spoken))
+        if (std::find(in_name.begin(), in_name.end(), w) != in_name.end()) ++score;
+    return score;
 }
 
 Result failed(std::string say) {
@@ -91,6 +114,7 @@ Result Player::dispatch(const std::string& action, const std::string& query) {
     const std::string on = "?device_id=" + d.id;
 
     if (action == "play") return play(d, query);
+    if (action == "play_playlist") return play_playlist(d, query);
     if (action == "pause") {
         const auto r = api("PUT", "/me/player/pause" + on);
         if (r.status != 403) expect_ok(r, "pause");  // 403 = already paused
@@ -174,6 +198,43 @@ Result Player::play(const Device& d, const std::string& query) {
         expect_ok(r, "resume");
     }
     return playing(true);
+}
+
+Result Player::play_playlist(const Device& d, const std::string& name) {
+    if (name.empty()) {
+        if (cfg_.default_uri.empty())
+            throw Failure("\"play my playlist\" without a name, but BUDDY_SPOTIFY_DEFAULT_URI is not set",
+                          "Which playlist? You haven't set a default one.");
+        expect_ok(api("PUT", "/me/player/play?device_id=" + d.id, {{"context_uri", cfg_.default_uri}}), "play");
+        return playing(true);
+    }
+
+    // All playlists you own or follow, 50 per page; 200 is plenty for voice selection.
+    json best = nullptr;
+    int best_score = 0;
+    for (int offset = 0; offset < 200; offset += 50) {
+        const auto r = api("GET", "/me/playlists?limit=50&offset=" + std::to_string(offset));
+        if (r.status == 401 || r.status == 403)  // login from before playlist scopes were requested
+            throw Failure("playlists: HTTP " + std::to_string(r.status) + " " + error_reason(r) +
+                              " (run buddy-spotify --login again for the playlist permission)",
+                          "I'm not allowed to read your playlists yet. Please log in to Spotify again.");
+        expect_ok(r, "playlists");
+        const json page = json::parse(r.body);
+        for (const auto& p : page["items"]) {
+            if (!p.is_object() || !p["name"].is_string()) continue;
+            const int score = match_score(p["name"], name);
+            if (score > best_score) {
+                best_score = score;
+                best = p;
+            }
+        }
+        if (page["items"].size() < 50 || best_score == 1000) break;
+    }
+    if (best.is_null())
+        throw Failure("no own playlist matches \"" + name + "\"", "I couldn't find your playlist " + name + ".");
+
+    expect_ok(api("PUT", "/me/player/play?device_id=" + d.id, {{"context_uri", best["uri"]}}), "play");
+    return playing(true, "Playing your playlist " + best["name"].get<std::string>() + ".");
 }
 
 Player::Device Player::device() {

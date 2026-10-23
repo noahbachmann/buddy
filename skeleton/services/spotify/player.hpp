@@ -31,7 +31,7 @@ class Player {
 public:
     Player(PlayerConfig cfg, Auth& auth, Http& http);
 
-    // action: play, pause, next, previous, volume_up, volume_down. Never throws: errors become
+    // action: play, play_playlist, pause, next, previous, volume_up, volume_down. Never throws: errors become
     // Result{ok = false, say = "…"} and a log line.
     Result run(const std::string& action, const std::string& query);
 
@@ -49,6 +49,7 @@ private:
 
     Result dispatch(const std::string& action, const std::string& query);
     Result play(const Device& d, const std::string& query);
+    Result play_playlist(const Device& d, const std::string& name);  // your own/followed; empty = default
     HttpResponse api(const std::string& method, const std::string& path, const nlohmann::json& body = nullptr);
     void expect_ok(const HttpResponse& r, const std::string& what);
     Device device();
