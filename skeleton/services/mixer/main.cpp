@@ -8,15 +8,15 @@
 // Runs on the Pi: it controls the local PipeWire session.
 //
 // Config (env, see deploy/buddy.env.example): BUDDY_MIXER_*
-#include <atomic>
 #include <chrono>
 #include <cmath>
+#include <condition_variable>
 #include <cstdio>
 #include <cstring>
 #include <iostream>
+#include <mutex>
 #include <optional>
 #include <string>
-#include <thread>
 
 #include <spawn.h>
 #include <sys/wait.h>
@@ -89,8 +89,17 @@ int main(int argc, char** argv) {
         return ok ? 0 : 1;
     }
 
-    // Set from Paho's thread, read by the loop below.
-    std::atomic<bool> listening{false}, speaking{false};
+    // Set from Paho's thread, read by the loop below; the loop sleeps until one of them changes.
+    std::mutex mutex;
+    std::condition_variable changed;
+    bool listening = false, speaking = false;
+    auto set = [&](bool& flag, bool value) {
+        {
+            std::lock_guard lock(mutex);
+            flag = value;
+        }
+        changed.notify_one();
+    };
     auto state_of = [](const std::string& payload) {
         const auto msg = json::parse(payload, nullptr, /*allow_exceptions=*/false);
         return msg.is_object() ? msg.value("state", "") : std::string();
@@ -99,10 +108,10 @@ int main(int argc, char** argv) {
     Mqtt mqtt("mixer", mqtt_config_from_env());
     mqtt.subscribe(topic::ears_state, [&](const std::string&, const std::string& payload) {
         const auto s = state_of(payload);
-        listening = s == "listening" || s == "transcribing";
+        set(listening, s == "listening" || s == "transcribing");
     });
     mqtt.subscribe(topic::voice_state, [&](const std::string&, const std::string& payload) {
-        speaking = state_of(payload) == "speaking";
+        set(speaking, state_of(payload) == "speaking");
     });
 
     // A crash or power cut may have left the music ducked.
@@ -116,17 +125,26 @@ int main(int argc, char** argv) {
 
     // Restore only after hold_ms of quiet: between the end of the transcript and the reply (brain → skill →
     // voice) nothing is "busy", and the music shouldn't jump up and down again.
-    bool ducked = false;
+    bool ducked = false, was_busy = false;
     auto quiet_since = Clock::now();
     while (running()) {
         systemd::notify_watchdog();
-        std::this_thread::sleep_for(std::chrono::milliseconds(20));
-        const bool busy = listening || speaking;
+        bool busy;
+        {
+            // Wake on a state change; otherwise at the end of the hold time, or after 200 ms to re-check running().
+            std::unique_lock lock(mutex);
+            auto deadline = Clock::now() + std::chrono::milliseconds(200);
+            if (ducked && !listening && !speaking)
+                deadline = std::min(deadline, quiet_since + std::chrono::milliseconds(cfg->hold_ms));
+            changed.wait_until(lock, deadline);
+            busy = listening || speaking;
+        }
+        if (!busy && was_busy) quiet_since = Clock::now();  // hold counts from the end of activity
+        was_busy = busy;
         if (busy) {
-            quiet_since = Clock::now();
             if (!ducked) {
                 if (!set_volume(cfg->sink, ducked_factor)) std::cout << "[mixer] duck failed" << std::endl;
-                ducked = true;  // even on failure: don't retry 50× per second
+                ducked = true;  // even on failure: don't retry on every wake-up
                 publish(true);
             }
         } else if (ducked && Clock::now() - quiet_since >= std::chrono::milliseconds(cfg->hold_ms)) {
