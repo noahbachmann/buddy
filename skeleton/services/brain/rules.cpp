@@ -16,6 +16,8 @@ const std::vector<std::pair<std::regex, std::string>>& rewrites() {
         {std::regex(R"(( please| for me| buddy| thanks| thank you)+$)"), ""},
         // whisper sometimes hears "play" as past tense or third person
         {std::regex(R"(^(played|plays|playing) )"), "play "},
+        // ... and "my" as "mode", "ma", "me", … in "play my playlist"
+        {std::regex(R"(^play (from )?(mode|ma|mai|me|mi|mine|mike) (playlist|list)\b)"), "play $1my $3"},
     };
     return r;
 }
