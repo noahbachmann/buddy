@@ -24,9 +24,11 @@ EnvironmentFile=-%h/buddy/config/soloist.env
 # back to the default sink: music plays, just without ducking.
 Environment=PULSE_SINK=buddy_music
 ExecStartPre=/bin/sh -c '[ -n "$SOLOIST_API_KEY" ] || { echo "SOLOIST_API_KEY is not set in ~/buddy/config/soloist.env"; exit 1; }'
-# Soloist restores its login once at start and doesn't retry; at boot the network may not be up yet.
-# Wait up to 2 min until Spotify resolves, then start anyway.
-ExecStartPre=/bin/sh -c 'end=$$(($$(date +%%s) + 120)); while [ "$$(date +%%s)" -lt "$$end" ]; do timeout 3 getent ahosts apresolve.spotify.com >/dev/null 2>&1 && exit 0; sleep 2; done; exit 0'
+# Soloist restores its login once at start and doesn't retry; at boot the network may not be up yet, and the
+# clock is hours behind until NTP syncs (~35 s after boot, the Pi has no RTC battery). ⚠️ A login with the
+# wrong clock is the suspected cause of "device Buddy not found" hours later (seen 2026-10-23, 1.12).
+# Wait up to 2 min until Spotify resolves and the clock is synced (timesyncd's flag file), then start anyway.
+ExecStartPre=/bin/sh -c 'end=$$(($$(date +%%s) + 120)); while [ "$$(date +%%s)" -lt "$$end" ]; do [ -e /run/systemd/timesync/synchronized ] && timeout 3 getent ahosts apresolve.spotify.com >/dev/null 2>&1 && exit 0; sleep 2; done; exit 0'
 TimeoutStartSec=3min
 # ⚠️ The API key is visible in `ps` (Soloist only takes it as an argument).
 # --data-dir: pairing/login, --cache-dir: streamed audio (small, microSD wear). --ws: local WebSocket API,
