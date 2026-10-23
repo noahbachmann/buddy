@@ -43,9 +43,11 @@ RestartPreventExitStatus=10
 # blocks here one by one to find the culprit, and tell Claude)
 # Files: the whole home is replaced by an empty tmpfs; only the binary (read-only) and Soloist's own
 # folders (setup-pi.sh creates them) are mapped back in. The rest of the system is read-only.
+# ProtectHome also empties /run/user/<uid> (%t): map back the PulseAudio socket folder of
+# pipewire-pulse, its only way to play audio. Nothing else from the runtime dir.
 ProtectHome=tmpfs
 BindReadOnlyPaths=%h/buddy/bin/soloist
-BindPaths=%h/.local/share/soloist %h/.cache/soloist
+BindPaths=%h/.local/share/soloist %h/.cache/soloist %t/pulse
 ProtectSystem=strict
 PrivateTmp=yes
 PrivateDevices=yes
