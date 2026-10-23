@@ -29,6 +29,8 @@ TimeoutStopSec=10
 UMask=0077
 # Runaway guard; ears with ggml-small.en uses ~500 MB
 MemoryMax=1G
+# The kernel would write a core file (ears: ~250 MB) into WorkingDirectory on every crash/watchdog kill: microSD
+LimitCORE=0
 
 [Install]
 WantedBy=default.target
