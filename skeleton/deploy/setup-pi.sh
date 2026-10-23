@@ -10,7 +10,7 @@ sudo apt-get install -y \
     build-essential cmake ninja-build gdb rsync git ccache pkg-config \
     mosquitto mosquitto-clients \
     libpaho-mqtt-dev libpaho-mqttpp-dev libssl-dev nlohmann-json3-dev \
-    libasound2-dev libcurl4-openssl-dev curl
+    libasound2-dev libcurl4-openssl-dev curl patchelf
 
 # Not Debian's libonnxruntime-dev: it prints ~570 "Schema error" lines on every start (see third_party/).
 ORT_VERSION=1.30.0
@@ -51,6 +51,9 @@ if [[ ! -f "/opt/libpiper-$PIPER_VERSION/lib/libpiper.so" ]]; then
     rm -rf "$tmp"
 fi
 sudo ln -sfn "/opt/libpiper-$PIPER_VERSION" /opt/libpiper
+# libpiper.so is installed without a RUNPATH, so it can't find libonnxruntime.so.1 (an executable's RUNPATH
+# doesn't cover its libraries' dependencies). Give it one; $ORIGIN also covers libs next to it.
+sudo patchelf --set-rpath '$ORIGIN:/opt/onnxruntime/lib' "/opt/libpiper-$PIPER_VERSION/lib/libpiper.so"
 
 # Before 2026-10-23 Buddy used librespot (raspotify .deb); Spotify refuses it audio keys. Remove it.
 if systemctl --user cat buddy-librespot >/dev/null 2>&1; then
