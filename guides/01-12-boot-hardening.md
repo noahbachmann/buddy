@@ -77,7 +77,7 @@ they're back within ~3 s.
 - [x] `kill -9` → back in ~1 s; 7 crashes in a row → backoff up to 30 s, never `failed`.
 - [x] `kill -STOP` ears → restarted by the watchdog after 62 s.
 - [x] PipeWire restart → ears reopens the device by itself.
-- [ ] Power cycle: "Hey Jarvis, play Spotify" works untouched. **Done when** this is ticked.
+- [x] Power cycle (2026-10-23): all services up with 0 restarts, wake word at ~115 s after boot, Spotify played. ✅
 
 ## Troubleshooting
 

@@ -35,7 +35,7 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 |---|---|---|
 | 1 – Voice | 1.1 – 1.10 Hardware, OS, audio, skeleton, wake word, STT, brain, Spotify, voice | ✅ |
 | | 1.11 Music ducking & echo cancellation (Dev, needs voice recordings) | 🟨 |
-| | 1.12 Run on boot & hardening (open: Dev's power-cycle test) | 🟨 |
+| | 1.12 Run on boot & hardening | ✅ |
 | 2 – Head | 2.1 – 2.6 | ⬜ |
 | 3 – Hand | 3.1 – 3.4 | ⬜ |
 | 4 – Arm & vision | 4.1 – 4.3 | ⬜ |
@@ -100,10 +100,10 @@ Update this table when a decision is made or changed.
 | 1.8 / 1.9 Brain & Spotify | Regex intents → `buddy/spotify/cmd`; Soloist + Web API (OAuth PKCE) | `guides/01-08-brain-and-spotify.md` |
 | 1.10 Voice | libpiper TTS, `buddy/voice/say` | `guides/01-10-voice.md` |
 
-| Open step | Goal | Done when | Guide |
+| Step | Goal | Done when | Guide |
 |---|---|---|---|
 | 1.11 Ducking & AEC (Dev) | Buddy hears you over music: PipeWire echo-cancel, ducking via mixer; optional STT fine-tuning on own voice | Wake word works over music at normal volume | `guides/01-11-ducking-echo-cancel.md`, `guides/01-11-custom-stt.md` |
-| 1.12 Boot & hardening | Starts alone, recovers from crashes/hangs/audio hiccups (D14) | After a power cycle, "Hey Jarvis, play Spotify" works untouched | `guides/01-12-boot-hardening.md` |
+| 1.12 Boot & hardening ✅ | Starts alone, recovers from crashes/hangs/audio hiccups (D14) | After a power cycle, "Hey Jarvis, play Spotify" works untouched (passed 2026-10-23) | `guides/01-12-boot-hardening.md` |
 
 ### Deferred: needs voice recordings (pick up with/after 1.11)
 
