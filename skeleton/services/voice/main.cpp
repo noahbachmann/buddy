@@ -30,6 +30,13 @@ using json = nlohmann::json;
 using Clock = std::chrono::steady_clock;
 
 constexpr size_t kMaxChars = 400;  // a runaway message shouldn't talk for minutes
+// A reply that waited this long behind others (or a voice that hung) is stale: skip it rather than answer late.
+constexpr auto kMaxAge = std::chrono::seconds(10);
+
+struct Say {
+    std::string text;
+    Clock::time_point received;
+};
 
 struct Config {
     std::string device = env_string("BUDDY_VOICE_DEVICE", "default");
@@ -114,7 +121,7 @@ int main(int argc, char** argv) {
     }
 
     AlsaSink sink(cfg->device);
-    BlockingQueue<std::string> queue;  // synthesis and playback run on this thread, not on Paho's
+    BlockingQueue<Say> queue;  // synthesis and playback run on this thread, not on Paho's
     Mqtt mqtt("voice", mqtt_config_from_env());
     mqtt.subscribe(topic::voice_say, [&](const std::string&, const std::string& payload) {
         const auto msg = json::parse(payload, nullptr, /*allow_exceptions=*/false);
@@ -122,7 +129,7 @@ int main(int argc, char** argv) {
             std::cout << "[voice] bad message: " << payload << std::endl;
             return;
         }
-        queue.push(msg["text"]);
+        queue.push({msg["text"], Clock::now()});
     });
     if (!mqtt.start()) return 0;
 
@@ -130,10 +137,14 @@ int main(int argc, char** argv) {
     set_state("idle");
     while (running()) {
         systemd::notify_watchdog();
-        auto text = queue.pop(std::chrono::milliseconds(200));
-        if (!text || text->empty()) continue;
+        auto msg = queue.pop(std::chrono::milliseconds(200));
+        if (!msg || msg->text.empty()) continue;
+        if (Clock::now() - msg->received > kMaxAge) {
+            std::cout << "[voice] skipped \"" << msg->text << "\": " << ms_since(msg->received) << " ms old" << std::endl;
+            continue;
+        }
         set_state("speaking");
-        say(*tts, sink, std::move(*text));
+        say(*tts, sink, std::move(msg->text));
         set_state("idle");
     }
 
