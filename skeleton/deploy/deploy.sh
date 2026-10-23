@@ -9,7 +9,7 @@
 set -euo pipefail
 
 HOST="${BUDDY_HOST:-buddy}"
-SERVICES=(ears brain)  # ping, pong: 1.5 test services, still built but no longer deployed
+SERVICES=(ears brain spotify)  # ping, pong: 1.5 test services, still built but no longer deployed
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"   # project root = parent of deploy/
 
 setup=false
@@ -49,7 +49,7 @@ for s in "$@"; do units+=("buddy@$s"); done
 # Stop before install: overwriting a running binary fails ("Text file busy").
 systemctl --user stop "${units[@]}" 2>/dev/null || true
 cmake --install build-release > /dev/null
-install -m 644 src/deploy/systemd/buddy@.service ~/.config/systemd/user/
+install -m 644 src/deploy/systemd/buddy@.service src/deploy/systemd/buddy-librespot.service ~/.config/systemd/user/
 systemctl --user daemon-reload
 systemctl --user enable --quiet "${units[@]}"
 systemctl --user start "${units[@]}"

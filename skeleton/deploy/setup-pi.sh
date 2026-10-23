@@ -10,7 +10,7 @@ sudo apt-get install -y \
     build-essential cmake ninja-build gdb rsync git ccache pkg-config \
     mosquitto mosquitto-clients \
     libpaho-mqtt-dev libpaho-mqttpp-dev libssl-dev nlohmann-json3-dev \
-    libasound2-dev curl
+    libasound2-dev libcurl4-openssl-dev curl
 
 # Not Debian's libonnxruntime-dev: it prints ~570 "Schema error" lines on every start (see third_party/).
 ORT_VERSION=1.30.0
@@ -28,6 +28,23 @@ if [[ ! -f "/opt/onnxruntime-$ORT_VERSION/lib/libonnxruntime.so" ]]; then
 fi
 sudo ln -sfn "/opt/onnxruntime-$ORT_VERSION" /opt/onnxruntime
 
+# Spotify Connect (1.9): raspotify's .deb only for its librespot binary. Pinned like ONNX Runtime;
+# to update, change all three (https://github.com/dtcooper/raspotify/releases).
+RASPOTIFY_VERSION=0.48.4
+RASPOTIFY_DEB=raspotify_0.48.4.librespot.v0.8.0-99b6088_arm64.deb
+RASPOTIFY_SHA256=4d272678f475ad18961563951b6c36e5395c8a85b8d5607d1e3e9f94671108e2
+echo "→ librespot (raspotify $RASPOTIFY_VERSION)"
+if [[ "$(dpkg-query -W -f='${Version}' raspotify 2>/dev/null || true)" != "$RASPOTIFY_VERSION"~* ]]; then
+    tmp="$(mktemp -d)"
+    curl -fL --progress-bar -o "$tmp/$RASPOTIFY_DEB" \
+        "https://github.com/dtcooper/raspotify/releases/download/$RASPOTIFY_VERSION/$RASPOTIFY_DEB"
+    echo "$RASPOTIFY_SHA256  $tmp/$RASPOTIFY_DEB" | sha256sum -c --quiet
+    sudo apt-get install -y "$tmp/$RASPOTIFY_DEB"
+    rm -rf "$tmp"
+fi
+# Its system service can't reach our PipeWire session; buddy-librespot (user unit) replaces it.
+sudo systemctl disable --now raspotify 2>/dev/null || true
+
 echo "→ mosquitto (localhost only for now)"
 sudo systemctl enable --now mosquitto
 
@@ -40,6 +57,11 @@ if [[ ! -f ~/buddy/config/buddy.env ]]; then
     cp buddy.env.example ~/buddy/config/buddy.env
 fi
 chmod 600 ~/buddy/config/buddy.env
+
+echo "→ librespot user unit"
+install -m 644 systemd/buddy-librespot.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now buddy-librespot
 
 echo "→ models (wake word, VAD, speech-to-text)"
 bash ./fetch-models.sh
