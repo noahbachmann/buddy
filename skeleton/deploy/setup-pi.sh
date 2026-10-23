@@ -10,7 +10,8 @@ sudo apt-get install -y \
     build-essential cmake ninja-build gdb rsync git ccache pkg-config \
     mosquitto mosquitto-clients \
     libpaho-mqtt-dev libpaho-mqttpp-dev libssl-dev nlohmann-json3-dev \
-    libasound2-dev libcurl4-openssl-dev curl patchelf
+    libasound2-dev libcurl4-openssl-dev curl patchelf \
+    pulseaudio-utils
 
 # Not Debian's libonnxruntime-dev: it prints ~570 "Schema error" lines on every start (see third_party/).
 ORT_VERSION=1.30.0
@@ -62,6 +63,18 @@ if systemctl --user cat buddy-librespot >/dev/null 2>&1; then
     rm -rf ~/.config/systemd/user/buddy-librespot.service ~/.cache/librespot
 fi
 if dpkg-query -W raspotify >/dev/null 2>&1; then sudo apt-get purge -y raspotify; fi
+
+# Echo cancellation + music sink for ducking (1.11). PipeWire only reads its config at start: restart it
+# when the file changed. That briefly cuts all audio streams; ears reopens its device by itself.
+echo "→ PipeWire: echo cancellation, music sink"
+mkdir -p ~/.config/pipewire/pipewire.conf.d
+if ! cmp -s pipewire/buddy-audio.conf ~/.config/pipewire/pipewire.conf.d/buddy-audio.conf; then
+    install -m 644 pipewire/buddy-audio.conf ~/.config/pipewire/pipewire.conf.d/
+    systemctl --user restart pipewire pipewire-pulse wireplumber
+    sleep 2
+    systemctl --user try-restart buddy-soloist
+    echo "  installed, PipeWire restarted"
+fi
 
 echo "→ mosquitto (localhost only for now)"
 sudo systemctl enable --now mosquitto

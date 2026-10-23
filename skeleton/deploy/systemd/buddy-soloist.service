@@ -19,6 +19,10 @@ StartLimitBurst=5
 [Service]
 Type=simple
 EnvironmentFile=-%h/buddy/config/soloist.env
+# Play into the music sink (deploy/pipewire/buddy-audio.conf), which buddy-mixer turns down while Buddy listens
+# or speaks. ⚠️ Assumes Soloist uses libpulse, which honours PULSE_SINK. If the sink is missing, libpulse falls
+# back to the default sink: music plays, just without ducking.
+Environment=PULSE_SINK=buddy_music
 ExecStartPre=/bin/sh -c '[ -n "$SOLOIST_API_KEY" ] || { echo "SOLOIST_API_KEY is not set in ~/buddy/config/soloist.env"; exit 1; }'
 # Soloist restores its login once at start and doesn't retry; at boot the network may not be up yet.
 # Wait up to 2 min until Spotify resolves, then start anyway.
