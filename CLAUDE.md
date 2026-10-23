@@ -184,7 +184,7 @@ Pi paths: `~/buddy/{dev,src,build-release,bin,config}`. Runtime config: `~/buddy
 - Every service: `buddy/<service>/status` = `online`/`offline` (retained, last will). MQTT client id `buddy-<service>`.
 - Config only via `BUDDY_*` environment variables. Never hard-code hosts.
 - Log to stdout (journald). Keep logs quiet in steady state: microSD wear.
-- New service checklist: folder + CMake target with `install()`, `add_subdirectory`, topics in `topics.hpp`, name in `SERVICES` in `deploy.sh`.
+- New service checklist: folder + CMake target with `install(… COMPONENT <name>)`, `add_subdirectory`, topics in `topics.hpp`, name in `SERVICES` in `deploy.sh`.
 
 ## Golden rules
 
