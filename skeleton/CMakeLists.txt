@@ -9,7 +9,7 @@ add_compile_options(-Wall -Wextra -Wpedantic)
 
 # System packages (Debian 13): libpaho-mqtt-dev, libpaho-mqttpp-dev, libssl-dev, nlohmann-json3-dev, libasound2-dev,
 #   libcurl4-openssl-dev
-# Not from apt: ONNX Runtime (/opt/onnxruntime) and whisper.cpp, see third_party/
+# Not from apt: ONNX Runtime (/opt/onnxruntime), libpiper (/opt/libpiper) and whisper.cpp, see third_party/
 find_package(PahoMqttCpp REQUIRED)
 find_package(nlohmann_json 3 REQUIRED)
 find_package(ALSA REQUIRED)
@@ -23,3 +23,4 @@ add_subdirectory(services/pong)
 add_subdirectory(services/ears)
 add_subdirectory(services/brain)
 add_subdirectory(services/spotify)
+add_subdirectory(services/voice)

@@ -9,7 +9,7 @@
 set -euo pipefail
 
 HOST="${BUDDY_HOST:-buddy}"
-SERVICES=(ears brain spotify)  # ping, pong: 1.5 test services, still built but no longer deployed
+SERVICES=(ears brain spotify voice)  # ping, pong: 1.5 test services, still built but no longer deployed
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"   # project root = parent of deploy/
 
 setup=false
