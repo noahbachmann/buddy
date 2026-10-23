@@ -39,8 +39,11 @@ if [[ ! -f "/opt/libpiper-$PIPER_VERSION/lib/libpiper.so" ]]; then
         "https://github.com/OHF-Voice/piper1-gpl/archive/refs/tags/v$PIPER_VERSION.tar.gz"
     echo "$PIPER_SHA256  $tmp/piper.tgz" | sha256sum -c --quiet
     tar xzf "$tmp/piper.tgz" -C "$tmp"
+    # DISABLE_FIND_PACKAGE: libpiper tries find_package(onnxruntime) first, which picks up the release's
+    # broken CMake config (points at lib64/, see third_party/). Skipped, it uses ONNXRUNTIME_DIR directly.
     cmake -S "$tmp/piper1-gpl-$PIPER_VERSION/libpiper" -B "$tmp/build" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_DISABLE_FIND_PACKAGE_onnxruntime=ON \
         -DONNXRUNTIME_DIR=/opt/onnxruntime \
         -DCMAKE_INSTALL_PREFIX="/opt/libpiper-$PIPER_VERSION" > /dev/null
     cmake --build "$tmp/build"
