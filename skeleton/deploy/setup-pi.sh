@@ -73,19 +73,30 @@ if [[ ! -f ~/buddy/config/buddy.env ]]; then
 fi
 chmod 600 ~/buddy/config/buddy.env
 
-# Spotify Connect (1.9): Spotify Soloist in ~/buddy/bin, kept current by a weekly timer.
-# buddy-soloist starts once BUDDY_SOLOIST_API_KEY is in buddy.env (guide 1.8, step 3).
+# Spotify Connect (1.9): Spotify Soloist in ~/buddy/bin, kept current by a weekly timer, run sandboxed.
+# Its key lives in soloist.env, not buddy.env (the sandbox hides everything else from it).
 echo "→ Spotify Soloist"
 bash ./soloist-update.sh
+mkdir -p ~/.local/share/soloist ~/.cache/soloist  # the only folders the sandbox maps in
+if [[ ! -f ~/buddy/config/soloist.env ]]; then
+    cp soloist.env.example ~/buddy/config/soloist.env
+fi
+chmod 600 ~/buddy/config/soloist.env
+# Key from the first Soloist version, which read it from buddy.env: move it over.
+if key="$(grep -m1 -oP '^BUDDY_SOLOIST_API_KEY=\K.+' ~/buddy/config/buddy.env)"; then
+    sed -i "s|^SOLOIST_API_KEY=.*|SOLOIST_API_KEY=$key|" ~/buddy/config/soloist.env
+    sed -i '/^BUDDY_SOLOIST_API_KEY=/d' ~/buddy/config/buddy.env
+    echo "  moved BUDDY_SOLOIST_API_KEY from buddy.env to soloist.env"
+fi
 install -m 644 systemd/buddy-soloist.service systemd/buddy-soloist-update.service \
     systemd/buddy-soloist-update.timer ~/.config/systemd/user/
 systemctl --user daemon-reload
 systemctl --user enable --now buddy-soloist-update.timer
 systemctl --user enable buddy-soloist
-if grep -q '^BUDDY_SOLOIST_API_KEY=.' ~/buddy/config/buddy.env; then
+if grep -q '^SOLOIST_API_KEY=.' ~/buddy/config/soloist.env; then
     systemctl --user restart buddy-soloist
 else
-    echo "  ⚠ BUDDY_SOLOIST_API_KEY not set in ~/buddy/config/buddy.env: buddy-soloist not started"
+    echo "  ⚠ SOLOIST_API_KEY not set in ~/buddy/config/soloist.env: buddy-soloist not started"
 fi
 
 echo "→ models (wake word, VAD, speech-to-text, voice)"

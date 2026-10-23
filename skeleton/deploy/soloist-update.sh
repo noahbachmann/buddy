@@ -5,6 +5,9 @@
 # Soloist builds stop working 90 days after their build date (exit code 10), and Spotify doesn't allow
 # redistributing them, so the Pi always fetches the current build from Spotify. No pinned checksum:
 # the file changes with every release.
+#
+# Soloist is closed source and only ever runs inside buddy-soloist.service's sandbox. So this script
+# compares checksums instead of running the new binary to ask for its version.
 set -euo pipefail
 BIN="$HOME/buddy/bin/soloist"
 
@@ -20,8 +23,8 @@ curl -fsSL --proto '=https' --proto-redir '=https' -o "$tmp/soloist.tgz" \
     "https://soloist-builds.spotifycdn.com/soloist_release_$arch.tar.gz"
 tar xzf "$tmp/soloist.tgz" -C "$tmp" soloist
 
-new="$("$tmp/soloist" --version)"
-old="$("$BIN" --version 2>/dev/null || true)"
+new="$(sha256sum "$tmp/soloist" | cut -c1-12)"
+old="$( [[ -f "$BIN" ]] && sha256sum "$BIN" | cut -c1-12 || true)"
 if [[ "$new" == "$old" ]]; then
     echo "  ✓ soloist $new (current)"
     exit 0

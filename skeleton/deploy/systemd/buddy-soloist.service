@@ -2,11 +2,15 @@
 # Replaces librespot, which Spotify refuses audio keys for on many accounts (librespot issue #1649).
 # User unit: plays through the user's PipeWire session (PulseAudio protocol via pipewire-pulse).
 #
-# Needs BUDDY_SOLOIST_API_KEY in buddy.env (developer dashboard → Spotify Soloist API Key, Premium).
+# Config: ~/buddy/config/soloist.env (SOLOIST_API_KEY, SOLOIST_DEVICE_NAME), see soloist.env.example.
 # Pairing (once): Spotify app on a phone/PC in the same Wi-Fi → devices → "Buddy".
 # The binary is installed and kept current by deploy/soloist-update.sh (buddy-soloist-update.timer).
+#
+# Soloist is closed source, so it runs sandboxed: it sees no home directory except its own two folders
+# (not buddy.env, not the Spotify token, not ~/.ssh), can't write outside them, can't gain privileges.
+# Check the result: systemctl --user show buddy-soloist -p ExecMainStatus; systemd-analyze --user security buddy-soloist
 [Unit]
-Description=Buddy: Spotify Connect (Spotify Soloist)
+Description=Buddy: Spotify Connect (Spotify Soloist, sandboxed)
 After=pipewire.service pipewire-pulse.service
 Wants=pipewire-pulse.service
 StartLimitIntervalSec=120
@@ -14,25 +18,55 @@ StartLimitBurst=5
 
 [Service]
 Type=simple
-# Device name = what buddy-spotify looks for. buddy.env may override it.
-Environment=BUDDY_SPOTIFY_DEVICE=Buddy
-EnvironmentFile=-%h/buddy/config/buddy.env
-ExecStartPre=/bin/sh -c '[ -n "$BUDDY_SOLOIST_API_KEY" ] || { echo "BUDDY_SOLOIST_API_KEY is not set in ~/buddy/config/buddy.env"; exit 1; }'
+EnvironmentFile=-%h/buddy/config/soloist.env
+ExecStartPre=/bin/sh -c '[ -n "$SOLOIST_API_KEY" ] || { echo "SOLOIST_API_KEY is not set in ~/buddy/config/soloist.env"; exit 1; }'
 # Soloist restores its login once at start and doesn't retry; at boot the network may not be up yet.
 # Wait up to 2 min until Spotify resolves, then start anyway.
 ExecStartPre=/bin/sh -c 'end=$$(($$(date +%%s) + 120)); while [ "$$(date +%%s)" -lt "$$end" ]; do timeout 3 getent ahosts apresolve.spotify.com >/dev/null 2>&1 && exit 0; sleep 2; done; exit 0'
 TimeoutStartSec=3min
 # ⚠️ The API key is visible in `ps` (Soloist only takes it as an argument).
-# --cache-size in MB: small, to spare the microSD. --ws: local WebSocket API on loopback only (for 1.11).
+# --data-dir: pairing/login, --cache-dir: streamed audio (small, microSD wear). --ws: local WebSocket API,
+# loopback only (for 1.11).
 ExecStart=%h/buddy/bin/soloist \
-    --device-name ${BUDDY_SPOTIFY_DEVICE} \
-    --api-key ${BUDDY_SOLOIST_API_KEY} \
+    --device-name ${SOLOIST_DEVICE_NAME} \
+    --api-key ${SOLOIST_API_KEY} \
+    --data-dir %h/.local/share/soloist \
+    --cache-dir %h/.cache/soloist \
     --cache-size 512 \
     --ws 127.0.0.1:24879
 Restart=on-failure
 RestartSec=10
 # Exit code 10 = build expired: restarting won't help, the update timer fetches a new build.
 RestartPreventExitStatus=10
+
+# ---- sandbox ⚠️ (if Soloist fails with a status like 226/NAMESPACE or 218/CAPABILITIES, comment out
+# blocks here one by one to find the culprit, and tell Claude)
+# Files: the whole home is replaced by an empty tmpfs; only the binary (read-only) and Soloist's own
+# folders (setup-pi.sh creates them) are mapped back in. The rest of the system is read-only.
+ProtectHome=tmpfs
+BindReadOnlyPaths=%h/buddy/bin/soloist
+BindPaths=%h/.local/share/soloist %h/.cache/soloist
+ProtectSystem=strict
+PrivateTmp=yes
+PrivateDevices=yes
+UMask=0077
+# Privileges and kernel
+NoNewPrivileges=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+LockPersonality=yes
+RestrictNamespaces=yes
+RestrictSUIDSGID=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+# A blocked system call fails with EPERM instead of killing Soloist
+SystemCallErrorNumber=EPERM
+# Network: IP for Spotify and discovery, UNIX for PipeWire/PulseAudio and DNS, NETLINK for interface lookup
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
 
 [Install]
 WantedBy=default.target
