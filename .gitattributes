@@ -1,0 +1,3 @@
+# Everything runs on Linux (WSL, the Pi): check out text files with LF, also on Windows.
+* text=auto eol=lf
+*.stl binary
