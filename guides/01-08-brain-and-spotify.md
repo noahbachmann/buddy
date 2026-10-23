@@ -269,7 +269,8 @@ BUDDY_SPOTIFY_DEFAULT_URI=spotify:playlist:37i9dQZF1DXcBWIGoYBM5M
 | `SOLOIST_API_KEY is not set` in the Soloist log | Key missing in `soloist.env` | Step 3, then `systemctl --user restart buddy-soloist` |
 | Soloist fails at start with `status=226/NAMESPACE`, `218/CAPABILITIES` or `Failed to set up mount namespacing` | A sandbox option isn't supported in a user unit on this kernel ⚠️ | `journalctl --user-unit buddy-soloist -n 30`. On the PC, in `deploy/systemd/buddy-soloist.service`, comment out sandbox blocks one at a time (start with `ProtectHome`/`Bind*Paths`, then `PrivateDevices`), run `deploy/deploy.sh`, retry. Tell Claude which one, so it can be fixed properly |
 | Soloist runs but logs `Read-only file system` / `Permission denied` | It writes somewhere outside its two folders | Note the path from the log; add it to `BindPaths=` only if it's harmless (a Soloist-specific folder) |
-| Soloist runs but plays nothing; log mentions PulseAudio/connection refused | Sandbox blocks the PipeWire socket ⚠️ | Check `ls /run/user/1000/pulse/native`; temporarily comment out `ProtectSystem` to confirm |
+| Soloist pauses right after "playing"; log: `Failed to create secure directory (/run/user/1000/pulse)` | Sandbox hid the PulseAudio socket (unit before the 2026-10-23 fix) | On the PC: `git pull`, `deploy/deploy.sh`; then `systemctl --user restart buddy-soloist` |
+| Soloist runs but plays nothing; log mentions PulseAudio/connection refused | pipewire-pulse not running | `systemctl --user status pipewire-pulse.socket`; `ls /run/user/1000/pulse/native` |
 | Soloist log: key rejected ⚠️ | Wrong/revoked key | Generate a new one (step 2.2) |
 | `buddy-soloist` stopped, exit code 10 | Build expired (90 days) and the timer didn't run | `bash ~/buddy/src/deploy/soloist-update.sh` |
 | Old librespot error `error audio key 0 1` | Spotify refuses keys to librespot | Fixed by switching to Soloist: on the PC `git pull`, `deploy/deploy.sh --setup` |
