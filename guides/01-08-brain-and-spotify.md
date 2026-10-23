@@ -53,7 +53,7 @@ Steps 1.8 and 1.9 share one guide: the brain is only testable end-to-end once a 
 | You say (examples) | Intent | Web API call |
 |---|---|---|
 | "play Spotify", "play", "play music", "resume", "continue" | `play` | Resume on Buddy; if Buddy isn't active yet, transfer playback to it |
-| "play Daft Punk", "play Bohemian Rhapsody", "play chill playlist" | `play` + `query` | Search: exact artist name → artist; else best track; "… playlist" → playlists only |
+| "play Daft Punk", "play Bohemian Rhapsody", "play Peach by Kevin Abstract", "play chill playlist" | `play` + `query` | Search (top 5): exact artist name → artist; else the track whose title matches best; "<song> by <artist>" filters by both; "… playlist" → playlists only |
 | "pause", "stop", "stop the music" | `pause` | `PUT /me/player/pause` |
 | "next", "skip", "next song", "play the next song" | `next` | `POST /me/player/next` |
 | "previous", "go back", "last song" | `previous` | `POST /me/player/previous` |
