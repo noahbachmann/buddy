@@ -54,7 +54,7 @@ Steps 1.8 and 1.9 share one guide: the brain is only testable end-to-end once a 
 |---|---|---|
 | "play Spotify", "play", "play music", "resume", "continue" | `play` | Resume on Buddy; if Buddy isn't active yet, transfer playback to it |
 | "play Daft Punk", "play Bohemian Rhapsody", "play Peach by Kevin Abstract", "play chill playlist" | `play` + `query` | Search (top 5): exact artist name → artist; else the track whose title matches best; "<song> by <artist>" filters by both; "… playlist" → playlists only |
-| "play my playlist Chill Vibes", "play my Chill Vibes playlist" | `play_playlist` + `query` | Your own/followed playlists (`GET /me/playlists`): exact name, else the one containing the most spoken words |
+| "play my playlist Chill Vibes", "play my Chill Vibes playlist" | `play_playlist` + `query` | Your own/followed playlists (`GET /me/playlists`): exact name, else the one containing the most spoken words; a word 1 letter off counts too ("type" finds "Hype"). whisper's "play mode playlist" is read as "my" |
 | "play my playlist" | `play_playlist` | `BUDDY_SPOTIFY_DEFAULT_URI` (step 8) |
 | "pause", "stop", "stop the music" | `pause` | `PUT /me/player/pause` |
 | "next", "skip", "next song", "play the next song" | `next` | `POST /me/player/next` |
@@ -291,7 +291,7 @@ BUDDY_SPOTIFY_DEFAULT_URI=spotify:playlist:37i9dQZF1DXcBWIGoYBM5M
 | `HTTP 403` on every call | Account not in User Management, or 5-user cap | Step 2.5 |
 | `HTTP 429` | Rate limit | Wait; shouldn't happen at voice-command rates |
 | Wrong intent ("play the next song" searches a song) | Rule order or missing phrasing | Add the phrase to `services/brain/rules.cpp`, test with `--test` |
-| Artist or song names misheard ("James Groves" for "James Gruntz") | whisper doesn't know rare names; not an audio-level problem if ears logs voice ≥ ~20 dB above background | Vocabulary hint in `buddy.env`: `BUDDY_STT_PROMPT=Play City Lights by James Gruntz. Pause. Next song. Spotify.` (short; names you use often), `systemctl --user restart buddy@ears`. Still bad: `ggml-small.en.bin` (slower, 1.7 step 2) |
+| Artist or song names misheard ("James Groves" for "James Gruntz") | whisper doesn't know rare names; not an audio-level problem if ears logs voice ≥ ~20 dB above background | Vocabulary hint in `buddy.env`: `BUDDY_STT_PROMPT=Play my playlist Hype. Play City Lights by James Gruntz. Pause. Next song.` (short; artist and playlist names you use often), `systemctl --user restart buddy@ears`. Still bad: `ggml-small.en.bin` (slower, 1.7 step 2) |
 | "play AC/DC" plays a cover | Search picked a track, not the artist | Artist matching ignores punctuation; say the exact artist name. Search quality is Spotify's |
 
 ## Notes for later phases
