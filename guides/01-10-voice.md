@@ -162,6 +162,7 @@ Timing: `deploy/logs.sh voice` shows "first audio after … ms" per reply.
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
+| setup: `imported target "onnxruntime::onnxruntime" references … lib64/libonnxruntime.so…` | libpiper picked up ONNX Runtime's broken CMake config (setup-pi.sh before 2026-10-23 fix) | `git pull`, run `deploy/deploy.sh --setup` again |
 | setup: libpiper build fails cloning espeak-ng | No network to GitHub, or `git` missing | `git --version`; retry `setup-pi.sh` |
 | setup: libpiper build killed / Pi freezes | Out of memory while compiling | Close CLion's remote build; retry. ⚠️ Shouldn't happen on 8 GB |
 | `voice model not found` | Model not downloaded / name typo | `fetch-models.sh <voice>`; `BUDDY_VOICE_MODEL` needs the `.onnx` ending |
