@@ -6,16 +6,15 @@
 Play Spotify.
 Play some music.
 Pause.
-Pause the music.
-Stop the music.
+Pause music.
+Stop music.
 Resume.
-Continue the music.
+Continue music.
 Next song.
-Skip this song.
-Play the next song.
+Skip song.
+Play next song.
 Previous song.
 Go back.
-Play the last song again.
 Louder.
 Turn it up.
 Volume up.
@@ -24,7 +23,6 @@ Quieter.
 Turn it down.
 Turn down the music.
 Volume down.
-Make it softer.
 # With "please", "can you", Buddy
 Can you play some music, please?
 Please pause the music.
@@ -32,29 +30,26 @@ Could you turn it down?
 Buddy, next song please.
 Turn up the volume, please.
 # Artists (edit)
-Play Daft Punk.
-Play Queen.
-Play Coldplay on Spotify.
-Play Eminem.
+Play The Strokes.
+Play Daughter on Spotify.
 Play Taylor Swift.
-Play Linkin Park.
+Play Lil Peep.
 Play Hans Zimmer.
-Play Imagine Dragons.
 # Songs by artists (edit)
-Play Around the World by Daft Punk.
-Play Bohemian Rhapsody by Queen.
-Play Lose Yourself by Eminem.
-Play Numb by Linkin Park.
+Play City Lights by James Gruntz.
+Play Party by Daughter.
+Play Follow God by Kanye.
+Play Bound 2 by Kanye West.
 Play Time by Hans Zimmer.
 # Your playlists (edit)
 Play my playlist.
-Play my playlist Chill Vibes.
-Play my Chill Vibes playlist.
-Play my playlist Workout.
+Play my playlist Mhm.
+Play my chill playlist.
+Play my playlist "The Ones".
 Play my Focus playlist.
 # Longer and quieter ones: whisper should still get them
-Play something by Daft Punk on Spotify.
-Can you play my playlist Chill Vibes, please?
+Play something by Michael Jackson on Spotify.
+Can you play my playlist no singing, please?
 Turn the music down a bit.
 # Lights (for a later smart home skill: brain doesn't understand these yet, but whisper learns them now).
 # Edit the rooms and scene names to yours.
@@ -62,16 +57,16 @@ Turn on the lights.
 Turn off the lights.
 Lights on.
 Lights off.
-Turn on the light in the living room.
-Turn off the bedroom lights.
-Switch on the kitchen light.
+Living room lights on.
+Living room lights off.
+Bedroom lights off.
 Switch off the desk lamp.
-Turn on the lights in the office.
 Dim the lights.
 Dim the living room to thirty percent.
 Set the lights to fifty percent.
 Make it brighter.
 Brighter, please.
+Darker, please.
 Make the lights darker.
 Set the bedroom light to warm white.
 Make the lights cold white.
@@ -79,6 +74,7 @@ Turn the lights blue.
 Set the living room to red.
 Change the desk lamp to green.
 Activate the movie scene.
-Turn on the reading light.
+Turn on reading light.
 Good night, turn everything off.
+All lights off.
 Are the kitchen lights on?
