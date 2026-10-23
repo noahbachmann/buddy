@@ -18,8 +18,6 @@ find_package(OpenSSL REQUIRED)
 
 add_subdirectory(third_party)
 add_subdirectory(shared)
-add_subdirectory(services/ping)
-add_subdirectory(services/pong)
 add_subdirectory(services/ears)
 add_subdirectory(services/brain)
 add_subdirectory(services/spotify)

@@ -160,7 +160,6 @@ buddy/
 │   ├── shared/              ← MQTT topic constants (one header) + shared C++ helpers
 │   ├── third_party/         ← ONNX Runtime, libpiper (prebuilt in /opt), whisper.cpp (FetchContent)
 │   ├── services/
-│   │   ├── ping/, pong/     ← MQTT smoke test (1.5)
 │   │   ├── ears/            ← wake word, VAD, STT
 │   │   ├── brain/           ← intent routing
 │   │   ├── voice/           ← TTS

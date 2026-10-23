@@ -19,9 +19,6 @@ inline std::string status(std::string_view service) {
     return "buddy/" + std::string(service) + "/status";
 }
 
-// 1.5 skeleton test
-inline constexpr std::string_view dev_ping = "buddy/dev/ping";                // event
-
 // Phase 1 (names fixed now so later services agree)
 inline constexpr std::string_view ears_wake       = "buddy/ears/wake";        // event {"model","score"}
 inline constexpr std::string_view ears_state      = "buddy/ears/state";       // event, retained {"state": idle|listening|transcribing}

@@ -32,7 +32,6 @@ conventions: `../CLAUDE.md`.
 | spotify | `http` (libcurl, keep-alive), `auth` (PKCE, token file), `player` (Web API; `warm_up()` on `ears/wake`) | `--login`, `--cmd <action> [query]` |
 | voice | `tts` (libpiper, sentence streaming), `audio_sink` (ALSA per utterance / WAV) | `--say "…" [--wav out.wav]` |
 | mixer | `pactl set-sink-volume` on `buddy_music`, event-driven hold timer | `--duck`, `--restore` |
-| ping/pong | 1.5 template, not deployed | – |
 
 ## Gotchas
 

@@ -81,7 +81,7 @@ Decisions now live in CLAUDE.md (Code conventions, D2, D6, D7). Repo root for al
 3. Deployment → SFTP entry → Mappings → deployment path **`/home/dev/buddy/dev`** (default is under `/tmp` = RAM disk, wiped on reboot).
 4. Before Run/Debug: `ssh buddy systemctl --user stop buddy@<name>` (same MQTT client id; otherwise both flip connected/lost).
 
-Smoke test still in the repo: services `ping`/`pong` (`buddy/dev/ping`), disabled since 1.6 (`systemctl --user disable --now buddy@ping buddy@pong`).
+The 1.5 smoke-test services `ping`/`pong` were removed in 1.12 (git history). Bus test without them: `mosquitto_sub -v -t 'buddy/#'` in one terminal, `mosquitto_pub -t buddy/test -m hi` in another.
 
 | Symptom | Fix |
 |---|---|
