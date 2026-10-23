@@ -42,7 +42,7 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 | | 1.8 Brain / intent router | 🟨 |
 | | 1.9 Spotify skill | 🟨 |
 | | 1.10 Voice replies (TTS) | 🟨 |
-| | 1.11 Music ducking & echo cancellation | ⬜ |
+| | 1.11 Music ducking & echo cancellation | 🟨 |
 | | 1.12 Run on boot & hardening | ⬜ |
 | 2 – Head | 2.1 – 2.6 | ⬜ |
 | 3 – Hand | 3.1 – 3.4 | ⬜ |
@@ -63,11 +63,12 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 | D5 | Languages | C++ only (CMake), for all services and the Pico firmware. No Python, Kotlin or Java in the repo. | ✅ |
 | D6 | Dev workflow | CLion on the PC, Full Remote Mode over SSH: sources stay local (and in Gitea), CLion syncs them to the Pi, builds with the Pi's CMake/GCC, runs and debugs with the Pi's GDB. | ✅ |
 | D7 | Runtime packaging | systemd user units on the Pi (`buddy@<service>`, lingering on), Mosquitto from apt. Docker only for services offloaded to a LAN host later. | ✅ |
-| D8 | Audio capture | ears reads the ALSA `default` device (= PipeWire via `pipewire-alsa`), 16 kHz mono s16. Wake word, VAD and STT live in one service (`ears`) sharing that stream. | ✅ |
+| D8 | Audio capture | ears reads the echo-cancelled PipeWire source via ALSA (`pipewire:NODE=buddy_aec_source`, D13), 16 kHz mono s16. Wake word, VAD and STT live in one service (`ears`) sharing that stream. | ✅ |
 | D9 | ML libraries | ONNX Runtime: Microsoft's prebuilt aarch64 release in `/opt/onnxruntime` (Debian's package spams the log). whisper.cpp: pinned tag built via CMake FetchContent. Models in `~/buddy/models` via `deploy/fetch-models.sh`, not in Git. | ✅ |
 | D10 | Spotify | Spotify Soloist (official headless Connect client) as user unit `buddy-soloist`, binary fetched from Spotify by `deploy/soloist-update.sh` + weekly timer (builds expire after 90 days). Closed source → systemd-sandboxed (sees only its own folders), key in `~/buddy/config/soloist.env`. Not librespot: Spotify refuses it audio keys on many accounts. Web API via libcurl, OAuth PKCE, refresh token in `~/buddy/config/spotify-token.json`. | ✅ |
 | D11 | Intents & replies | brain: regex rules behind `IntentParser` (LLM-replaceable), routes to `buddy/<skill>/cmd`. The service that knows the outcome publishes `buddy/voice/say`. | ✅ |
 | D12 | TTS | libpiper v1.8.0 built from source by `setup-pi.sh` into `/opt/libpiper` (against `/opt/onnxruntime`); voices via `fetch-models.sh`. | ✅ |
+| D13 | Echo cancellation & ducking | PipeWire echo-cancel (WebRTC, monitor mode = reference is everything the Jabra plays) → `buddy_aec_source`. Music plays into virtual sink `buddy_music`; service `mixer` (Pi only) turns it down via `pactl` while ears listens or voice speaks. Config `deploy/pipewire/buddy-audio.conf`. Defaults stay the Jabra. | ✅ |
 
 Update this table when a decision is made or changed.
 
@@ -76,15 +77,17 @@ Update this table when a decision is made or changed.
 ## Architecture (target)
 
 ```
- Jabra mic ─► [ears]  wake word → VAD → speech-to-text ──┐
-                                                         ▼
-                                          MQTT  ◄──► [brain]  intent → skill routing
-                                                         │
-        ┌────────────────┬───────────────────────────────┼────────────────┐
-        ▼                ▼                               ▼                ▼
-   [voice] TTS     [spotify] skill                [motion] ──USB──► Pico (servos, eyes)
+ Jabra mic ─► echo-cancel ─► [ears]  wake word → VAD → speech-to-text ──┐
+                                                                        ▼
+                                                         MQTT  ◄──► [brain]  intent → skill routing
+                                                                        │
+        ┌────────────────┬──────────────────────────────────────────────┼────────────────┐
+        ▼                ▼                                              ▼                ▼
+   [voice] TTS     [spotify] skill                               [motion] ──USB──► Pico (servos, eyes)
         │                │
-        └──► Jabra speaker ◄──┘ (Soloist)
+        │          Soloist ─► buddy_music sink ◄── [mixer] ducks it while ears listens / voice speaks
+        │                         │
+        └──► Jabra speaker ◄──────┘
 ```
 
 - Every component is a small, independent service with one job.
@@ -155,6 +158,7 @@ buddy/
 │   ├── brain/               ← intent routing
 │   ├── voice/               ← TTS
 │   ├── spotify/             ← Spotify skill
+│   ├── mixer/               ← music ducking
 │   └── motion/              ← Pi side of motor control
 ├── firmware/
 │   └── pico/                ← servo & display control
