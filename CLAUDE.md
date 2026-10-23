@@ -39,9 +39,9 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 | | 1.5 Project skeleton, MQTT & dev workflow | ⬜ |
 | | 1.6 Wake word | 🟨 |
 | | 1.7 Speech-to-text | 🟨 |
-| | 1.8 Brain / intent router | ⬜ |
-| | 1.9 Spotify skill | ⬜ |
-| | 1.10 Voice replies (TTS) | ⬜ |
+| | 1.8 Brain / intent router | 🟨 |
+| | 1.9 Spotify skill | 🟨 |
+| | 1.10 Voice replies (TTS) | 🟨 |
 | | 1.11 Music ducking & echo cancellation | ⬜ |
 | | 1.12 Run on boot & hardening | ⬜ |
 | 2 – Head | 2.1 – 2.6 | ⬜ |
@@ -65,6 +65,9 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 | D7 | Runtime packaging | systemd user units on the Pi (`buddy@<service>`, lingering on), Mosquitto from apt. Docker only for services offloaded to a LAN host later. | ✅ |
 | D8 | Audio capture | ears reads the ALSA `default` device (= PipeWire via `pipewire-alsa`), 16 kHz mono s16. Wake word, VAD and STT live in one service (`ears`) sharing that stream. | ✅ |
 | D9 | ML libraries | ONNX Runtime: Microsoft's prebuilt aarch64 release in `/opt/onnxruntime` (Debian's package spams the log). whisper.cpp: pinned tag built via CMake FetchContent. Models in `~/buddy/models` via `deploy/fetch-models.sh`, not in Git. | ✅ |
+| D10 | Spotify | librespot from the pinned raspotify `.deb` as user unit `buddy-librespot` (PulseAudio backend → PipeWire); raspotify's system service disabled. Web API via libcurl, OAuth PKCE, refresh token in `~/buddy/config/spotify-token.json`. | ✅ |
+| D11 | Intents & replies | brain: regex rules behind `IntentParser` (LLM-replaceable), routes to `buddy/<skill>/cmd`. The service that knows the outcome publishes `buddy/voice/say`. | ✅ |
+| D12 | TTS | libpiper v1.8.0 built from source by `setup-pi.sh` into `/opt/libpiper` (against `/opt/onnxruntime`); voices via `fetch-models.sh`. | ✅ |
 
 Update this table when a decision is made or changed.
 
