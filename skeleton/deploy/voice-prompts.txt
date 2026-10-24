@@ -1,6 +1,7 @@
 # Sentences for record-voice.sh: one per line, written the way Buddy should transcribe them.
 # Replace the example artists, songs and playlists with your own: names whisper gets wrong
 # are where fine-tuning helps most. Say each one naturally; repeat runs give more variety.
+# Numbers as digits ("30%"): whisper writes them that way, so spelled-out labels fight it.
 #
 # Plain commands
 Play Spotify.
@@ -62,8 +63,8 @@ Living room lights off.
 Bedroom lights off.
 Switch off the desk lamp.
 Dim the lights.
-Dim the living room to thirty percent.
-Set the lights to fifty percent.
+Dim the living room to 30%.
+Set the lights to 50%.
 Make it brighter.
 Brighter, please.
 Darker, please.
