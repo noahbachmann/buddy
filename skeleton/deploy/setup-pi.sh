@@ -73,9 +73,11 @@ if dpkg-query -W raspotify >/dev/null 2>&1; then sudo apt-get purge -y raspotify
 # Echo cancellation + music sink for ducking (1.11). PipeWire only reads its config at start: restart it
 # when the file changed. That briefly cuts all audio streams; ears reopens its device by itself.
 echo "→ PipeWire: echo cancellation, music sink"
-mkdir -p ~/.config/pipewire/pipewire.conf.d
-if ! cmp -s pipewire/buddy-audio.conf ~/.config/pipewire/pipewire.conf.d/buddy-audio.conf; then
+mkdir -p ~/.config/pipewire/pipewire.conf.d ~/.config/wireplumber/wireplumber.conf.d
+if ! cmp -s pipewire/buddy-audio.conf ~/.config/pipewire/pipewire.conf.d/buddy-audio.conf \
+    || ! cmp -s wireplumber/buddy-alsa.conf ~/.config/wireplumber/wireplumber.conf.d/buddy-alsa.conf; then
     install -m 644 pipewire/buddy-audio.conf ~/.config/pipewire/pipewire.conf.d/
+    install -m 644 wireplumber/buddy-alsa.conf ~/.config/wireplumber/wireplumber.conf.d/
     systemctl --user restart pipewire pipewire-pulse wireplumber
     sleep 2
     systemctl --user try-restart buddy-soloist
