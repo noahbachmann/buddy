@@ -4,7 +4,7 @@
 
 ## Goal
 
-A whisper model fine-tuned on your voice, your accent and your names (artists, playlists), so commands that whisper keeps mishearing come out right. It is trained once in Google Colab, like the custom wake word. No Python goes into the repo or onto the Pi (D5). `buddy-ears` loads the result like any other `ggml-*.bin`.
+A whisper model fine-tuned on your voice, your accent and your names (artists, playlists), so commands that whisper keeps mishearing come out right. It is trained once in Google Colab, like the custom wake word. No Python runs on the Pi (D5); the only Python is the Colab notebook next to this guide. `buddy-ears` loads the result like any other `ggml-*.bin`.
 
 **Done when:** `stt-eval.sh` scores the new model clearly better than the stock one on clips it wasn't trained on.
 
@@ -100,7 +100,7 @@ tar czf ~/voice-data.tar.gz -C ~/buddy voice-data
 
 ### 6. Train in Colab
 
-Open <https://colab.research.google.com> → **New notebook** → **Runtime → Change runtime type → T4 GPU**. Paste each block into its own cell and run them in order.
+Open <https://colab.research.google.com> → **File → Upload notebook** → `guides/01-11-custom-stt.ipynb` (asks for a T4 GPU; check **Runtime → Change runtime type** if not), then run the cells in order. The notebook holds exactly the cells below; if you change one, change both.
 
 **Cell 1 – setup**
 

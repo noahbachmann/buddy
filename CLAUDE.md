@@ -52,7 +52,7 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 | D2 | Message bus | Mosquitto on the Pi. Services talk only over MQTT. | ✅ |
 | D3 | Compute placement | ears and brain run on the Pi *or* a LAN host. Only the broker address changes. | ✅ |
 | D4 | Storage | microSD only, no NVMe | ✅ |
-| D5 | Languages | C++ only (CMake), for all services and the Pico firmware. No Python, Kotlin or Java in the repo. | ✅ |
+| D5 | Languages | C++ only (CMake), for all services and the Pico firmware. No Python, Kotlin or Java in the repo, except Colab training notebooks in `guides/` (run in Colab, never on the Pi). | ✅ |
 | D6 | Dev workflow | CLion on the PC, Full Remote Mode over SSH: sources stay local (and in Gitea), CLion syncs them to the Pi, builds with the Pi's CMake/GCC, runs and debugs with the Pi's GDB. | ✅ |
 | D7 | Runtime packaging | systemd user units on the Pi (`buddy@<service>`, lingering on), Mosquitto from apt. Docker only for services offloaded to a LAN host later. | ✅ |
 | D8 | Audio capture | ears reads the echo-cancelled PipeWire source via ALSA (`pipewire:NODE=buddy_aec_source`, D13), 16 kHz mono s16. Wake word, VAD and STT live in one service (`ears`) sharing that stream. | ✅ |
