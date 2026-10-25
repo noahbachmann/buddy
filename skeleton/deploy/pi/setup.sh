@@ -6,6 +6,7 @@
 #   packages     apt build tools and libraries
 #   onnxruntime  Microsoft's prebuilt ONNX Runtime → /opt/onnxruntime (D9)
 #   libpiper     Piper TTS library built from source → /opt/libpiper (D12)
+#   uv           Python package manager → ~/.local/bin/uv, for Python services (D15)
 #   audio        PipeWire echo cancellation + bigger USB buffers (D13); restarts PipeWire only if changed
 #   mosquitto    MQTT broker, localhost only (D2)
 #   session      lingering: user services start at boot without a login (D7)
@@ -23,6 +24,8 @@ ORT_SHA256=e16a27a8ed330bbc698df7330b0cf56e722f354e3bcc92118682c74ef3c3e3da  # o
 PIPER_VERSION=1.8.0
 PIPER_BUILD="$PIPER_VERSION-buddy1"  # -buddy1: patched thread count, see step_libpiper
 PIPER_SHA256=0a22987a6157f14e2fb7cf4aa702b547467fd0448bea9f233abd503c3ff4a0e1  # source tarball
+UV_VERSION=0.12.24
+UV_SHA256=5231be65f496304623895dacdbf1de8504fec90303684bdf05805aa34414dd21  # uv-aarch64-unknown-linux-gnu tarball
 
 step_packages() {
     sudo apt-get update
@@ -80,6 +83,22 @@ step_libpiper() {
     # libraries' dependencies). $ORIGIN also covers libs next to it.
     sudo patchelf --set-rpath '$ORIGIN:/opt/onnxruntime/lib' "/opt/libpiper-$PIPER_BUILD/lib/libpiper.so"
     echo "  ✓ libpiper $PIPER_BUILD"
+}
+
+# Per user, no sudo. deploy.sh calls it by full path (~/.local/bin isn't on PATH in non-login ssh sessions).
+step_uv() {
+    if [[ "$(~/.local/bin/uv --version 2>/dev/null)" != "uv $UV_VERSION "* ]]; then
+        local tmp
+        tmp="$(mktemp -d)"
+        curl -fL --progress-bar -o "$tmp/uv.tgz" \
+            "https://github.com/astral-sh/uv/releases/download/$UV_VERSION/uv-aarch64-unknown-linux-gnu.tar.gz"
+        echo "$UV_SHA256  $tmp/uv.tgz" | sha256sum -c --quiet
+        tar xzf "$tmp/uv.tgz" -C "$tmp"
+        mkdir -p ~/.local/bin
+        install -m 755 "$tmp/uv-aarch64-unknown-linux-gnu/uv" "$tmp/uv-aarch64-unknown-linux-gnu/uvx" ~/.local/bin/
+        rm -rf "$tmp"
+    fi
+    echo "  ✓ uv $UV_VERSION"
 }
 
 # PipeWire only reads its config at start: restart it when a file changed. That briefly cuts all audio;
@@ -148,7 +167,7 @@ step_check() {
     echo "  ✓ checked"
 }
 
-ALL=(packages onnxruntime libpiper audio mosquitto session config models cleanup check)
+ALL=(packages onnxruntime libpiper uv audio mosquitto session config models cleanup check)
 steps=("$@")
 [[ ${#steps[@]} -gt 0 ]] || steps=("${ALL[@]}")
 for s in "${steps[@]}"; do

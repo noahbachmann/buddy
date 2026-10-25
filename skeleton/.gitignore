@@ -1,4 +1,6 @@
 cmake-build-*/
 build*/
 .idea/
-*.env
+*.env.venv/
+__pycache__/
+.pytest_cache/

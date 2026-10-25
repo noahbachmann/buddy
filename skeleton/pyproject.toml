@@ -1,0 +1,14 @@
+# uv workspace for every Python package in the skeleton (D15). C++ builds with CMake; this file is Python only.
+#   uv sync                 PC: buddy_shared + tools (CPU torch); `uv sync --extra cuda` on a GPU machine, see tools/voice
+#   uv run pytest           all Python tests
+# On the Pi, deploy.sh installs only the deployed Python services (`uv sync --package …`) into ~/buddy/venv.
+# Explicit list (uv needs a pyproject.toml in every match): a new Python service is added here, like a C++ one to
+# CMakeLists.txt.
+[tool.uv.workspace]
+members = ["shared/python"]
+
+[dependency-groups]
+dev = ["pytest>=8.3"]
+
+[tool.pytest.ini_options]
+testpaths = ["shared/python/tests", "tools"]

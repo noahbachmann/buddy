@@ -1,5 +1,5 @@
 # Template for all Buddy services, run as systemd *user* units of the Pi user.
-#   systemctl --user start buddy@ears   →  runs ~/buddy/bin/buddy-ears
+#   systemctl --user start buddy@ears   →  runs ~/buddy/bin/buddy-ears (C++ binary or link to a Python service's script)
 # User units (not system units) because audio runs in the user's PipeWire session.
 #
 # Recovery (1.12, D14):
@@ -20,6 +20,8 @@ WatchdogSec=60
 WorkingDirectory=%h/buddy
 EnvironmentFile=-%h/buddy/config/buddy.env
 ExecStart=%h/buddy/bin/buddy-%i
+# Python services: print() goes to journald right away, not in 8 KB blocks
+Environment=PYTHONUNBUFFERED=1
 Restart=always
 RestartSec=1
 RestartSteps=5

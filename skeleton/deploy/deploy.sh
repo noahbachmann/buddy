@@ -25,6 +25,7 @@ echo "→ sync → $HOST:~/buddy/src"
 ssh "$HOST" 'mkdir -p ~/buddy/src'
 rsync -az --delete --progress \
     --exclude '.git/' --exclude '.idea/' --exclude 'cmake-build-*/' --exclude '/build*/' \
+    --exclude '.venv/' --exclude '__pycache__/' \
     "$ROOT/" "$HOST:buddy/src/"
 
 if $setup; then
@@ -37,19 +38,33 @@ set -euo pipefail
 export XDG_RUNTIME_DIR="/run/user/$(id -u)"
 cd ~/buddy
 
-cmake -S src -B build-release -G Ninja \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-    -DCMAKE_INSTALL_PREFIX="$HOME/buddy" > /dev/null
-targets=()
+# C++ services: a CMake target and install component each. Python services (pyproject.toml, D15): a package
+# in the uv workspace, installed into ~/buddy/venv; its console script is linked into ~/buddy/bin like a binary.
+cpp=()
+py=()
 units=()
-for s in "$@"; do targets+=("buddy-$s"); units+=("buddy@$s"); done
-cmake --build build-release --target "${targets[@]}"
+for s in "$@"; do
+    if [[ -f "src/services/$s/pyproject.toml" ]]; then py+=("$s"); else cpp+=("$s"); fi
+    units+=("buddy@$s")
+done
+if [[ ${#cpp[@]} -gt 0 ]]; then
+    cmake -S src -B build-release -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+        -DCMAKE_INSTALL_PREFIX="$HOME/buddy" > /dev/null
+    cmake --build build-release --target "${cpp[@]/#/buddy-}"
+fi
 
 # Stop before install: overwriting a running binary fails ("Text file busy"). Install only the services
-# being deployed (one CMake component each), so other services keep running their current binary.
+# being deployed, so other services keep running their current version.
 systemctl --user stop "${units[@]}" 2>/dev/null || true
-for s in "$@"; do cmake --install build-release --component "$s" > /dev/null; done
+for s in "${cpp[@]}"; do cmake --install build-release --component "$s" > /dev/null; done
+for s in "${py[@]}"; do
+    # --inexact: keep the other Python services' packages in the shared venv. System Python (Debian), no downloads.
+    UV_PROJECT_ENVIRONMENT=~/buddy/venv UV_PYTHON_PREFERENCE=only-system \
+        ~/.local/bin/uv sync --project src --frozen --no-dev --inexact --package "buddy-$s" --quiet
+    ln -sfn ~/buddy/venv/bin/"buddy-$s" ~/buddy/bin/"buddy-$s"
+done
 install -m 644 src/deploy/config/systemd/buddy@.service ~/.config/systemd/user/
 systemctl --user daemon-reload
 systemctl --user enable --quiet "${units[@]}"
