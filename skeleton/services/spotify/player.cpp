@@ -2,6 +2,9 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdio>
+#include <cstdlib>
+#include <fstream>
 #include <iostream>
 #include <utility>
 #include <vector>
@@ -137,6 +140,87 @@ Result Player::run(const std::string& action, const std::string& query) {
     }
 }
 
+void Player::duck() {
+    if (duck_) return;
+    if (cfg_.duck_percent >= 100 || duck_disallowed_) return warm_up();
+    try {
+        // The active device and whether it plays, in one request. 204 = nothing active.
+        const auto r = api("GET", "/me/player");
+        if (r.status != 204) expect_ok(r, "player");
+        const json p = r.status == 204 ? json::object() : json::parse(r.body);
+        const json d = p.value("device", json());
+        if (!d.is_object() || !d["id"].is_string() || lower(d.value("name", "")) != lower(cfg_.device_name))
+            return warm_up();  // box not active: nothing to duck
+        const Device box{.id = d["id"], .active = true,
+                         .volume = d["volume_percent"].is_number() ? d["volume_percent"].get<int>() : 50};
+        last_id_ = box.id;
+        warm_device_ = box;
+        warmed_at_ = std::chrono::steady_clock::now();
+        if (!p.value("is_playing", false) || box.volume == 0) return;
+
+        const int to = box.volume * cfg_.duck_percent / 100;
+        const auto v = api("PUT", "/me/player/volume?volume_percent=" + std::to_string(to) + "&device_id=" + box.id);
+        if (v.status == 403) {  // VOLUME_CONTROL_DISALLOW: some speakers only take volume from their own app
+            duck_disallowed_ = true;
+            std::cout << "[spotify] " << cfg_.device_name << " refuses remote volume (" << error_reason(v)
+                      << "): ducking off" << std::endl;
+            return;
+        }
+        expect_ok(v, "duck");
+        duck_ = Duck{.restore_to = box.volume, .ducked_to = to};
+        save_duck();
+    } catch (const std::exception& e) {
+        std::cout << "[spotify] duck: " << e.what() << std::endl;
+    }
+}
+
+void Player::restore() {
+    if (!duck_) return;
+    try {
+        const Device box = device();
+        // Speakers with coarse volume steps report a rounded value: a few percent off is still "unchanged".
+        if (std::abs(box.volume - duck_->ducked_to) > 5) {
+            std::cout << "[spotify] volume changed to " << box.volume << " while ducked, leaving it" << std::endl;
+        } else {
+            expect_ok(api("PUT", "/me/player/volume?volume_percent=" + std::to_string(duck_->restore_to) +
+                                     "&device_id=" + box.id),
+                      "restore");
+        }
+        duck_.reset();
+    } catch (const std::exception& e) {
+        std::cout << "[spotify] restore: " << e.what() << std::endl;
+        if (++duck_->attempts >= 3) {
+            std::cout << "[spotify] giving up restoring the volume to " << duck_->restore_to << std::endl;
+            duck_.reset();
+        }
+    }
+    save_duck();
+}
+
+void Player::recover() {
+    if (cfg_.duck_file.empty()) return;
+    std::ifstream f(cfg_.duck_file);
+    if (!f) return;
+    const auto j = json::parse(f, nullptr, /*allow_exceptions=*/false);
+    if (j.is_object() && j["restore_to"].is_number_integer() && j["ducked_to"].is_number_integer()) {
+        std::cout << "[spotify] restoring the volume a restart left ducked" << std::endl;
+        duck_ = Duck{.restore_to = j["restore_to"], .ducked_to = j["ducked_to"]};
+        restore();
+    }
+    std::remove(cfg_.duck_file.c_str());
+    duck_.reset();
+}
+
+// A file in tmpfs ($XDG_RUNTIME_DIR): survives a service restart, not a reboot, and never touches the microSD.
+void Player::save_duck() const {
+    if (cfg_.duck_file.empty()) return;
+    if (!duck_) {
+        std::remove(cfg_.duck_file.c_str());
+        return;
+    }
+    std::ofstream(cfg_.duck_file) << json{{"restore_to", duck_->restore_to}, {"ducked_to", duck_->ducked_to}}.dump();
+}
+
 void Player::warm_up() {
     try {
         warm_device_ = device();
@@ -155,7 +239,7 @@ Result Player::dispatch(const std::string& action, const std::string& query) {
     try {
         return dispatch(*cached, action, query);
     } catch (const Failure& e) {
-        if (e.status != 404) throw;  // 404 = device id gone (Soloist restarted since the warm-up): look it up again
+        if (e.status != 404) throw;  // 404 = device id gone (box restarted since the warm-up): look it up again
         std::cout << "[spotify] " << action << ": " << e.what() << ", retrying with a fresh device lookup" << std::endl;
         return dispatch(device(), action, query);
     }
@@ -177,6 +261,11 @@ Result Player::dispatch(const Device& d, const std::string& action, const std::s
     }
     if (action == "volume_up" || action == "volume_down") {
         const int step = action == "volume_up" ? cfg_.volume_step : -cfg_.volume_step;
+        if (duck_) {  // "louder" over ducked music means louder than before the duck: applied by restore()
+            duck_->restore_to = std::clamp(duck_->restore_to + step, 0, 100);
+            save_duck();
+            return volume_set(duck_->restore_to);
+        }
         const int volume = std::clamp(d.volume + step, 0, 100);
         expect_ok(api("PUT", "/me/player/volume?volume_percent=" + std::to_string(volume) + "&device_id=" + d.id),
                   "volume");
@@ -237,7 +326,7 @@ Result Player::play(const Device& d, const std::string& query) {
         return playing(true, say);
     }
 
-    // Resume. If Buddy isn't the active device yet, transfer playback to it (continues where the
+    // Resume. If the box isn't the active device yet, transfer playback to it (continues where the
     // phone/PC left off). With nothing to resume, fall back to BUDDY_SPOTIFY_DEFAULT_URI.
     const auto r = d.active ? api("PUT", "/me/player/play" + on)
                             : api("PUT", "/me/player", {{"device_ids", {d.id}}, {"play", true}});
@@ -294,11 +383,17 @@ Player::Device Player::device() {
     const json devices = json::parse(r.body);
     for (const auto& d : devices["devices"]) {
         if (lower(d.value("name", "")) != lower(cfg_.device_name) || !d["id"].is_string()) continue;
+        last_id_ = d["id"];
         return {.id = d["id"], .active = d.value("is_active", false),
                 .volume = d["volume_percent"].is_number() ? d["volume_percent"].get<int>() : 50};
     }
-    throw Failure("device \"" + cfg_.device_name + "\" not found (buddy-soloist not running or not paired?)",
-                  "Spotify isn't running on " + cfg_.device_name + ".");
+    // Some Connect speakers leave the list in standby but still accept playback on their old id ⚠️
+    if (!last_id_.empty()) {
+        std::cout << "[spotify] " << cfg_.device_name << " not in the device list, trying its last id" << std::endl;
+        return {.id = last_id_};
+    }
+    throw Failure("device \"" + cfg_.device_name + "\" not found (off, or not on the network?)",
+                  cfg_.device_name + " isn't available.");
 }
 
 HttpResponse Player::api(const std::string& method, const std::string& path, const json& body) {

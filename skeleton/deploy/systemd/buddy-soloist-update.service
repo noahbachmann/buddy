@@ -1,9 +1,0 @@
-# Fetches the current Soloist build (they expire after 90 days). Triggered by buddy-soloist-update.timer.
-[Unit]
-Description=Buddy: update Spotify Soloist
-After=network-online.target
-
-[Service]
-Type=oneshot
-ExecStart=/bin/bash %h/buddy/src/deploy/soloist-update.sh
-Nice=10

@@ -1,12 +1,19 @@
-// spotify: voice commands → Spotify Web API, played by Spotify Soloist ("Buddy" Spotify Connect device) on the Pi.
+// spotify: voice commands → Spotify Web API, played on the music box (a Spotify Connect device, BUDDY_SPOTIFY_DEVICE).
+// Also ducks the box while Buddy listens or speaks.
 //
 //   buddy-spotify                      live: buddy/spotify/cmd in, buddy/spotify/state + buddy/voice/say out;
-//                                      buddy/ears/wake warms up token, connection and device (Player::warm_up)
+//                                      buddy/ears/state + buddy/voice/state duck the box (and warm up token,
+//                                      connection and device for the command that follows)
 //   buddy-spotify --login              once: OAuth login, saves the refresh token
 //   buddy-spotify --cmd <action> [q]   test: runs one command and prints the result (no MQTT)
+//   buddy-spotify --cmd duck|restore   test: turns the box down / back up (the volume to restore is kept in
+//                                      $XDG_RUNTIME_DIR between the two calls)
 //
 // Config (env, see deploy/buddy.env.example): BUDDY_SPOTIFY_*
+#include <algorithm>
+#include <atomic>
 #include <chrono>
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <optional>
@@ -30,6 +37,7 @@ namespace {
 using namespace buddy;
 using namespace buddy::spotify;
 using json = nlohmann::json;
+using Clock = std::chrono::steady_clock;
 
 struct Config {
     AuthConfig auth{
@@ -39,23 +47,32 @@ struct Config {
                                  env_string("HOME", ".") + "/buddy/config/spotify-token.json"),
     };
     PlayerConfig player{
-        .device_name = env_string("BUDDY_SPOTIFY_DEVICE", "Buddy"),
+        .device_name = env_string("BUDDY_SPOTIFY_DEVICE", ""),
         .volume_step = env_int("BUDDY_SPOTIFY_VOLUME_STEP", 10),
         .default_uri = env_string("BUDDY_SPOTIFY_DEFAULT_URI", ""),
+        .duck_percent = env_int("BUDDY_SPOTIFY_DUCK_PERCENT", 30),
+        .duck_file = std::getenv("XDG_RUNTIME_DIR") ? std::string(std::getenv("XDG_RUNTIME_DIR")) + "/buddy-spotify-duck.json"
+                                                    : "",
     };
+    int duck_hold_ms = env_int("BUDDY_SPOTIFY_DUCK_HOLD_MS", 1500);
 };
 
 struct Command {
-    std::string action;  // empty = warm-up
+    std::string action;  // empty = ears/voice state changed
     std::string query;
 };
 
-int serve(Player& player, Auth& auth) {
+int serve(Player& player, Auth& auth, int hold_ms) {
     if (!auth.logged_in())
         std::cout << "[spotify] not logged in yet: run ~/buddy/bin/buddy-spotify --login (commands will fail)"
                   << std::endl;
 
     BlockingQueue<Command> queue;  // HTTP runs on this thread, not on Paho's
+    std::atomic<bool> listening{false}, speaking{false};
+    auto state_of = [](const std::string& payload) {
+        const auto msg = json::parse(payload, nullptr, /*allow_exceptions=*/false);
+        return msg.is_object() ? msg.value("state", "") : std::string();
+    };
     Mqtt mqtt("spotify", mqtt_config_from_env());
     mqtt.subscribe(topic::spotify_cmd, [&](const std::string&, const std::string& payload) {
         const auto msg = json::parse(payload, nullptr, /*allow_exceptions=*/false);
@@ -65,31 +82,64 @@ int serve(Player& player, Auth& auth) {
         }
         queue.push({msg["action"], msg.value("query", "")});
     });
-    // Most commands come right after a wake word: do the slow parts while the user is still talking.
-    mqtt.subscribe(topic::ears_wake, [&](const std::string&, const std::string&) { queue.push({}); });
+    mqtt.subscribe(topic::ears_state, [&](const std::string&, const std::string& payload) {
+        const auto s = state_of(payload);
+        listening = s == "listening" || s == "transcribing";
+        queue.push({});
+    });
+    mqtt.subscribe(topic::voice_state, [&](const std::string&, const std::string& payload) {
+        speaking = state_of(payload) == "speaking";
+        queue.push({});
+    });
+    player.recover();  // a crash while ducked must not leave the box quiet
     if (!mqtt.start()) return 0;
 
-    json state = {{"playing", nullptr}, {"volume", nullptr}};
+    json state = {{"playing", nullptr}, {"volume", nullptr}, {"ducked", false}};
+    auto publish_state = [&] { mqtt.publish(topic::spotify_state, state.dump(), 1, true); };
+    publish_state();
+
+    // Duck on the first sign of activity (the wake word); restore after hold_ms of quiet, which covers the gap
+    // between the transcript and the reply (brain → spotify → voice) so the music doesn't jump up and down.
+    const auto hold = std::chrono::milliseconds(hold_ms);
+    bool was_busy = false;
+    auto quiet_since = Clock::now();
     while (running()) {
         systemd::notify_watchdog();
-        const auto cmd = queue.pop(std::chrono::milliseconds(200));
-        if (!cmd) continue;
-        if (cmd->action.empty()) {
-            player.warm_up();
-            continue;
+        auto timeout = std::chrono::milliseconds(200);
+        if (player.ducked() && !was_busy)
+            timeout = std::clamp(std::chrono::duration_cast<std::chrono::milliseconds>(quiet_since + hold - Clock::now()),
+                                 std::chrono::milliseconds(0), timeout);
+        const auto cmd = queue.pop(timeout);
+
+        const bool busy = listening || speaking;
+        if (busy && !was_busy) player.duck();  // most commands follow: also warms up token, connection, device
+        if (!busy && was_busy) quiet_since = Clock::now();
+        was_busy = busy;
+        if (!busy && player.ducked() && Clock::now() - quiet_since >= hold) {
+            player.restore();
+            if (player.ducked()) quiet_since = Clock::now();  // failed: retry after another hold
         }
-        const auto t0 = std::chrono::steady_clock::now();
+        if (state["ducked"] != player.ducked()) {
+            state["ducked"] = player.ducked();
+            publish_state();
+        }
+        if (!cmd || cmd->action.empty()) continue;
+
+        const auto t0 = Clock::now();
         const Result r = player.run(cmd->action, cmd->query);
-        const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0);
+        const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - t0);
         std::cout << "[spotify] " << cmd->action << (cmd->query.empty() ? "" : " \"" + cmd->query + "\"")
                   << (r.ok ? " ok" : " failed") << " (" << ms.count() << " ms)" << std::endl;
 
         if (!r.say.empty()) mqtt.publish(topic::voice_say, json{{"text", r.say}}.dump(), 1);
         if (r.playing) state["playing"] = *r.playing;
         if (r.volume) state["volume"] = *r.volume;
-        if (r.playing || r.volume) mqtt.publish(topic::spotify_state, state.dump(), 1, true);
+        if (r.playing || r.volume) publish_state();
     }
 
+    player.restore();
+    state["ducked"] = player.ducked();
+    publish_state();
     mqtt.stop();
     return 0;
 }
@@ -110,8 +160,10 @@ int main(int argc, char** argv) {
     try {
         cfg.emplace();
         if (cfg->auth.client_id.empty()) throw std::invalid_argument("BUDDY_SPOTIFY_CLIENT_ID is not set");
-        // Spotify client IDs are 32 hex digits. Anything else is usually the client secret or the
-        // Soloist key pasted by mistake; Spotify then answers "INVALID_CLIENT" at login.
+        if (!login && cfg->player.device_name.empty())
+            throw std::invalid_argument("BUDDY_SPOTIFY_DEVICE is not set (the music box's name in the Spotify app)");
+        // Spotify client IDs are 32 hex digits. Anything else is usually the client secret pasted by mistake;
+        // Spotify then answers "INVALID_CLIENT" at login.
         const auto& id = cfg->auth.client_id;
         if (id.size() != 32 || id.find_first_not_of("0123456789abcdef") != std::string::npos)
             std::cerr << "[spotify] warning: BUDDY_SPOTIFY_CLIENT_ID has " << id.size()
@@ -135,12 +187,17 @@ int main(int argc, char** argv) {
             std::cerr << "✗ " << e.what() << std::endl;
             rc = 1;
         }
+    } else if (cmd && std::strcmp(argv[2], "duck") == 0) {
+        player.duck();
+        std::cout << (player.ducked() ? "ducked" : "not ducked (box not active or not playing?)") << std::endl;
+    } else if (cmd && std::strcmp(argv[2], "restore") == 0) {
+        player.recover();
     } else if (cmd) {
         const Result r = player.run(argv[2], argc == 4 ? argv[3] : "");
         std::cout << (r.ok ? "ok" : "failed") << (r.say.empty() ? "" : ", says: \"" + r.say + "\"") << std::endl;
         rc = r.ok ? 0 : 1;
     } else {
-        rc = serve(player, auth);
+        rc = serve(player, auth, cfg->duck_hold_ms);
     }
     curl_global_cleanup();
     return rc;
