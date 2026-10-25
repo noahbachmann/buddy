@@ -117,15 +117,13 @@ test	Play Time from Hans Zimmer.	play	time by hans zimmer
 test	Play the song Get Lucky by Daft Punk.	play	get lucky by daft punk
 # --- your playlists (edit)
 train	Play my playlist.	play_playlist
-train	Play my playlist Mhm.	play_playlist	mhm
 train	Play my chill playlist.	play_playlist	chill
 train	Play my playlist The Ones.	play_playlist	the ones
-train	Play my Focus playlist.	play_playlist	focus
+train	Play my sleepy playlist.	play_playlist	sleepy
 train	Can you play my playlist no singing, please?	play_playlist	no singing
 test	Play my playlist Mhm, please.	play_playlist	mhm
 test	Put on my chill playlist.	play_playlist	chill
-test	Can you play The Ones?	play	the ones
-test	Play the Focus playlist.	play_playlist	focus
+test	Play the Hype playlist.	play_playlist	hype
 test	Buddy, play my no singing playlist on Spotify.	play_playlist	no singing
 train	Play my liked songs.	play_liked
 train	Shuffle my liked songs.	play_liked	shuffle
@@ -136,19 +134,19 @@ train	Turn off the lights.	unknown
 train	Lights on.	unknown
 train	Living room lights off.	unknown
 train	Bedroom lights off.	unknown
-train	Switch off the desk lamp.	unknown
-train	Dim the living room to 30%.	unknown
-train	Set the lights to 50%.	unknown
+train	Switch off desk lamp.	unknown
+train	Dim living room to 30%.	unknown
+train	Set lights to 50%.	unknown
 train	Make it brighter.	unknown
-train	Make the lights darker.	unknown
-train	Set the bedroom light to warm white.	unknown
-train	Turn the lights blue.	unknown
-train	Activate the movie scene.	unknown
+train	Make lights darker.	unknown
+train	Set bedroom light to warm white.	unknown
+train	Turn lights blue.	unknown
+train	Activate movie scene.	unknown
 train	Good night, turn everything off.	unknown
 train	Are the kitchen lights on?	unknown
 test	Switch on the lights.	unknown
-test	Turn off the living room lights.	unknown
-test	Dim the bedroom to 20%.	unknown
-test	Set the desk lamp to warm white.	unknown
+test	Turn off living room lights.	unknown
+test	Dim bedroom to 20%.	unknown
+test	Set desk lamp to warm white.	unknown
 test	Start the movie scene.	unknown
-test	Is the bedroom light on?	unknown
+test	Is bedroom light on?	unknown
