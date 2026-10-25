@@ -6,7 +6,7 @@ set_directory_properties(PROPERTIES COMPILE_OPTIONS "")
 include(FetchContent)
 
 # ONNX Runtime (wake word + VAD, steps 1.6/1.7): Microsoft's prebuilt release, unpacked by
-# deploy/setup-pi.sh into /opt/onnxruntime. Not Debian's libonnxruntime-dev: that build registers
+# deploy/pi/setup.sh into /opt/onnxruntime. Not Debian's libonnxruntime-dev: that build registers
 # every ONNX schema twice and prints ~570 "Schema error" lines on each start (journald, microSD).
 # The release's own CMake config points at wrong paths, hence the manual imported target.
 set(ONNXRUNTIME_ROOT /opt/onnxruntime CACHE PATH "Unpacked onnxruntime-linux-<arch>-<version>.tgz")
@@ -18,7 +18,7 @@ set_target_properties(onnxruntime::onnxruntime PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES ${ONNXRUNTIME_INCLUDE_DIR}
 )
 
-# libpiper (text-to-speech, step 1.10): built from source by deploy/setup-pi.sh into /opt/libpiper, against
+# libpiper (text-to-speech, step 1.10): built from source by deploy/pi/setup.sh into /opt/libpiper, against
 # the ONNX Runtime above. Not FetchContent: its CMakeLists reads ${CMAKE_SOURCE_DIR}/../setup.py, so it only
 # builds as its own top-level project. Its espeak-ng data lands in /opt/libpiper/share/espeak-ng-data.
 set(LIBPIPER_ROOT /opt/libpiper CACHE PATH "libpiper install prefix")

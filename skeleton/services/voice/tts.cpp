@@ -18,7 +18,7 @@ Tts::Tts(TtsConfig cfg) : cfg_(std::move(cfg)) {
         throw std::runtime_error("voice config not found: " + cfg_.model_path + ".json");
     if (!std::filesystem::is_directory(cfg_.espeak_data_path))
         throw std::runtime_error("espeak-ng data not found: " + cfg_.espeak_data_path);
-    // libpiper has no API for this; setup-pi.sh's patched build reads it in piper_create
+    // libpiper has no API for this; setup.sh's patched build reads it in piper_create
     setenv("PIPER_INTRA_OP_THREADS", std::to_string(cfg_.threads).c_str(), 1);
     synth_ = piper_create(cfg_.model_path.c_str(), nullptr, cfg_.espeak_data_path.c_str());
     if (!synth_) throw std::runtime_error("cannot load voice " + cfg_.model_path);
