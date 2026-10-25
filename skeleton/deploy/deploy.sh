@@ -9,7 +9,7 @@
 set -euo pipefail
 
 HOST="${BUDDY_HOST:-buddy}"
-SERVICES=(ears brain spotify voice mixer)
+SERVICES=(ears brain spotify voice)
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"   # project root = parent of deploy/
 
 setup=false
@@ -50,8 +50,7 @@ cmake --build build-release --target "${targets[@]}"
 # being deployed (one CMake component each), so other services keep running their current binary.
 systemctl --user stop "${units[@]}" 2>/dev/null || true
 for s in "$@"; do cmake --install build-release --component "$s" > /dev/null; done
-install -m 644 src/deploy/systemd/buddy@.service src/deploy/systemd/buddy-soloist*.service \
-    src/deploy/systemd/buddy-soloist-update.timer ~/.config/systemd/user/
+install -m 644 src/deploy/systemd/buddy@.service ~/.config/systemd/user/
 systemctl --user daemon-reload
 systemctl --user enable --quiet "${units[@]}"
 # Type=notify: start returns once every service has loaded its models (READY=1), or fails.

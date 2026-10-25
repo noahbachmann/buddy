@@ -27,8 +27,7 @@ inline constexpr std::string_view brain_intent    = "buddy/brain/intent";     //
 inline constexpr std::string_view voice_say       = "buddy/voice/say";        // command {"text"}
 inline constexpr std::string_view voice_state     = "buddy/voice/state";      // event, retained {"state": idle|speaking}
 inline constexpr std::string_view spotify_cmd     = "buddy/spotify/cmd";      // command {"action"[,"query"]}
-inline constexpr std::string_view spotify_state   = "buddy/spotify/state";    // event, retained {"playing","volume"}
-inline constexpr std::string_view mixer_state     = "buddy/mixer/state";      // event, retained {"ducked"}
+inline constexpr std::string_view spotify_state   = "buddy/spotify/state";    // event, retained {"playing","volume","ducked"}
 
 // Phase 2 (planned). motion also listens to ears_wake / voice_state to animate eyes and head.
 inline constexpr std::string_view motion_cmd      = "buddy/motion/cmd";       // command
