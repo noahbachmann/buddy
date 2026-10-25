@@ -26,3 +26,11 @@ Current hardware and software used for the Buddy desk robot. Roadmap, architectu
 | Item | Details |
 |---|---|
 | Mic + speaker | Jabra Speak 510 MS (USB speakerphone, microphone and speaker in one device) |
+| Music | Music box, a Spotify Connect speaker named "Main speaker" in the Spotify app (model ⚠️ not noted yet). Buddy controls it via the Web API; music never plays through the Jabra |
+
+## Dev machines
+
+| Item | Details |
+|---|---|
+| PC | Dev's home PC with an NVIDIA GPU: CLion, speech-to-text training (`docs/voice-training.md`) |
+| Dev VM | Proxmox VM (x86_64, no GPU) used by Claude Code for edits, compile checks, eval runs against the Pi |
