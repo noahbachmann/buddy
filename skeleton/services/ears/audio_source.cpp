@@ -106,7 +106,8 @@ uint16_t le16(const char* p) { return static_cast<uint16_t>(static_cast<uint8_t>
 
 } // namespace
 
-WavSource::WavSource(const std::string& path) : file_(path, std::ios::binary) {
+WavSource::WavSource(const std::string& path, bool trailing_silence)
+    : file_(path, std::ios::binary), trailing_silence_chunks_(trailing_silence ? 25 : 0) {
     const std::string fix = " (convert: ffmpeg -i in.wav -ar 16000 -ac 1 -c:a pcm_s16le out.wav)";
     if (!file_) throw std::runtime_error("cannot open " + path);
 
@@ -152,6 +153,27 @@ bool WavSource::read(Chunk& chunk) {
         remaining_ = 0;
     }
     return trailing_silence_chunks_-- > 0;
+}
+
+void write_wav(const std::string& path, std::span<const int16_t> samples) {
+    std::ofstream out(path, std::ios::binary);
+    auto u32 = [&](uint32_t v) { for (int i = 0; i < 4; ++i) out.put(static_cast<char>(v >> (8 * i))); };
+    auto u16 = [&](uint16_t v) { out.put(static_cast<char>(v)); out.put(static_cast<char>(v >> 8)); };
+    const auto bytes = static_cast<uint32_t>(samples.size() * sizeof(int16_t));
+    out.write("RIFF", 4);
+    u32(36 + bytes);
+    out.write("WAVEfmt ", 8);
+    u32(16);
+    u16(1);  // PCM
+    u16(1);  // mono
+    u32(kSampleRate);
+    u32(kSampleRate * 2);
+    u16(2);
+    u16(16);
+    out.write("data", 4);
+    u32(bytes);
+    out.write(reinterpret_cast<const char*>(samples.data()), bytes);  // little-endian host (Pi, x86)
+    if (!out) throw std::runtime_error("cannot write " + path);
 }
 
 } // namespace buddy::ears

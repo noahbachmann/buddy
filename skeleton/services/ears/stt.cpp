@@ -61,6 +61,10 @@ Transcript Stt::transcribe(std::span<const int16_t> audio) {
     params.print_timestamps = false;
     params.print_special = false;
     if (!cfg_.prompt.empty()) params.initial_prompt = cfg_.prompt.c_str();
+    // A shorter encoder window is most of the speed-up for short commands, but stock models get less accurate:
+    // compare with deploy/train.sh --eval before switching (models trained by tools/voice expect it).
+    params.audio_ctx = cfg_.audio_ctx == kAutoAudioCtx ? auto_audio_ctx(pcm.size()) : cfg_.audio_ctx;
+    if (!cfg_.fallback) params.temperature_inc = 0.0f;
 
     if (whisper_full(ctx_, params, pcm.data(), static_cast<int>(pcm.size())) != 0)
         throw std::runtime_error("whisper_full failed");

@@ -2,11 +2,16 @@
 //
 //   buddy-ears              live: echo-cancelled mic (BUDDY_EARS_DEVICE), publishes on MQTT
 //   buddy-ears --wav f.wav  offline test: reads a 16 kHz mono WAV, prints instead of publishing (no MQTT)
-//   buddy-ears --transcribe f.wav…  speech-to-text only, one line per file: "<file>\t<ms>\t<text>" (compare models)
+//   buddy-ears --transcribe f.wav…  speech-to-text only, one line per file: "<file>\t<ms>\t<text>" (deploy/train.sh
+//                                   --eval; clips must already be trimmed like live commands)
 //
-// Config (env, see deploy/buddy.env.example): BUDDY_EARS_*, BUDDY_WAKE_*, BUDDY_VAD_*, BUDDY_STT_*, BUDDY_MODELS_DIR
+// Config (env, see deploy/config/buddy.env.example): BUDDY_EARS_*, BUDDY_WAKE_*, BUDDY_VAD_*, BUDDY_STT_*, BUDDY_MODELS_DIR
+#include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <ctime>
+#include <filesystem>
+#include <fstream>
 #include <cmath>
 #include <cstring>
 #include <functional>
@@ -34,6 +39,14 @@ using namespace buddy::ears;
 using Clock = std::chrono::steady_clock;
 using Publish = std::function<void(std::string_view topic, const nlohmann::json& msg, bool retained)>;
 
+// "auto" | number → SttConfig::audio_ctx
+int audio_ctx_from_env() {
+    if (env_string("BUDDY_STT_AUDIO_CTX", "") == "auto") return kAutoAudioCtx;
+    const int n = env_int("BUDDY_STT_AUDIO_CTX", 0);
+    if (n < 0 || n > 1500) throw std::invalid_argument("BUDDY_STT_AUDIO_CTX must be auto or 0..1500");
+    return n;
+}
+
 struct Config {
     std::string device = env_string("BUDDY_EARS_DEVICE", "pipewire:NODE=buddy_aec_source");
     bool debug = env_int("BUDDY_EARS_DEBUG", 0) != 0;
@@ -60,8 +73,39 @@ struct Config {
         .language = env_string("BUDDY_STT_LANGUAGE", "en"),
         .threads = env_int("BUDDY_STT_THREADS", 4),
         .prompt = env_string("BUDDY_STT_PROMPT", ""),
+        .audio_ctx = audio_ctx_from_env(),
+        .fallback = env_int("BUDDY_STT_FALLBACK", 0) != 0,
     };
+    // Opt-in: every command's audio + transcript, for training on real use (deploy/train.sh pulls them)
+    std::string save_dir = env_string("BUDDY_EARS_SAVE_DIR", "");
+    int save_max = env_int("BUDDY_EARS_SAVE_MAX", 500);
 };
+
+// <dir>/<time>.wav + .txt (the transcript). Keeps the newest `max` commands. Never throws: saving is optional.
+void save_command(const std::string& dir, int max, std::span<const int16_t> audio, const std::string& text) {
+    namespace fs = std::filesystem;
+    try {
+        fs::create_directories(dir);
+        char name[32];
+        const std::time_t now = std::time(nullptr);
+        std::strftime(name, sizeof name, "%Y%m%d-%H%M%S", std::localtime(&now));
+        const std::string base = (fs::path(dir) / name).string();
+        write_wav(base + ".wav", audio);
+        std::ofstream(base + ".txt") << text << "\n";
+
+        std::vector<fs::path> wavs;
+        for (const auto& e : fs::directory_iterator(dir))
+            if (e.path().extension() == ".wav") wavs.push_back(e.path());
+        if (wavs.size() <= static_cast<std::size_t>(max)) return;
+        std::sort(wavs.begin(), wavs.end());  // names are timestamps: oldest first
+        for (std::size_t i = 0; i + max < wavs.size(); ++i) {
+            fs::remove(wavs[i]);
+            fs::remove(fs::path(wavs[i]).replace_extension(".txt"));
+        }
+    } catch (const std::exception& e) {
+        std::cout << "[ears] saving command failed: " << e.what() << std::endl;
+    }
+}
 
 long ms_since(Clock::time_point t) {
     return std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - t).count();
@@ -135,6 +179,7 @@ void run(const Config& cfg, AudioSource& source, WakeWord& wake, Endpointer& end
                 const long audio_ms = static_cast<long>(command.size() * 1000 / kSampleRate);
                 std::cout << "[ears] " << pos() << " \"" << t.text << "\" (" << audio_ms << " ms audio, stt "
                           << stt_ms << " ms)" << std::endl;
+                if (!cfg.save_dir.empty()) save_command(cfg.save_dir, cfg.save_max, command, t.text);
                 if (!t.text.empty()) {
                     publish(topic::ears_transcript,
                             {{"text", t.text}, {"language", t.language}, {"audio_ms", audio_ms}, {"stt_ms", stt_ms}},
@@ -153,7 +198,7 @@ void run(const Config& cfg, AudioSource& source, WakeWord& wake, Endpointer& end
 int transcribe(Stt& stt, int argc, char** argv) {
     for (int i = 2; i < argc; ++i) {
         try {
-            WavSource wav(argv[i]);
+            WavSource wav(argv[i], /*trailing_silence=*/false);
             std::vector<int16_t> audio;
             Chunk chunk;
             while (wav.read(chunk)) audio.insert(audio.end(), chunk.begin(), chunk.end());

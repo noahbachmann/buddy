@@ -9,6 +9,7 @@
 #include <fstream>
 #include <memory>
 #include <mutex>
+#include <span>
 #include <string>
 #include <thread>
 #include <vector>
@@ -50,13 +51,18 @@ private:
 
 class WavSource : public AudioSource {
 public:
-    explicit WavSource(const std::string& path);  // throws on unsupported format
+    // Throws on unsupported format. trailing_silence: 2 s of zeros after the file, so the VAD sees the end of the
+    // last utterance (pipeline test); off for speech-to-text only.
+    explicit WavSource(const std::string& path, bool trailing_silence = true);
     bool read(Chunk& chunk) override;
 
 private:
     std::ifstream file_;
     std::size_t remaining_ = 0;  // bytes of sample data left
-    int trailing_silence_chunks_ = 25;  // 2 s, so VAD sees the end of the last utterance
+    int trailing_silence_chunks_;
 };
+
+// 16 kHz mono 16-bit WAV. Throws on write errors.
+void write_wav(const std::string& path, std::span<const int16_t> samples);
 
 } // namespace buddy::ears
