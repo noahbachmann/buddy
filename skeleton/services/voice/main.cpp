@@ -42,7 +42,7 @@ struct Config {
     std::string device = env_string("BUDDY_VOICE_DEVICE", "default");
     std::string models = env_string("BUDDY_MODELS_DIR", env_string("HOME", ".") + "/buddy/models");
     TtsConfig tts{
-        .model_path = models + "/" + env_string("BUDDY_VOICE_MODEL", "en_US-lessac-medium.onnx"),
+        .model_path = models + "/" + env_string("BUDDY_VOICE_MODEL", "en_GB-alan-medium.onnx"),
         .espeak_data_path = env_string("BUDDY_VOICE_ESPEAK_DATA", "/opt/libpiper/share/espeak-ng-data"),
         .length_scale = env_float("BUDDY_VOICE_LENGTH_SCALE", 1.0f),
         .gain = env_float("BUDDY_VOICE_GAIN", 1.0f),

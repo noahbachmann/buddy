@@ -1,5 +1,5 @@
 # Template for all Buddy services, run as systemd *user* units of the Pi user.
-#   systemctl --user start buddy@pong   →  runs ~/buddy/bin/buddy-pong
+#   systemctl --user start buddy@ears   →  runs ~/buddy/bin/buddy-ears
 # User units (not system units) because audio runs in the user's PipeWire session.
 #
 # Recovery (1.12, D14):

@@ -2,7 +2,7 @@
 # Deploy Buddy to the Pi: sync sources, Release build on the Pi, install, (re)start services.
 #
 # Usage: deploy/deploy.sh [--setup] [service ...]
-#   --setup   run deploy/setup-pi.sh on the Pi first (asks for your sudo password)
+#   --setup   run deploy/pi/setup.sh on the Pi first (asks for your sudo password)
 #   service   e.g. "ears"; default: all services in SERVICES
 #
 # Env: BUDDY_HOST (default "buddy", the alias from ~/.ssh/config)
@@ -28,7 +28,7 @@ rsync -az --delete --progress \
     "$ROOT/" "$HOST:buddy/src/"
 
 if $setup; then
-    ssh -t "$HOST" 'bash ~/buddy/src/deploy/setup-pi.sh'
+    ssh -t "$HOST" 'bash ~/buddy/src/deploy/pi/setup.sh'
 fi
 
 echo "→ build, install, restart: ${services[*]}"
@@ -50,7 +50,7 @@ cmake --build build-release --target "${targets[@]}"
 # being deployed (one CMake component each), so other services keep running their current binary.
 systemctl --user stop "${units[@]}" 2>/dev/null || true
 for s in "$@"; do cmake --install build-release --component "$s" > /dev/null; done
-install -m 644 src/deploy/systemd/buddy@.service ~/.config/systemd/user/
+install -m 644 src/deploy/config/systemd/buddy@.service ~/.config/systemd/user/
 systemctl --user daemon-reload
 systemctl --user enable --quiet "${units[@]}"
 # Type=notify: start returns once every service has loaded its models (READY=1), or fails.

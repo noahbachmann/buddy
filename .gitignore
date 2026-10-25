@@ -1,0 +1,6 @@
+# Voice recordings are personal data and this repo is public (D16): they live in ~/buddy-voice, never here.
+voice-data*/
+voice-test*/
+docs/voice/
+*.wav
+*.tar.gz
