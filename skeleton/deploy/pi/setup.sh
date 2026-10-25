@@ -12,7 +12,6 @@
 #   session      lingering: user services start at boot without a login (D7)
 #   config       ~/buddy folders, buddy.env from the example
 #   models       deploy/pi/fetch-models.sh: what buddy.env names
-#   cleanup      removes what earlier versions of Buddy installed
 #   check        warns about keys in buddy.env that no service reads (typos, removed settings)
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -138,23 +137,6 @@ step_models() {
     bash ./fetch-models.sh
 }
 
-# Leftovers of earlier versions. An entry can go once the Pi has run it.
-step_cleanup() {
-    local unit
-    for unit in buddy-soloist.service buddy-soloist-update.service buddy-soloist-update.timer \
-        buddy@mixer.service buddy-librespot.service; do
-        if systemctl --user cat "$unit" >/dev/null 2>&1; then
-            systemctl --user disable --now "$unit" 2>/dev/null || true
-            echo "  removed $unit"
-        fi
-        rm -f ~/.config/systemd/user/"$unit"
-    done
-    systemctl --user daemon-reload
-    rm -rf ~/buddy/bin/soloist ~/buddy/bin/buddy-mixer ~/buddy/config/soloist.env \
-        ~/.local/share/soloist ~/.cache/soloist ~/.cache/librespot
-    if dpkg-query -W raspotify >/dev/null 2>&1; then sudo apt-get purge -y raspotify; fi
-}
-
 step_check() {
     local key known
     known="$(grep -oE '\bBUDDY_[A-Z0-9_]+' "$CONFIG/buddy.env.example" | sort -u)"
@@ -162,12 +144,14 @@ step_check() {
         [[ "$key" =~ ^BUDDY_[A-Z0-9_]+$ ]] || continue
         grep -qx "$key" <<< "$known" || echo "  ⚠ buddy.env: $key is not a known setting (typo or removed?)"
     done < ~/buddy/config/buddy.env
+    grep -q $'\r' ~/buddy/config/buddy.env \
+        && printf '  ⚠ buddy.env has Windows line endings: works, but fix with: %s\n' "sed -i 's/\r\$//' ~/buddy/config/buddy.env"
     grep -q '^BUDDY_SPOTIFY_DEVICE=.' ~/buddy/config/buddy.env \
         || echo "  ⚠ buddy.env: BUDDY_SPOTIFY_DEVICE is not set (the music box's name in the Spotify app)"
     echo "  ✓ checked"
 }
 
-ALL=(packages onnxruntime libpiper uv audio mosquitto session config models cleanup check)
+ALL=(packages onnxruntime libpiper uv audio mosquitto session config models check)
 steps=("$@")
 [[ ${#steps[@]} -gt 0 ]] || steps=("${ALL[@]}")
 for s in "${steps[@]}"; do

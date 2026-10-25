@@ -10,10 +10,11 @@
 # Your own models (fine-tuned whisper ggml-buddy-*, a custom wake word) can't be downloaded: copy them from the PC.
 set -euo pipefail
 
-# Not `source`: buddy.env values are unquoted, systemd style.
+# Not `source`: buddy.env values are unquoted, systemd style. Trailing whitespace and "\r" (edited on Windows) are
+# dropped, like the services do.
 if [[ -f ~/buddy/config/buddy.env ]]; then
     while IFS='=' read -r key value; do
-        [[ "$key" =~ ^BUDDY_[A-Z0-9_]+$ ]] && export "$key=$value"
+        [[ "$key" =~ ^BUDDY_[A-Z0-9_]+$ ]] && export "$key=${value%"${value##*[![:space:]]}"}"
     done < ~/buddy/config/buddy.env
 fi
 DIR="${BUDDY_MODELS_DIR:-$HOME/buddy/models}"
