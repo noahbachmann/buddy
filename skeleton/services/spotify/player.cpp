@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
+#include <random>
 #include <utility>
 #include <vector>
 
@@ -30,20 +31,28 @@ std::string squash(const std::string& s) {
     return out;
 }
 
+// squash() without a leading "the"/"some": "some strokes" and "The Strokes" are the same artist
+std::string core_name(const std::string& s) {
+    const std::string l = lower(s);
+    for (const char* lead : {"the ", "some "})
+        if (l.starts_with(lead)) return squash(l.substr(std::string(lead).size()));
+    return squash(l);
+}
+
 std::string error_reason(const HttpResponse& r) {
     const auto j = json::parse(r.body, nullptr, /*allow_exceptions=*/false);
     if (j.is_discarded() || !j.contains("error") || !j["error"].is_object()) return r.body;
     return j["error"].value("reason", j["error"].value("message", r.body));
 }
 
-// Among the first non-null items of list `type`, the first whose name equals `name` (ignoring case and
-// punctuation), else the first one, else null. Spotify's top hit is often a related song or artist.
+// Among the first non-null items of list `type`, the first whose name equals `name` (ignoring case,
+// punctuation and a leading "the"/"some"), else the first one, else null. Spotify's top hit is often a related song or artist.
 json best_item(const json& results, const char* type, const std::string& name) {
     if (!results.contains(type) || !results[type].contains("items")) return nullptr;
     json first = nullptr;
     for (const auto& item : results[type]["items"]) {
         if (!item.is_object()) continue;
-        if (squash(item.value("name", "")) == squash(name)) return item;
+        if (core_name(item.value("name", "")) == core_name(name)) return item;
         if (first.is_null()) first = item;
     }
     return first;
@@ -109,6 +118,12 @@ Result playing(bool on, std::string say = "") {
     Result r;
     r.say = std::move(say);
     r.playing = on;
+    return r;
+}
+
+Result said(std::string say) {
+    Result r;
+    r.say = std::move(say);
     return r;
 }
 
@@ -232,6 +247,8 @@ void Player::warm_up() {
 }
 
 Result Player::dispatch(const std::string& action, const std::string& query) {
+    if (action == "set_volume") return set_volume(query);
+    if (action == "now_playing") return now_playing();
     // A warmed-up device is used once: its volume and "active" flag are only seconds old.
     const bool warm = warm_device_ && std::chrono::steady_clock::now() - warmed_at_ < std::chrono::seconds(15);
     const std::optional<Device> cached = std::exchange(warm_device_, std::nullopt);
@@ -271,6 +288,18 @@ Result Player::dispatch(const Device& d, const std::string& action, const std::s
                   "volume");
         return volume_set(volume);
     }
+    if (action == "shuffle") {
+        const bool on = query != "off";
+        expect_ok(api("PUT", std::string("/me/player/shuffle?state=") + (on ? "true" : "false") + "&device_id=" + d.id),
+                  "shuffle");
+        return said(on ? "Shuffle is on." : "Shuffle is off.");
+    }
+    if (action == "repeat") {
+        const std::string state = query == "track" || query == "off" ? query : "context";
+        expect_ok(api("PUT", "/me/player/repeat?state=" + state + "&device_id=" + d.id), "repeat");
+        return said(state == "track" ? "Repeating this song." : state == "off" ? "Repeat is off." : "Repeat is on.");
+    }
+    if (action == "play_liked") return play_liked(d, query == "shuffle");
     throw Failure("unknown action \"" + action + "\"", "I can't do that with Spotify.");
 }
 
@@ -283,6 +312,13 @@ Result Player::play(const Device& d, const std::string& query) {
         std::string q = lower(query);
         const bool want_playlist = q.size() > 9 && q.ends_with(" playlist");
         if (want_playlist) q.resize(q.size() - 9);
+        // "play the ones" when "The Ones" is your playlist: yours wins over a search (exact or contained name)
+        if (!want_playlist) {
+            if (const json own = best_own_playlist(q, 500); !own.is_null()) {
+                expect_ok(api("PUT", "/me/player/play" + on, {{"context_uri", own["uri"]}}), "play");
+                return playing(true, "Playing your playlist " + own["name"].get<std::string>() + ".");
+            }
+        }
         std::string title = q;  // the name a track result should have
         std::string search = q;
         std::string types = want_playlist ? "playlist" : "artist,track,playlist";
@@ -308,7 +344,7 @@ Result Player::play(const Device& d, const std::string& query) {
         const json artist = best_item(results, "artists", q);
         const json track = best_item(results, "tracks", title);
         const json playlist = best_item(results, "playlists", q);
-        if (!artist.is_null() && !want_playlist && squash(artist["name"]) == squash(q)) {
+        if (!artist.is_null() && !want_playlist && core_name(artist["name"]) == core_name(q)) {
             body = {{"context_uri", artist["uri"]}};
             say = "Playing " + artist["name"].get<std::string>() + ".";
         } else if (!track.is_null() && !want_playlist) {
@@ -349,9 +385,21 @@ Result Player::play_playlist(const Device& d, const std::string& name) {
         return playing(true);
     }
 
-    // All playlists you own or follow, 50 per page; 200 is plenty for voice selection.
-    json best = nullptr;
-    int best_score = 0;
+    const json best = best_own_playlist(name, 1);
+    if (best.is_null()) {  // not one of yours: a public playlist of that name
+        std::cout << "[spotify] no own playlist matches \"" << name << "\", searching public ones" << std::endl;
+        return play(d, name + " playlist");
+    }
+    expect_ok(api("PUT", "/me/player/play?device_id=" + d.id, {{"context_uri", best["uri"]}}), "play");
+    return playing(true, "Playing your playlist " + best["name"].get<std::string>() + ".");
+}
+
+// All playlists you own or follow, 50 per page; 200 is plenty for voice selection. Cached for 10 minutes: plain
+// "play X" checks them on every command.
+const json& Player::own_playlists() {
+    const auto now = std::chrono::steady_clock::now();
+    if (!playlists_.is_null() && now - playlists_at_ < std::chrono::minutes(10)) return playlists_;
+    json all = json::array();
     for (int offset = 0; offset < 200; offset += 50) {
         const auto r = api("GET", "/me/playlists?limit=50&offset=" + std::to_string(offset));
         if (r.status == 401 || r.status == 403)  // login from before playlist scopes were requested
@@ -360,21 +408,102 @@ Result Player::play_playlist(const Device& d, const std::string& name) {
                           "I'm not allowed to read your playlists yet. Please log in to Spotify again.");
         expect_ok(r, "playlists");
         const json page = json::parse(r.body);
-        for (const auto& p : page["items"]) {
-            if (!p.is_object() || !p["name"].is_string()) continue;
-            const int score = match_score(p["name"], name);
-            if (score > best_score) {
-                best_score = score;
-                best = p;
-            }
-        }
-        if (page["items"].size() < 50 || best_score == 1000) break;
+        for (const auto& p : page["items"])
+            if (p.is_object() && p["name"].is_string() && p["uri"].is_string()) all.push_back(p);
+        if (page["items"].size() < 50) break;
     }
-    if (best.is_null())
-        throw Failure("no own playlist matches \"" + name + "\"", "I couldn't find your playlist " + name + ".");
+    playlists_ = std::move(all);
+    playlists_at_ = now;
+    return playlists_;
+}
 
-    expect_ok(api("PUT", "/me/player/play?device_id=" + d.id, {{"context_uri", best["uri"]}}), "play");
-    return playing(true, "Playing your playlist " + best["name"].get<std::string>() + ".");
+// Best-matching own playlist with at least min_score (see match_score), else null.
+json Player::best_own_playlist(const std::string& name, int min_score) {
+    json best = nullptr;
+    int best_score = min_score - 1;
+    for (const auto& p : own_playlists()) {
+        const int score = match_score(p["name"], name);
+        if (score > best_score) {
+            best_score = score;
+            best = p;
+        }
+    }
+    return best;
+}
+
+Result Player::set_volume(const std::string& query) {
+    int volume = -1;
+    try {
+        std::size_t used = 0;
+        volume = std::stoi(query, &used);
+        if (used != query.size()) volume = -1;
+    } catch (const std::exception&) {
+    }
+    if (volume < 0 || volume > 100)
+        throw Failure("volume \"" + query + "\" out of range", "The volume goes from 0 to 100.");
+    if (duck_) {  // applied by restore(), like "louder"
+        duck_->restore_to = volume;
+        save_duck();
+        return volume_set(volume);
+    }
+    const Device d = device();
+    expect_ok(api("PUT", "/me/player/volume?volume_percent=" + std::to_string(volume) + "&device_id=" + d.id), "volume");
+    return volume_set(volume);
+}
+
+Result Player::now_playing() {
+    const auto r = api("GET", "/me/player");
+    if (r.status != 204) expect_ok(r, "player");
+    const json p = r.status == 204 ? json::object() : json::parse(r.body);
+    const json item = p.value("item", json());
+    if (!item.is_object() || !item["name"].is_string()) return said("Nothing is playing.");
+    std::string say = "This is " + item["name"].get<std::string>();
+    if (item.contains("artists") && !item["artists"].empty() && item["artists"][0]["name"].is_string())
+        say += " by " + item["artists"][0]["name"].get<std::string>();
+    else if (item.contains("show") && item["show"]["name"].is_string())  // podcast episode
+        say += " from " + item["show"]["name"].get<std::string>();
+    return said(say + ".");
+}
+
+// Liked songs aren't an official play context (only albums, artists and playlists are). The undocumented
+// "spotify:user:<id>:collection" plays the whole library ⚠️; if Spotify refuses it, the 50 newest liked songs
+// are played as a track list (needs the user-library-read scope).
+Result Player::play_liked(const Device& d, bool shuffle) {
+    const auto me = api("GET", "/me");
+    expect_ok(me, "me");
+    const std::string user = json::parse(me.body).value("id", "");
+    auto r = api("PUT", "/me/player/play?device_id=" + d.id, {{"context_uri", "spotify:user:" + user + ":collection"}});
+    if (r.status / 100 != 2) {
+        std::cout << "[spotify] collection context refused (" << r.status << " " << error_reason(r)
+                  << "), playing the newest liked songs" << std::endl;
+        const auto t = api("GET", "/me/tracks?limit=50");
+        if (t.status == 401 || t.status == 403)
+            throw Failure("liked songs: HTTP " + std::to_string(t.status) + " (run buddy-spotify --login again)",
+                          "I'm not allowed to read your liked songs yet. Please log in to Spotify again.");
+        expect_ok(t, "liked songs");
+        json uris = json::array();
+        for (const auto& i : json::parse(t.body)["items"])
+            if (i.contains("track") && i["track"]["uri"].is_string()) uris.push_back(i["track"]["uri"]);
+        if (uris.empty()) throw Failure("no liked songs", "You don't have any liked songs yet.");
+        if (shuffle) std::shuffle(uris.begin(), uris.end(), std::mt19937(std::random_device{}()));
+        r = api("PUT", "/me/player/play?device_id=" + d.id, {{"uris", uris}});
+    }
+    expect_ok(r, "play liked");
+    if (shuffle) expect_ok(api("PUT", "/me/player/shuffle?state=true&device_id=" + d.id), "shuffle");
+    return playing(true, shuffle ? "Shuffling your liked songs." : "Playing your liked songs.");
+}
+
+std::vector<std::string> Player::devices() {
+    const auto r = api("GET", "/me/player/devices");
+    expect_ok(r, "devices");
+    std::vector<std::string> out;
+    for (const auto& d : json::parse(r.body)["devices"]) {
+        std::string line = "\"" + d.value("name", "?") + "\" (" + d.value("type", "?");
+        if (d.value("is_active", false)) line += ", active";
+        if (d["volume_percent"].is_number()) line += ", volume " + std::to_string(d["volume_percent"].get<int>()) + " %";
+        out.push_back(line + ")");
+    }
+    return out;
 }
 
 Player::Device Player::device() {

@@ -9,9 +9,11 @@
 namespace buddy::brain {
 
 struct Intent {
-    std::string name;   // e.g. "play", "play_playlist", "pause", "next", "previous", "volume_up", "volume_down"
+    std::string name;   // play, play_playlist, play_liked, pause, next, previous, volume_up, volume_down, set_volume,
+                        // shuffle, repeat, now_playing
     std::string skill;  // service that handles it, e.g. "spotify"
-    std::string query;  // optional argument, e.g. "daft punk" in "play daft punk", "chill vibes" in "play my chill vibes playlist"
+    std::string query;  // optional argument: "daft punk" (play), "chill vibes" (play_playlist), "50" (set_volume),
+                        // "on"/"off" (shuffle), "track"/"context"/"off" (repeat), "shuffle" (play_liked)
 };
 
 class IntentParser {

@@ -6,6 +6,7 @@
 //                                      connection and device for the command that follows)
 //   buddy-spotify --login              once: OAuth login, saves the refresh token
 //   buddy-spotify --cmd <action> [q]   test: runs one command and prints the result (no MQTT)
+//   buddy-spotify --cmd devices        test: lists the Connect devices Spotify sees (exact names for BUDDY_SPOTIFY_DEVICE)
 //   buddy-spotify --cmd duck|restore   test: turns the box down / back up (the volume to restore is kept in
 //                                      $XDG_RUNTIME_DIR between the two calls)
 //
@@ -183,6 +184,15 @@ int main(int argc, char** argv) {
     if (login) {
         try {
             auth.login(std::cin, std::cout);
+        } catch (const std::exception& e) {
+            std::cerr << "✗ " << e.what() << std::endl;
+            rc = 1;
+        }
+    } else if (cmd && std::strcmp(argv[2], "devices") == 0) {
+        try {
+            const auto list = player.devices();
+            for (const auto& d : list) std::cout << d << std::endl;
+            if (list.empty()) std::cout << "no devices: open Spotify on the box or a phone first" << std::endl;
         } catch (const std::exception& e) {
             std::cerr << "✗ " << e.what() << std::endl;
             rc = 1;

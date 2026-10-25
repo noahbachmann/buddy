@@ -45,3 +45,7 @@ target_link_libraries(buddy_shared PUBLIC
     PahoMqttCpp::paho-mqttpp3
     nlohmann_json::nlohmann_json
 )
+
+add_executable(buddy-shared-test tests/test_topics.cpp)
+target_link_libraries(buddy-shared-test PRIVATE buddy_shared)
+add_test(NAME topics COMMAND buddy-shared-test)

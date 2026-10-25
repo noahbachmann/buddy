@@ -16,6 +16,8 @@ find_package(ALSA REQUIRED)
 find_package(CURL REQUIRED)
 find_package(OpenSSL REQUIRED)
 
+enable_testing()  # ctest: brain corpus, topics (not built by deploy.sh)
+
 add_subdirectory(third_party)
 add_subdirectory(shared)
 add_subdirectory(services/ears)

@@ -18,10 +18,10 @@ using Clock = std::chrono::steady_clock;
 
 const char* kAuthorizeUrl = "https://accounts.spotify.com/authorize";
 const char* kTokenUrl = "https://accounts.spotify.com/api/token";
-// Read the device list and current volume; control playback; find your own and followed playlists by name.
-// Adding a scope needs a new --login.
-const char* kScopes =
-    "user-read-playback-state user-modify-playback-state playlist-read-private playlist-read-collaborative";
+// Read the device list and current volume; control playback; find your own and followed playlists by name; read
+// liked songs. Adding a scope needs a new --login.
+const char* kScopes = "user-read-playback-state user-modify-playback-state playlist-read-private "
+                      "playlist-read-collaborative user-library-read";
 
 std::string base64url(const unsigned char* data, size_t len) {
     static const char* abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";

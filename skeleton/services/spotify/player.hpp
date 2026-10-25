@@ -11,6 +11,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 #include <nlohmann/json.hpp>
 
@@ -38,7 +39,8 @@ class Player {
 public:
     Player(PlayerConfig cfg, Auth& auth, Http& http);
 
-    // action: play, play_playlist, pause, next, previous, volume_up, volume_down. Never throws: errors become
+    // action: play, play_playlist, play_liked, pause, next, previous, volume_up, volume_down, set_volume, shuffle,
+    // repeat, now_playing (see brain/intent.hpp for the queries). Never throws: errors become
     // Result{ok = false, say = "…"} and a log line.
     Result run(const std::string& action, const std::string& query);
 
@@ -51,6 +53,9 @@ public:
     // Brings back the volume from before duck(), plus volume commands since. Skipped if someone else (phone app)
     // changed the volume meanwhile. Never throws.
     void restore();
+    // Spotify Connect devices the account sees right now, one "name (active, volume %)" line each. Throws.
+    std::vector<std::string> devices();
+
     // Call once at start: restores a duck that a crash or restart left behind (duck_file). Never throws.
     void recover();
     bool ducked() const { return duck_.has_value(); }
@@ -80,6 +85,11 @@ private:
     Result dispatch(const Device& d, const std::string& action, const std::string& query);
     Result play(const Device& d, const std::string& query);
     Result play_playlist(const Device& d, const std::string& name);  // your own/followed; empty = default
+    Result play_liked(const Device& d, bool shuffle);
+    Result set_volume(const std::string& query);
+    Result now_playing();
+    const nlohmann::json& own_playlists();
+    nlohmann::json best_own_playlist(const std::string& name, int min_score);
     HttpResponse api(const std::string& method, const std::string& path, const nlohmann::json& body = nullptr);
     void expect_ok(const HttpResponse& r, const std::string& what);
     Device device();
@@ -92,6 +102,8 @@ private:
     std::chrono::steady_clock::time_point warmed_at_{};
     std::string last_id_;          // last id the box was seen with, for when it drops out of the list in standby
     std::optional<Duck> duck_;
+    nlohmann::json playlists_;  // own_playlists() cache
+    std::chrono::steady_clock::time_point playlists_at_{};
     bool duck_disallowed_ = false;  // box refuses remote volume (403): stop trying
 };
 

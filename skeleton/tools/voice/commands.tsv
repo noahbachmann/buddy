@@ -1,0 +1,154 @@
+# Buddy's command corpus: one source for recording prompts (deploy/record.sh), brain's regression test
+# (ctest: brain_corpus) and intent scoring (deploy/train.sh). Tab-separated:
+#
+#   set       train = recorded for training, test = rephrasings recorded only for the test session,
+#             wake = the wake word (recorded on its own, repeated)
+#   sentence  written the way it should be transcribed: digits for numbers ("50%"), real capitalisation
+#   intent    what brain must return; unknown = no skill for it yet (lights: kept for speech-to-text)
+#   query     brain's query for that intent, empty if none
+#
+# Replace the artists, songs and playlists with yours: names whisper gets wrong are where training helps most,
+# so give each name 5+ sentences across train and test. A new phrasing that brain doesn't know fails ctest
+# until brain/rules.cpp learns it.
+#
+# set	sentence	intent	query
+wake	Hey Jarvis.	wake
+# --- play / resume
+train	Play Spotify.	play
+train	Play some music.	play
+train	Play music.	play
+train	Resume.	play
+train	Continue the music.	play
+train	Can you play some music, please?	play
+test	Play some Spotify.	play
+test	Put on some music.	play
+test	Keep playing.	play
+test	Buddy, can you play some music?	play
+# --- pause
+train	Pause.	pause
+train	Pause the music.	pause
+train	Stop the music.	pause
+train	Stop.	pause
+train	Please pause the music.	pause
+test	Pause it.	pause
+test	Pause the song.	pause
+test	Could you pause the music, please?	pause
+# --- next / previous
+train	Next song.	next
+train	Skip song.	next
+train	Play the next song.	next
+train	Buddy, next song please.	next
+test	Next track.	next
+test	Skip this song.	next
+test	Buddy, skip this one.	next
+train	Previous song.	previous
+train	Go back.	previous
+train	Last song.	previous
+test	Play the previous song.	previous
+test	Go back one song.	previous
+# --- volume
+train	Louder.	volume_up
+train	Turn it up.	volume_up
+train	Volume up.	volume_up
+train	Make it louder.	volume_up
+train	Turn up the volume, please.	volume_up
+test	A bit louder.	volume_up
+test	Turn the volume up.	volume_up
+test	Can you turn it up a bit?	volume_up
+train	Quieter.	volume_down
+train	Turn it down.	volume_down
+train	Turn down the music.	volume_down
+train	Volume down.	volume_down
+train	Could you turn it down?	volume_down
+train	Turn the music down a bit.	volume_down
+test	Quieter, please.	volume_down
+test	Turn it down a little.	volume_down
+test	Volume down, please.	volume_down
+test	Please turn the volume down.	volume_down
+test	Turn the music down a little bit, please.	volume_down
+train	Set the volume to 50%.	set_volume	50
+train	Volume 30.	set_volume	30
+train	Set the volume to 20%.	set_volume	20
+test	Set the volume to 70%.	set_volume	70
+test	Volume to 40%.	set_volume	40
+# --- shuffle / repeat
+train	Shuffle on.	shuffle	on
+train	Turn on shuffle.	shuffle	on
+train	Shuffle off.	shuffle	off
+test	Stop shuffling.	shuffle	off
+test	Shuffle the music.	shuffle	on
+train	Repeat this song.	repeat	track
+train	Repeat off.	repeat	off
+test	Play this song on repeat.	repeat	track
+test	Stop repeating.	repeat	off
+# --- what's playing
+train	What's playing?	now_playing
+train	What song is this?	now_playing
+test	What's playing right now?	now_playing
+test	What is this song?	now_playing
+# --- artists (edit)
+train	Play The Strokes.	play	the strokes
+train	Play Daughter on Spotify.	play	daughter
+train	Play Taylor Swift.	play	taylor swift
+train	Play Lil Peep.	play	lil peep
+train	Play Hans Zimmer.	play	hans zimmer
+train	Play Kanye West.	play	kanye west
+train	Play Arctic Monkeys.	play	arctic monkeys
+test	Play some Strokes.	play	some strokes
+test	Put on Daughter.	play	daughter
+test	Play songs by Taylor Swift.	play	taylor swift
+test	Play some Hans Zimmer on Spotify.	play	some hans zimmer
+test	Play some Arctic Monkeys.	play	some arctic monkeys
+test	Can you play something by Michael Jackson, please?	play	michael jackson
+train	Play something by Michael Jackson on Spotify.	play	michael jackson
+train	Play music by Lil Peep.	play	lil peep
+# --- songs by artists (edit)
+train	Play City Lights by James Gruntz.	play	city lights by james gruntz
+train	Play Party by Daughter.	play	party by daughter
+train	Play Follow God by Kanye.	play	follow god by kanye
+train	Play Bound 2 by Kanye West.	play	bound 2 by kanye west
+train	Play Time by Hans Zimmer.	play	time by hans zimmer
+train	Play Get Lucky by Daft Punk.	play	get lucky by daft punk
+train	Put on Blinding Lights by The Weeknd.	play	blinding lights by the weeknd
+test	Play City Lights from James Gruntz.	play	city lights by james gruntz
+test	Play the song Party by Daughter.	play	party by daughter
+test	Play Bound 2 from Kanye West.	play	bound 2 by kanye west
+test	Play Time from Hans Zimmer.	play	time by hans zimmer
+test	Play the song Get Lucky by Daft Punk.	play	get lucky by daft punk
+# --- your playlists (edit)
+train	Play my playlist.	play_playlist
+train	Play my playlist Mhm.	play_playlist	mhm
+train	Play my chill playlist.	play_playlist	chill
+train	Play my playlist The Ones.	play_playlist	the ones
+train	Play my Focus playlist.	play_playlist	focus
+train	Can you play my playlist no singing, please?	play_playlist	no singing
+test	Play my playlist Mhm, please.	play_playlist	mhm
+test	Put on my chill playlist.	play_playlist	chill
+test	Can you play The Ones?	play	the ones
+test	Play the Focus playlist.	play_playlist	focus
+test	Buddy, play my no singing playlist on Spotify.	play_playlist	no singing
+train	Play my liked songs.	play_liked
+train	Shuffle my liked songs.	play_liked	shuffle
+test	Put on my liked songs.	play_liked
+# --- lights (no skill yet: brain says unknown, but whisper learns the words now; edit rooms and scenes)
+train	Turn on the lights.	unknown
+train	Turn off the lights.	unknown
+train	Lights on.	unknown
+train	Living room lights off.	unknown
+train	Bedroom lights off.	unknown
+train	Switch off the desk lamp.	unknown
+train	Dim the living room to 30%.	unknown
+train	Set the lights to 50%.	unknown
+train	Make it brighter.	unknown
+train	Make the lights darker.	unknown
+train	Set the bedroom light to warm white.	unknown
+train	Turn the lights blue.	unknown
+train	Activate the movie scene.	unknown
+train	Good night, turn everything off.	unknown
+train	Are the kitchen lights on?	unknown
+test	Switch on the lights.	unknown
+test	Turn off the living room lights.	unknown
+test	Dim the bedroom to 20%.	unknown
+test	Set the desk lamp to warm white.	unknown
+test	Start the movie scene.	unknown
+test	Is the bedroom light on?	unknown

@@ -1,8 +1,9 @@
 #pragma once
 // Keyword/regex intent rules (English). Input is a raw whisper transcript ("Play, Spotify!");
-// it is normalized first: lowercase, no punctuation, common whisper misspellings fixed,
+// it is normalized first: lowercase, no punctuation, number words as digits, common whisper misspellings fixed,
 // politeness ("please", "can you") stripped. Each rule must match the whole remaining text,
 // so "pause" matches but "I don't want to pause anything right now" does not.
+// Every phrasing in tools/voice/commands.tsv is checked by ctest (brain_corpus).
 
 #include <regex>
 #include <string>
@@ -24,7 +25,8 @@ private:
         std::regex pattern;
         std::string name;
         std::string skill;
-        int query_group;  // capture group holding the query, 0 = none
+        int query_group;          // capture group holding the query, 0 = none
+        std::string fixed_query;  // query when query_group is 0, e.g. "off" for "stop shuffling"
     };
     std::vector<Rule> rules_;
 };
