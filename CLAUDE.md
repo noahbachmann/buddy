@@ -69,6 +69,7 @@ Open until Dev deletes it: `docs/guides/01-cleanup.md` (new recordings and train
 | D14 | Recovery | `buddy@.service` is `Type=notify` with `WatchdogSec=60` (READY from `Mqtt::start`, pings from each main loop, `shared/systemd.*` / `buddy_shared.systemd`, no libsystemd). Crashes restart with backoff 1 → 30 s and never give up. No core files. | ✅ |
 | D15 | Python services | uv workspace in `skeleton/` (`pyproject.toml` + `uv.lock`, members listed explicitly). `shared/python/buddy_shared` mirrors the C++ shared helpers; `shared/topics.json` is the single topic list (CMake generates `topics.hpp`). On the Pi: uv in `~/.local/bin` (pinned), Debian's Python, one venv `~/buddy/venv`, console script linked into `~/buddy/bin`, same unit template. | ✅ |
 | D16 | Voice data | Recordings are personal data and the repo is public: never in Git. Master copy on Dev's PC in `~/buddy-voice` (backed up); the Pi keeps sessions only until pulled. Training runs on Dev's PC (NVIDIA GPU, CUDA 12.8 PyTorch). | ✅ |
+| D17 | Motion controller | Raspberry Pi Pico 2 H on the Pi's USB, servos on its GPIO hardware PWM (50 Hz, 16 outputs), no PCA9685. Firmware C++ with Pico SDK 2.3.1 (FetchContent) in `skeleton/firmware/pico`, built and flashed on the Pi (picotool 2.3.1 in `/opt/picotool`). Text protocol v1 over USB CDC (`/dev/buddy-pico`), header shared with motion. The Pico enforces per-channel pulse limits and relaxes all servos 2 s after the last command. Servo power: separate 5 V supply, shared ground, never via the Pi or the Pico's VBUS/VSYS. | ✅ |
 
 Update this table when a decision is made or changed.
 
@@ -119,7 +120,7 @@ Speech-to-text training: `docs/voice-training.md`.
 | Step | Summary | Guide |
 |---|---|---|
 | 2.1 3D printer | Set up the Bambu Lab P2S. Print tolerance tests (holes, clearances) to find CAD offsets. | `docs/guides/02-01-printer.md` |
-| 2.2 Motion controller | Pico + PCA9685 servo driver + separate 5–6 V servo supply. USB serial link to the Pi. | `docs/guides/02-02-motion-controller.md` |
+| 2.2 Motion controller | Pico 2 H, servos on its hardware PWM, separate 5 V servo supply. USB serial link to the Pi, firmware flashed from the Pi (D17). | `docs/guides/02-02-motion-controller.md` |
 | 2.3 Motion service | `[motion]`: MQTT commands → Pico serial protocol. | `docs/guides/02-03-motion-service.md` |
 | 2.4 Eyes | Round display (e.g. GC9A01) with states: idle, listening, thinking, playing. | `docs/guides/02-04-eyes.md` |
 | 2.5 Head pan/tilt | Two servos. Head turns toward the user on wake word. | `docs/guides/02-05-head.md` |
@@ -161,11 +162,11 @@ buddy/
 │   │   ├── brain/           ← intent routing
 │   │   ├── voice/           ← TTS
 │   │   ├── spotify/         ← Spotify skill, ducking the music box
-│   │   └── motion/          ← Pi side of motor control (planned)
+│   │   └── motion/          ← joints → Pico serial protocol (planned)
 │   ├── tools/voice/         ← commands.tsv (corpus) + buddy_voice (record/train/eval, runs on the PC)
+│   ├── firmware/pico/       ← Pico 2 firmware: servos, later display (separate CMake project, D17; planned)
 │   └── deploy/              ← PC scripts; pi/ = scripts that run on the Pi; config/ = units, env example, PipeWire
-├── parts/                   ← printable parts: STLs, arm/ in parametric OpenSCAD
-└── firmware/pico/           ← servo & display control (planned)
+└── parts/                   ← printable parts: STLs, arm/ in parametric OpenSCAD
 ```
 
 ---

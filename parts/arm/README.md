@@ -68,7 +68,7 @@ The STLs are already in print orientation. Each limb is cut in two because 300 m
 1. **Bearings:** press a 608 into each idler cheek from the **inside** (`upper-arm-top`, `forearm-top`). Use a vise with a flat block, and push only on the outer race. It stops against the outer lip.
 2. **Couplers:** glue each limb's two halves using its ring. Dry-fit first. The ellipse also fits rotated 180°: the servo opening in the knuckle and the horn cheek must be on the **same side**, and the cable hole goes to the back.
 3. **Nuts:** push an M8 nut into the hex slot of each knuckle (shoulder mount, elbow). The slot opens to the front.
-4. **Centre the servos** before fitting the horns: 1500 µs pulse, using a servo tester (~CHF 5) or the PCA9685 from step 2.2. Otherwise the range won't be symmetric.
+4. **Centre the servos** before fitting the horns: 1500 µs pulse, using a servo tester (~CHF 5) or the Pico from step 2.2 (`LIMIT`, then `MOVE <ch> 1500 0`, guide step 9). Otherwise the range won't be symmetric.
 5. **Servo in:** feed the cable into the channel first (it leads up into the stem or tube), then lay the servo into the pocket from the open side and fit 4× M3×10 through the flange. Then fit the horn and its centre screw, with the limb pointing straight down.
 6. **Fork on:** slide the next limb on from below. The boss on the knuckle slides along the groove in the idler cheek into the bearing. Screw the horn cheek to the horn (4× M3×6). Push the M8 bolt with 2 washers through the bearing into the nut and tighten it firmly.
 7. **Elbow cable:** route it up the upper arm and out of the hole at the back near the shoulder.
