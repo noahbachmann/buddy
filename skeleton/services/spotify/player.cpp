@@ -482,7 +482,8 @@ Result Player::play_liked(const Device& d, bool shuffle) {
                           "I'm not allowed to read your liked songs yet. Please log in to Spotify again.");
         expect_ok(t, "liked songs");
         json uris = json::array();
-        for (const auto& i : json::parse(t.body)["items"])
+        const json liked = json::parse(t.body);  // named: a temporary dies before the loop body (C++20)
+        for (const auto& i : liked["items"])
             if (i.contains("track") && i["track"]["uri"].is_string()) uris.push_back(i["track"]["uri"]);
         if (uris.empty()) throw Failure("no liked songs", "You don't have any liked songs yet.");
         if (shuffle) std::shuffle(uris.begin(), uris.end(), std::mt19937(std::random_device{}()));
@@ -497,7 +498,8 @@ std::vector<std::string> Player::devices() {
     const auto r = api("GET", "/me/player/devices");
     expect_ok(r, "devices");
     std::vector<std::string> out;
-    for (const auto& d : json::parse(r.body)["devices"]) {
+    const json devices = json::parse(r.body);
+    for (const auto& d : devices["devices"]) {
         std::string line = "\"" + d.value("name", "?") + "\" (" + d.value("type", "?");
         if (d.value("is_active", false)) line += ", active";
         if (d["volume_percent"].is_number()) line += ", volume " + std::to_string(d["volume_percent"].get<int>()) + " %";
