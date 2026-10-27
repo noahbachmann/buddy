@@ -248,7 +248,7 @@ void Player::recover() {
     std::ifstream f(cfg_.duck_file);
     if (!f) return;
     const auto j = json::parse(f, nullptr, /*allow_exceptions=*/false);
-    if (j.is_object() && j["restore_to"].is_number_integer() && j["ducked_to"].is_number_integer()) {
+    if (j.is_object() && field(j, "restore_to").is_number_integer() && field(j, "ducked_to").is_number_integer()) {
         std::cout << "[spotify] restoring the volume a restart left ducked" << std::endl;
         duck_ = Duck{.device_id = j.value("device_id", ""), .restore_to = j["restore_to"], .ducked_to = j["ducked_to"]};
         restore();
@@ -539,7 +539,7 @@ Result Player::play_liked(const Device& d, bool shuffle) {
         json uris = json::array();
         const json liked = json::parse(t.body);  // named: a temporary dies before the loop body (C++20)
         for (const auto& i : liked["items"])
-            if (i.contains("track") && i["track"]["uri"].is_string()) uris.push_back(i["track"]["uri"]);
+            if (const json& t = field(i, "track"); t.is_object() && field(t, "uri").is_string()) uris.push_back(t["uri"]);
         if (uris.empty()) throw Failure("no liked songs", "You don't have any liked songs yet.");
         if (shuffle) std::shuffle(uris.begin(), uris.end(), std::mt19937(std::random_device{}()));
         r = api("PUT", "/me/player/play?device_id=" + d.id, {{"uris", uris}});
