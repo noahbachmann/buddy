@@ -31,14 +31,14 @@ Roadmap, decisions and conventions: `../CLAUDE.md`.
 |---|---|---|
 | ears | `audio_source` (ALSA capture thread, reopens device; WAV read/write), `wake_word` (3 ONNX models), `vad` (Silero + endpointer + level gate), `stt` (whisper.cpp; `audio_ctx` auto = `auto_audio_ctx()`, shared with tools/voice) | `--wav f.wav`, `--transcribe f.wav…` |
 | brain | `rules` (normalize + regex `RuleParser` behind `IntentParser`), `test_corpus.cpp` (ctest) | `--test "text"…` |
-| spotify | `http` (libcurl, keep-alive), `auth` (PKCE, token file), `player` (Web API on the music box, own-playlist cache, duck/restore with tmpfs recovery file) | `--login`, `--cmd <action> [query]`, `--cmd devices\|duck\|restore` |
+| spotify | `http` (libcurl, keep-alive), `auth` (PKCE, token file), `player` (Web API; target = named speaker (`speaker()`, fuzzy) / box / active device, own-playlist cache, duck/restore by device id with tmpfs recovery file) | `--login`, `--cmd <action> [query] [speaker]`, `--cmd devices\|duck\|restore` |
 | voice | `tts` (libpiper, sentence streaming), `audio_sink` (ALSA per utterance / WAV) | `--say "…" [--wav out.wav]` |
 
 ## tools/voice (Python, runs on the PC; `deploy/record.sh`, `deploy/train.sh`)
 
 | File | What |
 |---|---|
-| `commands.tsv` | Corpus: set, sentence, intent, query. Prompts, brain ctest, intent scoring |
+| `commands.tsv` | Corpus: set, sentence, intent, query, device. Prompts, brain ctest, intent scoring |
 | `buddy_voice/data.py` | `~/buddy-voice` layout, sessions, import of old record-voice.sh data, check, trimmed cache |
 | `vad.py`, `audio.py` | Silero trimming like ears; WAV I/O; `auto_audio_ctx` (= `stt.hpp`, tested) |
 | `train.py` | HF Whisper fine-tune: sentence-level validation split, short-context encoder (`short_context()`), greedy validation |
@@ -59,4 +59,5 @@ Roadmap, decisions and conventions: `../CLAUDE.md`.
 - Two copies of one service (CLion + unit) share the client id and kick each other off the broker.
 - uv workspace members are listed explicitly (uv needs a pyproject.toml in every glob match, C++ service dirs have none).
 - `train.py` replaces `WhisperEncoder.forward` of the pinned transformers version: re-check it when bumping transformers.
+- `const json`'s `operator[]` asserts on a missing key: spotify reads device fields with `field()`.
 - `BUDDY_STT_AUDIO_CTX=auto` breaks stock whisper models (hallucination loops); only models trained with `--ctx auto`.

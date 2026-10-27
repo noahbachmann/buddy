@@ -62,7 +62,7 @@ Open until Dev deletes it: `docs/guides/01-cleanup.md` (new recordings and train
 | D7 | Runtime packaging | systemd user units on the Pi (`buddy@<service>`, lingering on), Mosquitto from apt. Docker only for services offloaded to a LAN host later. | ✅ |
 | D8 | Audio capture | ears reads the echo-cancelled PipeWire source via ALSA (`pipewire:NODE=buddy_aec_source`, D13), 16 kHz mono s16. Wake word, VAD and STT live in one service (`ears`) sharing that stream. | ✅ |
 | D9 | ML libraries | ONNX Runtime: Microsoft's prebuilt aarch64 release in `/opt/onnxruntime` (Debian's package spams the log). whisper.cpp: pinned tag built via CMake FetchContent. Models in `~/buddy/models` via `deploy/pi/fetch-models.sh` (what `buddy.env` names), not in Git; own models (fine-tuned whisper `ggml-buddy-*`) come from the PC. | ✅ |
-| D10 | Spotify | Music plays on the music box, a Spotify Connect speaker (`BUDDY_SPOTIFY_DEVICE`), never through the Jabra. spotify controls it via the Web API (libcurl, OAuth PKCE, refresh token in `~/buddy/config/spotify-token.json`). Spotify Soloist (Connect client on the Pi) removed 2026-10-25. | ✅ |
+| D10 | Spotify | Music plays on the music box, a Spotify Connect speaker (`BUDDY_SPOTIFY_DEVICE`), never through the Jabra. Other Connect speakers by name ("… on the bathroom speaker"; brain splits off the name, spotify matches it against the device list); pause/next/volume follow the device that is playing. spotify controls them via the Web API (libcurl, OAuth PKCE, refresh token in `~/buddy/config/spotify-token.json`). Spotify Soloist (Connect client on the Pi) removed 2026-10-25. | ✅ |
 | D11 | Intents & replies | brain: regex rules behind `IntentParser` (LLM-replaceable), routes to `buddy/<skill>/cmd`. `skeleton/tools/voice/commands.tsv` is the phrasing it must understand (ctest). The service that knows the outcome publishes `buddy/voice/say`. | ✅ |
 | D12 | TTS | libpiper v1.8.0 built from source by `setup.sh` into `/opt/libpiper` (against `/opt/onnxruntime`), patched to read its ONNX thread count from `PIPER_INTRA_OP_THREADS` (stock: 1; voice sets 3 via `BUDDY_VOICE_THREADS`, first audio ~830 → ~450 ms); voice `en_GB-alan-medium`. | ✅ |
 | D13 | Background music & echo cancellation | The box's music is room noise to Buddy. spotify ducks the box via the Web API while ears listens or voice speaks. PipeWire echo-cancel (WebRTC, monitor mode) removes only Buddy's own voice → `buddy_aec_source`; config `deploy/config/pipewire/`. ⚠️ Kept only if it beats the raw mic on box recordings (`01-cleanup.md` step 8). | ✅ |
@@ -104,8 +104,6 @@ Speech-to-text training: `docs/voice-training.md`.
 
 ### Deferred (not needed for Phase 1, pick up when useful)
 
-- **Play on another speaker:** "play this on \<speaker\>": brain intent with a device, spotify transfers playback to any
-  Connect device by name; ducking for every speaker in the room, not only `BUDDY_SPOTIFY_DEVICE`.
 - **Wake word CPU:** ears idles at ~8 % of one core; `embedding_model.onnx` is 3.7 of 4.2 ms per 80 ms chunk. Options
   that change behaviour: quantized embedding model, or skipping inference during silence. Needs score comparisons on the
   wake-word clips `deploy/record.sh` collects.

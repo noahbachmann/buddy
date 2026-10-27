@@ -13,7 +13,7 @@
     {"name": "brain_intent",    "topic": "buddy/brain/intent",    "kind": "event",   "payload": ["intent", "skill", "text", "[query]"]},
     {"name": "voice_say",       "topic": "buddy/voice/say",       "kind": "command", "payload": ["text"]},
     {"name": "voice_state",     "topic": "buddy/voice/state",     "kind": "event",   "retained": true, "payload": ["state: idle|speaking|offline"]},
-    {"name": "spotify_cmd",     "topic": "buddy/spotify/cmd",     "kind": "command", "payload": ["action", "[query]"]},
+    {"name": "spotify_cmd",     "topic": "buddy/spotify/cmd",     "kind": "command", "payload": ["action", "[query]", "[device]", "[fallback: {action, [query]}]"]},
     {"name": "spotify_state",   "topic": "buddy/spotify/state",   "kind": "event",   "retained": true, "payload": ["playing", "volume: 0..100", "ducked"]},
     {"name": "motion_cmd",      "topic": "buddy/motion/cmd",      "kind": "command", "planned": true},
     {"name": "motion_state",    "topic": "buddy/motion/state",    "kind": "event",   "planned": true}

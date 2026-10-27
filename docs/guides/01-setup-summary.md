@@ -264,6 +264,11 @@ Offline: `buddy-ears --wav f.wav` (whole pipeline), `buddy-ears --transcribe a.w
 | "set the volume to 50%" | `set_volume` |
 | "shuffle on", "stop shuffling" / "repeat this song", "repeat off" | `shuffle`, `repeat` (spoken confirmation) |
 | "what's playing?" | `now_playing` → "This is <title> by <artist>." |
+| "play Daft Punk on the bathroom speaker", "my liked songs on desktop one", "move the music to my Pixel" | the same on that speaker; no query = move what's playing there. Name: exact, contained ("pixel" → Pixel 8) or a word 1–2 letters off; "the box" = the box; two matches → "Which speaker?"; none → "I can't find a speaker called …" (or, for "Shine On You Crazy Diamond", the search brain's `fallback` names) |
+
+Which speaker: a named one; else `play`/`play_playlist`/`play_liked` → the box, everything else (pause, next, volume,
+shuffle, repeat) → the device playing right now (else the box). Phones and PCs are only in the list while their
+Spotify app is open.
 
 Setup (once): developer.spotify.com → **Create app** (Redirect URI exactly `http://127.0.0.1:8888/callback`, Web API),
 Client ID into `BUDDY_SPOTIFY_CLIENT_ID`; owner needs **Premium** (Development Mode, max 5 users, search max 10 results).
@@ -271,8 +276,8 @@ Login: load `buddy.env` (`while IFS="=" read -r k v; do [[ "$k" =~ ^BUDDY_ ]] &&
 `~/buddy/bin/buddy-spotify --login`, open the URL on the PC, copy the failing `http://127.0.0.1:8888/callback?code=…` URL
 back. A new scope (e.g. liked songs) needs `--login` again.
 
-Offline: `buddy-brain --test "Play Daft Punk." …`; `buddy-spotify --cmd <action> [query]` (real API, no MQTT; plays on
-the box), `--cmd devices` (exact device names), `--cmd duck` / `restore`.
+Offline: `buddy-brain --test "Play Daft Punk." …`; `buddy-spotify --cmd <action> [query] [speaker]` (real API, no MQTT;
+plays on the box unless a speaker is named), `--cmd devices` (exact device names), `--cmd duck` / `restore`.
 
 | Symptom | Fix |
 |---|---|
@@ -319,7 +324,8 @@ Music plays on the **music box**, not the Jabra, so it reaches the mic as room n
   `BUDDY_SPOTIFY_DUCK_HOLD_MS` (1500) after both are idle it comes back. "louder" while ducked changes the volume that
   comes back; a volume changed on the phone meanwhile is left alone. A crash while ducked is repaired at the next start
   (`$XDG_RUNTIME_DIR/buddy-spotify-duck.json`). `buddy/spotify/state` carries `ducked`. A box that refuses remote volume
-  (`VOLUME_CONTROL_DISALLOW`) turns ducking off with a log line.
+  (`VOLUME_CONTROL_DISALLOW`) turns ducking off with a log line. Other speakers in the room: `BUDDY_SPOTIFY_DUCK_DEVICES`
+  (the one playing is ducked, and restored by its device id).
 - **The wake word itself** must get through the music unducked: threshold tuning with the box playing (1.6), training data
   recorded with the box playing (`deploy/record.sh box`), maybe "Hey buddy" trained with music.
 - **Echo cancellation** (PipeWire `libpipewire-module-echo-cancel`, WebRTC, monitor mode = reference is everything the

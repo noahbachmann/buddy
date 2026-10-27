@@ -91,6 +91,9 @@ micro tools/voice/commands.tsv
 ```
 
 Replace the example artists, songs and playlists with what you really ask for, especially names whisper gets wrong.
+The "other speakers" section has yours (desktop-1, Bathroom speaker, Pixel 8, my-personal-tv): check them against
+`buddy-spotify --cmd devices` with each one awake (Spotify currently lists your TV as just "TV"), and fix the
+sentences if a name differs.
 5+ sentences per name, some in `train`, some (rephrased) in `test`. Then check that brain still understands everything:
 
 ```bash
