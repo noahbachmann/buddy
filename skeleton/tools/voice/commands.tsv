@@ -1,5 +1,5 @@
 # Buddy's command corpus: one source for recording prompts (deploy/record.sh), brain's regression test
-# (ctest: brain_corpus) and intent scoring (deploy/train.sh). Tab-separated:
+# (services/brain/tests/test_corpus.cpp) and intent scoring (deploy/train.sh). Tab-separated:
 #
 #   set       train = recorded for training, test = rephrasings recorded only for the test session,
 #             wake = the wake word (recorded on its own, repeated)
@@ -9,7 +9,7 @@
 #   device    the speaker brain splits off ("… on the bathroom speaker"), empty = the music box
 #
 # Replace the artists, songs and playlists with yours: names whisper gets wrong are where training helps most,
-# so give each name 5+ sentences across train and test. A new phrasing that brain doesn't know fails ctest
+# so give each name 5+ sentences across train and test. A new phrasing that brain doesn't know fails deploy/test.sh
 # until brain/rules.cpp learns it.
 #
 # set	sentence	intent	query	device

@@ -28,7 +28,7 @@ is right, 9 of 10 times each.
 - **Validation leaked:** the old notebook validated on sentences it had trained on, so its "best epoch" was optimistic.
   The new training holds out whole sentences.
 - **brain** missed 15 of 43 music phrasings even with perfect text ("put on …", "a bit louder", "skip this one", "set the
-  volume to 50 %", …). Fixed, and checked by `ctest` against the corpus.
+  volume to 50 %", …). Fixed, and checked against the corpus by `deploy/test.sh`.
 - **Speed:** your current model with `BUDDY_STT_AUDIO_CTX=auto` is 9× faster (0.2 s) at a small accuracy cost, without
   even being trained for it. The new training trains for it.
 
@@ -97,7 +97,7 @@ sentences if a name differs.
 5+ sentences per name, some in `train`, some (rephrased) in `test`. Then check that brain still understands everything:
 
 ```bash
-cmake -S . -B build -G Ninja && cmake --build build --target buddy-brain-test && (cd build && ctest)
+deploy/test.sh -R Corpus
 ```
 
 Commit the corpus (it's your music taste, not your voice: fine in the public repo).
@@ -194,7 +194,7 @@ louder", "… pause". Count: wake word triggered / box ducked / right action. **
 
 - [ ] `--cmd devices` lists the box; standby behaviour reported (step 2).
 - [ ] Ducking works; "louder" while ducked comes back louder (step 3).
-- [ ] Corpus has your names, `ctest` passes (step 4).
+- [ ] Corpus has your names, `deploy/test.sh -R Corpus` passes (step 4).
 - [ ] `deploy/train.sh check`: ≥ 500 training clips, ≥ 150 test clips, no warnings.
 - [ ] New model installed: intent ≥ 95 %, WER < 5 %, ≤ 0.3 s on the new test session (step 7).
 - [ ] AEC decision reported (step 8); wake word threshold set (step 9).

@@ -29,27 +29,41 @@ Roadmap, decisions and conventions: `../CLAUDE.md`.
 
 | Service | Key files | Offline entry point |
 |---|---|---|
-| ears | `audio_source` (ALSA capture thread, reopens device; WAV read/write), `wake_word` (3 ONNX models), `vad` (Silero + endpointer + level gate), `stt` (whisper.cpp; `audio_ctx` auto = `auto_audio_ctx()`, shared with tools/voice) | `--wav f.wav`, `--transcribe f.wav…` |
-| brain | `rules` (normalize + regex `RuleParser` behind `IntentParser`), `test_corpus.cpp` (ctest) | `--test "text"…` |
-| spotify | `http` (libcurl, keep-alive), `auth` (PKCE, token file), `player` (Web API; target = named speaker (`speaker()`, fuzzy) / box / active device, own-playlist cache, duck/restore by device id with tmpfs recovery file) | `--login`, `--cmd <action> [query] [speaker]`, `--cmd devices\|duck\|restore` |
+| ears | `audio_source` (ALSA capture thread, reopens device; WAV read/write), `wake_word` (3 ONNX models), `vad` (Silero), `endpoint` (endpointer + level gate on a `SpeechModel` interface, no ONNX = `ears_core`), `stt` (whisper.cpp; `audio_ctx` auto = `auto_audio_ctx()`, shared with tools/voice) | `--wav f.wav`, `--transcribe f.wav…` |
+| brain | `rules` (normalize + regex `RuleParser` behind `IntentParser`) = `brain_core` | `--test "text"…` |
+| spotify | `http` (`Http` interface, `url_encode`), `curl_http` (libcurl, keep-alive), `auth` (PKCE, token file), `player` (Web API; target = named speaker (`speaker()`, fuzzy) / box / active device, own-playlist cache, duck/restore by device id with tmpfs recovery file) | `--login`, `--cmd <action> [query] [speaker]`, `--cmd devices\|duck\|restore` |
 | voice | `tts` (libpiper, sentence streaming), `audio_sink` (ALSA per utterance / WAV) | `--say "…" [--wav out.wav]` |
 
 ## tools/voice (Python, runs on the PC; `deploy/record.sh`, `deploy/train.sh`)
 
 | File | What |
 |---|---|
-| `commands.tsv` | Corpus: set, sentence, intent, query, device. Prompts, brain ctest, intent scoring |
+| `commands.tsv` | Corpus: set, sentence, intent, query, device. Prompts, brain corpus test, intent scoring |
 | `buddy_voice/data.py` | `~/buddy-voice` layout, sessions, import of old record-voice.sh data, check, trimmed cache |
-| `vad.py`, `audio.py` | Silero trimming like ears; WAV I/O; `auto_audio_ctx` (= `stt.hpp`, tested) |
+| `vad.py`, `audio.py` | Silero trimming like ears; WAV I/O; `auto_audio_ctx` (= `stt.hpp`, both checked against `audio_ctx.json`) |
 | `train.py` | HF Whisper fine-tune: sentence-level validation split, short-context encoder (`short_context()`), greedy validation |
-| `convert.py` | GGML via whisper.cpp's converter (same release as CMake, tested) + q8_0 |
+| `convert.py` | GGML via whisper.cpp's converter (release from `third_party/whisper.json`, like CMake) + q8_0 |
 | `evaluate.py`, `pi.py` | Scores on the Pi via ssh (`buddy-ears --transcribe`, `buddy-brain --test`), install |
 
 ## Tests
 
-- `ctest` (build dir): `brain_corpus` (every train/test sentence in `commands.tsv`), `topics`. Not built by deploy.sh.
-- `uv run pytest` (here): `buddy_shared` (MQTT test needs a broker on localhost), `buddy_voice` (corpus, scoring, shared constants with C++/CMake).
-- VM: `uv sync --all-packages --extra cpu`; `BUDDY_TORCH=cpu deploy/train.sh --base tiny.en --max-steps 2 --no-pull --no-eval` smoke-tests training.
+`deploy/test.sh [ctest args]`: C++ under ASan + UBSan (`build-test/`, target `buddy-tests` only: no ML libraries
+built), pytest, shellcheck. `deploy/test.sh --pi`: the C++ tests on the Pi (`~/buddy/build-test`, no restarts).
+
+| Where | What |
+|---|---|
+| `shared/tests/` | gtest: topics, config, queue, MQTT round trip (localhost broker, skipped without), systemd (own exe: process-wide state) |
+| `shared/tests/cases/*.json` | Cases both languages check (`cases.hpp` / plain `json.load`): topic matching, `BUDDY_*` parsing, `audio_ctx` |
+| `services/<svc>/tests/` | gtest, `test_<unit>.cpp` → `buddy-<svc>-tests`, linked against `<svc>_core` (the service's logic without main/hardware) |
+| `services/spotify/tests/fake_http.hpp` | Canned responses per `"METHOD /path"`, records requests; temp dir for token/duck files |
+| `shared/python/tests/`, `tools/voice/tests/` | pytest, `test_<module>.py` |
+
+- `buddy_add_tests(<name> <files…> LIBS …)` (root CMakeLists): every TEST is its own ctest entry (and in CLion).
+  `BUDDY_SOURCE_DIR` points at the skeleton for data files. deploy.sh builds with `BUDDY_TESTS=OFF`.
+- Test logic that broke before or is invisible on the hardware: parsing, matching, state machines, file formats,
+  protocols. Not: `main.cpp` glue, ALSA/Paho/libpiper/whisper wrappers, model quality (`train.sh eval`).
+- A fact both languages need gets one source (topics.json, whisper.json, a cases file), never two copies plus a test.
+- VM: `uv sync --all-packages --extra cpu` (train test needs PyTorch); `BUDDY_TORCH=cpu deploy/train.sh --base tiny.en --max-steps 2 --no-pull --no-eval` smoke-tests training.
 
 ## Gotchas
 
@@ -58,6 +72,8 @@ Roadmap, decisions and conventions: `../CLAUDE.md`.
 - A new main loop without `notify_watchdog()` gets killed by systemd every 60 s.
 - Two copies of one service (CLion + unit) share the client id and kick each other off the broker.
 - uv workspace members are listed explicitly (uv needs a pyproject.toml in every glob match, C++ service dirs have none).
-- `train.py` replaces `WhisperEncoder.forward` of the pinned transformers version: re-check it when bumping transformers.
+- `train.py` replaces `WhisperEncoder.forward` of the pinned transformers version: `test_train.py` fails if a bump changes the encoder.
 - `const json`'s `operator[]` asserts on a missing key: spotify reads device fields with `field()`.
+- `for (… : make_json()["items"])` loops over a destroyed temporary (e0bf506): name the object first. ASan in
+  `deploy/test.sh` catches it.
 - `BUDDY_STT_AUDIO_CTX=auto` breaks stock whisper models (hallucination loops); only models trained with `--ctx auto`.

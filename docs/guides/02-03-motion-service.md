@@ -18,7 +18,7 @@ in joints and degrees (`head_pan: 30`). Only motion knows channels, microseconds
 - `mosquitto_pub -t buddy/motion/cmd -m '{"action":"move","joints":{"head_pan":30},"ms":500}'` turns the servo.
 - Unplugging the Pico sets `connected:false`; replugging it recovers without a restart.
 - Stopping the service makes the servos go limp within 2 s.
-- `ctest` passes, including the new motion tests.
+- `deploy/test.sh` passes, including the new motion tests.
 
 ## Prerequisites
 
@@ -109,17 +109,19 @@ buddy-motion --raw "1 MOVE 0 1500 300"     # one protocol line, prints the reply
 Claude writes the code; you run the checks.
 
 1. **Code:** `services/motion/` as above, plus `add_subdirectory(services/motion)` in `CMakeLists.txt` and
-   `install(TARGETS buddy-motion … COMPONENT motion)` (no new libraries: termios is libc).
-2. **Topics:** `motion_cmd`/`motion_state` in `topics.json` as above (the `topics` ctest checks the generated header).
+   `install(TARGETS buddy-motion … COMPONENT motion)` (no new libraries: termios is libc). Joints and the serial link go
+   into `motion_core`, which the service and `buddy_add_tests(motion tests/test_joints.cpp tests/test_serial_link.cpp …)`
+   link.
+2. **Topics:** `motion_cmd`/`motion_state` in `topics.json` as above (the `Topics` tests check the generated header).
 3. **Deploy wiring:** `motion` in `SERVICES` in `deploy/deploy.sh`, env keys in `buddy.env.example` (`setup.sh check`
    knows them through the example).
-4. **Tests** (host, no hardware; run on the VM or the Pi):
+4. **Tests** (GoogleTest, host, no hardware; `deploy/test.sh` on the VM, `deploy/test.sh --pi` on the Pi):
 
-   | ctest | Checks |
+   | Suite | Checks |
    |---|---|
-   | `motion_protocol` | from 2.2: format/parse round trips, malformed lines |
-   | `motion_joints` | deg → µs, clamping at both ends, speed cap stretches `ms`, multi-joint moves arrive together |
-   | `motion_link` | `serial_link` against a fake Pico on a pseudo-terminal (`openpty`): handshake sends every `LIMIT`, reply matching, timeout → disconnect, `* BOOT` → re-handshake |
+   | `MotionProtocol` (`shared/tests/`) | from 2.2: format/parse round trips, malformed lines |
+   | `MotionJoints` | deg → µs, clamping at both ends, speed cap stretches `ms`, multi-joint moves arrive together |
+   | `MotionLink` | `serial_link` against a fake Pico on a pseudo-terminal (`openpty`): handshake sends every `LIMIT`, reply matching, timeout → disconnect, `* BOOT` → re-handshake |
 
 5. **Deploy:** stop anything holding the port, then `deploy/deploy.sh motion`. Expected: `buddy@motion active`.
 6. **Run the checks below.**

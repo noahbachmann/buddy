@@ -43,12 +43,12 @@ The first `deploy/train.sh` installs the Python packages (PyTorch ~2.5 GB) with 
 
 ## The corpus: `skeleton/tools/voice/commands.tsv`
 
-One list for everything: recording prompts, brain's regression test (`ctest`), and the intent score. Columns:
+One list for everything: recording prompts, brain's regression test (`deploy/test.sh -R Corpus`), and the intent score. Columns:
 `set` (`train` / `test` / `wake`), `sentence` (written as it should be transcribed, digits for numbers), `intent`, `query`.
 
 - Put your real artists, songs and playlists in; 5+ sentences per name, spread over train and test.
 - `test` sentences are rephrasings that are never recorded for training: the score on them is the honest one.
-- A new phrasing → add it, run `ctest` in the build dir. If brain doesn't understand it, fix `services/brain/rules.cpp`.
+- A new phrasing → add it, run `deploy/test.sh -R Corpus`. If brain doesn't understand it, fix `services/brain/rules.cpp`.
 - Lights etc. stay in with intent `unknown`: whisper learns the words before a skill exists.
 
 ## Record: `deploy/record.sh <label> [train|test] [wake count]`

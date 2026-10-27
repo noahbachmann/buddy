@@ -106,8 +106,8 @@ Services are C++ (CMake) or Python (uv workspace); both run as `buddy@<name>` an
 3. Deployment → SFTP entry → Mappings → deployment path **`/home/dev/buddy/dev`** (default is under `/tmp` = RAM disk, wiped on reboot).
 4. Before Run/Debug: `ssh buddy systemctl --user stop buddy@<name>` (same MQTT client id; otherwise both flip connected/lost).
 
-Tests: `ctest` in the build dir (brain understands every sentence in `tools/voice/commands.tsv`; topic matching),
-`uv run pytest` in `skeleton/` (Python shared code, voice tools). Bus: `mosquitto_sub -v -t 'buddy/#'`.
+Tests: `deploy/test.sh` (C++ GoogleTest under sanitizers, pytest, shellcheck; layout in `skeleton/CLAUDE.md`),
+`deploy/test.sh --pi` for the C++ tests on the Pi. Bus: `mosquitto_sub -v -t 'buddy/#'`.
 
 | Symptom | Fix |
 |---|---|
@@ -245,7 +245,7 @@ Offline: `buddy-ears --wav f.wav` (whole pipeline), `buddy-ears --transcribe a.w
 
 - **brain**: lowercases, strips punctuation and politeness, turns number words into digits, fixes whisper's "Spotify"
   spellings and "play mode playlist", then regex rules that must match the **whole** sentence (behind `IntentParser`,
-  LLM-replaceable, D11). `tools/voice/commands.tsv` lists every phrasing it must understand; `ctest` checks all of them.
+  LLM-replaceable, D11). `tools/voice/commands.tsv` lists every phrasing it must understand; a test checks each of them (`deploy/test.sh -R Corpus`).
   A new phrasing goes into the corpus first, then into `services/brain/rules.cpp`.
 - **spotify**: the Web API is the remote control; the **music box** (`BUDDY_SPOTIFY_DEVICE`, its name in the Spotify app)
   is the speaker (D10). OAuth with PKCE: no client secret on the Pi, refresh token in `~/buddy/config/spotify-token.json`.
@@ -290,7 +290,7 @@ plays on the box unless a speaker is named), `--cmd devices` (exact device names
 | `token request rejected … invalid_grant` | Refresh token revoked: `--login` again |
 | `HTTP 404 NO_ACTIVE_DEVICE` / "There's nothing to play" | Nothing to resume: set `BUDDY_SPOTIFY_DEFAULT_URI` or start something once from the app |
 | `PREMIUM_REQUIRED` / `HTTP 403` everywhere | Premium on the app owner; account in the app's User Management |
-| Wrong intent | Add the sentence to `commands.tsv`, run `ctest`, fix `rules.cpp` |
+| Wrong intent | Add the sentence to `commands.tsv`, run `deploy/test.sh -R Corpus`, fix `rules.cpp` |
 | Names misheard ("James Crops") | Train STT with that name (`docs/voice-training.md`), or `BUDDY_STT_PROMPT` |
 
 ## 1.10 Voice

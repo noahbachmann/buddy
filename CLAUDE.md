@@ -174,7 +174,7 @@ buddy/
 | Loop | How |
 |---|---|
 | Inner (try things) | CLion Full Remote Mode → Run/Debug. Syncs to `~/buddy/dev` on the Pi, builds Debug there, runs/debugs there. Stop the deployed unit first (same MQTT client id). |
-| Test | `ctest` in the build dir (brain corpus, topics), `uv run pytest` in `skeleton/` |
+| Test | `deploy/test.sh` (gtest under ASan/UBSan, pytest, shellcheck); `deploy/test.sh --pi` runs the C++ tests on the Pi |
 | Keep | `git commit && git push` (GitHub, public: no secrets, no voice data) |
 | Deploy | `deploy/deploy.sh [service…]` → rsync to `~/buddy/src`, Release build (C++) or uv sync (Python), install to `~/buddy/bin`, restart `buddy@<service>` |
 | Check | `deploy/logs.sh <service>`, `deploy/status.sh [-l]`, `ssh buddy "mosquitto_sub -v -t 'buddy/#'"` |
@@ -193,9 +193,10 @@ Pi paths: `~/buddy/{dev,src,build-release,bin,venv,models,config,voice}`. Runtim
 - Every service: `buddy/<service>/status` = `online`/`offline` (retained, last will). MQTT client id `buddy-<service>`.
 - Config only via `BUDDY_*` environment variables, documented in `deploy/config/buddy.env.example`. Never hard-code hosts.
 - Log to stdout (journald). Keep logs quiet in steady state: microSD wear.
-- New service checklist: folder; C++: CMake target with `install(… COMPONENT <name>)` + `add_subdirectory`; Python:
-  `pyproject.toml` with console script `buddy-<name>` + entry in the workspace `members`; topics in `topics.json`; name
-  in `SERVICES` in `deploy.sh`; watchdog ping in the main loop (D14); env keys in `buddy.env.example`.
+- New service checklist: folder; C++: `<name>_core` lib (logic) + CMake target with `install(… COMPONENT <name>)` +
+  `add_subdirectory` + `buddy_add_tests(<name> tests/…)`; Python: `pyproject.toml` with console script `buddy-<name>` +
+  entry in the workspace `members` + `tests/`; topics in `topics.json`; name in `SERVICES` in `deploy.sh`; watchdog ping
+  in the main loop (D14); env keys in `buddy.env.example`.
 
 ## Golden rules
 

@@ -4,7 +4,7 @@
 // politeness ("please", "can you") stripped. Each rule must match the whole remaining text,
 // so "pause" matches but "I don't want to pause anything right now" does not.
 // A trailing "on/in the <speaker>" is split off into Intent::device for the commands that start playback.
-// Every phrasing in tools/voice/commands.tsv is checked by ctest (brain_corpus).
+// Every phrasing in tools/voice/commands.tsv is checked by tests/test_corpus.cpp.
 
 #include <regex>
 #include <string>
