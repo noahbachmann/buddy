@@ -17,16 +17,7 @@ if [[ "${1:-}" == "--setup" ]]; then setup=true; shift; fi
 services=("$@")
 [[ ${#services[@]} -eq 0 ]] && services=("${SERVICES[@]}")
 
-if [[ -n "$(git -C "$ROOT" status --porcelain)" ]]; then
-    echo "⚠  deploying uncommitted changes" >&2
-fi
-
-echo "→ sync → $HOST:~/buddy/src"
-ssh "$HOST" 'mkdir -p ~/buddy/src'
-rsync -az --delete --progress \
-    --exclude '.git/' --exclude '.idea/' --exclude 'cmake-build-*/' --exclude '/build*/' \
-    --exclude '.venv/' --exclude '__pycache__/' \
-    "$ROOT/" "$HOST:buddy/src/"
+"$ROOT/deploy/sync.sh"
 
 if $setup; then
     ssh -t "$HOST" 'bash ~/buddy/src/deploy/pi/setup.sh'
@@ -49,7 +40,7 @@ for s in "$@"; do
 done
 if [[ ${#cpp[@]} -gt 0 ]]; then
     cmake -S src -B build-release -G Ninja \
-        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_BUILD_TYPE=Release -DBUDDY_TESTS=OFF \
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
         -DCMAKE_INSTALL_PREFIX="$HOME/buddy" > /dev/null
     cmake --build build-release --target "${cpp[@]/#/buddy-}"

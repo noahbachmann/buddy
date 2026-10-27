@@ -1,26 +1,28 @@
+import json
+from pathlib import Path
+
 import pytest
 
 from buddy_shared.config import MqttConfig, env_float, env_int, env_string
 
-
-def test_strings_are_trimmed(monkeypatch):
-    monkeypatch.setenv("BUDDY_X", "  value\r")
-    assert env_string("BUDDY_X", "fallback") == "value"
-    monkeypatch.setenv("BUDDY_X", " \r")
-    assert env_string("BUDDY_X", "fallback") == "fallback"
+CASES = json.loads((Path(__file__).parents[2] / "tests/cases/env_values.json").read_text())
+FALLBACK = {"string": "fallback", "int": 1234, "float": 12.5}
+GET = {"string": env_string, "int": env_int, "float": env_float}
 
 
-def test_numbers(monkeypatch):
-    monkeypatch.setenv("BUDDY_N", "42")
-    assert env_int("BUDDY_N", 1) == 42
-    assert env_float("BUDDY_N", 1.0) == 42.0
-    assert env_int("BUDDY_UNSET", 7) == 7
+@pytest.mark.parametrize("kind, value, want", [(k, v, w) for k in GET for v, w in CASES[k]])
+def test_shared_cases(monkeypatch, kind, value, want):
+    monkeypatch.setenv("BUDDY_TEST_VALUE", value)
+    if want == "error":
+        with pytest.raises(ValueError, match="BUDDY_TEST_VALUE"):
+            GET[kind]("BUDDY_TEST_VALUE", FALLBACK[kind])
+    else:
+        assert GET[kind]("BUDDY_TEST_VALUE", FALLBACK[kind]) == (FALLBACK[kind] if want is None else want)
 
 
-def test_typo_raises_with_name(monkeypatch):
-    monkeypatch.setenv("BUDDY_N", "4o")
-    with pytest.raises(ValueError, match="BUDDY_N"):
-        env_int("BUDDY_N", 1)
+def test_unset_gives_fallback(monkeypatch):
+    monkeypatch.delenv("BUDDY_TEST_VALUE", raising=False)
+    assert env_int("BUDDY_TEST_VALUE", 7) == 7
 
 
 def test_mqtt_defaults(monkeypatch):

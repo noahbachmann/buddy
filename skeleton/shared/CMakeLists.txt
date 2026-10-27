@@ -46,6 +46,4 @@ target_link_libraries(buddy_shared PUBLIC
     nlohmann_json::nlohmann_json
 )
 
-add_executable(buddy-shared-test tests/test_topics.cpp)
-target_link_libraries(buddy-shared-test PRIVATE buddy_shared)
-add_test(NAME topics COMMAND buddy-shared-test)
+buddy_add_tests(shared tests/test_config.cpp tests/test_topics.cpp LIBS buddy_shared)

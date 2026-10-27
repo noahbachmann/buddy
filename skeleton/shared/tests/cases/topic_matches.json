@@ -1,0 +1,15 @@
+{
+  "about": "MQTT wildcard matching: [filter, topic, matches]. shared/src/topics.cpp and buddy_shared.topics.matches()",
+  "cases": [
+    ["buddy/+/status", "buddy/ears/status", true],
+    ["buddy/#", "buddy/ears/state", true],
+    ["buddy/#", "buddy", true],
+    ["#", "anything/at/all", true],
+    ["buddy/ears/state", "buddy/ears/state", true],
+    ["buddy/+/status", "buddy/ears/state", false],
+    ["buddy/+", "buddy/ears/state", false],
+    ["buddy/ears/state/x", "buddy/ears/state", false],
+    ["buddy/ears/state", "buddy/ears/state/x", false],
+    ["buddy/+/+", "buddy/ears/state", true]
+  ]
+}

@@ -7,8 +7,15 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_compile_options(-Wall -Wextra -Wpedantic)
 
+option(BUDDY_TESTS "GoogleTest suites for ctest (deploy.sh turns them off)" ON)
+option(BUDDY_SANITIZE "ASan + UBSan everywhere (deploy/test.sh)" OFF)
+if(BUDDY_SANITIZE)
+    add_compile_options(-fsanitize=address,undefined -fno-sanitize-recover=undefined -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address,undefined)
+endif()
+
 # System packages (Debian 13): libpaho-mqtt-dev, libpaho-mqttpp-dev, libssl-dev, nlohmann-json3-dev, libasound2-dev,
-#   libcurl4-openssl-dev
+#   libcurl4-openssl-dev, libgtest-dev (BUDDY_TESTS)
 # Not from apt: ONNX Runtime (/opt/onnxruntime), libpiper (/opt/libpiper) and whisper.cpp, see third_party/
 find_package(PahoMqttCpp REQUIRED)
 find_package(nlohmann_json 3 REQUIRED)
@@ -16,7 +23,28 @@ find_package(ALSA REQUIRED)
 find_package(CURL REQUIRED)
 find_package(OpenSSL REQUIRED)
 
-enable_testing()  # ctest: brain corpus, topics (not built by deploy.sh)
+if(BUDDY_TESTS)
+    find_package(GTest REQUIRED)
+    include(GoogleTest)
+    enable_testing()
+    add_custom_target(buddy-tests)  # all test executables; deploy/test.sh builds only this (no ML libraries)
+endif()
+
+# buddy_add_tests(<name> <sources…> LIBS <targets…>) → buddy-<name>-tests; every TEST shows up in ctest and CLion.
+# Tests read data files via BUDDY_SOURCE_DIR and shared JSON cases via cases.hpp (shared/tests/).
+function(buddy_add_tests name)
+    if(NOT BUDDY_TESTS)
+        return()
+    endif()
+    cmake_parse_arguments(arg "" "" "LIBS" ${ARGN})
+    set(exe buddy-${name}-tests)
+    add_executable(${exe} ${arg_UNPARSED_ARGUMENTS})
+    target_link_libraries(${exe} PRIVATE ${arg_LIBS} nlohmann_json::nlohmann_json GTest::gtest_main)
+    target_include_directories(${exe} PRIVATE ${PROJECT_SOURCE_DIR}/shared/tests)
+    target_compile_definitions(${exe} PRIVATE BUDDY_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
+    gtest_discover_tests(${exe} DISCOVERY_MODE PRE_TEST)
+    add_dependencies(buddy-tests ${exe})
+endfunction()
 
 add_subdirectory(third_party)
 add_subdirectory(shared)

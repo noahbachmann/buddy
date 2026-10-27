@@ -1,0 +1,4 @@
+{
+  "about": "Whisper encoder frames for BUDDY_STT_AUDIO_CTX=auto: [samples at 16 kHz, audio_ctx]. services/ears/stt.hpp and buddy_voice.audio",
+  "cases": [[0, 16], [16000, 66], [16001, 67], [17600, 71], [474560, 1499], [474561, 1500], [960000, 1500]]
+}

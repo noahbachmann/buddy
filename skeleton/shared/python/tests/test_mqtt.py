@@ -31,10 +31,18 @@ def test_status_roundtrip_and_handler_errors():
         if ("buddy/pytest-svc/status", "online") in got and payload == "offline":  # not a retained leftover
             done.set()
 
+    subscribed = threading.Event()
     watcher = Mqtt("pytest-watcher", cfg)
     watcher.subscribe("buddy/pytest-svc/#", collect)
     watcher.subscribe("buddy/pytest-svc/#", lambda *_: 1 / 0)  # must be logged, not kill paho's thread
+    watcher.subscribe("buddy/pytest-watcher/probe", lambda *_: subscribed.set())
     assert watcher.start()
+    # start() returns before the broker acks the subscriptions: the probe coming back proves they're active
+    for _ in range(30):
+        watcher.publish("buddy/pytest-watcher/probe", "")
+        if subscribed.wait(0.1):
+            break
+    assert subscribed.is_set()
 
     svc = Mqtt("pytest-svc", cfg)
     assert svc.start()

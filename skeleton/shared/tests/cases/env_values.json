@@ -1,0 +1,9 @@
+{
+  "about": "BUDDY_* parsing: [value, result], null = fallback, \"error\" = raises naming the variable. shared/src/config.cpp and buddy_shared.config",
+  "string": [["  value\r", "value"], [" \r\n", null], ["a b", "a b"]],
+  "int": [
+    ["42", 42], ["-3", -3], ["+5", 5], [" 7\r\n", 7], ["", null],
+    ["4o", "error"], ["42.0", "error"], ["0x10", "error"], ["1_000", "error"], ["99999999999", "error"]
+  ],
+  "float": [["0.5", 0.5], ["1e3", 1000.0], ["-2", -2.0], ["0.5x", "error"], ["1_000.5", "error"]]
+}

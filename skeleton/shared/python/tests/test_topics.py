@@ -1,6 +1,11 @@
+import json
+from pathlib import Path
+
 import pytest
 
 from buddy_shared import topics
+
+CASES = json.loads((Path(__file__).parents[2] / "tests/cases/topic_matches.json").read_text())["cases"]
 
 
 def test_names_from_json():
@@ -14,18 +19,6 @@ def test_unknown_name_raises():
         topics.ears_stat  # noqa: B018
 
 
-@pytest.mark.parametrize(
-    "filter, topic, expected",
-    [  # same cases as the C++ matches()
-        ("buddy/+/status", "buddy/ears/status", True),
-        ("buddy/#", "buddy/ears/state", True),
-        ("buddy/#", "buddy", True),
-        ("#", "anything/at/all", True),
-        ("buddy/ears/state", "buddy/ears/state", True),
-        ("buddy/+/status", "buddy/ears/state", False),
-        ("buddy/+", "buddy/ears/state", False),
-        ("buddy/ears/state/x", "buddy/ears/state", False),
-    ],
-)
+@pytest.mark.parametrize("filter, topic, expected", CASES)
 def test_matches(filter, topic, expected):
     assert topics.matches(filter, topic) is expected

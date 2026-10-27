@@ -32,7 +32,7 @@ step_packages() {
         build-essential cmake ninja-build gdb rsync git ccache pkg-config \
         mosquitto mosquitto-clients \
         libpaho-mqtt-dev libpaho-mqttpp-dev libssl-dev nlohmann-json3-dev \
-        libasound2-dev libcurl4-openssl-dev curl patchelf
+        libasound2-dev libcurl4-openssl-dev libgtest-dev curl patchelf
 }
 
 # Not Debian's libonnxruntime-dev: it prints ~570 "Schema error" lines on every start (see third_party/).
