@@ -7,7 +7,7 @@ import numpy as np
 import soundfile as sf
 
 SAMPLE_RATE = 16000
-AUDIO_CTX_MARGIN = 16  # = kAudioCtxMargin in services/ears/stt.hpp
+AUDIO_CTX_MARGIN = 16  # = kAudioCtxMargin in services/ears/stt.hpp; both checked against shared/tests/cases/audio_ctx.json
 
 
 def auto_audio_ctx(samples: int) -> int:

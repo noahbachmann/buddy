@@ -1,9 +1,10 @@
 """Hugging Face Whisper → whisper.cpp GGML (what ears loads), plus an optional q8_0 version.
 
-Uses whisper.cpp's own converter from the same pinned release as the C++ build (third_party/CMakeLists.txt),
+Uses whisper.cpp's own converter from the same pinned release as the C++ build (third_party/whisper.json),
 and the mel filter bank from openai/whisper.
 """
 
+import json
 import shutil
 import subprocess
 import sys
@@ -14,9 +15,10 @@ from huggingface_hub import hf_hub_download
 
 from .fetch import download
 
-# Same tag and checksum as skeleton/third_party/CMakeLists.txt: keep them equal
-WHISPER_CPP = "1.9.5"
-WHISPER_CPP_SHA256 = "ff1a9053feb509ff9d7729703355541ae9690073a6b1c40eb692c962e0dc1720"
+# Same release as the C++ build: one pin for both
+_WHISPER = json.loads((Path(__file__).resolve().parents[3] / "third_party/whisper.json").read_text())
+WHISPER_CPP = _WHISPER["version"]
+WHISPER_CPP_SHA256 = _WHISPER["sha256"]
 # openai/whisper's assets/mel_filters.npz at a pinned commit (the converter embeds it)
 MEL_COMMIT = "86098128c0b4f24f0e2aa2994de830614b474227"
 MEL_SHA256 = "7450ae70723a5ef9d341e3cee628c7cb0177f36ce42c44b7ed2bf3325f0f6d4c"

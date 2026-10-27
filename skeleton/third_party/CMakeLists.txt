@@ -39,9 +39,14 @@ set(WHISPER_BUILD_TESTS OFF)
 set(WHISPER_BUILD_EXAMPLES OFF)
 set(WHISPER_BUILD_SERVER OFF)
 set(GGML_NATIVE ON)
+# Release pinned in whisper.json (tools/voice converts models with the same one).
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/whisper.json)
+file(READ ${CMAKE_CURRENT_SOURCE_DIR}/whisper.json whisper_json)
+string(JSON WHISPER_VERSION GET "${whisper_json}" version)
+string(JSON WHISPER_SHA256 GET "${whisper_json}" sha256)
 FetchContent_Declare(whisper
-    URL https://github.com/ggml-org/whisper.cpp/archive/refs/tags/v1.9.5.tar.gz
-    URL_HASH SHA256=ff1a9053feb509ff9d7729703355541ae9690073a6b1c40eb692c962e0dc1720
+    URL https://github.com/ggml-org/whisper.cpp/archive/refs/tags/v${WHISPER_VERSION}.tar.gz
+    URL_HASH SHA256=${WHISPER_SHA256}
     EXCLUDE_FROM_ALL  # keeps whisper's own install() rules out of ~/buddy
 )
 FetchContent_MakeAvailable(whisper)

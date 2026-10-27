@@ -1,0 +1,5 @@
+{
+  "about": "whisper.cpp release: the C++ build (third_party/CMakeLists.txt) and the GGML converter (tools/voice convert.py) read this",
+  "version": "1.9.5",
+  "sha256": "ff1a9053feb509ff9d7729703355541ae9690073a6b1c40eb692c962e0dc1720"
+}
