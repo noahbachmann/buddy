@@ -19,13 +19,22 @@ def _env_number(name: str, fallback, parse):
     if not value:
         return fallback
     try:
+        if "_" in value:  # Python reads "1_000", C++ (stoi/stof) doesn't
+            raise ValueError
         return parse(value)
     except ValueError:
         raise ValueError(f'{name}="{value}" is not a valid number') from None
 
 
+def _int32(text: str) -> int:
+    n = int(text)
+    if not -(2**31) <= n < 2**31:  # C++ int
+        raise ValueError
+    return n
+
+
 def env_int(name: str, fallback: int) -> int:
-    return _env_number(name, fallback, int)
+    return _env_number(name, fallback, _int32)
 
 
 def env_float(name: str, fallback: float) -> float:
