@@ -34,7 +34,8 @@ is right, 9 of 10 times each.
 
 ## Prerequisites
 
-- Repo pulled on the PC; the Pi runs the current code (`deploy/deploy.sh`, already done 2026-10-25).
+- Repo pulled on the PC; the Pi runs the current code (`deploy/deploy.sh`, last done 2026-10-27: new test system,
+  ears endpointer and spotify refactored without behaviour changes; step 10 is their first live test).
 - On the PC: uv, NVIDIA driver, `ssh buddy` (`docs/voice-training.md` → One-time PC setup).
 - The music box on, in the same network, logged in to your Spotify account.
 
@@ -94,11 +95,15 @@ Replace the example artists, songs and playlists with what you really ask for, e
 The "other speakers" section has yours (desktop-1, Bathroom speaker, Pixel 8, my-personal-tv): check them against
 `buddy-spotify --cmd devices` with each one awake (Spotify currently lists your TV as just "TV"), and fix the
 sentences if a name differs.
-5+ sentences per name, some in `train`, some (rephrased) in `test`. Then check that brain still understands everything:
+5+ sentences per name, some in `train`, some (rephrased) in `test`. Then check that brain still understands everything (builds and runs the C++ tests on the Pi, which has the whole
+toolchain; nothing is restarted):
 
 ```bash
-deploy/test.sh -R Corpus
+deploy/test.sh --pi -R Corpus
 ```
+
+Expected: `100% tests passed`. A failing sentence shows what brain made of it (`normalized: …`): fix
+`services/brain/rules.cpp` or tell Claude.
 
 Commit the corpus (it's your music taste, not your voice: fine in the public repo).
 
@@ -194,7 +199,7 @@ louder", "… pause". Count: wake word triggered / box ducked / right action. **
 
 - [ ] `--cmd devices` lists the box; standby behaviour reported (step 2).
 - [ ] Ducking works; "louder" while ducked comes back louder (step 3).
-- [ ] Corpus has your names, `deploy/test.sh -R Corpus` passes (step 4).
+- [ ] Corpus has your names, `deploy/test.sh --pi -R Corpus` passes (step 4).
 - [ ] `deploy/train.sh check`: ≥ 500 training clips, ≥ 150 test clips, no warnings.
 - [ ] New model installed: intent ≥ 95 %, WER < 5 %, ≤ 0.3 s on the new test session (step 7).
 - [ ] AEC decision reported (step 8); wake word threshold set (step 9).

@@ -217,7 +217,7 @@ Every request starts with an id (1–65535) that the reply echoes, so the servic
 
 `motion_protocol.hpp` holds parsing and formatting for both sides: plain C++20, no heap and no exceptions (the firmware
 builds with `-fno-exceptions`). The host tests it with GoogleTest in `shared/tests/test_motion_protocol.cpp` (suite
-`MotionProtocol`: round trips, malformed lines, clamping), run by `deploy/test.sh`.
+`MotionProtocol`: round trips, malformed lines, clamping), run by `deploy/test.sh` (`--pi`: on the Pi).
 
 ### 7. Build and flash
 
@@ -287,7 +287,7 @@ fingers to load it.
 | `vcgencmd get_throttled` during the load test | `0x0` throughout |
 | Servo rail under load | ≥ 4.8 V (MG90S spec minimum) |
 | Pico unplugged and replugged | `/dev/buddy-pico` comes back, `* BOOT …` on connect |
-| `deploy/test.sh -R MotionProtocol` | passes |
+| `deploy/test.sh --pi -R MotionProtocol` | passes |
 
 ## Troubleshooting
 

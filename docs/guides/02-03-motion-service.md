@@ -18,7 +18,7 @@ in joints and degrees (`head_pan: 30`). Only motion knows channels, microseconds
 - `mosquitto_pub -t buddy/motion/cmd -m '{"action":"move","joints":{"head_pan":30},"ms":500}'` turns the servo.
 - Unplugging the Pico sets `connected:false`; replugging it recovers without a restart.
 - Stopping the service makes the servos go limp within 2 s.
-- `deploy/test.sh` passes, including the new motion tests.
+- `deploy/test.sh --pi` passes, including the new motion tests.
 
 ## Prerequisites
 
@@ -76,6 +76,7 @@ Pattern from `skeleton/CLAUDE.md`. New files in `services/motion/`:
 | `serial_link.hpp/.cpp` | termios (raw, 115200 nominal: CDC ignores the baud rate), a reader thread that splits lines and matches `<id>` replies to waiting requests (timeout 500 ms), unsolicited `*` lines into a queue. Open → `HELLO` (protocol version must be 1, else log and retry slowly) → `LIMIT` per joint → connected |
 | `joints.hpp/.cpp` | Table above; `deg → µs` with clamping; the speed cap |
 | `motion_protocol.hpp` | Shared with the firmware (2.2, `shared/include/buddy/`) |
+| `tests/test_joints.cpp`, `tests/test_serial_link.cpp` | GoogleTest against `motion_core` (= `serial_link` + `joints`), see Steps 4 |
 
 **Pico missing ≠ crash.** Without `/dev/buddy-pico` the service stays up, `status` stays `online`, `state.connected` is
 `false`, and it retries the port with backoff 1 → 10 s. A crash loop would restart and fail every 30 s and fill the
@@ -115,7 +116,8 @@ Claude writes the code; you run the checks.
 2. **Topics:** `motion_cmd`/`motion_state` in `topics.json` as above (the `Topics` tests check the generated header).
 3. **Deploy wiring:** `motion` in `SERVICES` in `deploy/deploy.sh`, env keys in `buddy.env.example` (`setup.sh check`
    knows them through the example).
-4. **Tests** (GoogleTest, host, no hardware; `deploy/test.sh` on the VM, `deploy/test.sh --pi` on the Pi):
+4. **Tests** (GoogleTest, no hardware; `deploy/test.sh --pi` builds and runs them on the Pi, `deploy/test.sh` on a Linux
+   machine with the full toolchain):
 
    | Suite | Checks |
    |---|---|
