@@ -20,7 +20,8 @@ struct SttConfig {
 };
 
 // Encoder frames for `samples` of 16 kHz audio with audio_ctx = auto: 50 per second (whisper: 1500 for 30 s) plus a
-// margin. tools/voice/buddy_voice/audio.py uses the same formula to train short-context models: keep them equal.
+// margin. tools/voice/buddy_voice/audio.py uses the same formula to train short-context models; both are checked
+// against shared/tests/cases/audio_ctx.json.
 inline constexpr int kAutoAudioCtx = -1;
 inline constexpr int kAudioCtxMargin = 16;
 inline int auto_audio_ctx(std::size_t samples) {
