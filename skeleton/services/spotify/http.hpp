@@ -1,6 +1,5 @@
 #pragma once
-// Minimal blocking HTTPS client on libcurl. One instance per thread; it reuses the connection
-// (keep-alive), so the second call to api.spotify.com skips the TLS handshake.
+// HTTPS transport behind an interface: CurlHttp (curl_http.hpp) in the service, a fake in the tests.
 
 #include <stdexcept>
 #include <string>
@@ -21,18 +20,12 @@ struct HttpError : std::runtime_error {
 
 class Http {
 public:
-    Http();
-    ~Http();
-    Http(const Http&) = delete;
-    Http& operator=(const Http&) = delete;
+    virtual ~Http() = default;
 
     // method: GET, POST, PUT. For POST/PUT the body is always sent (Spotify wants Content-Length: 0
-    // on empty PUTs).
-    HttpResponse request(const std::string& method, const std::string& url, const std::vector<std::string>& headers,
-                         const std::string& body = "");
-
-private:
-    void* curl_;  // CURL*
+    // on empty PUTs). Throws HttpError on transport failures.
+    virtual HttpResponse request(const std::string& method, const std::string& url,
+                                 const std::vector<std::string>& headers, const std::string& body = "") = 0;
 };
 
 std::string url_encode(std::string_view s);

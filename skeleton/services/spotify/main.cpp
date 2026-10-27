@@ -33,7 +33,7 @@
 #include "buddy/queue.hpp"
 #include "buddy/systemd.hpp"
 #include "buddy/topics.hpp"
-#include "http.hpp"
+#include "curl_http.hpp"
 #include "player.hpp"
 
 namespace {
@@ -192,7 +192,7 @@ int main(int argc, char** argv) {
     }
 
     curl_global_init(CURL_GLOBAL_DEFAULT);
-    Http http;
+    CurlHttp http;
     Auth auth(cfg->auth, http);
     Player player(cfg->player, auth, http);
 
