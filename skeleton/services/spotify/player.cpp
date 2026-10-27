@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iostream>
 #include <random>
+#include <sstream>
 #include <utility>
 #include <vector>
 
@@ -133,24 +134,50 @@ Result volume_set(int volume) {
     return r;
 }
 
+// Spoken speaker name made comparable: no leading "the"/"my", "one"…"nine" as digits ("my pixel eight" = "Pixel 8").
+std::string spoken_speaker(const std::string& spoken) {
+    static const std::vector<std::string> digits = {"zero", "one", "two", "three", "four",
+                                                    "five", "six", "seven", "eight", "nine"};
+    std::istringstream in(lower(spoken));
+    std::string out;
+    for (std::string w; in >> w;) {
+        if (out.empty() && (w == "the" || w == "my")) continue;
+        if (const auto d = std::find(digits.begin(), digits.end(), w); d != digits.end())
+            w = std::to_string(d - digits.begin());
+        out += (out.empty() ? "" : " ") + w;
+    }
+    return out;
+}
+
+// d[key] for a const json: its operator[] asserts on a missing key instead of returning null
+const json& field(const json& d, const char* key) {
+    static const json null;
+    const auto it = d.find(key);
+    return it == d.end() ? null : *it;
+}
+
+bool starts_playback(const std::string& action) {
+    return action == "play" || action == "play_playlist" || action == "play_liked";
+}
+
 } // namespace
 
 Player::Player(PlayerConfig cfg, Auth& auth, Http& http) : cfg_(std::move(cfg)), auth_(auth), http_(http) {}
 
-Result Player::run(const std::string& action, const std::string& query) {
+Result Player::run(const Command& c) {
     try {
-        return dispatch(action, query);
+        return dispatch(c);
     } catch (const Failure& e) {
-        std::cout << "[spotify] " << action << ": " << e.what() << std::endl;
+        std::cout << "[spotify] " << c.action << ": " << e.what() << std::endl;
         return failed(e.say);
     } catch (const AuthError& e) {
-        std::cout << "[spotify] " << action << ": " << e.what() << std::endl;
+        std::cout << "[spotify] " << c.action << ": " << e.what() << std::endl;
         return failed("Spotify isn't logged in.");
     } catch (const HttpError& e) {
-        std::cout << "[spotify] " << action << ": " << e.what() << std::endl;
+        std::cout << "[spotify] " << c.action << ": " << e.what() << std::endl;
         return failed("I can't reach Spotify.");
     } catch (const std::exception& e) {
-        std::cout << "[spotify] " << action << ": " << e.what() << std::endl;
+        std::cout << "[spotify] " << c.action << ": " << e.what() << std::endl;
         return failed("Something went wrong with Spotify.");
     }
 }
@@ -164,41 +191,45 @@ void Player::duck() {
         if (r.status != 204) expect_ok(r, "player");
         const json p = r.status == 204 ? json::object() : json::parse(r.body);
         const json d = p.value("device", json());
-        if (!d.is_object() || !d["id"].is_string() || lower(d.value("name", "")) != lower(cfg_.device_name))
-            return warm_up();  // box not active: nothing to duck
-        const Device box{.id = d["id"], .active = true,
-                         .volume = d["volume_percent"].is_number() ? d["volume_percent"].get<int>() : 50};
-        last_id_ = box.id;
-        warm_device_ = box;
-        warmed_at_ = std::chrono::steady_clock::now();
-        if (!p.value("is_playing", false) || box.volume == 0) return;
-
-        const int to = box.volume * cfg_.duck_percent / 100;
-        const auto v = api("PUT", "/me/player/volume?volume_percent=" + std::to_string(to) + "&device_id=" + box.id);
-        if (v.status == 403) {  // VOLUME_CONTROL_DISALLOW: some speakers only take volume from their own app
-            duck_disallowed_ = true;
-            std::cout << "[spotify] " << cfg_.device_name << " refuses remote volume (" << error_reason(v)
-                      << "): ducking off" << std::endl;
-            return;
+        if (!d.is_object() || !field(d, "id").is_string() || !in_room(d.value("name", "")) || !p.value("is_playing", false))
+            return warm_up();  // nothing playing in the room: nothing to duck
+        const std::string id = field(d, "id");
+        const std::string name = d.value("name", "");
+        const int volume = field(d, "volume_percent").is_number() ? field(d, "volume_percent").get<int>() : 50;
+        if (volume > 0) {
+            const int to = volume * cfg_.duck_percent / 100;
+            const auto v = api("PUT", "/me/player/volume?volume_percent=" + std::to_string(to) + "&device_id=" + id);
+            if (v.status == 403) {  // VOLUME_CONTROL_DISALLOW: some speakers only take volume from their own app
+                duck_disallowed_ = true;
+                std::cout << "[spotify] " << name << " refuses remote volume (" << error_reason(v) << "): ducking off"
+                          << std::endl;
+            } else {
+                expect_ok(v, "duck");
+                duck_ = Duck{.device_id = id, .restore_to = volume, .ducked_to = to};
+                save_duck();
+            }
         }
-        expect_ok(v, "duck");
-        duck_ = Duck{.restore_to = box.volume, .ducked_to = to};
-        save_duck();
     } catch (const std::exception& e) {
         std::cout << "[spotify] duck: " << e.what() << std::endl;
     }
+    warm_up();  // the user is still talking: time for the device list the command needs
 }
 
 void Player::restore() {
     if (!duck_) return;
     try {
-        const Device box = device();
+        const json list = fetch_devices();
+        // Duck files from before the device id was saved: the box
+        const std::string id = duck_->device_id.empty() ? box(list).id : duck_->device_id;
+        const auto d = std::find_if(list.begin(), list.end(), [&](const json& x) { return x.value("id", "") == id; });
+        if (d == list.end()) throw std::runtime_error("the ducked device left the device list");
+        const int volume = field((*d), "volume_percent").is_number() ? field((*d), "volume_percent").get<int>() : 50;
         // Speakers with coarse volume steps report a rounded value: a few percent off is still "unchanged".
-        if (std::abs(box.volume - duck_->ducked_to) > 5) {
-            std::cout << "[spotify] volume changed to " << box.volume << " while ducked, leaving it" << std::endl;
+        if (std::abs(volume - duck_->ducked_to) > 5) {
+            std::cout << "[spotify] volume changed to " << volume << " while ducked, leaving it" << std::endl;
         } else {
             expect_ok(api("PUT", "/me/player/volume?volume_percent=" + std::to_string(duck_->restore_to) +
-                                     "&device_id=" + box.id),
+                                     "&device_id=" + id),
                       "restore");
         }
         duck_.reset();
@@ -219,7 +250,7 @@ void Player::recover() {
     const auto j = json::parse(f, nullptr, /*allow_exceptions=*/false);
     if (j.is_object() && j["restore_to"].is_number_integer() && j["ducked_to"].is_number_integer()) {
         std::cout << "[spotify] restoring the volume a restart left ducked" << std::endl;
-        duck_ = Duck{.restore_to = j["restore_to"], .ducked_to = j["ducked_to"]};
+        duck_ = Duck{.device_id = j.value("device_id", ""), .restore_to = j["restore_to"], .ducked_to = j["ducked_to"]};
         restore();
     }
     std::remove(cfg_.duck_file.c_str());
@@ -233,33 +264,57 @@ void Player::save_duck() const {
         std::remove(cfg_.duck_file.c_str());
         return;
     }
-    std::ofstream(cfg_.duck_file) << json{{"restore_to", duck_->restore_to}, {"ducked_to", duck_->ducked_to}}.dump();
+    std::ofstream(cfg_.duck_file) << json{{"device_id", duck_->device_id},
+                                          {"restore_to", duck_->restore_to},
+                                          {"ducked_to", duck_->ducked_to}}
+                                         .dump();
 }
 
 void Player::warm_up() {
     try {
-        warm_device_ = device();
+        warm_list_ = fetch_devices();
         warmed_at_ = std::chrono::steady_clock::now();
     } catch (const std::exception& e) {
-        warm_device_.reset();
+        warm_list_.reset();
         std::cout << "[spotify] warm-up: " << e.what() << std::endl;
     }
 }
 
-Result Player::dispatch(const std::string& action, const std::string& query) {
-    if (action == "set_volume") return set_volume(query);
-    if (action == "now_playing") return now_playing();
-    // A warmed-up device is used once: its volume and "active" flag are only seconds old.
-    const bool warm = warm_device_ && std::chrono::steady_clock::now() - warmed_at_ < std::chrono::seconds(15);
-    const std::optional<Device> cached = std::exchange(warm_device_, std::nullopt);
-    if (!warm) return dispatch(device(), action, query);
+Result Player::dispatch(const Command& c) {
+    if (c.action == "now_playing") return now_playing();
+    // A warmed-up list is used once: volumes and "active" flags are only seconds old.
+    const bool warm = warm_list_ && std::chrono::steady_clock::now() - warmed_at_ < std::chrono::seconds(15);
+    const std::optional<json> cached = std::exchange(warm_list_, std::nullopt);
+    if (!warm) return dispatch(fetch_devices(), c);
     try {
-        return dispatch(*cached, action, query);
+        return dispatch(*cached, c);
     } catch (const Failure& e) {
-        if (e.status != 404) throw;  // 404 = device id gone (box restarted since the warm-up): look it up again
-        std::cout << "[spotify] " << action << ": " << e.what() << ", retrying with a fresh device lookup" << std::endl;
-        return dispatch(device(), action, query);
+        if (e.status != 404) throw;  // 404 = device id gone (restarted since the warm-up): look it up again
+        std::cout << "[spotify] " << c.action << ": " << e.what() << ", retrying with a fresh device list" << std::endl;
+        return dispatch(fetch_devices(), c);
     }
+}
+
+Result Player::dispatch(const json& list, const Command& c) {
+    if (c.device.empty()) return dispatch(starts_playback(c.action) ? box(list) : active(list), c.action, c.query);
+
+    const auto d = speaker(list, c.device);
+    if (!d) {
+        std::string names;
+        for (const auto& x : list) names += (names.empty() ? "" : ", ") + x.value("name", "?");
+        const std::string detail = "no speaker matches \"" + c.device + "\" (Spotify sees: " +
+                                   (names.empty() ? "none" : names) + "; phones and PCs only while their app is open)";
+        if (c.fallback_action.empty()) throw Failure(detail, "I can't find a speaker called " + c.device + ".");
+        std::cout << "[spotify] " << detail << ", doing " << c.fallback_action << " \"" << c.fallback_query << "\""
+                  << std::endl;
+        return dispatch(list, Command{.action = c.fallback_action, .query = c.fallback_query});
+    }
+    Result r = dispatch(*d, c.action, c.query);
+    if (lower(d->name) == lower(cfg_.device_name)) return r;
+    // Name the speaker when it isn't the box: "Playing Daft Punk on Bathroom speaker."
+    if (r.say.empty()) r.say = (c.action == "play" && c.query.empty() ? "Moving the music to " : "Playing on ") + d->name + ".";
+    else if (r.say.ends_with(".")) r.say.insert(r.say.size() - 1, " on " + d->name);
+    return r;
 }
 
 Result Player::dispatch(const Device& d, const std::string& action, const std::string& query) {
@@ -267,6 +322,7 @@ Result Player::dispatch(const Device& d, const std::string& action, const std::s
 
     if (action == "play") return play(d, query);
     if (action == "play_playlist") return play_playlist(d, query);
+    if (action == "set_volume") return set_volume(d, query);
     if (action == "pause") {
         const auto r = api("PUT", "/me/player/pause" + on);
         if (r.status != 403) expect_ok(r, "pause");  // 403 = already paused
@@ -278,7 +334,7 @@ Result Player::dispatch(const Device& d, const std::string& action, const std::s
     }
     if (action == "volume_up" || action == "volume_down") {
         const int step = action == "volume_up" ? cfg_.volume_step : -cfg_.volume_step;
-        if (duck_) {  // "louder" over ducked music means louder than before the duck: applied by restore()
+        if (duck_ && duck_->device_id == d.id) {  // louder than before the duck: applied by restore()
             duck_->restore_to = std::clamp(duck_->restore_to + step, 0, 100);
             save_duck();
             return volume_set(duck_->restore_to);
@@ -431,7 +487,7 @@ json Player::best_own_playlist(const std::string& name, int min_score) {
     return best;
 }
 
-Result Player::set_volume(const std::string& query) {
+Result Player::set_volume(const Device& d, const std::string& query) {
     int volume = -1;
     try {
         std::size_t used = 0;
@@ -441,12 +497,11 @@ Result Player::set_volume(const std::string& query) {
     }
     if (volume < 0 || volume > 100)
         throw Failure("volume \"" + query + "\" out of range", "The volume goes from 0 to 100.");
-    if (duck_) {  // applied by restore(), like "louder"
+    if (duck_ && duck_->device_id == d.id) {  // applied by restore(), like "louder"
         duck_->restore_to = volume;
         save_duck();
         return volume_set(volume);
     }
-    const Device d = device();
     expect_ok(api("PUT", "/me/player/volume?volume_percent=" + std::to_string(volume) + "&device_id=" + d.id), "volume");
     return volume_set(volume);
 }
@@ -495,36 +550,79 @@ Result Player::play_liked(const Device& d, bool shuffle) {
 }
 
 std::vector<std::string> Player::devices() {
-    const auto r = api("GET", "/me/player/devices");
-    expect_ok(r, "devices");
     std::vector<std::string> out;
-    const json devices = json::parse(r.body);
-    for (const auto& d : devices["devices"]) {
+    for (const auto& d : fetch_devices()) {
         std::string line = "\"" + d.value("name", "?") + "\" (" + d.value("type", "?");
         if (d.value("is_active", false)) line += ", active";
-        if (d["volume_percent"].is_number()) line += ", volume " + std::to_string(d["volume_percent"].get<int>()) + " %";
+        if (field(d, "volume_percent").is_number()) line += ", volume " + std::to_string(field(d, "volume_percent").get<int>()) + " %";
+        if (lower(d.value("name", "")) == lower(cfg_.device_name)) line += ", the box";
+        else if (in_room(d.value("name", ""))) line += ", ducked";
         out.push_back(line + ")");
     }
     return out;
 }
 
-Player::Device Player::device() {
+json Player::fetch_devices() {
     const auto r = api("GET", "/me/player/devices");
     expect_ok(r, "devices");
-    const json devices = json::parse(r.body);
-    for (const auto& d : devices["devices"]) {
-        if (lower(d.value("name", "")) != lower(cfg_.device_name) || !d["id"].is_string()) continue;
-        last_id_ = d["id"];
-        return {.id = d["id"], .active = d.value("is_active", false),
-                .volume = d["volume_percent"].is_number() ? d["volume_percent"].get<int>() : 50};
-    }
+    json list = json::parse(r.body).value("devices", json::array());
+    for (const auto& d : list)
+        if (lower(d.value("name", "")) == lower(cfg_.device_name) && field(d, "id").is_string()) last_id_ = field(d, "id");
+    return list;
+}
+
+Player::Device Player::device_of(const json& d) {
+    return {.id = d.value("id", ""), .name = d.value("name", ""), .active = d.value("is_active", false),
+            .volume = field(d, "volume_percent").is_number() ? field(d, "volume_percent").get<int>() : 50};
+}
+
+Player::Device Player::box(const json& list) const {
+    for (const auto& d : list)
+        if (lower(d.value("name", "")) == lower(cfg_.device_name) && field(d, "id").is_string()) return device_of(d);
     // Some Connect speakers leave the list in standby but still accept playback on their old id ⚠️
     if (!last_id_.empty()) {
         std::cout << "[spotify] " << cfg_.device_name << " not in the device list, trying its last id" << std::endl;
-        return {.id = last_id_};
+        return {.id = last_id_, .name = cfg_.device_name};
     }
     throw Failure("device \"" + cfg_.device_name + "\" not found (off, or not on the network?)",
                   cfg_.device_name + " isn't available.");
+}
+
+Player::Device Player::active(const json& list) const {
+    for (const auto& d : list)
+        if (d.value("is_active", false) && field(d, "id").is_string()) return device_of(d);
+    return box(list);
+}
+
+// Best match_score for the spoken name; "the box" / "music box" is always the box. Accepted: the name equals or
+// contains what was said, or every spoken word is (close to) a word of the name ("bathroom speakers").
+std::optional<Player::Device> Player::speaker(const json& list, const std::string& spoken) const {
+    const std::string want = spoken_speaker(spoken);
+    if (want == "box" || want == "music box") return box(list);
+    const int words = static_cast<int>(std::count(want.begin(), want.end(), ' ')) + 1;
+    const int min_score = std::max(2, words);  // one exact word, or each word at least close
+    int best_score = 0;
+    std::vector<const json*> best;
+    for (const auto& d : list) {
+        if (!field(d, "id").is_string()) continue;
+        const int score = match_score(d.value("name", ""), want);
+        if (score < min_score || score < best_score) continue;
+        if (score > best_score) best.clear();
+        best_score = score;
+        best.push_back(&d);
+    }
+    if (best.empty()) return std::nullopt;
+    if (best.size() > 1) {
+        const std::string a = (*best[0]).value("name", ""), b = (*best[1]).value("name", "");
+        throw Failure("\"" + spoken + "\" matches " + a + " and " + b, "Which speaker, " + a + " or " + b + "?");
+    }
+    return device_of(*best[0]);
+}
+
+bool Player::in_room(const std::string& name) const {
+    if (lower(name) == lower(cfg_.device_name)) return true;
+    return std::any_of(cfg_.duck_devices.begin(), cfg_.duck_devices.end(),
+                       [&](const std::string& d) { return lower(d) == lower(name); });
 }
 
 HttpResponse Player::api(const std::string& method, const std::string& path, const json& body) {

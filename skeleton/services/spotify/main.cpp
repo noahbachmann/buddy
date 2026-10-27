@@ -1,11 +1,12 @@
-// spotify: voice commands → Spotify Web API, played on the music box (a Spotify Connect device, BUDDY_SPOTIFY_DEVICE).
-// Also ducks the box while Buddy listens or speaks.
+// spotify: voice commands → Spotify Web API, played on the music box (a Spotify Connect device, BUDDY_SPOTIFY_DEVICE)
+// or any other Connect speaker the command names. Also ducks the box while Buddy listens or speaks.
 //
 //   buddy-spotify                      live: buddy/spotify/cmd in, buddy/spotify/state + buddy/voice/say out;
 //                                      buddy/ears/state + buddy/voice/state duck the box (and warm up token,
 //                                      connection and device for the command that follows)
 //   buddy-spotify --login              once: OAuth login, saves the refresh token
-//   buddy-spotify --cmd <action> [q]   test: runs one command and prints the result (no MQTT)
+//   buddy-spotify --cmd <action> [q] [speaker]
+//                                      test: runs one command and prints the result (no MQTT)
 //   buddy-spotify --cmd devices        test: lists the Connect devices Spotify sees (exact names for BUDDY_SPOTIFY_DEVICE)
 //   buddy-spotify --cmd duck|restore   test: turns the box down / back up (the volume to restore is kept in
 //                                      $XDG_RUNTIME_DIR between the two calls)
@@ -18,7 +19,9 @@
 #include <cstring>
 #include <iostream>
 #include <optional>
+#include <sstream>
 #include <string>
+#include <vector>
 
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
@@ -40,6 +43,18 @@ using namespace buddy::spotify;
 using json = nlohmann::json;
 using Clock = std::chrono::steady_clock;
 
+// "desktop-1, Bathroom speaker" → {"desktop-1", "Bathroom speaker"}
+std::vector<std::string> name_list(const std::string& csv) {
+    std::vector<std::string> out;
+    std::istringstream in(csv);
+    for (std::string name; std::getline(in, name, ',');) {
+        name.erase(0, name.find_first_not_of(' '));
+        name.erase(name.find_last_not_of(' ') + 1);
+        if (!name.empty()) out.push_back(name);
+    }
+    return out;
+}
+
 struct Config {
     AuthConfig auth{
         .client_id = env_string("BUDDY_SPOTIFY_CLIENT_ID", ""),
@@ -54,13 +69,9 @@ struct Config {
         .duck_percent = env_int("BUDDY_SPOTIFY_DUCK_PERCENT", 30),
         .duck_file = std::getenv("XDG_RUNTIME_DIR") ? std::string(std::getenv("XDG_RUNTIME_DIR")) + "/buddy-spotify-duck.json"
                                                     : "",
+        .duck_devices = name_list(env_string("BUDDY_SPOTIFY_DUCK_DEVICES", "")),
     };
     int duck_hold_ms = env_int("BUDDY_SPOTIFY_DUCK_HOLD_MS", 1500);
-};
-
-struct Command {
-    std::string action;  // empty = ears/voice state changed
-    std::string query;
 };
 
 int serve(Player& player, Auth& auth, int hold_ms) {
@@ -81,7 +92,12 @@ int serve(Player& player, Auth& auth, int hold_ms) {
             std::cout << "[spotify] bad command: " << payload << std::endl;
             return;
         }
-        queue.push({msg["action"], msg.value("query", "")});
+        Command c{.action = msg["action"], .query = msg.value("query", ""), .device = msg.value("device", "")};
+        if (const auto f = msg.value("fallback", json()); f.is_object() && f["action"].is_string()) {
+            c.fallback_action = f["action"];
+            c.fallback_query = f.value("query", "");
+        }
+        queue.push(std::move(c));
     });
     mqtt.subscribe(topic::ears_state, [&](const std::string&, const std::string& payload) {
         const auto s = state_of(payload);
@@ -127,10 +143,10 @@ int serve(Player& player, Auth& auth, int hold_ms) {
         if (!cmd || cmd->action.empty()) continue;
 
         const auto t0 = Clock::now();
-        const Result r = player.run(cmd->action, cmd->query);
+        const Result r = player.run(*cmd);
         const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - t0);
         std::cout << "[spotify] " << cmd->action << (cmd->query.empty() ? "" : " \"" + cmd->query + "\"")
-                  << (r.ok ? " ok" : " failed") << " (" << ms.count() << " ms)" << std::endl;
+                  << (cmd->device.empty() ? "" : " on \"" + cmd->device + "\"") << (r.ok ? " ok" : " failed") << " (" << ms.count() << " ms)" << std::endl;
 
         if (!r.say.empty()) mqtt.publish(topic::voice_say, json{{"text", r.say}}.dump(), 1);
         if (r.playing) state["playing"] = *r.playing;
@@ -151,9 +167,9 @@ int main(int argc, char** argv) {
     install_signal_handlers();
 
     const bool login = argc == 2 && std::strcmp(argv[1], "--login") == 0;
-    const bool cmd = (argc == 3 || argc == 4) && std::strcmp(argv[1], "--cmd") == 0;
+    const bool cmd = argc >= 3 && argc <= 5 && std::strcmp(argv[1], "--cmd") == 0;
     if (argc != 1 && !login && !cmd) {
-        std::cerr << "usage: " << argv[0] << " [--login | --cmd <action> [query]]" << std::endl;
+        std::cerr << "usage: " << argv[0] << " [--login | --cmd <action> [query] [speaker]]" << std::endl;
         return 2;
     }
 
@@ -203,7 +219,7 @@ int main(int argc, char** argv) {
     } else if (cmd && std::strcmp(argv[2], "restore") == 0) {
         player.recover();
     } else if (cmd) {
-        const Result r = player.run(argv[2], argc == 4 ? argv[3] : "");
+        const Result r = player.run({.action = argv[2], .query = argc >= 4 ? argv[3] : "", .device = argc == 5 ? argv[4] : ""});
         std::cout << (r.ok ? "ok" : "failed") << (r.say.empty() ? "" : ", says: \"" + r.say + "\"") << std::endl;
         rc = r.ok ? 0 : 1;
     } else {
