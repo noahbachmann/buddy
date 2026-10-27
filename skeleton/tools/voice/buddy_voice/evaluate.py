@@ -2,7 +2,7 @@
 
 Scores per variant (model × audio_ctx × fallback):
     exact   transcript equals the sentence after normalisation (score.norm)
-    intent  brain gets the right action and query from it: what actually matters. Counted over clips whose
+    intent  brain gets the right action, query and speaker from it: what actually matters. Counted over clips whose
             sentence brain understands (lights etc. have no skill yet)
     WER     word error rate
     ms      speech-to-text time per clip on the Pi (avg / 90th percentile)
@@ -99,7 +99,7 @@ def evaluate(variants: list[Variant], source: str = "aec", sessions: list[str] |
 
     def expected(sentence: str) -> tuple[str, str]:
         c = known.get(sentence)
-        return (c.intent, c.query) if c else intents.get(sentence, ("unknown", ""))
+        return (c.intent, c.query, c.device) if c else intents.get(sentence, ("unknown", "", ""))
 
     results = []
     for v, out in heard_by_variant.items():
@@ -112,7 +112,7 @@ def evaluate(variants: list[Variant], source: str = "aec", sessions: list[str] |
             errs, words = word_errors(clip.sentence, heard)
             rows.append({"clip": clip.id, "session": clip.session, "said": clip.sentence, "heard": heard, "ms": ms,
                          "exact": norm(heard) == norm(clip.sentence), "errors": errs, "words": words,
-                         "music": want[0] != "unknown", "intent_ok": intents.get(heard, ("unknown", "")) == want})
+                         "music": want[0] != "unknown", "intent_ok": intents.get(heard, ("unknown", "", "")) == want})
         results.append({"variant": v.label(), **summarize(rows), "sessions": {
             s: summarize([r for r in rows if r["session"] == s]) for s in sorted({r["session"] for r in rows})},
             "rows": rows})

@@ -1,4 +1,4 @@
-"""tools/voice/commands.tsv: sentence → set, intent, query."""
+"""tools/voice/commands.tsv: sentence → set, intent, query, device."""
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,6 +12,7 @@ class Command:
     sentence: str
     intent: str
     query: str
+    device: str = ""  # speaker brain splits off, empty = the music box
 
 
 def load(path: Path = PATH) -> list[Command]:
@@ -21,9 +22,9 @@ def load(path: Path = PATH) -> list[Command]:
             continue
         cols = line.split("\t")
         if len(cols) < 2 or cols[0] not in ("train", "test", "wake"):
-            raise ValueError(f"{path}:{n}: expected <train|test|wake> TAB <sentence> TAB <intent> [TAB <query>]")
-        cols += [""] * (4 - len(cols))
-        out.append(Command(*cols[:4]))
+            raise ValueError(f"{path}:{n}: expected <train|test|wake> TAB <sentence> TAB <intent> [TAB <query> [TAB <device>]]")
+        cols += [""] * (5 - len(cols))
+        out.append(Command(*cols[:5]))
     return out
 
 

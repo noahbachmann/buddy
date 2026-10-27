@@ -1,4 +1,4 @@
-// ctest brain_corpus: every train/test sentence in tools/voice/commands.tsv must give its intent and query.
+// ctest brain_corpus: every train/test sentence in tools/voice/commands.tsv must give its intent, query and device.
 //   buddy-brain-test <commands.tsv>
 #include <fstream>
 #include <iostream>
@@ -29,15 +29,18 @@ int main(int argc, char** argv) {
         const std::string& sentence = cols[1];
         const std::string& intent = cols[2];
         const std::string query = cols.size() > 3 ? cols[3] : "";
+        const std::string device = cols.size() > 4 ? cols[4] : "";
 
         ++total;
         const auto got = parser.parse(sentence);
         const std::string got_intent = got ? got->name : "unknown";
         const std::string got_query = got ? got->query : "";
-        if (got_intent == intent && got_query == query) continue;
+        const std::string got_device = got ? got->device : "";
+        if (got_intent == intent && got_query == query && got_device == device) continue;
         ++failed;
-        std::cout << "✗ \"" << sentence << "\"\n    want " << intent << " \"" << query << "\"\n     got " << got_intent
-                  << " \"" << got_query << "\"   (normalized: \"" << buddy::brain::normalize(sentence) << "\")\n";
+        std::cout << "✗ \"" << sentence << "\"\n    want " << intent << " \"" << query << "\" on \"" << device
+                  << "\"\n     got " << got_intent << " \"" << got_query << "\" on \"" << got_device
+                  << "\"   (normalized: \"" << buddy::brain::normalize(sentence) << "\")\n";
     }
     std::cout << total - failed << " / " << total << " sentences parsed as expected" << std::endl;
     return failed == 0 && total > 0 ? 0 : 1;

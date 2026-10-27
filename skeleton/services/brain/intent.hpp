@@ -14,6 +14,11 @@ struct Intent {
     std::string skill;  // service that handles it, e.g. "spotify"
     std::string query;  // optional argument: "daft punk" (play), "chill vibes" (play_playlist), "50" (set_volume),
                         // "on"/"off" (shuffle), "track"/"context"/"off" (repeat), "shuffle" (play_liked)
+    std::string device;  // speaker named in "… on the bathroom speaker", as spoken; empty = the skill's default
+    // What the text means if `device` names no real speaker ("play shine on you crazy diamond"); the skill knows
+    // its speakers, brain doesn't. Empty = no other reading.
+    std::string fallback_name;
+    std::string fallback_query;
 };
 
 class IntentParser {

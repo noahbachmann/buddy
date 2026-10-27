@@ -24,8 +24,8 @@ def rsync(src: str, dst: str, *extra: str) -> None:
     subprocess.run(["rsync", "-a", *extra, src, dst], check=True)
 
 
-def brain(texts: list[str]) -> dict[str, tuple[str, str]]:
-    """text → (intent, query) from the deployed buddy-brain (--test, no MQTT)."""
+def brain(texts: list[str]) -> dict[str, tuple[str, str, str]]:
+    """text → (intent, query, device) from the deployed buddy-brain (--test, no MQTT)."""
     import json  # noqa: PLC0415
 
     if not texts:
@@ -36,5 +36,5 @@ def brain(texts: list[str]) -> dict[str, tuple[str, str]]:
         text, _, event = line.rpartition(" → ")
         if text.startswith('"') and text.endswith('"'):
             j = json.loads(event)
-            result[text[1:-1]] = (j["intent"], j.get("query", ""))
+            result[text[1:-1]] = (j["intent"], j.get("query", ""), j.get("device", ""))
     return result

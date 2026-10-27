@@ -6,12 +6,13 @@
 #   sentence  written the way it should be transcribed: digits for numbers ("50%"), real capitalisation
 #   intent    what brain must return; unknown = no skill for it yet (lights: kept for speech-to-text)
 #   query     brain's query for that intent, empty if none
+#   device    the speaker brain splits off ("… on the bathroom speaker"), empty = the music box
 #
 # Replace the artists, songs and playlists with yours: names whisper gets wrong are where training helps most,
 # so give each name 5+ sentences across train and test. A new phrasing that brain doesn't know fails ctest
 # until brain/rules.cpp learns it.
 #
-# set	sentence	intent	query
+# set	sentence	intent	query	device
 wake	Hey Jarvis.	wake
 # --- play / resume
 train	Play Spotify.	play
@@ -128,6 +129,29 @@ test	Buddy, play my no singing playlist on Spotify.	play_playlist	no singing
 train	Play my liked songs.	play_liked
 train	Shuffle my liked songs.	play_liked	shuffle
 test	Put on my liked songs.	play_liked
+# --- other speakers (edit: your Spotify Connect names as "buddy-spotify --cmd devices" lists them; the box needs none)
+train	Play Daft Punk on the bathroom speaker.	play	daft punk	bathroom speaker
+train	Play music in the bathroom.	play		bathroom
+train	Move the music to the bathroom speaker.	play		bathroom speaker
+test	Play my chill playlist on the bathroom speaker.	play_playlist	chill	bathroom speaker
+test	Put on some music in the bathroom.	play		bathroom
+train	Play Kanye West on my Pixel 8.	play	kanye west	pixel 8
+train	Play my liked songs on the Pixel 8.	play_liked		pixel 8
+train	Switch to my Pixel.	play		pixel
+test	Move the music to my Pixel 8.	play		pixel 8
+test	Play it on the Pixel.	play		pixel
+train	Play The Strokes on desktop 1.	play	the strokes	desktop 1
+train	Play music on desktop 1.	play		desktop 1
+train	Move the music to desktop 1.	play		desktop 1
+test	Play my sleepy playlist on desktop 1.	play_playlist	sleepy	desktop 1
+test	Switch to desktop 1.	play		desktop 1
+train	Play Hans Zimmer on my personal TV.	play	hans zimmer	personal tv
+train	Play music on my personal TV.	play		personal tv
+train	Move the music to my personal TV.	play		personal tv
+test	Play my liked songs on my personal TV.	play_liked		personal tv
+test	Switch the music to my personal TV.	play		personal tv
+train	Move the music back to the box.	play		box
+test	Play music on the main speaker.	play		main speaker
 # --- lights (no skill yet: brain says unknown, but whisper learns the words now; edit rooms and scenes)
 train	Turn on the lights.	unknown
 train	Turn off the lights.	unknown

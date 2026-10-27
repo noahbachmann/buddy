@@ -4,7 +4,8 @@
 //   buddy-brain --test "text"…   offline: prints the intent for each argument (no MQTT)
 //
 // Routing: an intent's skill names the service; the command goes to buddy/<skill>/cmd as
-// {"action": <intent>[, "query": …]}. Not understood → buddy/voice/say "Sorry, …".
+// {"action": <intent>[, "query": …][, "device": …][, "fallback": {"action": …[, "query": …]}]}.
+// Not understood → buddy/voice/say "Sorry, …".
 #include <chrono>
 #include <cstring>
 #include <iostream>
@@ -34,10 +35,20 @@ std::string_view command_topic(const std::string& skill) {
     return {};
 }
 
+// query, device and fallback of a command, the fields that skill command and intent event share
+void add_arguments(json& msg, const Intent& intent) {
+    if (!intent.query.empty()) msg["query"] = intent.query;
+    if (!intent.device.empty()) msg["device"] = intent.device;
+    if (!intent.fallback_name.empty()) {
+        msg["fallback"] = {{"action", intent.fallback_name}};
+        if (!intent.fallback_query.empty()) msg["fallback"]["query"] = intent.fallback_query;
+    }
+}
+
 json intent_event(const std::optional<Intent>& intent, const std::string& text) {
     json msg = {{"intent", intent ? intent->name : "unknown"}, {"text", text}};
     if (intent) msg["skill"] = intent->skill;
-    if (intent && !intent->query.empty()) msg["query"] = intent->query;
+    if (intent) add_arguments(msg, *intent);
     return msg;
 }
 
@@ -73,7 +84,8 @@ int main(int argc, char** argv) {
         const auto intent = parser.parse(text);
         const json event = intent_event(intent, text);
         std::cout << "[brain] \"" << text << "\" → " << event["intent"].get<std::string>()
-                  << (intent && !intent->query.empty() ? " \"" + intent->query + "\"" : "") << std::endl;
+                  << (intent && !intent->query.empty() ? " \"" + intent->query + "\"" : "")
+                  << (intent && !intent->device.empty() ? " on \"" + intent->device + "\"" : "") << std::endl;
         mqtt.publish(topic::brain_intent, event.dump());
 
         if (!intent) {
@@ -86,7 +98,7 @@ int main(int argc, char** argv) {
             return;
         }
         json cmd = {{"action", intent->name}};
-        if (!intent->query.empty()) cmd["query"] = intent->query;
+        add_arguments(cmd, *intent);
         mqtt.publish(cmd_topic, cmd.dump(), 1);
     });
 

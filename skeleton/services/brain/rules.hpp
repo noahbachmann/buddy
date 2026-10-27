@@ -3,6 +3,7 @@
 // it is normalized first: lowercase, no punctuation, number words as digits, common whisper misspellings fixed,
 // politeness ("please", "can you") stripped. Each rule must match the whole remaining text,
 // so "pause" matches but "I don't want to pause anything right now" does not.
+// A trailing "on/in the <speaker>" is split off into Intent::device for the commands that start playback.
 // Every phrasing in tools/voice/commands.tsv is checked by ctest (brain_corpus).
 
 #include <regex>
@@ -21,6 +22,9 @@ public:
     std::optional<Intent> parse(std::string_view text) const override;
 
 private:
+    std::optional<Intent> parse_core(const std::string& normalized) const;
+    std::optional<Intent> parse_device(const std::string& normalized) const;
+
     struct Rule {
         std::regex pattern;
         std::string name;

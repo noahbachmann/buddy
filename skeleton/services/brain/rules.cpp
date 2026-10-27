@@ -24,6 +24,8 @@ const std::vector<std::pair<std::regex, std::string>>& rewrites() {
         // "put on X" = "play X"
         {std::regex(R"(^put on )"), "play "},
         {std::regex(R"( percent\b)"), ""},
+        // Spotify is the only music app: never a speaker name
+        {std::regex(R"( on spotify$)"), ""},
     };
     return r;
 }
@@ -64,7 +66,7 @@ std::string number_words_to_digits(const std::string& text) {
 
 // "play music" / "play spotify" carry no query: resume instead of searching.
 bool generic_query(const std::string& q) {
-    static const std::regex generic(R"((some |my |the )?(music|spotify|something|songs?|tunes)( on spotify)?)");
+    static const std::regex generic(R"((some |my |the )?(music|spotify|something|songs?|tunes)( on spotify)?|it|this( song)?)");
     return std::regex_match(q, generic);
 }
 
@@ -139,10 +141,48 @@ RuleParser::RuleParser() {
 
 std::optional<Intent> RuleParser::parse(std::string_view text) const {
     const std::string t = normalize(text);
+    if (auto intent = parse_device(t)) return intent;
+    return parse_core(t);
+}
+
+// "move the music to the tv", "play daft punk on the bathroom speaker", "play my liked songs in the kitchen".
+// Splits at the last "on"/"in the"; the speaker name itself is matched by the skill.
+std::optional<Intent> RuleParser::parse_device(const std::string& t) const {
+    static const std::regex transfer(
+        R"((move|switch|transfer|send|put)( the music| it| this| the song| playback| the playback| spotify)?( back)? to (the |my )?(.+))");
+    static const std::regex suffix(R"((.+) (on|in the|in my) (the |my )?(.+))");
+    static const std::regex not_a_device(R"(spotify|repeat|shuffle|loop)");
+    std::smatch m;
+    if (std::regex_match(t, m, transfer)) {
+        Intent intent;
+        intent.name = "play";  // empty query + device: keep playing, there
+        intent.skill = "spotify";
+        intent.device = m[5].str();
+        return intent;
+    }
+    if (!std::regex_match(t, m, suffix) || std::regex_match(m[4].str(), not_a_device)) return std::nullopt;
+    auto intent = parse_core(m[1].str());
+    if (!intent || (intent->name != "play" && intent->name != "play_playlist" && intent->name != "play_liked"))
+        return std::nullopt;
+    intent->device = m[4].str();
+    // "play shine" + "on you crazy diamond": maybe a title. "play (it) on X", playlists, liked songs: a speaker.
+    if (intent->name == "play" && !intent->query.empty()) {
+        if (const auto whole = parse_core(t)) {
+            intent->fallback_name = whole->name;
+            intent->fallback_query = whole->query;
+        }
+    }
+    return intent;
+}
+
+std::optional<Intent> RuleParser::parse_core(const std::string& t) const {
     std::smatch m;
     for (const auto& rule : rules_) {
         if (!std::regex_match(t, m, rule.pattern)) continue;
-        Intent intent{rule.name, rule.skill, rule.fixed_query};
+        Intent intent;
+        intent.name = rule.name;
+        intent.skill = rule.skill;
+        intent.query = rule.fixed_query;
         if (rule.query_group > 0) {
             std::string q = m[rule.query_group].str();
             if (rule.name == "play") q = canonical_query(q);
