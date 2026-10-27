@@ -17,12 +17,12 @@ if [[ "${1:-}" == --pi ]]; then
     shift
     "$ROOT/deploy/sync.sh" > /dev/null
     echo "→ C++ tests on $HOST"
-    ssh "$HOST" bash -s -- "${CMAKE_ARGS[*]}" "$@" <<'REMOTE'
+    # ssh joins its arguments into one command line: quote them (@Q), and send the CMake flags inside the script.
+    { echo "cmake_args=(${CMAKE_ARGS[*]@Q})"; cat <<'REMOTE'; } | ssh "$HOST" bash -s -- "${@@Q}"
 set -euo pipefail
-cmake_args="$1"; shift
 cd ~/buddy
-# shellcheck disable=SC2086  # word splitting wanted
-cmake -S src -B build-test $cmake_args -DCMAKE_CXX_COMPILER_LAUNCHER=ccache > /dev/null
+# shellcheck disable=SC2154  # cmake_args: first line of this script
+cmake -S src -B build-test "${cmake_args[@]}" -DCMAKE_CXX_COMPILER_LAUNCHER=ccache > /dev/null
 cmake --build build-test --target buddy-tests
 ctest --test-dir build-test --output-on-failure -j "$(nproc)" "$@"
 REMOTE
