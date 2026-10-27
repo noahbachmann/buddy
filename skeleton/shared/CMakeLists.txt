@@ -46,4 +46,6 @@ target_link_libraries(buddy_shared PUBLIC
     nlohmann_json::nlohmann_json
 )
 
-buddy_add_tests(shared tests/test_config.cpp tests/test_topics.cpp LIBS buddy_shared)
+buddy_add_tests(shared tests/test_config.cpp tests/test_mqtt.cpp tests/test_queue.cpp tests/test_topics.cpp LIBS buddy_shared)
+# Own process: systemd.cpp reads WATCHDOG_USEC once, and Mqtt::start() would read it first.
+buddy_add_tests(systemd tests/test_systemd.cpp LIBS buddy_shared)
