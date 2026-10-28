@@ -1,0 +1,299 @@
+<title>Buddy Pico Setup</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* layout: single reading column, wiring diagram first, reference tables below */
+:root {
+  --bg: #f5f7f4; --surface: #ffffff; --fg: #1b231d; --muted: #5b6a5f; --line: #d5ddd6;
+  --accent: #2b7a4b; --accent-soft: #e2efe6; --warn: #b4441f; --warn-soft: #f8e6de;
+  --w-sig: #d9790f; --w-pos: #cc2a2a; --w-gnd: #5a3b22; --w-usb: #2c5ea8; --board: #e8f0ea;
+  --f-display: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121814; --surface: #19211b; --fg: #e3ebe5; --muted: #95a59a; --line: #2c372f;
+  --accent: #5fc387; --accent-soft: #1d3326; --warn: #f0875e; --warn-soft: #3a2119;
+  --w-sig: #f2a03d; --w-pos: #f05a5a; --w-gnd: #c79a6e; --w-usb: #6f9fe6; --board: #1d2b21;
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #121814; --surface: #19211b; --fg: #e3ebe5; --muted: #95a59a; --line: #2c372f;
+  --accent: #5fc387; --accent-soft: #1d3326; --warn: #f0875e; --warn-soft: #3a2119;
+  --w-sig: #f2a03d; --w-pos: #f05a5a; --w-gnd: #c79a6e; --w-usb: #6f9fe6; --board: #1d2b21;
+  color-scheme: dark }
+
+body { background: var(--bg); color: var(--fg); font: 15px/1.6 var(--f-body); }
+main { max-width: 980px; margin: 0 auto; padding-block: 40px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 44px; }
+h1, h2 { font-family: var(--f-display); font-weight: 600; text-wrap: balance; margin: 0; letter-spacing: .01em; }
+h1 { font-size: clamp(30px, 5vw, 42px); line-height: 1.1; }
+h2 { font-size: 22px; }
+p { margin: 0; max-width: 68ch; }
+code, .mono { font-family: var(--f-mono); font-size: .88em; }
+section { display: grid; gap: 14px; min-width: 0; }
+.eyebrow { font: 500 12px/1 var(--f-mono); text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+header { display: grid; gap: 14px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font: 500 12px/1 var(--f-mono); padding: 6px 10px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); }
+.chip.warn { background: var(--warn-soft); color: var(--warn); }
+.lede { color: var(--muted); font-size: 16px; }
+
+.figure { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px; overflow-x: auto; }
+.figure svg { display: block; min-width: 720px; width: 100%; height: auto; }
+svg text { font-family: var(--f-mono); fill: var(--fg); }
+svg .lbl { font-size: 13px; }
+svg .sm { font-size: 11px; fill: var(--muted); }
+svg .ttl { font-family: var(--f-display); font-size: 15px; font-weight: 600; }
+svg .box { fill: var(--surface); stroke: var(--fg); stroke-width: 1.5; }
+svg .pcb { fill: var(--board); stroke: var(--accent); stroke-width: 2; }
+svg .w { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+svg .sig { stroke: var(--w-sig); } svg .pos { stroke: var(--w-pos); } svg .gnd { stroke: var(--w-gnd); } svg .usb { stroke: var(--w-usb); stroke-width: 5; }
+svg .dot-g { fill: var(--w-gnd); } svg .dot-p { fill: var(--w-pos); }
+svg .no { stroke: var(--warn); stroke-width: 2.5; }
+svg .nolbl { fill: var(--warn); font-size: 11px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font: 12px var(--f-mono); color: var(--muted); padding: 10px 4px 0; }
+.legend span::before { content: ""; display: inline-block; width: 18px; height: 3px; margin-right: 6px; vertical-align: middle; background: var(--c); }
+
+.rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+.rule { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; display: grid; gap: 6px; align-content: start; }
+.rule b { font-family: var(--f-display); font-size: 15px; font-weight: 600; }
+.rule p { color: var(--muted); font-size: 14px; }
+.rule.danger { border-color: var(--warn); }
+.rule.danger b { color: var(--warn); }
+
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+th { font: 500 11px/1.4 var(--f-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); background: var(--bg); }
+td:first-child { white-space: nowrap; }
+td.n { font-variant-numeric: tabular-nums; }
+tr.reserved td { color: var(--muted); }
+tr.never td { color: var(--warn); }
+
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; align-items: start; }
+.two > * { min-width: 0; }
+pre { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; overflow-x: auto;
+  font: 13px/1.7 var(--f-mono); }
+pre .c { color: var(--muted); } pre .r { color: var(--accent); } pre .u { color: var(--w-sig); }
+
+ol.flow { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; counter-reset: s; }
+ol.flow li { counter-increment: s; display: grid; grid-template-columns: 30px 1fr; gap: 12px; align-items: start; min-width: 0; }
+ol.flow li::before { content: counter(s); font: 600 14px/28px var(--f-display); text-align: center; width: 28px; height: 28px;
+  border-radius: 50%; background: var(--accent-soft); color: var(--accent); }
+ol.flow li > div { min-width: 0; display: grid; gap: 4px; }
+ol.flow li p { color: var(--muted); font-size: 14px; }
+
+ul.done { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+ul.done li { padding-left: 26px; position: relative; max-width: 72ch; }
+ul.done li::before { content: ""; position: absolute; left: 2px; top: 5px; width: 12px; height: 12px; border: 1.5px solid var(--accent); border-radius: 3px; }
+footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 16px; }
+</style>
+
+<main>
+  <header>
+    <div class="eyebrow">Buddy · Phase 2 · Step 2.2 motion controller</div>
+    <h1>Pico 2 H servo controller</h1>
+    <p class="lede">The Pi 5 sends text commands over USB to a Raspberry Pi Pico 2 H. The Pico drives the servos from its own hardware PWM, keeps every servo inside its limits, and lets go of all of them when the Pi goes quiet. The servos run from a separate 5 V supply.</p>
+    <div class="chips">
+      <span class="chip warn">Planned: guide written, not built yet</span>
+      <span class="chip">Decision D17</span>
+      <span class="chip">Protocol v1 · /dev/buddy-pico</span>
+    </div>
+  </header>
+
+  <section aria-labelledby="wiring">
+    <h2 id="wiring">Wiring</h2>
+    <div class="figure">
+      <svg viewBox="0 0 920 470" role="img" aria-label="Wiring diagram: Pi 5 USB to Pico 2 H; GP2 and GP3 through 330 ohm resistors to two servos; separate 5 V supply feeds the servo rail; Pico GND, supply minus and servo grounds share one ground rail; VSYS and VBUS stay unconnected.">
+        <!-- Pi -->
+        <rect class="box" x="20" y="40" width="160" height="110" rx="6"/>
+        <text class="ttl" x="36" y="68">Raspberry Pi 5</text>
+        <text class="sm" x="36" y="92">black USB 2 port</text>
+        <text class="sm" x="36" y="110">(Jabra on the other)</text>
+        <text class="sm" x="36" y="128">builds + flashes firmware</text>
+        <!-- USB -->
+        <path class="w usb" d="M180 95 H300"/>
+        <text class="sm" x="190" y="84">USB data + power</text>
+        <text class="sm" x="190" y="116">/dev/buddy-pico</text>
+        <!-- Pico -->
+        <rect class="pcb" x="300" y="40" width="170" height="210" rx="6"/>
+        <text class="ttl" x="316" y="68">Pico 2 H</text>
+        <text class="sm" x="316" y="86">RP2350 · 3.3 V logic</text>
+        <text class="lbl" x="390" y="94" text-anchor="end">GP2</text><text class="sm" x="396" y="94">pin 4</text>
+        <text class="lbl" x="390" y="124" text-anchor="end">GP3</text><text class="sm" x="396" y="124">pin 5</text>
+        <text class="lbl" x="390" y="154" text-anchor="end">GND</text><text class="sm" x="396" y="154">pin 3</text>
+        <text class="lbl" x="390" y="204" text-anchor="end">VSYS</text><text class="sm" x="396" y="204">pin 39</text>
+        <text class="lbl" x="390" y="234" text-anchor="end">VBUS</text><text class="sm" x="396" y="234">pin 40</text>
+        <!-- never connect -->
+        <path class="w no" d="M470 200 H492 M484 192 l16 16 M500 192 l-16 16"/>
+        <path class="w no" d="M470 230 H492 M484 222 l16 16 M500 222 l-16 16"/>
+        <text class="nolbl" x="508" y="204">never servo 5 V</text>
+        <text class="nolbl" x="508" y="234">(VBUS = Pi's USB 5 V)</text>
+        <!-- GP2 → 330 Ω → servo ch0 (right) -->
+        <path class="w sig" d="M470 90 H510 M560 90 H795 V170"/>
+        <rect x="510" y="82" width="50" height="16" rx="3" fill="var(--surface)" stroke="var(--w-sig)" stroke-width="2"/>
+        <text class="sm" x="535" y="76" text-anchor="middle">330 Ω</text>
+        <!-- GP3 → 330 Ω → servo ch1 (left) -->
+        <path class="w sig" d="M470 120 H580 M630 120 H655 V170"/>
+        <rect x="580" y="112" width="50" height="16" rx="3" fill="var(--surface)" stroke="var(--w-sig)" stroke-width="2"/>
+        <text class="sm" x="605" y="144" text-anchor="middle">330 Ω</text>
+        <!-- Pico GND → ground rail -->
+        <path class="w gnd" d="M470 150 H490 V310"/>
+        <!-- servos -->
+        <rect class="box" x="630" y="170" width="110" height="64" rx="6"/>
+        <text class="ttl" x="642" y="196">MG90S</text>
+        <text class="sm" x="642" y="214">ch1 · head tilt</text>
+        <rect class="box" x="770" y="170" width="110" height="64" rx="6"/>
+        <text class="ttl" x="782" y="196">MG90S</text>
+        <text class="sm" x="782" y="214">ch0 · head pan</text>
+        <!-- servo + (red) and GND (brown) -->
+        <path class="w pos" d="M680 234 V350"/><path class="w gnd" d="M715 234 V310"/>
+        <path class="w pos" d="M820 234 V350"/><path class="w gnd" d="M855 234 V310"/>
+        <!-- rails -->
+        <path class="w gnd" d="M490 310 H900"/>
+        <path class="w pos" d="M560 350 H900"/>
+        <text class="sm" x="900" y="300" text-anchor="end">ground rail (shared)</text>
+        <text class="sm" x="900" y="368" text-anchor="end">servo rail +5 V</text>
+        <circle class="dot-g" cx="490" cy="310" r="5"/><circle class="dot-g" cx="520" cy="310" r="5"/>
+        <circle class="dot-g" cx="600" cy="310" r="5"/><circle class="dot-g" cx="715" cy="310" r="5"/><circle class="dot-g" cx="855" cy="310" r="5"/>
+        <circle class="dot-p" cx="560" cy="350" r="5"/><circle class="dot-p" cx="600" cy="350" r="5"/>
+        <circle class="dot-p" cx="680" cy="350" r="5"/><circle class="dot-p" cx="820" cy="350" r="5"/>
+        <!-- capacitor -->
+        <path class="w gnd" d="M600 310 V324"/>
+        <path d="M588 324 H612" stroke="var(--fg)" stroke-width="3"/>
+        <path d="M588 336 Q600 330 612 336" fill="none" stroke="var(--fg)" stroke-width="3"/>
+        <path class="w pos" d="M600 334 V350"/>
+        <text class="sm" x="580" y="328" text-anchor="end">−</text>
+        <text class="sm" x="580" y="342" text-anchor="end">+</text>
+        <text class="sm" x="600" y="392" text-anchor="middle">1000 µF 25 V</text>
+        <text class="sm" x="600" y="406" text-anchor="middle">stripe → GND</text>
+        <!-- supply -->
+        <rect class="box" x="20" y="380" width="160" height="62" rx="6"/>
+        <text class="ttl" x="36" y="406">5 V / 5 A brick</text>
+        <text class="sm" x="36" y="426">servo power only</text>
+        <path d="M180 411 H240" stroke="var(--fg)" stroke-width="4" fill="none"/>
+        <rect class="box" x="240" y="384" width="120" height="56" rx="6"/>
+        <text class="lbl" x="252" y="406">DC socket</text>
+        <text class="sm" x="252" y="424">5.5 × 2.1, centre +</text>
+        <path class="w gnd" d="M360 398 H520 V310"/>
+        <path class="w pos" d="M360 428 H560 V350"/>
+        <text class="sm" x="380" y="392">− (22 AWG)</text>
+        <text class="sm" x="380" y="452">+ (22 AWG)</text>
+      </svg>
+      <div class="legend">
+        <span style="--c: var(--w-usb)">USB</span>
+        <span style="--c: var(--w-sig)">signal 3.3 V (orange lead)</span>
+        <span style="--c: var(--w-pos)">servo 5 V (red lead)</span>
+        <span style="--c: var(--w-gnd)">ground (brown lead)</span>
+        <span style="--c: var(--warn)">must stay unconnected</span>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="rules">
+    <h2 id="rules">Electrical rules</h2>
+    <div class="rules">
+      <div class="rule danger"><b>Servo 5 V never meets the Pi</b><p>Nothing from the servo rail goes to Pico pin 39 or 40. Two servos starting together pull ~1.5 A, which would brown out the Pi's 1.6 A USB budget.</p></div>
+      <div class="rule"><b>Grounds are shared</b><p>Supply −, servo GND and Pico pin 3 meet on one rail. Without a common reference the servos jitter or ignore the signal.</p></div>
+      <div class="rule"><b>Capacitor at the servos</b><p>1000 µF covers the current spikes the long supply lead can't. It is polarised: the stripe leg goes to GND.</p></div>
+      <div class="rule"><b>Power order</b><p>On: Pico USB first, then the servo supply. Off: servo supply first. Check polarity with the multimeter before the first connect.</p></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="pinout">
+    <h2 id="pinout">Pinout</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Pico pin</th><th>Signal</th><th>Goes to</th></tr></thead>
+        <tbody>
+          <tr><td class="n">3</td><td>GND</td><td>Ground rail (shared ground)</td></tr>
+          <tr><td class="n">4 · GP2</td><td>Servo ch0, head pan</td><td>330 Ω → servo 0 signal</td></tr>
+          <tr><td class="n">5 · GP3</td><td>Servo ch1, head tilt</td><td>330 Ω → servo 1 signal</td></tr>
+          <tr class="reserved"><td class="n">6–12 · GP4–GP9</td><td>Servo ch2–ch7</td><td>Reserved for the hand (Phase 3)</td></tr>
+          <tr class="reserved"><td class="n">14–17, 19–20 · GP10–GP15</td><td>SPI1</td><td>Reserved for the round display (2.4)</td></tr>
+          <tr class="never"><td class="n">39 VSYS · 40 VBUS</td><td>—</td><td>Nothing. Never servo 5 V.</td></tr>
+          <tr><td>USB</td><td>Power + data</td><td>Pi 5, the Pico's only power source</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="firmware">
+    <h2 id="firmware">Firmware behaviour</h2>
+    <p>C++ on Pico SDK 2.3.1 in <code>skeleton/firmware/pico/</code>, a separate CMake project built on the Pi. The protocol header <code>shared/include/buddy/motion_protocol.hpp</code> is shared with the motion service.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Topic</th><th>Behaviour</th></tr></thead>
+        <tbody>
+          <tr><td>PWM</td><td>150 MHz / 150 = 1 µs tick, wrap 19 999 → 50 Hz. The compare value is the pulse width in µs.</td></tr>
+          <tr><td>Boot</td><td>All channels off. A channel needs <code>LIMIT</code> before it accepts <code>MOVE</code>.</td></tr>
+          <tr><td>Limits</td><td>Per channel, inside a hard 500–2500 µs. Moves outside are clamped and the reply says so.</td></tr>
+          <tr><td>Ramps</td><td>Linear to the target over <code>ms</code>, updated every 20 ms.</td></tr>
+          <tr><td>Link watchdog</td><td>No line for 2 s → all servos relaxed (limp), <code>* RELAXED link</code>.</td></tr>
+          <tr><td>HW watchdog</td><td>500 ms. A firmware hang reboots the Pico with all channels off.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="protocol">
+    <h2 id="protocol">Protocol v1</h2>
+    <p>ASCII lines over USB CDC. Every request starts with an id (1–65535) that the reply echoes. Lines starting with <code>*</code> are unsolicited events.</p>
+    <div class="two">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Request</th><th>Reply</th></tr></thead>
+          <tbody>
+            <tr><td><code>id HELLO</code></td><td><code>OK buddy-motion &lt;fw&gt; 1</code></td></tr>
+            <tr><td><code>id LIMIT ch min max</code></td><td><code>OK</code>, enables, doesn't move</td></tr>
+            <tr><td><code>id MOVE ch us ms</code></td><td><code>OK</code> / <code>OK clamped us</code></td></tr>
+            <tr><td><code>id RELAX ch|*</code></td><td><code>OK</code></td></tr>
+            <tr><td><code>id PING</code></td><td><code>OK</code>, every 500 ms from the service</td></tr>
+            <tr><td>errors</td><td><code>ERR bad-channel|no-limit|bad-args|unknown</code></td></tr>
+            <tr><td>events</td><td><code>* DONE ch us</code> · <code>* RELAXED link</code> · <code>* BOOT fw</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+<pre><span class="c"># ssh -t buddy picocom --echo --omap crlf /dev/buddy-pico</span>
+1 HELLO
+<span class="r">1 OK buddy-motion 0.1.0 1</span>
+2 LIMIT 0 1000 2000
+<span class="r">2 OK</span>                 <span class="c"># no movement yet</span>
+3 MOVE 0 1500 0
+<span class="r">3 OK</span>                 <span class="c"># jumps to centre</span>
+4 MOVE 0 1000 1000
+<span class="r">4 OK</span>
+<span class="u">* DONE 0 1000</span>        <span class="c"># after a 1 s ramp</span>
+5 MOVE 0 2400 500
+<span class="r">5 OK clamped 2000</span>
+<span class="c"># … 2 s silence …</span>
+<span class="u">* RELAXED link</span></pre>
+    </div>
+  </section>
+
+  <section aria-labelledby="flow">
+    <h2 id="flow">Build order</h2>
+    <ol class="flow">
+      <li><div><b>Check the supply</b><p>Multimeter on V⎓: 5.0–5.3 V between the socket's + and − wires. −5 V means swapped polarity.</p></div></li>
+      <li><div><b>Wire the breadboard</b><p>As in the diagram. Before power: continuity check that servo + and Pico 39/40 are <em>not</em> connected, rail − and Pico pin 3 are.</p></div></li>
+      <li><div><b>Set up the Pi</b><p><code>setup.sh pico</code>: arm-none-eabi GCC, picotool 2.3.1 in <code>/opt/picotool</code>, picocom, udev rule for <code>/dev/buddy-pico</code>.</p></div></li>
+      <li><div><b>Build and flash</b><p><code>deploy/deploy.sh --firmware</code>. First flash: hold BOOTSEL while plugging in. Later flashes reboot the Pico via <code>picotool load -x -f</code>.</p></div></li>
+      <li><div><b>Test by hand</b><p>picocom session above, then the load test with <code>vcgencmd get_throttled</code> and the multimeter on the servo rail.</p></div></li>
+    </ol>
+  </section>
+
+  <section aria-labelledby="done">
+    <h2 id="done">Done when</h2>
+    <ul class="done">
+      <li><code>MOVE</code> sweeps a servo, and a move past its limit is clamped, not executed.</li>
+      <li>With no input for 2 s, every servo goes limp.</li>
+      <li>While both servos move under load, <code>vcgencmd get_throttled</code> stays <code>0x0</code> and the servo rail stays ≥ 4.8 V.</li>
+      <li><code>deploy/test.sh --pi -R MotionProtocol</code> passes.</li>
+    </ul>
+  </section>
+
+  <footer>Source: <code>docs/guides/02-02-motion-controller.md</code>. That guide wins if this page and it disagree.</footer>
+</main>
