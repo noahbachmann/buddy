@@ -61,7 +61,7 @@ def current_model() -> str:
     return out.strip()
 
 
-def evaluate(variants: list[Variant], source: str = "aec", sessions: list[str] | None = None,
+def evaluate(variants: list[Variant], source: str = "raw", sessions: list[str] | None = None,
              prompt: str | None = None, verbose: bool = False) -> list[dict]:
     vad = Vad(data.CACHE)
     known = corpus.by_sentence(corpus.load())

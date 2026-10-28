@@ -36,7 +36,7 @@ from .vad import Vad
 @dataclass
 class Config:
     base: str = "base.en"       # = BUDDY_STT_MODEL's size (ggml-base.en.bin → base.en)
-    source: str = "aec"         # aec | raw | both (both = twice the clips; the model works on either)
+    source: str = "raw"         # raw (what ears hears) | aec (old sessions only) | both
     ctx: str = "auto"           # auto | full
     epochs: int = 10
     patience: int = 3           # epochs without validation improvement before stopping

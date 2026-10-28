@@ -71,7 +71,7 @@ def cmd_train(args) -> None:
     candidates = [model] + [p for p in [model.with_name(model.stem + "-q8_0.bin")] if p.exists()]
     variants = [Variant("current")] + [Variant(_upload(p), ctx=ctx) for p in candidates]
     print(f"\ncurrent on the Pi: {current} (ctx {current_ctx})")
-    evaluate(variants, source=cfg.source if cfg.source != "both" else "aec", verbose=True)
+    evaluate(variants, source=cfg.source if cfg.source != "both" else "raw", verbose=True)
     print("\nInstall on the Pi?")
     for n, p in enumerate(candidates, 1):
         print(f"  {n}) {p.name}")
@@ -167,7 +167,8 @@ def main() -> int:
     sp = sub.add_parser("train")
     sessions(sp)
     sp.add_argument("--base", default="base.en", help="whisper size: tiny.en, base.en, small.en (default base.en)")
-    sp.add_argument("--source", default="aec", choices=["aec", "raw", "both"])
+    # aec: only the sessions recorded before 2026-10-28's switch to the raw mic (D13) have it
+    sp.add_argument("--source", default="raw", choices=["raw", "aec", "both"])
     sp.add_argument("--ctx", default="auto", choices=["auto", "full"], help="audio context to train for")
     sp.add_argument("--epochs", type=int, default=10)
     sp.add_argument("--lr", type=float, default=1e-5)
@@ -185,7 +186,7 @@ def main() -> int:
     sp.add_argument("models", nargs="+", help="file names in the Pi's ~/buddy/models, local .bin paths, or 'current'")
     sp.add_argument("--ctx", default="", help="comma list of BUDDY_STT_AUDIO_CTX values, e.g. 0,auto")
     sp.add_argument("--fallback", default="", help="comma list of BUDDY_STT_FALLBACK values, e.g. 1,0")
-    sp.add_argument("--source", default="aec", choices=["aec", "raw"])
+    sp.add_argument("--source", default="raw", choices=["raw", "aec"])
     sp.add_argument("--prompt", default=None, help="BUDDY_STT_PROMPT for this run ('' = none)")
     sp.add_argument("-v", "--verbose", action="store_true", help="list the clips with a wrong intent")
     sp.set_defaults(fn=cmd_eval)
@@ -196,7 +197,7 @@ def main() -> int:
     sp.set_defaults(fn=cmd_install)
 
     sp = sub.add_parser("label")
-    sp.add_argument("--source", default="aec", choices=["aec", "raw"], help="what BUDDY_EARS_DEVICE records")
+    sp.add_argument("--source", default="raw", choices=["raw", "aec"], help="what BUDDY_EARS_DEVICE records")
     sp.set_defaults(fn=cmd_label)
 
     sp = sub.add_parser("import")

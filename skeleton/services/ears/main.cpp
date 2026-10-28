@@ -1,6 +1,6 @@
 // ears: microphone → wake word (openWakeWord) → end of speech (Silero VAD) → text (whisper.cpp) → MQTT.
 //
-//   buddy-ears              live: echo-cancelled mic (BUDDY_EARS_DEVICE), publishes on MQTT
+//   buddy-ears              live: the Jabra mic (BUDDY_EARS_DEVICE), publishes on MQTT
 //   buddy-ears --wav f.wav  offline test: reads a 16 kHz mono WAV, prints instead of publishing (no MQTT)
 //   buddy-ears --transcribe f.wav…  speech-to-text only, one line per file: "<file>\t<ms>\t<text>" (deploy/train.sh
 //                                   --eval; clips must already be trimmed like live commands)
@@ -48,9 +48,9 @@ int audio_ctx_from_env() {
 }
 
 struct Config {
-    std::string device = env_string("BUDDY_EARS_DEVICE", "pipewire:NODE=buddy_aec_source");
+    std::string device = env_string("BUDDY_EARS_DEVICE", "default");  // PipeWire's default source: the Jabra mic, raw (D13)
     bool debug = env_int("BUDDY_EARS_DEBUG", 0) != 0;
-    // Buddy hearing itself: even with echo cancellation, a reply could contain something wake-word-like.
+    // Buddy hearing itself: no echo cancellation (D13), its replies reach the mic at full level.
     bool ignore_while_speaking = env_int("BUDDY_EARS_IGNORE_WHILE_SPEAKING", 1) != 0;
     std::string models = env_string("BUDDY_MODELS_DIR", env_string("HOME", ".") + "/buddy/models");
     WakeWordConfig wake{

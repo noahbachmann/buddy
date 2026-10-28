@@ -8,9 +8,9 @@ Result: "Hey Jarvis, play Daft Punk" → the music box plays it and Buddy confir
 is turned down. Starts on power-on, recovers from crashes, hangs and audio hiccups by itself.
 
 ```
- Jabra mic ─► echo-cancel ─► ears ──transcript──► brain ──cmd──► spotify ──Web API──► Spotify ──► music box (Connect)
- (16 kHz)     (Buddy's voice   wake word,          rules           │  ▲                            ▲ volume down
-               removed)        VAD, whisper                         │  └─ ears/voice state ─────────┘ while busy (ducking)
+ Jabra mic ─────────────────► ears ──transcript──► brain ──cmd──► spotify ──Web API──► Spotify ──► music box (Connect)
+ (16 kHz, raw)                 wake word,          rules           │  ▲                            ▲ volume down
+                               VAD, whisper                         │  └─ ears/voice state ─────────┘ while busy (ducking)
                                                                     └─► voice/say ──► voice (Piper) ──► Jabra speaker
 ```
 
@@ -20,14 +20,14 @@ is turned down. Starts on power-on, recovers from crashes, hangs and audio hiccu
 |---|---|---|
 | 1 | Hardware | 1.2 below |
 | 2 | Flash + first boot | 1.3 below; PC `~/.ssh/config` alias `buddy` |
-| 3 | `deploy/deploy.sh --setup` (PC, repo root `skeleton/`) | apt packages, ONNX Runtime, libpiper, uv, PipeWire config, Mosquitto, lingering, `buddy.env`, models; then builds and starts all services |
+| 3 | `deploy/deploy.sh --setup` (PC, repo root `skeleton/`) | apt packages, ONNX Runtime, libpiper, uv, stock PipeWire, Mosquitto, lingering, `buddy.env`, models; then builds and starts all services |
 | 4 | `~/buddy/config/buddy.env` | `BUDDY_SPOTIFY_CLIENT_ID`, `BUDDY_SPOTIFY_DEVICE` (box name), `BUDDY_SPOTIFY_DEFAULT_URI`, your voice/STT settings |
 | 5 | Own models (PC → Pi) | `scp ggml-buddy-*.bin buddy:buddy/models/` (and a custom wake word if any); `fetch-models.sh` names what's missing |
 | 6 | Spotify login | `buddy-spotify --login` (1.8/1.9) |
 | 6b | Hue pairing | Bridge's link button, then `buddy-hue --pair` (1.13); `BUDDY_HUE_DEFAULT_ROOM` |
 | 7 | Check | `deploy/status.sh`, then "Hey Jarvis, play Spotify", "… lights off"; panel `http://buddy.local:8080` |
 
-`setup.sh <step>` runs single steps (`setup.sh audio`); `setup.sh check` warns about unknown keys in `buddy.env`.
+`setup.sh <step>` runs single steps (`setup.sh models`); `setup.sh check` warns about unknown keys in `buddy.env`.
 
 ## 1.2 Assemble the Pi
 
@@ -316,7 +316,7 @@ plays on the box unless a speaker is named), `--cmd devices` (exact device names
 | First syllable missing | Lead-in silence in `AlsaSink::begin` (`audio_sink.cpp`) to 200–300 ms |
 | Wrong pronunciation of names | Write the reply phonetically, or another voice |
 
-## 1.11 Background music & echo cancellation
+## 1.11 Background music (no echo cancellation)
 
 Music plays on the **music box**, not the Jabra, so it reaches the mic as room noise that Buddy can't subtract (D13).
 
@@ -329,12 +329,12 @@ Music plays on the **music box**, not the Jabra, so it reaches the mic as room n
   (the one playing is ducked, and restored by its device id).
 - **The wake word itself** must get through the music unducked: threshold tuning with the box playing (1.6), training data
   recorded with the box playing (`deploy/record.sh box`), maybe "Hey buddy" trained with music.
-- **Echo cancellation** (PipeWire `libpipewire-module-echo-cancel`, WebRTC, monitor mode = reference is everything the
-  Jabra plays) removes Buddy's **own voice** → `buddy_aec_source`, which ears reads (`BUDDY_EARS_DEVICE`). Its noise
-  suppression also damps steady background. Raw vs AEC on the same recordings decides whether it stays ⚠️ (D13; compare
-  with `deploy/train.sh eval --source raw|aec`). Config `deploy/config/pipewire/buddy-audio.conf` + `wireplumber/buddy-alsa.conf`
-  (bigger USB buffers: AEC puts the 16 kHz mic and 48 kHz speaker on one clock, and with default buffers the speaker
-  XRUNs forever). Defaults stay the Jabra.
+- **No echo cancellation** (D13, removed 2026-10-28). Up to then PipeWire's WebRTC echo-cancel removed Buddy's own
+  voice from the mic. On the same test session (59 clips, half with the box) a model trained on the raw mic beat the
+  echo-cancelled one: intent 50 vs 47, WER 7.4 vs 9.5 %. Echo cancellation's noise suppression damps speech too, it
+  cost CPU and needed bigger USB buffers (it put the 16 kHz mic and 48 kHz speaker on one clock). Buddy hearing its own
+  voice is handled by ears ignoring the wake word while voice speaks (`BUDDY_EARS_IGNORE_WHILE_SPEAKING=1`).
+  ears reads ALSA `default` = the Jabra; `setup.sh audio` removes the old config files from a Pi that still has them.
 
 Done when: with the box at normal volume, "Hey Jarvis" triggers from 1 m and 2–3 m, the box ducks, and the command is right.
 
@@ -344,10 +344,9 @@ Done when: with the box at normal volume, "Hey Jarvis" triggers from 1 m and 2�
 | Box stays quiet | `buddy-spotify --cmd restore`; `systemctl --user status buddy@spotify` |
 | Music jumps up before the reply | `BUDDY_SPOTIFY_DUCK_HOLD_MS=2500` |
 | Commands misheard over music | `BUDDY_SPOTIFY_DUCK_PERCENT` lower; more box sessions in the training data |
-| No "Buddy mic (echo-cancelled)" in `wpctl status` | `setup.sh audio`; `journalctl --user -u pipewire -n 50` |
-| ears: `cannot open audio device "pipewire:NODE=…"` | `pipewire-alsa` missing or node name typo |
-| No sound at all though `wpctl` shows RUNNING | `grep state /proc/asound/card*/pcm0p/sub0/status` → `XRUN`: `buddy-alsa.conf` missing (`setup.sh audio`) |
-| Default sink/source became a Buddy node | `wpctl set-default <Jabra id>` for both |
+| ears: `cannot open audio device "pipewire:NODE=buddy_aec_source"` | Old `BUDDY_EARS_DEVICE` in `buddy.env`: delete the line (default is `default`) |
+| ears: `cannot open audio device "default"` | `pipewire-alsa` missing (`/etc/alsa/conf.d/99-pipewire-default.conf`) |
+| Default sink/source isn't the Jabra | `wpctl set-default <Jabra id>` for both (1.4) |
 
 ## 1.12 Boot & hardening (D14)
 

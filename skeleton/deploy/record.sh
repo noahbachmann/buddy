@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Record a voice session for speech-to-text training (docs/voice-training.md). Runs on the PC: prompts show here,
-# the Pi records from the Jabra — raw and echo-cancelled at the same time — into ~/buddy/voice/<date>-<label>/.
+# the Pi records the raw Jabra mic (what ears hears, D13) into ~/buddy/voice/<date>-<label>/raw/.
 # buddy@ears is stopped meanwhile (it would react to the prompts) and started again on exit.
 # deploy/train.sh pulls the sessions to the PC.
 #
@@ -35,7 +35,7 @@ read -r -d '' REMOTE <<'EOF' || true
 set -euo pipefail
 export XDG_RUNTIME_DIR="/run/user/$(id -u)"
 dir=~/buddy/voice/"$1"
-mkdir -p "$dir/raw" "$dir/aec"
+mkdir -p "$dir/raw"
 [[ -f "$dir/metadata.csv" ]] || echo "file,sentence,set" > "$dir/metadata.csv"
 
 # ears would trigger on the prompts ("Hey Jarvis"): duck the box, speak into the clips. Off while recording.
@@ -51,7 +51,7 @@ w = wave.open(sys.argv[1]); a = array.array("h", w.readframes(w.getnframes()))
 print(round(20 * math.log10(max(max(map(abs, a), default=0), 1) / 32768)))' "$1"; }
 
 # Next number = highest + 1 (never the count: a deleted clip must not make the next one overwrite another)
-last="$(find "$dir/aec" -name '[0-9]*.wav' -printf '%f\n' | sort | tail -1)"
+last="$(find "$dir/raw" -name '[0-9]*.wav' -printf '%f\n' | sort | tail -1)"
 n=0
 [[ -n "$last" ]] && n=$((10#${last%.wav}))
 
@@ -79,7 +79,7 @@ while ((i < ${#todo[@]})); do
             if ((n > 0)) && tail -1 "$dir/metadata.csv" | grep -q "^$(printf '%05d' $n).wav,"; then
                 prev="$(tail -1 "$dir/metadata.csv")"
                 sed -i '$d' "$dir/metadata.csv"
-                rm -f "$dir/raw/$(printf '%05d' $n).wav" "$dir/aec/$(printf '%05d' $n).wav"
+                rm -f "$dir/raw/$(printf '%05d' $n).wav"
                 n=$((n - 1))
                 i=$((i > 0 ? i - 1 : 0))
                 echo "  removed the last clip ($prev)"
@@ -88,19 +88,17 @@ while ((i < ${#todo[@]})); do
     esac
     file="$(printf '%05d' $((n + 1))).wav"
     pw-record --rate 16000 --channels 1 --format s16 "$dir/raw/$file" &
-    raw=$!
-    pw-record --target buddy_aec_source --rate 16000 --channels 1 --format s16 "$dir/aec/$file" &
-    aec=$!
+    rec=$!
     read -r -p "  ● recording, Enter to stop " _
     sleep 0.3  # don't cut the last word
-    kill -INT "$raw" "$aec"; wait "$raw" "$aec" 2>/dev/null || true
+    kill -INT "$rec"; wait "$rec" 2>/dev/null || true
     n=$((n + 1))
     echo "$file,\"${text//\"/\"\"}\",$set_" >> "$dir/metadata.csv"
-    p_aec="$(peak "$dir/aec/$file")"; p_raw="$(peak "$dir/raw/$file")"
+    p="$(peak "$dir/raw/$file")"
     warn=""
-    ((p_aec < -30)) && warn="  ⚠ quiet: speak up or move closer, then r"
-    ((p_aec > -1 || p_raw > -1)) && warn="  ⚠ clipped: a bit softer, then r"
-    echo "  ✓ $file  peak aec ${p_aec} dB, raw ${p_raw} dB$warn"
+    ((p < -30)) && warn="  ⚠ quiet: speak up or move closer, then r"
+    ((p > -1)) && warn="  ⚠ clipped: a bit softer, then r"
+    echo "  ✓ $file  peak ${p} dB$warn"
     i=$((i + 1))
 done
 echo

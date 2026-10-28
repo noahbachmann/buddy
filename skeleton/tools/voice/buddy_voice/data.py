@@ -1,8 +1,8 @@
 """The voice dataset on the PC: ~/buddy-voice (BUDDY_VOICE_DIR). Never in Git (D16): it's your voice.
 
     sessions/<date>-<label>/      one recording session (deploy/record.sh), pulled from the Pi
-        aec/NNNNN.wav             echo-cancelled mic (what ears hears with BUDDY_EARS_DEVICE=…buddy_aec_source)
-        raw/NNNNN.wav             raw Jabra mic, recorded at the same time (missing in imported old data)
+        raw/NNNNN.wav             raw Jabra mic: what ears hears (D13; missing in imported old data)
+        aec/NNNNN.wav             echo-cancelled mic: only sessions up to 2026-10-28, when Buddy dropped echo cancellation
         metadata.csv              file,sentence,set
     trimmed/<session>/<source>/   clips cut to the speech like live commands (derived: safe to delete)
     runs/<time>-<base>/           training runs: model, GGML files, report.json
@@ -31,7 +31,7 @@ SOURCES = ("aec", "raw")
 @dataclass(frozen=True)
 class Clip:
     session: str
-    file: str  # NNNNN.wav, the same name under aec/ and raw/
+    file: str  # NNNNN.wav, the same name under raw/ and aec/
     sentence: str
     set: str  # train | test | wake
 

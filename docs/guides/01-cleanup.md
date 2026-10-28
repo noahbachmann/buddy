@@ -2,7 +2,7 @@
 
 > Written 2026-10-25 at the Phase 1 review. Everything here needs you: your voice, the music box, the Spotify login.
 > The code and the other docs are done and describe the state *after* this guide. **Delete this file when you're
-> through** (and tell Claude the results that need a decision: steps 2, 8, 10, 12). Items marked ⚠️ are untested assumptions.
+> through** (and tell Claude the results that need a decision: steps 2, 10, 12). Items marked ⚠️ are untested assumptions.
 
 ## Goal
 
@@ -157,19 +157,11 @@ deploy/train.sh --base tiny.en --no-pull
 Install the best one at the prompt (or later: `deploy/train.sh install <path to .bin>`). Rule: clearly better intent
 than the current model, ≤ 0.3 s.
 
-### 8. Echo cancellation: keep or remove? (decides D13)
+### 8. Echo cancellation: keep or remove? ✅ done 2026-10-28
 
-Train once on the raw mic and compare each model on its own source:
-
-```bash
-deploy/train.sh --source raw --no-pull --no-eval
-deploy/train.sh eval <aec model .bin> --source aec --ctx auto
-deploy/train.sh eval <raw model .bin> --source raw --ctx auto
-```
-
-If raw is at least as good on intent, including the box sessions: echo cancellation only costs (CPU, the USB buffer
-workaround, noise suppression damaging speech). **Tell Claude** the two results: it either removes AEC (configs,
-`BUDDY_EARS_DEVICE=default`, D8/D13) or keeps it and drops the ⚠️ in D13.
+Raw won on the same test session (intent 50 vs 47 of 59, WER 7.4 vs 9.5 %). Echo cancellation is removed (D13),
+ears and `record.sh` use the raw mic, `deploy/train.sh` trains and scores on `raw` by default, and
+`ggml-buddy-base.en-20261028-2217.bin` (raw) is installed.
 
 ### 9. Wake word threshold with the box
 
@@ -235,7 +227,8 @@ only hands out a key to an app while someone presses it, so nobody on the Wi-Fi 
 - [ ] Corpus has your names, `deploy/test.sh --pi -R Corpus` passes (step 4).
 - [ ] `deploy/train.sh check`: ≥ 500 training clips, ≥ 150 test clips, no warnings.
 - [ ] New model installed: intent ≥ 95 %, WER < 5 %, ≤ 0.3 s on the new test session (step 7).
-- [ ] AEC decision reported (step 8); wake word threshold set (step 9).
+- [x] AEC decided (step 8): raw mic, echo cancellation removed 2026-10-28 (D13).
+- [ ] Wake word threshold set (step 9).
 - [ ] Live test passed (step 10).
 - [ ] Hue paired, default room set, `--cmd list` sent to Claude (step 12); light names in the corpus.
 - [ ] Panel follows the Hue app and vice versa; voice light commands right ≥ 9 of 10 (step 13). Then delete this file.
@@ -247,7 +240,7 @@ only hands out a key to an app while someone presses it, so nobody on the Wi-Fi 
 | `--cmd devices`: `no devices` | Nothing on your account is awake: start a song on the box from the phone first |
 | Box listed but `play` fails with 404 | The box went to standby between lookup and play: try again; report (step 2) |
 | `duck`: `not ducked (box not active or not playing?)` | The box must be the active device and playing |
-| `deploy/record.sh`: prompts but no recording | `ssh buddy pw-record --list-targets`; is `buddy_aec_source` there? (`setup.sh audio`) |
+| `deploy/record.sh`: prompts but no recording | `ssh buddy wpctl status`: Jabra the default source, not muted |
 | `deploy/train.sh`: `uv missing` / no CUDA | `docs/voice-training.md` → One-time PC setup |
 | Training: `kept epoch 0` | Not enough new data, or the sessions failed `check`: look at its output |
 | `buddy-hue`: anything | Summary guide 1.13 → Troubleshooting |
