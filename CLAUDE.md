@@ -107,6 +107,10 @@ Speech-to-text training: `docs/voice-training.md`.
 - **Wake word CPU:** ears idles at ~8 % of one core; `embedding_model.onnx` is 3.7 of 4.2 ms per 80 ms chunk. Options
   that change behaviour: quantized embedding model, or skipping inference during silence. Needs score comparisons on the
   wake-word clips `deploy/record.sh` collects.
+- **Next voice session** (decided 2026-10-28): the eval that day showed whisper misses the phrasings and names that are
+  rare in the 90 `train` sentences, and 440 re-recordings of them gained nothing. First extend the `train` corpus
+  (every verb family and name in `test` 5×, plus commands for new features as they come), then record only the new
+  lines, ideally after 2.6 (new mic position). The installed model stays until then.
 - **Custom "Hey buddy"** (summary guide 1.6): train with box music in the negatives; the training could move into
   `tools/` like speech-to-text.
 - **Smart-home skill:** light commands are already in the corpus (whisper learns them), brain returns `unknown`.
