@@ -10,6 +10,8 @@ TEST(Transcript, DropsRepetitionLoops) {  // eval 2026-10-28, installed model wi
     EXPECT_EQ(drop_repeats("Play Bound 2 from Kanye West.Play Bound 2 from Kanye West.Play Bound 2"),
               "Play Bound 2 from Kanye West.");
     EXPECT_EQ(drop_repeats("Pause. pause."), "Pause.");
+    // stock model, no punctuation, cut off by max_tokens (Pi, 2026-10-28)
+    EXPECT_EQ(drop_repeats("skip the song skip the song skip the song skip"), "skip the song");
 }
 
 TEST(Transcript, KeepsEverythingElse) {

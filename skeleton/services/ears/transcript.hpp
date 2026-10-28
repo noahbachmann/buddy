@@ -13,7 +13,8 @@ inline int max_tokens_for(std::size_t samples) {
     return 10 + static_cast<int>(samples / 1600);
 }
 
-// "Turn it down a little.Turn it down a little.Turn it do" → "Turn it down a little." Anything else unchanged.
+// "Turn it down a little.Turn it down a little.Turn it do" → "Turn it down a little.", also without punctuation.
+// Only when the whole text is one phrase repeated; anything else unchanged.
 std::string drop_repeats(const std::string& text);
 
 } // namespace buddy::ears
