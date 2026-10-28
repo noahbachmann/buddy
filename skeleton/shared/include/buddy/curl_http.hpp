@@ -12,7 +12,7 @@
 namespace buddy {
 
 struct CurlOptions {
-    std::string ca_file;               // trust only this CA bundle instead of the system's; empty = system
+    std::string ca_pem;                // trust only these PEM certificates instead of the system's; empty = system
     std::vector<std::string> resolve;  // "host:port:address" (CURLOPT_RESOLVE): TLS checks `host`, connects to `address`
     long timeout_s = 10;               // whole request; stream() has none
 };

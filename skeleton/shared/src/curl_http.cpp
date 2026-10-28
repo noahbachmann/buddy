@@ -44,7 +44,10 @@ void* CurlHttp::prepare(const std::string& url, const std::vector<std::string>& 
     curl_easy_setopt(curl_, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl_, CURLOPT_CONNECTTIMEOUT, 5L);
     curl_easy_setopt(curl_, CURLOPT_NOSIGNAL, 1L);
-    if (!options_.ca_file.empty()) curl_easy_setopt(curl_, CURLOPT_CAINFO, options_.ca_file.c_str());
+    if (!options_.ca_pem.empty()) {
+        curl_blob blob{options_.ca_pem.data(), options_.ca_pem.size(), CURL_BLOB_NOCOPY};  // options_ outlives the handle's use
+        curl_easy_setopt(curl_, CURLOPT_CAINFO_BLOB, &blob);
+    }
     if (resolve_) curl_easy_setopt(curl_, CURLOPT_RESOLVE, resolve_);
 
     curl_slist* list = nullptr;

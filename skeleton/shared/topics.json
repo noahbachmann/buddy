@@ -15,6 +15,8 @@
     {"name": "voice_state",     "topic": "buddy/voice/state",     "kind": "event",   "retained": true, "payload": ["state: idle|speaking|offline"]},
     {"name": "spotify_cmd",     "topic": "buddy/spotify/cmd",     "kind": "command", "payload": ["action", "[query]", "[device]", "[fallback: {action, [query]}]"]},
     {"name": "spotify_state",   "topic": "buddy/spotify/state",   "kind": "event",   "retained": true, "payload": ["playing", "volume: 0..100", "ducked"]},
+    {"name": "hue_cmd",         "topic": "buddy/hue/cmd",         "kind": "command", "payload": ["action: on|off|toggle|brightness|brighter|darker|color|temperature|scene|status", "[query]", "[device: room, zone or light as spoken]", "[id: room, zone or light id]"]},
+    {"name": "hue_state",       "topic": "buddy/hue/state",       "kind": "event",   "retained": true, "payload": ["bridge: ok|connecting|unreachable|error|key revoked|not paired", "rooms: [{id, name, kind: home|room|zone, on, brightness, lights: [ids], scenes: [{id, name}]}]", "lights: [{id, name, room, on, brightness, color, temperature, dimming, [mirek], [xy]}]"]},
     {"name": "motion_cmd",      "topic": "buddy/motion/cmd",      "kind": "command", "planned": true},
     {"name": "motion_state",    "topic": "buddy/motion/state",    "kind": "event",   "planned": true}
   ]

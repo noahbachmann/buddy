@@ -1,0 +1,454 @@
+{
+ "errors": [],
+ "data": [
+  {
+   "id": "home",
+   "type": "bridge_home",
+   "children": [
+    {
+     "rid": "living",
+     "rtype": "room"
+    },
+    {
+     "rid": "bedroom",
+     "rtype": "room"
+    }
+   ],
+   "services": [
+    {
+     "rid": "gl-home",
+     "rtype": "grouped_light"
+    }
+   ]
+  },
+  {
+   "id": "living",
+   "type": "room",
+   "metadata": {
+    "name": "Living room",
+    "archetype": "living_room"
+   },
+   "children": [
+    {
+     "rid": "dev-ceiling",
+     "rtype": "device"
+    },
+    {
+     "rid": "dev-floor",
+     "rtype": "device"
+    },
+    {
+     "rid": "dev-desk",
+     "rtype": "device"
+    }
+   ],
+   "services": [
+    {
+     "rid": "gl-living",
+     "rtype": "grouped_light"
+    }
+   ]
+  },
+  {
+   "id": "bedroom",
+   "type": "room",
+   "metadata": {
+    "name": "Bedroom",
+    "archetype": "bedroom"
+   },
+   "children": [
+    {
+     "rid": "dev-bedlamp",
+     "rtype": "device"
+    },
+    {
+     "rid": "dev-plug",
+     "rtype": "device"
+    }
+   ],
+   "services": [
+    {
+     "rid": "gl-bedroom",
+     "rtype": "grouped_light"
+    }
+   ]
+  },
+  {
+   "id": "empty",
+   "type": "room",
+   "metadata": {
+    "name": "Garage",
+    "archetype": "garage"
+   },
+   "children": [],
+   "services": []
+  },
+  {
+   "id": "reading",
+   "type": "zone",
+   "metadata": {
+    "name": "Reading",
+    "archetype": "reading"
+   },
+   "children": [
+    {
+     "rid": "floor",
+     "rtype": "light"
+    },
+    {
+     "rid": "desk",
+     "rtype": "light"
+    }
+   ],
+   "services": [
+    {
+     "rid": "gl-reading",
+     "rtype": "grouped_light"
+    }
+   ]
+  },
+  {
+   "id": "gl-home",
+   "type": "grouped_light",
+   "on": {
+    "on": true
+   },
+   "dimming": {
+    "brightness": 61.3
+   }
+  },
+  {
+   "id": "gl-living",
+   "type": "grouped_light",
+   "on": {
+    "on": true
+   },
+   "dimming": {
+    "brightness": 61.3
+   }
+  },
+  {
+   "id": "gl-bedroom",
+   "type": "grouped_light",
+   "on": {
+    "on": false
+   },
+   "dimming": {
+    "brightness": 0.0
+   }
+  },
+  {
+   "id": "gl-reading",
+   "type": "grouped_light",
+   "on": {
+    "on": true
+   },
+   "dimming": {
+    "brightness": 80.0
+   }
+  },
+  {
+   "id": "dev-ceiling",
+   "type": "device",
+   "metadata": {
+    "name": "Ceiling"
+   },
+   "services": [
+    {
+     "rid": "ceiling",
+     "rtype": "light"
+    },
+    {
+     "rid": "dev-ceiling-zb",
+     "rtype": "zigbee_connectivity"
+    }
+   ]
+  },
+  {
+   "id": "dev-floor",
+   "type": "device",
+   "metadata": {
+    "name": "Floor lamp"
+   },
+   "services": [
+    {
+     "rid": "floor",
+     "rtype": "light"
+    },
+    {
+     "rid": "dev-floor-zb",
+     "rtype": "zigbee_connectivity"
+    }
+   ]
+  },
+  {
+   "id": "dev-desk",
+   "type": "device",
+   "metadata": {
+    "name": "Desk lamp"
+   },
+   "services": [
+    {
+     "rid": "desk",
+     "rtype": "light"
+    },
+    {
+     "rid": "dev-desk-zb",
+     "rtype": "zigbee_connectivity"
+    }
+   ]
+  },
+  {
+   "id": "dev-bedlamp",
+   "type": "device",
+   "metadata": {
+    "name": "Bedroom lamp"
+   },
+   "services": [
+    {
+     "rid": "bedlamp",
+     "rtype": "light"
+    },
+    {
+     "rid": "dev-bedlamp-zb",
+     "rtype": "zigbee_connectivity"
+    }
+   ]
+  },
+  {
+   "id": "dev-plug",
+   "type": "device",
+   "metadata": {
+    "name": "Fan plug"
+   },
+   "services": [
+    {
+     "rid": "plug",
+     "rtype": "light"
+    },
+    {
+     "rid": "dev-plug-zb",
+     "rtype": "zigbee_connectivity"
+    }
+   ]
+  },
+  {
+   "id": "ceiling",
+   "type": "light",
+   "owner": {
+    "rid": "dev-ceiling",
+    "rtype": "device"
+   },
+   "metadata": {
+    "name": "Ceiling",
+    "archetype": "sultan_bulb"
+   },
+   "on": {
+    "on": true
+   },
+   "dimming": {
+    "brightness": 40.0,
+    "min_dim_level": 0.2
+   },
+   "color_temperature": {
+    "mirek": 366,
+    "mirek_valid": true,
+    "mirek_schema": {
+     "mirek_minimum": 153,
+     "mirek_maximum": 500
+    }
+   },
+   "color": {
+    "xy": {
+     "x": 0.4573,
+     "y": 0.41
+    },
+    "gamut_type": "C",
+    "gamut": {
+     "red": {
+      "x": 0.6915,
+      "y": 0.3083
+     },
+     "green": {
+      "x": 0.17,
+      "y": 0.7
+     },
+     "blue": {
+      "x": 0.1532,
+      "y": 0.0475
+     }
+    }
+   }
+  },
+  {
+   "id": "floor",
+   "type": "light",
+   "owner": {
+    "rid": "dev-floor",
+    "rtype": "device"
+   },
+   "metadata": {
+    "name": "Floor lamp",
+    "archetype": "sultan_bulb"
+   },
+   "on": {
+    "on": true
+   },
+   "dimming": {
+    "brightness": 80.0,
+    "min_dim_level": 0.2
+   },
+   "color_temperature": {
+    "mirek": 366,
+    "mirek_valid": true,
+    "mirek_schema": {
+     "mirek_minimum": 153,
+     "mirek_maximum": 500
+    }
+   },
+   "color": {
+    "xy": {
+     "x": 0.4573,
+     "y": 0.41
+    },
+    "gamut_type": "C",
+    "gamut": {
+     "red": {
+      "x": 0.6915,
+      "y": 0.3083
+     },
+     "green": {
+      "x": 0.17,
+      "y": 0.7
+     },
+     "blue": {
+      "x": 0.1532,
+      "y": 0.0475
+     }
+    }
+   }
+  },
+  {
+   "id": "desk",
+   "type": "light",
+   "owner": {
+    "rid": "dev-desk",
+    "rtype": "device"
+   },
+   "metadata": {
+    "name": "Desk lamp",
+    "archetype": "sultan_bulb"
+   },
+   "on": {
+    "on": true
+   },
+   "dimming": {
+    "brightness": 100.0,
+    "min_dim_level": 0.2
+   }
+  },
+  {
+   "id": "bedlamp",
+   "type": "light",
+   "owner": {
+    "rid": "dev-bedlamp",
+    "rtype": "device"
+   },
+   "metadata": {
+    "name": "Bedroom lamp",
+    "archetype": "sultan_bulb"
+   },
+   "on": {
+    "on": false
+   },
+   "dimming": {
+    "brightness": 30.0,
+    "min_dim_level": 0.2
+   },
+   "color_temperature": {
+    "mirek": 366,
+    "mirek_valid": true,
+    "mirek_schema": {
+     "mirek_minimum": 153,
+     "mirek_maximum": 500
+    }
+   }
+  },
+  {
+   "id": "plug",
+   "type": "light",
+   "owner": {
+    "rid": "dev-plug",
+    "rtype": "device"
+   },
+   "metadata": {
+    "name": "Fan plug",
+    "archetype": "sultan_bulb"
+   },
+   "on": {
+    "on": false
+   }
+  },
+  {
+   "id": "s-relax-living",
+   "type": "scene",
+   "metadata": {
+    "name": "Relax"
+   },
+   "group": {
+    "rid": "living",
+    "rtype": "room"
+   },
+   "status": {
+    "active": "inactive"
+   }
+  },
+  {
+   "id": "s-movie",
+   "type": "scene",
+   "metadata": {
+    "name": "Movie night"
+   },
+   "group": {
+    "rid": "living",
+    "rtype": "room"
+   },
+   "status": {
+    "active": "static"
+   }
+  },
+  {
+   "id": "s-relax-bed",
+   "type": "scene",
+   "metadata": {
+    "name": "Relax"
+   },
+   "group": {
+    "rid": "bedroom",
+    "rtype": "room"
+   },
+   "status": {
+    "active": "inactive"
+   }
+  },
+  {
+   "id": "s-night",
+   "type": "scene",
+   "metadata": {
+    "name": "Nightlight"
+   },
+   "group": {
+    "rid": "bedroom",
+    "rtype": "room"
+   },
+   "status": {
+    "active": "inactive"
+   }
+  },
+  {
+   "id": "zb",
+   "type": "zigbee_connectivity",
+   "status": "connected"
+  }
+ ]
+}
