@@ -27,6 +27,30 @@ TEST(RuleParser, SkipTheSong) {  // eval 2026-10-28: whisper heard "Skip this so
         EXPECT_EQ(parser.parse(text)->name, "next") << text;
 }
 
+TEST(RuleParser, CommandWordWithATail) {  // eval 2026-10-28: "Next try", "Go back once off", "Bibbles louder"
+    const buddy::brain::RuleParser parser;
+    for (const auto& [text, name] : std::vector<std::pair<const char*, const char*>>{
+             {"Next tune.", "next"},
+             {"Next stroke on Spotify.", "next"},
+             {"Go back a song.", "previous"},
+             {"Go back one more.", "previous"},
+             {"Pause the radio.", "pause"},
+             {"Much louder.", "volume_up"},
+             {"Make it louder.", "volume_up"},
+             {"A lot louder.", "volume_up"},
+             {"Even quieter.", "volume_down"},
+             {"Turn it down a notch.", "volume_down"},
+             {"Turn it up a little bit.", "volume_up"},
+         })
+        EXPECT_EQ(parser.parse(text)->name, name) << text;
+    // a number is a level, "to" a speaker, a longer sentence something else
+    EXPECT_EQ(parser.parse("Turn the volume to 30.")->name, "set_volume");
+    EXPECT_FALSE(parser.parse("Turn it down to 30."));
+    EXPECT_FALSE(parser.parse("Go back to the Pixel."));
+    EXPECT_FALSE(parser.parse("Next to Normal."));
+    EXPECT_EQ(parser.parse("Play the next episode.")->name, "play");
+}
+
 TEST(RuleParser, SpokenNumbersInSpeakerNames) {  // whisper writes "desktop one" as often as "desktop 1"
     const buddy::brain::RuleParser parser;
     EXPECT_EQ(parser.parse("Play my Sleepy playlist on desktop one.")->device, "desktop 1");

@@ -163,9 +163,13 @@ RuleParser::RuleParser() {
         rules_.push_back({std::regex(pattern), name, "spotify", query_group, fixed_query});
     };
     const char* amount = R"(( (a )?(little|bit|lot)( bit)?)?)";  // "turn it down a little bit"
+    // A command word that already decides the intent takes a short tail of words: "next tune", "go back a song",
+    // "turn it down a notch", "a lot louder". No digits ("turn it down to 30" isn't a step) and no "to" (a speaker).
+    const std::string tail = R"(( (?!to\b)[a-z]+))";
 
     // Order matters: "play the next song" is "next", not a search for "the next song".
-    add(R"((pause|stop)( the)?( music| song| spotify| playback| it| playing| this)?)", "pause");
+    add(R"((pause|stop)( the)?( music| song| spotify| playback| it| playing| this)?|pause( the| this| my)? [a-z]+)",
+        "pause");
     add(R"((stop shuffling|shuffle off|turn off shuffle|turn shuffle off|no shuffle))", "shuffle", 0, "off");
     add(R"((shuffle( on| the music| it| this)?|turn on shuffle|turn shuffle on))", "shuffle", 0, "on");
     add(R"((stop repeating|repeat off|turn off repeat|turn repeat off|no repeat))", "repeat", 0, "off");
@@ -173,16 +177,20 @@ RuleParser::RuleParser() {
     add(R"((repeat( on)?|turn on repeat))", "repeat", 0, "context");
     add(R"((whats|what is) (playing|this song|this|the song|that song|that)|(what|which) song is (this|that|playing))",
         "now_playing");
-    add(R"(((play|go to) )?(the )?(next|skip)( (song|track|it|one|(this|the|that)( song| track| one)?))?)", "next");
-    add(R"(((play|go to) )?(the )?(previous|last) (song|track|one)|previous|go back( one( song| track)?)?|back)",
+    add((std::string(R"(((play|go to) )?(the )?(next|skip)( (song|track|it|one|(this|the|that)( song| track| one)?))?)") +
+         "|next" + tail)
+            .c_str(),
+        "next");
+    add((std::string(R"(((play|go to) )?(the )?(previous|last) (song|track|one)|previous|go back)") + tail + "{0,2}|back")
+            .c_str(),
         "previous");
     add(R"((set |turn )?(the )?(volume|it|the music) (to |at )?([0-9]{1,3}))", "set_volume", 5);
-    add((std::string(R"((turn (it|the music|the volume|this) up|turn up (the )?(music|volume|it)|)") +
-         R"(((make it|a|a little|a bit|a little bit) )?louder|volume up))" + amount)
+    add((std::string(R"((turn (it|the music|the volume|this) up|turn up (the )?(music|volume|it)))") + tail + "{0,3}|" +
+         R"((([a-z]+ ){0,3}louder|volume up))" + amount)
             .c_str(),
         "volume_up");
-    add((std::string(R"((turn (it|the music|the volume|this) down|turn down (the )?(music|volume|it)|)") +
-         R"(((make it|a|a little|a bit|a little bit) )?(quieter|softer)|volume down))" + amount)
+    add((std::string(R"((turn (it|the music|the volume|this) down|turn down (the )?(music|volume|it)))") + tail +
+         "{0,3}|" + R"((([a-z]+ ){0,3}(quieter|softer)|volume down))" + amount)
             .c_str(),
         "volume_down");
     add(R"(shuffle (my )?(liked|favorite|favourite|saved) (songs|tracks|music))", "play_liked", 0, "shuffle");
