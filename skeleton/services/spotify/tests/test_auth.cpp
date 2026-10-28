@@ -3,7 +3,7 @@
 #include <nlohmann/json.hpp>
 
 #include "auth.hpp"
-#include "fake_http.hpp"
+#include "fake_spotify.hpp"
 
 using namespace buddy::spotify;
 using namespace buddy::spotify::test;
@@ -12,7 +12,7 @@ namespace {
 
 struct AuthTest : testing::Test {
     std::filesystem::path token_file = temp_dir() / "token.json";
-    FakeHttp http;
+    FakeSpotify http;
     Auth make() { return Auth({.client_id = "cid", .redirect_uri = "", .token_file = token_file}, http); }
 };
 

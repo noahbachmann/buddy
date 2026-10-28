@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "fake_http.hpp"
+#include "fake_spotify.hpp"
 #include "player.hpp"
 
 using namespace buddy::spotify;
@@ -15,7 +15,7 @@ json device(const std::string& id, const std::string& name, bool active = false,
 
 struct PlayerTest : testing::Test {
     std::filesystem::path dir = temp_dir();
-    FakeHttp http;
+    FakeSpotify http;
     std::optional<Auth> auth;
     std::optional<Player> player;
 

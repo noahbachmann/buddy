@@ -20,7 +20,7 @@
 #include <nlohmann/json.hpp>
 
 #include "auth.hpp"
-#include "http.hpp"
+#include "buddy/http.hpp"
 
 namespace buddy::spotify {
 

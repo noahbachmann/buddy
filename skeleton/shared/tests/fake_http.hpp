@@ -1,5 +1,7 @@
 #pragma once
 // Http for the tests: canned responses per "METHOD /path" (query string ignored), every request recorded.
+// The path is the URL without scheme and host, or the rest after a prefix the test names
+// ({"https://api.spotify.com/v1", ""}, {"https://accounts.spotify.com/api/token", "token"}).
 
 #include <gtest/gtest.h>
 
@@ -10,15 +12,17 @@
 #include <string>
 #include <vector>
 
-#include "http.hpp"
+#include "buddy/http.hpp"
 
-namespace buddy::spotify::test {
+namespace buddy::test {
 
 struct FakeHttp : Http {
     struct Call {
         std::string method, url, body;
     };
     std::vector<Call> calls;
+
+    explicit FakeHttp(std::vector<std::pair<std::string, std::string>> prefixes = {}) : prefixes_(std::move(prefixes)) {}
 
     // Responses for `route` ("PUT /me/player/volume", "POST token") in order; once used up, the last one repeats.
     void on(const std::string& route, long status, std::string body = "") {
@@ -50,10 +54,22 @@ struct FakeHttp : Http {
     }
 
 private:
-    static std::string path(const std::string& url) {
-        if (url == "https://accounts.spotify.com/api/token") return "token";
-        const std::string api = "https://api.spotify.com/v1";
-        std::string p = url.starts_with(api) ? url.substr(api.size()) : url;
+    std::string path(const std::string& url) const {
+        std::string p = url;
+        bool mapped = false;
+        for (const auto& [prefix, replacement] : prefixes_) {
+            if (url.starts_with(prefix)) {
+                p = replacement + url.substr(prefix.size());
+                mapped = true;
+                break;
+            }
+        }
+        if (!mapped) {
+            if (const auto scheme = p.find("://"); scheme != std::string::npos) {
+                const auto slash = p.find('/', scheme + 3);
+                p = slash == std::string::npos ? "/" : p.substr(slash);
+            }
+        }
         return p.substr(0, p.find('?'));
     }
 
@@ -61,6 +77,7 @@ private:
         std::deque<HttpResponse> queue;
         HttpResponse last;
     };
+    std::vector<std::pair<std::string, std::string>> prefixes_;
     std::map<std::string, Route> routes_;
 };
 
@@ -81,4 +98,4 @@ inline std::string read(const std::filesystem::path& p) {
     return {std::istreambuf_iterator<char>(f), {}};
 }
 
-} // namespace buddy::spotify::test
+} // namespace buddy::test

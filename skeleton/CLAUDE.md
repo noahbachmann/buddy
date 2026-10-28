@@ -23,6 +23,7 @@ Roadmap, decisions and conventions: `../CLAUDE.md`.
 | `systemd.*` | READY / WATCHDOG (rate-limited) / STATUS via `$NOTIFY_SOCKET`; no-op outside systemd |
 | `queue.hpp` | `BlockingQueue<T>`: Paho callback → service thread |
 | `config.*` | Env lookups, trims whitespace and `\r` |
+| `http.*`, `curl_http.*` | `Http` interface + `url_encode` (`buddy_http`, no libcurl: logic and tests); `CurlHttp` (`buddy_curl_http`): keep-alive, own CA file, `CURLOPT_RESOLVE`, `stream()` for server-sent events |
 | `python/buddy_shared/` | The same for Python: `topics` (reads topics.json), `mqtt` (paho-mqtt 2), `systemd`, `config`, `lifecycle` |
 
 ## Services
@@ -31,7 +32,7 @@ Roadmap, decisions and conventions: `../CLAUDE.md`.
 |---|---|---|
 | ears | `audio_source` (ALSA capture thread, reopens device; WAV read/write), `wake_word` (3 ONNX models), `vad` (Silero), `endpoint` (endpointer + level gate on a `SpeechModel` interface, no ONNX = `ears_core`), `stt` (whisper.cpp; `audio_ctx` auto = `auto_audio_ctx()`, shared with tools/voice), `transcript` (hallucination guards: `max_tokens` by length, repeated first sentence dropped; in `ears_core`) | `--wav f.wav`, `--transcribe f.wav…` |
 | brain | `rules` (normalize + regex `RuleParser` behind `IntentParser`) = `brain_core` | `--test "text"…` |
-| spotify | `http` (`Http` interface, `url_encode`), `curl_http` (libcurl, keep-alive), `auth` (PKCE, token file), `player` (Web API; target = named speaker (`speaker()`, fuzzy) / box / active device, own-playlist cache, duck/restore by device id with tmpfs recovery file) | `--login`, `--cmd <action> [query] [speaker]`, `--cmd devices\|duck\|restore` |
+| spotify | `auth` (PKCE, token file), `player` (Web API; target = named speaker (`speaker()`, fuzzy) / box / active device, own-playlist cache, duck/restore by device id with tmpfs recovery file) | `--login`, `--cmd <action> [query] [speaker]`, `--cmd devices\|duck\|restore` |
 | voice | `tts` (libpiper, sentence streaming), `audio_sink` (ALSA per utterance / WAV) | `--say "…" [--wav out.wav]` |
 
 ## tools/voice (Python, runs on the PC; `deploy/record.sh`, `deploy/train.sh`)
@@ -55,7 +56,7 @@ built), pytest, shellcheck. `deploy/test.sh --pi`: the C++ tests on the Pi (`~/b
 | `shared/tests/` | gtest: topics, config, queue, MQTT round trip (localhost broker, skipped without), systemd (own exe: process-wide state) |
 | `shared/tests/cases/*.json` | Cases both languages check (`cases.hpp` / plain `json.load`): topic matching, `BUDDY_*` parsing, `audio_ctx` |
 | `services/<svc>/tests/` | gtest, `test_<unit>.cpp` → `buddy-<svc>-tests`, linked against `<svc>_core` (the service's logic without main/hardware) |
-| `services/spotify/tests/fake_http.hpp` | Canned responses per `"METHOD /path"`, records requests; temp dir for token/duck files |
+| `shared/tests/fake_http.hpp` | `FakeHttp`: canned responses per `"METHOD /path"` (URL prefix → path mapping per service, e.g. `fake_spotify.hpp`), records requests; temp dir for token/state files |
 | `shared/python/tests/`, `tools/voice/tests/` | pytest, `test_<module>.py` |
 
 - `buddy_add_tests(<name> <files…> LIBS …)` (root CMakeLists): every TEST is its own ctest entry (and in CLion).

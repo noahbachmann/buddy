@@ -1,12 +1,12 @@
 #pragma once
-// HTTPS transport behind an interface: CurlHttp (curl_http.hpp) in the service, a fake in the tests.
+// HTTPS transport behind an interface: CurlHttp (curl_http.hpp) in the services, FakeHttp (shared/tests) in the tests.
 
 #include <stdexcept>
 #include <string>
 #include <string_view>
 #include <vector>
 
-namespace buddy::spotify {
+namespace buddy {
 
 struct HttpResponse {
     long status = 0;
@@ -30,4 +30,4 @@ public:
 
 std::string url_encode(std::string_view s);
 
-} // namespace buddy::spotify
+} // namespace buddy

@@ -12,7 +12,7 @@
 #include <stdexcept>
 #include <string>
 
-#include "http.hpp"
+#include "buddy/http.hpp"
 
 namespace buddy::spotify {
 

@@ -33,7 +33,7 @@
 #include "buddy/queue.hpp"
 #include "buddy/systemd.hpp"
 #include "buddy/topics.hpp"
-#include "curl_http.hpp"
+#include "buddy/curl_http.hpp"
 #include "player.hpp"
 
 namespace {

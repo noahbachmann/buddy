@@ -1,8 +1,8 @@
-#include "http.hpp"
+#include "buddy/http.hpp"
 
 #include <cctype>
 
-namespace buddy::spotify {
+namespace buddy {
 
 std::string url_encode(std::string_view s) {
     static const char* hex = "0123456789ABCDEF";
@@ -20,4 +20,4 @@ std::string url_encode(std::string_view s) {
     return out;
 }
 
-} // namespace buddy::spotify
+} // namespace buddy
