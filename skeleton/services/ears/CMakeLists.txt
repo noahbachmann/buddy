@@ -1,5 +1,5 @@
-# Endpointing and level gate without ONNX: linked by the service and its tests.
-add_library(ears_core STATIC endpoint.cpp)
+# Endpointing, level gate and transcript guards without ONNX/whisper: linked by the service and its tests.
+add_library(ears_core STATIC endpoint.cpp transcript.cpp)
 target_include_directories(ears_core PUBLIC .)
 
 add_executable(buddy-ears
@@ -21,4 +21,4 @@ target_link_libraries(buddy-ears PRIVATE
 set_target_properties(buddy-ears PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
 install(TARGETS buddy-ears RUNTIME DESTINATION bin COMPONENT ears)
 
-buddy_add_tests(ears tests/test_endpoint.cpp tests/test_stt.cpp LIBS ears_core)
+buddy_add_tests(ears tests/test_endpoint.cpp tests/test_stt.cpp tests/test_transcript.cpp LIBS ears_core)

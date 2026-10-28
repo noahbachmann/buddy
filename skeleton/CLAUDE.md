@@ -29,7 +29,7 @@ Roadmap, decisions and conventions: `../CLAUDE.md`.
 
 | Service | Key files | Offline entry point |
 |---|---|---|
-| ears | `audio_source` (ALSA capture thread, reopens device; WAV read/write), `wake_word` (3 ONNX models), `vad` (Silero), `endpoint` (endpointer + level gate on a `SpeechModel` interface, no ONNX = `ears_core`), `stt` (whisper.cpp; `audio_ctx` auto = `auto_audio_ctx()`, shared with tools/voice) | `--wav f.wav`, `--transcribe f.wav…` |
+| ears | `audio_source` (ALSA capture thread, reopens device; WAV read/write), `wake_word` (3 ONNX models), `vad` (Silero), `endpoint` (endpointer + level gate on a `SpeechModel` interface, no ONNX = `ears_core`), `stt` (whisper.cpp; `audio_ctx` auto = `auto_audio_ctx()`, shared with tools/voice), `transcript` (hallucination guards: `max_tokens` by length, repeated first sentence dropped; in `ears_core`) | `--wav f.wav`, `--transcribe f.wav…` |
 | brain | `rules` (normalize + regex `RuleParser` behind `IntentParser`) = `brain_core` | `--test "text"…` |
 | spotify | `http` (`Http` interface, `url_encode`), `curl_http` (libcurl, keep-alive), `auth` (PKCE, token file), `player` (Web API; target = named speaker (`speaker()`, fuzzy) / box / active device, own-playlist cache, duck/restore by device id with tmpfs recovery file) | `--login`, `--cmd <action> [query] [speaker]`, `--cmd devices\|duck\|restore` |
 | voice | `tts` (libpiper, sentence streaming), `audio_sink` (ALSA per utterance / WAV) | `--say "…" [--wav out.wav]` |

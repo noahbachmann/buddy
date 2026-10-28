@@ -8,6 +8,7 @@
 #include <whisper.h>
 
 #include "audio_source.hpp"
+#include "transcript.hpp"
 
 namespace buddy::ears {
 
@@ -65,13 +66,14 @@ Transcript Stt::transcribe(std::span<const int16_t> audio) {
     // compare with deploy/train.sh --eval before switching (models trained by tools/voice expect it).
     params.audio_ctx = cfg_.audio_ctx == kAutoAudioCtx ? auto_audio_ctx(pcm.size()) : cfg_.audio_ctx;
     if (!cfg_.fallback) params.temperature_inc = 0.0f;
+    params.max_tokens = max_tokens_for(audio.size());  // unpadded length
 
     if (whisper_full(ctx_, params, pcm.data(), static_cast<int>(pcm.size())) != 0)
         throw std::runtime_error("whisper_full failed");
 
     Transcript result;
     for (int i = 0; i < whisper_full_n_segments(ctx_); ++i) result.text += whisper_full_get_segment_text(ctx_, i);
-    result.text = trim(result.text);
+    result.text = drop_repeats(trim(result.text));
     result.language = whisper_lang_str(whisper_full_lang_id(ctx_));
     return result;
 }
