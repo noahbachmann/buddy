@@ -9,12 +9,15 @@
 namespace buddy::brain {
 
 struct Intent {
-    std::string name;   // play, play_playlist, play_liked, pause, next, previous, volume_up, volume_down, set_volume,
-                        // shuffle, repeat, now_playing
-    std::string skill;  // service that handles it, e.g. "spotify"
-    std::string query;  // optional argument: "daft punk" (play), "chill vibes" (play_playlist), "50" (set_volume),
-                        // "on"/"off" (shuffle), "track"/"context"/"off" (repeat), "shuffle" (play_liked)
-    std::string device;  // speaker named in "… on the bathroom speaker", as spoken; empty = the skill's default
+    std::string name;   // spotify: play, play_playlist, play_liked, pause, next, previous, volume_up, volume_down,
+                        // set_volume, shuffle, repeat, now_playing
+                        // hue: on, off, brightness, brighter, darker, color, scene, status
+    std::string skill;  // service that handles it: "spotify", "hue"
+    std::string query;  // optional argument: "daft punk" (play), "chill vibes" (play_playlist), "50" (set_volume,
+                        // brightness), "on"/"off" (shuffle), "track"/"context"/"off" (repeat), "shuffle" (play_liked),
+                        // "blue"/"warm white" (color), "movie" (scene)
+    std::string device;  // speaker ("… on the bathroom speaker") or room/light ("bedroom lights off"), as spoken;
+                         // empty = the skill's default
     // What the text means if `device` names no real speaker ("play shine on you crazy diamond"); the skill knows
     // its speakers, brain doesn't. Empty = no other reading.
     std::string fallback_name;

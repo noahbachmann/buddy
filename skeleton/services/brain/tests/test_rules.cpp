@@ -41,3 +41,14 @@ TEST(RuleParser, WholeSentenceMustMatch) {
     EXPECT_FALSE(parser.parse("I don't want to pause anything right now"));
     EXPECT_FALSE(parser.parse(""));
 }
+
+TEST(RuleParser, LightsNeedALightWord) {  // music phrasings stay spotify
+    const buddy::brain::RuleParser parser;
+    EXPECT_EQ(parser.parse("Turn it down.")->skill, "spotify");
+    EXPECT_EQ(parser.parse("Turn up the volume.")->skill, "spotify");
+    EXPECT_EQ(parser.parse("Play City Lights by James Gruntz.")->skill, "spotify");
+    EXPECT_EQ(parser.parse("Play Lights On.")->skill, "spotify");
+    EXPECT_EQ(parser.parse("Play the movie scene.")->skill, "spotify");
+    EXPECT_EQ(parser.parse("Turn the lights down.")->name, "darker");  // not colour "down"
+    EXPECT_EQ(parser.parse("Turn the lights on in my bedroom.")->device, "bedroom");
+}

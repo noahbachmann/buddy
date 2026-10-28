@@ -12,7 +12,7 @@ class Command:
     sentence: str
     intent: str
     query: str
-    device: str = ""  # speaker brain splits off, empty = the music box
+    device: str = ""  # speaker or room/light brain splits off, empty = the music box / the default room
 
 
 def load(path: Path = PATH) -> list[Command]:

@@ -78,6 +78,21 @@ std::string device_digits(const std::string& device) {
     return out;
 }
 
+// What a light rule's subject names: "the kitchen lights" → "kitchen", "desk lamp" → "desk lamp", "the lights" →
+// "" (the default room), "all the lights" → "all", "everything" → "everything" (hue: every light).
+std::string light_device(std::string s) {
+    for (const char* lead : {"the ", "my "})
+        if (s.starts_with(lead)) s.erase(0, std::string(lead).size());
+    if (s.starts_with("all ")) return "all";
+    for (const char* tail : {"lights", "light"}) {
+        const std::string t = tail;
+        if (s == t) return "";
+        if (s.ends_with(" " + t)) return s.substr(0, s.size() - t.size() - 1);
+    }
+    if (s.ends_with("lamps")) s.pop_back();
+    return s;
+}
+
 // "play music" / "play spotify" carry no query: resume instead of searching.
 bool generic_query(const std::string& q) {
     static const std::regex generic(R"((some |my |the )?(music|spotify|something|songs?|tunes)( on spotify)?|it|this( song)?)");
@@ -116,6 +131,34 @@ std::string normalize(std::string_view text) {
 }
 
 RuleParser::RuleParser() {
+    // Lights first: they need a light word, so they never take a music phrasing. {L} = what is switched: "(the)
+    // (kitchen) lights", "desk lamp", "all the lights", "everything" (one capture group); {R} = a bare room ("dim
+    // bedroom to 20"); {N} = a percentage.
+    auto light = [this](std::string pattern, const char* name, int device_group, int query_group = 0) {
+        static const std::vector<std::pair<std::string, std::string>> parts = {
+            {"{L}", R"(((?!play |on |off )(?:the |my |all |all the )?(?:[a-z0-9 ]+? )?(?:lights?|lamps?)|everything))"},
+            {"{R}", R"(((?:the |my )?(?!the |my )[a-z0-9 ]+?))"},
+            {"{N}", R"(([0-9]{1,3}))"},
+        };
+        for (const auto& [key, value] : parts)
+            for (auto at = pattern.find(key); at != std::string::npos; at = pattern.find(key)) pattern.replace(at, key.size(), value);
+        rules_.push_back({std::regex("(?:good night |good morning )?(?:" + pattern + ")"), name, "hue", query_group, "", device_group});
+    };
+    // groups: the prefix above has none, so {L} in "turn on {L}" is 1
+    light(R"((?:are|is) {L} (?:still )?(?:on|off))", "status", 1);
+    light(R"((?:activate|start|set|turn on|switch to|use) (?:the )?scene ([a-z0-9 ]+))", "scene", 0, 1);
+    light(R"((?:(?:activate|start|set|turn on|switch to|use) )?(?:the )?(?!play )([a-z0-9 ]+?) scene)", "scene", 0, 1);
+    light(R"((?:turn|switch|put) on {L}|(?:turn|switch|put) {L} on|{L} on)", "on", 0);  // device: first group that matched
+    light(R"((?:turn|switch|put) off {L}|(?:turn|switch|put) {L} off|{L} off)", "off", 0);
+    light(R"((?:set|dim|turn|put|change|bring) {L} (?:to|at) {N})", "brightness", 1, 2);
+    light(R"({L} (?:to|at) {N})", "brightness", 1, 2);
+    light(R"(dim {R} (?:to|at) {N})", "brightness", 1, 2);
+    light(R"((?:make )?(?:{L}|it|them) brighter|brighter)", "brighter", 1);
+    light(R"(turn up {L}|turn {L} up|brighten (?:up )?{L})", "brighter", 0);
+    light(R"((?:make )?(?:{L}|it|them) darker|darker)", "darker", 1);
+    light(R"(turn down {L}|turn {L} down|dim {L}|dim {R})", "darker", 0);
+    light(R"((?:turn|make|set|change|switch) {L} (?:to )?(?!(?:up|down|on|off)\b)([a-z ]+))", "color", 1, 2);
+
     auto add = [this](const char* pattern, const char* name, int query_group = 0, const char* fixed_query = "") {
         rules_.push_back({std::regex(pattern), name, "spotify", query_group, fixed_query});
     };
@@ -156,7 +199,19 @@ RuleParser::RuleParser() {
 std::optional<Intent> RuleParser::parse(std::string_view text) const {
     const std::string t = normalize(text);
     if (auto intent = parse_device(t)) return intent;
-    return parse_core(t);
+    if (auto intent = parse_core(t)) return intent;
+    return parse_room(t);
+}
+
+// "turn on the lights in the kitchen", "lights off in my bedroom": a light command plus where.
+std::optional<Intent> RuleParser::parse_room(const std::string& t) const {
+    static const std::regex room(R"((.+) in (the |my )?([a-z0-9 ]+))");
+    std::smatch m;
+    if (!std::regex_match(t, m, room)) return std::nullopt;
+    auto intent = parse_core(m[1].str());
+    if (!intent || intent->skill != "hue" || !intent->device.empty()) return std::nullopt;
+    intent->device = light_device(m[3].str());
+    return intent;
 }
 
 // "move the music to the tv", "play daft punk on the bathroom speaker", "play my liked songs in the kitchen".
@@ -200,7 +255,14 @@ std::optional<Intent> RuleParser::parse_core(const std::string& t) const {
         if (rule.query_group > 0) {
             std::string q = m[rule.query_group].str();
             if (rule.name == "play") q = canonical_query(q);
-            if (!generic_query(q)) intent.query = q;
+            if (rule.skill == "hue" || !generic_query(q)) intent.query = q;
+        }
+        if (rule.skill == "hue") {
+            // device_group 0: alternatives, each with its own {L}; the one that matched
+            std::size_t g = rule.device_group;
+            for (std::size_t i = 1; g == 0 && i < m.size(); ++i)
+                if (m[i].matched) g = i;
+            if (g > 0 && static_cast<int>(g) != rule.query_group) intent.device = light_device(m[g].str());
         }
         return intent;
     }

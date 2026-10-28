@@ -4,9 +4,10 @@
 #   set       train = recorded for training, test = rephrasings recorded only for the test session,
 #             wake = the wake word (recorded on its own, repeated)
 #   sentence  written the way it should be transcribed: digits for numbers ("50%"), real capitalisation
-#   intent    what brain must return; unknown = no skill for it yet (lights: kept for speech-to-text)
+#   intent    what brain must return; unknown = no skill for it
 #   query     brain's query for that intent, empty if none
-#   device    the speaker brain splits off ("… on the bathroom speaker"), empty = the music box
+#   device    the speaker ("… on the bathroom speaker", empty = the music box) or the room/light ("bedroom lights
+#             off", empty = BUDDY_HUE_DEFAULT_ROOM) brain splits off
 #
 # Replace the artists, songs and playlists with yours: names whisper gets wrong are where training helps most,
 # so give each name 5+ sentences across train and test. A new phrasing that brain doesn't know fails deploy/test.sh
@@ -152,25 +153,37 @@ test	Play my liked songs on my personal TV.	play_liked		personal tv
 test	Switch the music to my personal TV.	play		personal tv
 train	Move the music back to the box.	play		box
 test	Play music on the main speaker.	play		main speaker
-# --- lights (no skill yet: brain says unknown, but whisper learns the words now; edit rooms and scenes)
-train	Turn on the lights.	unknown
-train	Turn off the lights.	unknown
-train	Lights on.	unknown
-train	Living room lights off.	unknown
-train	Bedroom lights off.	unknown
-train	Switch off desk lamp.	unknown
-train	Dim living room to 30%.	unknown
-train	Set lights to 50%.	unknown
-train	Make it brighter.	unknown
-train	Make lights darker.	unknown
-train	Set bedroom light to warm white.	unknown
-train	Turn lights blue.	unknown
-train	Activate movie scene.	unknown
-train	Good night, turn everything off.	unknown
-train	Are the kitchen lights on?	unknown
-test	Switch on the lights.	unknown
-test	Turn off living room lights.	unknown
-test	Dim bedroom to 20%.	unknown
-test	Set desk lamp to warm white.	unknown
-test	Start the movie scene.	unknown
-test	Is bedroom light on?	unknown
+# --- lights (hue): rooms, lamps and scenes are examples; replace them with the names in your Hue app
+train	Turn on the lights.	on
+train	Turn off the lights.	off
+train	Lights on.	on
+train	Living room lights off.	off		living room
+train	Bedroom lights off.	off		bedroom
+train	Switch off desk lamp.	off		desk lamp
+train	Dim living room to 30%.	brightness	30	living room
+train	Set lights to 50%.	brightness	50
+train	Make it brighter.	brighter
+train	Make lights darker.	darker
+train	Set bedroom light to warm white.	color	warm white	bedroom
+train	Turn lights blue.	color	blue
+train	Activate movie scene.	scene	movie
+train	Good night, turn everything off.	off		everything
+train	Are the kitchen lights on?	status		kitchen
+train	Turn on the lights in the kitchen.	on		kitchen
+train	Turn the bedroom lights on.	on		bedroom
+train	Turn up the lights.	brighter
+train	Dim the lights.	darker
+train	Set the living room lights to warm white.	color	warm white	living room
+train	Make the desk lamp red.	color	red	desk lamp
+train	Turn on the relax scene in the bedroom.	scene	relax	bedroom
+train	Are the lights still on?	status
+test	Switch on the lights.	on
+test	Turn off living room lights.	off		living room
+test	Dim bedroom to 20%.	brightness	20	bedroom
+test	Set desk lamp to warm white.	color	warm white	desk lamp
+test	Start the movie scene.	scene	movie
+test	Is bedroom light on?	status		bedroom
+test	Living room lights to 80%.	brightness	80	living room
+test	Turn all the lights off.	off		all
+test	Make the bedroom lights darker.	darker		bedroom
+test	Turn the lights green.	color	green
