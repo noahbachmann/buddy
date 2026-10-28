@@ -64,6 +64,20 @@ std::string number_words_to_digits(const std::string& text) {
     return out;
 }
 
+// Speaker names: "desktop one" → "desktop 1", "pixel eight" → "pixel 8". Only here: elsewhere "one" stays a word.
+std::string device_digits(const std::string& device) {
+    static const std::map<std::string, std::string> digits = {{"one", "1"}, {"two", "2"},   {"three", "3"},
+                                                              {"four", "4"}, {"five", "5"}, {"six", "6"},
+                                                              {"seven", "7"}, {"eight", "8"}, {"nine", "9"}};
+    std::istringstream in(device);
+    std::string out;
+    for (std::string w; in >> w;) {
+        if (const auto d = digits.find(w); d != digits.end()) w = d->second;
+        out += (out.empty() ? "" : " ") + w;
+    }
+    return out;
+}
+
 // "play music" / "play spotify" carry no query: resume instead of searching.
 bool generic_query(const std::string& q) {
     static const std::regex generic(R"((some |my |the )?(music|spotify|something|songs?|tunes)( on spotify)?|it|this( song)?)");
@@ -116,7 +130,7 @@ RuleParser::RuleParser() {
     add(R"((repeat( on)?|turn on repeat))", "repeat", 0, "context");
     add(R"((whats|what is) (playing|this song|this|the song|that song|that)|(what|which) song is (this|that|playing))",
         "now_playing");
-    add(R"(((play|go to) )?(the )?(next|skip)( (song|track|it|one|this( song| track| one)?))?)", "next");
+    add(R"(((play|go to) )?(the )?(next|skip)( (song|track|it|one|(this|the|that)( song| track| one)?))?)", "next");
     add(R"(((play|go to) )?(the )?(previous|last) (song|track|one)|previous|go back( one( song| track)?)?|back)",
         "previous");
     add(R"((set |turn )?(the )?(volume|it|the music) (to |at )?([0-9]{1,3}))", "set_volume", 5);
@@ -157,14 +171,14 @@ std::optional<Intent> RuleParser::parse_device(const std::string& t) const {
         Intent intent;
         intent.name = "play";  // empty query + device: keep playing, there
         intent.skill = "spotify";
-        intent.device = m[5].str();
+        intent.device = device_digits(m[5].str());
         return intent;
     }
     if (!std::regex_match(t, m, suffix) || std::regex_match(m[4].str(), not_a_device)) return std::nullopt;
     auto intent = parse_core(m[1].str());
     if (!intent || (intent->name != "play" && intent->name != "play_playlist" && intent->name != "play_liked"))
         return std::nullopt;
-    intent->device = m[4].str();
+    intent->device = device_digits(m[4].str());
     // "play shine" + "on you crazy diamond": maybe a title. "play (it) on X", playlists, liked songs: a speaker.
     if (intent->name == "play" && !intent->query.empty()) {
         if (const auto whole = parse_core(t)) {
