@@ -1,5 +1,7 @@
 #include "player.hpp"
 
+#include "buddy/names.hpp"
+
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
@@ -16,21 +18,11 @@ namespace buddy::spotify {
 namespace {
 
 using json = nlohmann::json;
+using names::lower;
+using names::match_score;
+using names::squash;
 
 const char* kApi = "https://api.spotify.com/v1";
-
-std::string lower(std::string s) {
-    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::tolower(c); });
-    return s;
-}
-
-// Letters and digits only: "AC/DC" == "ac dc", "Guns N' Roses" == "guns n roses"
-std::string squash(const std::string& s) {
-    std::string out;
-    for (const unsigned char c : s)
-        if (std::isalnum(c)) out += static_cast<char>(std::tolower(c));
-    return out;
-}
 
 // squash() without a leading "the"/"some": "some strokes" and "The Strokes" are the same artist
 std::string core_name(const std::string& s) {
@@ -59,55 +51,6 @@ json best_item(const json& results, const char* type, const std::string& name) {
     return first;
 }
 
-// Levenshtein distance: letters to insert, delete or change to turn a into b.
-size_t edit_distance(const std::string& a, const std::string& b) {
-    std::vector<size_t> row(b.size() + 1);
-    for (size_t j = 0; j <= b.size(); ++j) row[j] = j;
-    for (size_t i = 1; i <= a.size(); ++i) {
-        size_t diag = row[0];
-        row[0] = i;
-        for (size_t j = 1; j <= b.size(); ++j) {
-            const size_t up = row[j];
-            row[j] = std::min({row[j] + 1, row[j - 1] + 1, diag + (a[i - 1] == b[j - 1] ? 0 : 1)});
-            diag = up;
-        }
-    }
-    return row[b.size()];
-}
-
-// How well a playlist name matches what was said: exact (ignoring case/punctuation) > contains it >
-// per spoken word: 2 if it's in the name, 1 if a name word is close to it (whisper: "type" for "hype").
-// 0 = no match. Tolerates whisper dropping, adding or slightly misspelling a word.
-int match_score(const std::string& name, const std::string& spoken) {
-    if (squash(name) == squash(spoken)) return 1000;
-    if (!squash(spoken).empty() && squash(name).find(squash(spoken)) != std::string::npos) return 500;
-    auto words = [](const std::string& s) {
-        std::vector<std::string> out;
-        std::string w;
-        for (const unsigned char c : s + " ") {
-            if (std::isalnum(c)) w += static_cast<char>(std::tolower(c));
-            else if (!w.empty()) out.push_back(std::exchange(w, ""));
-        }
-        return out;
-    };
-    const auto in_name = words(name);
-    int score = 0;
-    for (const auto& w : words(spoken)) {
-        if (std::find(in_name.begin(), in_name.end(), w) != in_name.end()) {
-            score += 2;
-            continue;
-        }
-        const size_t allowed = w.size() >= 7 ? 2 : w.size() >= 3 ? 1 : 0;  // "a"/"my" must match exactly
-        for (const auto& n : in_name) {
-            if (allowed > 0 && edit_distance(w, n) <= allowed) {
-                score += 1;
-                break;
-            }
-        }
-    }
-    return score;
-}
-
 Result failed(std::string say) {
     Result r;
     r.ok = false;
@@ -132,21 +75,6 @@ Result volume_set(int volume) {
     Result r;
     r.volume = volume;
     return r;
-}
-
-// Spoken speaker name made comparable: no leading "the"/"my", "one"…"nine" as digits ("my pixel eight" = "Pixel 8").
-std::string spoken_speaker(const std::string& spoken) {
-    static const std::vector<std::string> digits = {"zero", "one", "two", "three", "four",
-                                                    "five", "six", "seven", "eight", "nine"};
-    std::istringstream in(lower(spoken));
-    std::string out;
-    for (std::string w; in >> w;) {
-        if (out.empty() && (w == "the" || w == "my")) continue;
-        if (const auto d = std::find(digits.begin(), digits.end(), w); d != digits.end())
-            w = std::to_string(d - digits.begin());
-        out += (out.empty() ? "" : " ") + w;
-    }
-    return out;
 }
 
 // d[key] for a const json: its operator[] asserts on a missing key instead of returning null
@@ -594,29 +522,25 @@ Player::Device Player::active(const json& list) const {
     return box(list);
 }
 
-// Best match_score for the spoken name; "the box" / "music box" is always the box. Accepted: the name equals or
-// contains what was said, or every spoken word is (close to) a word of the name ("bathroom speakers").
+// Best match for the spoken name (names::best_matches); "the box" / "music box" is always the box.
 std::optional<Player::Device> Player::speaker(const json& list, const std::string& spoken) const {
-    const std::string want = spoken_speaker(spoken);
+    const std::string want = names::spoken_name(spoken);
     if (want == "box" || want == "music box") return box(list);
-    const int words = static_cast<int>(std::count(want.begin(), want.end(), ' ')) + 1;
-    const int min_score = std::max(2, words);  // one exact word, or each word at least close
-    int best_score = 0;
-    std::vector<const json*> best;
+    std::vector<const json*> devices;
+    std::vector<std::string> device_names;
     for (const auto& d : list) {
         if (!field(d, "id").is_string()) continue;
-        const int score = match_score(d.value("name", ""), want);
-        if (score < min_score || score < best_score) continue;
-        if (score > best_score) best.clear();
-        best_score = score;
-        best.push_back(&d);
+        devices.push_back(&d);
+        device_names.push_back(d.value("name", ""));
     }
+    const auto best = names::best_matches(device_names, want);
     if (best.empty()) return std::nullopt;
     if (best.size() > 1) {
-        const std::string a = (*best[0]).value("name", ""), b = (*best[1]).value("name", "");
+        const std::string& a = device_names[best[0]];
+        const std::string& b = device_names[best[1]];
         throw Failure("\"" + spoken + "\" matches " + a + " and " + b, "Which speaker, " + a + " or " + b + "?");
     }
-    return device_of(*best[0]);
+    return device_of(*devices[best[0]]);
 }
 
 bool Player::in_room(const std::string& name) const {

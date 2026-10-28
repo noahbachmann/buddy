@@ -24,6 +24,7 @@ Roadmap, decisions and conventions: `../CLAUDE.md`.
 | `queue.hpp` | `BlockingQueue<T>`: Paho callback → service thread |
 | `config.*` | Env lookups, trims whitespace and `\r` |
 | `http.*`, `curl_http.*` | `Http` interface + `url_encode` (`buddy_http`, no libcurl: logic and tests); `CurlHttp` (`buddy_curl_http`): keep-alive, own CA file, `CURLOPT_RESOLVE`, `stream()` for server-sent events |
+| `names.*` | `buddy_names`: fuzzy matching of spoken names (`best_matches`, `match_score`): spotify speakers/playlists, hue rooms/lights |
 | `python/buddy_shared/` | The same for Python: `topics` (reads topics.json), `mqtt` (paho-mqtt 2), `systemd`, `config`, `lifecycle` |
 
 ## Services
@@ -32,7 +33,7 @@ Roadmap, decisions and conventions: `../CLAUDE.md`.
 |---|---|---|
 | ears | `audio_source` (ALSA capture thread, reopens device; WAV read/write), `wake_word` (3 ONNX models), `vad` (Silero), `endpoint` (endpointer + level gate on a `SpeechModel` interface, no ONNX = `ears_core`), `stt` (whisper.cpp; `audio_ctx` auto = `auto_audio_ctx()`, shared with tools/voice), `transcript` (hallucination guards: `max_tokens` by length, repeated first sentence dropped; in `ears_core`) | `--wav f.wav`, `--transcribe f.wav…` |
 | brain | `rules` (normalize + regex `RuleParser` behind `IntentParser`) = `brain_core` | `--test "text"…` |
-| spotify | `auth` (PKCE, token file), `player` (Web API; target = named speaker (`speaker()`, fuzzy) / box / active device, own-playlist cache, duck/restore by device id with tmpfs recovery file) | `--login`, `--cmd <action> [query] [speaker]`, `--cmd devices\|duck\|restore` |
+| spotify | `auth` (PKCE, token file), `player` (Web API; target = named speaker (`speaker()`, `names::best_matches`) / box / active device, own-playlist cache, duck/restore by device id with tmpfs recovery file) | `--login`, `--cmd <action> [query] [speaker]`, `--cmd devices\|duck\|restore` |
 | voice | `tts` (libpiper, sentence streaming), `audio_sink` (ALSA per utterance / WAV) | `--say "…" [--wav out.wav]` |
 
 ## tools/voice (Python, runs on the PC; `deploy/record.sh`, `deploy/train.sh`)

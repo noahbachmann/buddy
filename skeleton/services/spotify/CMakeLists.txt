@@ -6,6 +6,7 @@ add_library(spotify_core STATIC
 target_include_directories(spotify_core PUBLIC .)
 target_link_libraries(spotify_core PUBLIC
     buddy_http
+    buddy_names
     nlohmann_json::nlohmann_json
     OpenSSL::Crypto
 )
