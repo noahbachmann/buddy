@@ -46,8 +46,8 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 
 Legend: ⬜ not started · 🟨 in progress · ✅ done
 
-Open until Dev deletes it: `docs/guides/01-cleanup.md` (new recordings and training, music box tests, AEC decision,
-Hue pairing and panel test).
+Open until Dev deletes it: `docs/guides/01-cleanup.md` (music box tests, wake word threshold, live test, Hue pairing and
+panel test).
 
 ---
 
@@ -62,12 +62,12 @@ Hue pairing and panel test).
 | D5 | Languages | C++ (CMake) by default, for services and the Pico firmware. Python where its ecosystem matters: PC tooling and training (`skeleton/tools/`), and Pi services that need Python libraries (LLM, vision later), with the same conventions as C++ services (D15). No Kotlin or Java. | ✅ |
 | D6 | Dev workflow | CLion on the PC, Full Remote Mode over SSH: sources stay local (and on GitHub), CLion syncs them to the Pi, builds with the Pi's CMake/GCC, runs and debugs with the Pi's GDB. | ✅ |
 | D7 | Runtime packaging | systemd user units on the Pi (`buddy@<service>`, lingering on), Mosquitto from apt. Docker only for services offloaded to a LAN host later. | ✅ |
-| D8 | Audio capture | ears reads the echo-cancelled PipeWire source via ALSA (`pipewire:NODE=buddy_aec_source`, D13), 16 kHz mono s16. Wake word, VAD and STT live in one service (`ears`) sharing that stream. | ✅ |
+| D8 | Audio capture | ears reads the raw Jabra mic via ALSA `default` (PipeWire's default source, no echo cancellation: D13), 16 kHz mono s16. Wake word, VAD and STT live in one service (`ears`) sharing that stream. | ✅ |
 | D9 | ML libraries | ONNX Runtime: Microsoft's prebuilt aarch64 release in `/opt/onnxruntime` (Debian's package spams the log). whisper.cpp: pinned tag built via CMake FetchContent. Models in `~/buddy/models` via `deploy/pi/fetch-models.sh` (what `buddy.env` names), not in Git; own models (fine-tuned whisper `ggml-buddy-*`) come from the PC. | ✅ |
 | D10 | Spotify | Music plays on the music box, a Spotify Connect speaker (`BUDDY_SPOTIFY_DEVICE`), never through the Jabra. Other Connect speakers by name ("… on the bathroom speaker"; brain splits off the name, spotify matches it against the device list); pause/next/volume follow the device that is playing. spotify controls them via the Web API (libcurl, OAuth PKCE, refresh token in `~/buddy/config/spotify-token.json`). Spotify Soloist (Connect client on the Pi) removed 2026-10-25. | ✅ |
 | D11 | Intents & replies | brain: regex rules behind `IntentParser` (LLM-replaceable), routes to `buddy/<skill>/cmd`. `skeleton/tools/voice/commands.tsv` is the phrasing it must understand (ctest). The service that knows the outcome publishes `buddy/voice/say`. | ✅ |
 | D12 | TTS | libpiper v1.8.0 built from source by `setup.sh` into `/opt/libpiper` (against `/opt/onnxruntime`), patched to read its ONNX thread count from `PIPER_INTRA_OP_THREADS` (stock: 1; voice sets 3 via `BUDDY_VOICE_THREADS`, first audio ~830 → ~450 ms); voice `en_GB-alan-medium`. | ✅ |
-| D13 | Background music & echo cancellation | The box's music is room noise to Buddy. spotify ducks the box via the Web API while ears listens or voice speaks. PipeWire echo-cancel (WebRTC, monitor mode) removes only Buddy's own voice → `buddy_aec_source`; config `deploy/config/pipewire/`. ⚠️ Kept only if it beats the raw mic on box recordings (`01-cleanup.md` step 8). | ✅ |
+| D13 | Background music, no echo cancellation | The box's music is room noise to Buddy. spotify ducks the box via the Web API while ears listens or voice speaks. **No echo cancellation** (removed 2026-10-28): on the same test session the model trained on the raw mic beat the echo-cancelled one (intent 50 vs 47 of 59, WER 7.4 vs 9.5 %), and its only job, removing Buddy's own voice, is covered by ears ignoring the wake word while voice speaks. Stock PipeWire, training on the raw track. | ✅ |
 | D14 | Recovery | `buddy@.service` is `Type=notify` with `WatchdogSec=60` (READY from `Mqtt::start`, pings from each main loop, `shared/systemd.*` / `buddy_shared.systemd`, no libsystemd). Crashes restart with backoff 1 → 30 s and never give up. No core files. | ✅ |
 | D15 | Python services | uv workspace in `skeleton/` (`pyproject.toml` + `uv.lock`, members listed explicitly). `shared/python/buddy_shared` mirrors the C++ shared helpers; `shared/topics.json` is the single topic list (CMake generates `topics.hpp`). On the Pi: uv in `~/.local/bin` (pinned), Debian's Python, one venv `~/buddy/venv`, console script linked into `~/buddy/bin`, same unit template. | ✅ |
 | D16 | Voice data | Recordings are personal data and the repo is public: never in Git. Master copy on Dev's PC in `~/buddy-voice` (backed up); the Pi keeps sessions only until pulled. Training runs on Dev's PC (NVIDIA GPU, CUDA 12.8 PyTorch). | ✅ |
@@ -83,7 +83,7 @@ Update this table when a decision is made or changed.
 ## Architecture (target)
 
 ```
- Jabra mic ─► echo-cancel ─► [ears]  wake word → VAD → speech-to-text ──┐
+ Jabra mic ─────────────────► [ears]  wake word → VAD → speech-to-text ──┐
                                                                         ▼
                                                          MQTT  ◄──► [brain]  intent → skill routing
                                                                         │

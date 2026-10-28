@@ -6,7 +6,7 @@ whisper.cpp build. Phase 1 history and numbers: `guides/01-setup-summary.md` →
 
 ```
  PC                                          Pi
- deploy/record.sh <label> [test] ──ssh──►    records raw + echo-cancelled mic → ~/buddy/voice/<date>-<label>/
+ deploy/record.sh <label> [test] ──ssh──►    records the raw Jabra mic → ~/buddy/voice/<date>-<label>/raw/
  deploy/train.sh                              
    pull ◄──────────────────────────rsync──   sessions (+ saved live commands)
    check: levels, missing files, VAD trim
@@ -19,7 +19,7 @@ whisper.cpp build. Phase 1 history and numbers: `guides/01-setup-summary.md` →
 ## Why it helps, and what it can't do
 
 - whisper was trained on 680 000 hours of other people. A few hundred clips of *you* saying *Buddy's* sentences,
-  recorded through the Jabra and the echo canceller in your room, move it toward exactly that sound. The first fine-tune
+  recorded through the Jabra in your room, move it toward exactly that sound. The first fine-tune
   (134 clips) cut the word error rate from 27.5 % to 11.7 %.
 - **Short audio context:** models trained here run with `BUDDY_STT_AUDIO_CTX=auto` (encoder window sized to the
   command): ~0.2 s instead of ~1.75 s per command on the Pi. Stock models break with that setting.
@@ -57,16 +57,16 @@ The label says what's special about the session: `desk`, `far`, `box`, `box-loud
 order, then 20× "Hey Jarvis" (third argument: how many, 0 = none). Enter = start, speak, Enter = stop **after** you
 finished; `r` redoes the last clip, `s` skips, `q` quits. The same label on the same day continues where you stopped.
 
-- After each clip: `peak aec … dB, raw … dB`. Aim for −20 to −6 dB. `⚠ quiet` → speak up or move closer, then `r`.
+- After each clip: `peak … dB`. Aim for −20 to −6 dB. `⚠ quiet` → speak up or move closer, then `r`.
 - Vary what ears will hear: distance (desk, 2–3 m), loudness, the **music box playing** at normal and loud volume, music
   with vocals (hardest), time of day. One condition per session, so the eval can show each one separately.
-- Raw and echo-cancelled are recorded at the same time: comparing them shows whether echo cancellation helps (D13).
+- Only the raw mic is recorded (what ears hears, D13). Sessions up to 2026-10-28 also have an `aec/` track (`--source aec`).
 - Test sessions (`deploy/record.sh <label> test`) on another day, half of them with the box playing.
 
 ## Train: `deploy/train.sh`
 
 Runs pull → check → train → convert → eval → install? in one go (~5–15 min on a desktop GPU for base.en). Options
-(`deploy/train.sh --help`): `--base tiny.en|base.en|small.en`, `--source aec|raw|both`, `--ctx auto|full`, `--epochs`,
+(`deploy/train.sh --help`): `--base tiny.en|base.en|small.en`, `--source raw|aec|both` (default raw; aec = old sessions only), `--ctx auto|full`, `--epochs`,
 `--lr`, `--batch`, `--sessions …`, `--no-eval`, `--force`.
 
 What it does, so the output makes sense:
@@ -114,7 +114,7 @@ Pi's copies when done.
 ## When to retrain
 
 - New artists or playlists whisper gets wrong (add sentences to the corpus, record a short session).
-- The mic sounds different: Jabra moved into the body (Phase 2.6), another room, AEC on/off changed.
+- The mic sounds different: Jabra moved into the body (Phase 2.6), another room.
 - Enough live clips collected (~100).
 
 Each run trains on all sessions; nothing is ever thrown away.
@@ -132,4 +132,4 @@ Each run trains on all sessions; nothing is ever thrown away.
 | eval: `no output (model missing…)` | Name not in `~/buddy/models`; pass the local path instead |
 | eval: garbage with `ctx=auto` | Stock model or one trained with `--ctx full`: use `ctx=0` |
 | New model worse on new sentences | Overfitted: more varied clips, `--epochs 5` |
-| record: `pw-record … target not found` | No echo-cancel node: `setup.sh audio` on the Pi |
+| record: no sound in the clips | `wpctl status` on the Pi: Jabra the default source (`*`), not muted (summary 1.4) |

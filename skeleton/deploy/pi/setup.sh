@@ -7,7 +7,7 @@
 #   onnxruntime  Microsoft's prebuilt ONNX Runtime → /opt/onnxruntime (D9)
 #   libpiper     Piper TTS library built from source → /opt/libpiper (D12)
 #   uv           Python package manager → ~/.local/bin/uv, for Python services (D15)
-#   audio        PipeWire echo cancellation + bigger USB buffers (D13); restarts PipeWire only if changed
+#   audio        stock PipeWire: removes Buddy's old echo-cancellation config if present (D13)
 #   mosquitto    MQTT broker, localhost only (D2)
 #   session      lingering: user services start at boot without a login (D7)
 #   config       ~/buddy folders, buddy.env from the example
@@ -100,20 +100,20 @@ step_uv() {
     echo "  ✓ uv $UV_VERSION"
 }
 
-# PipeWire only reads its config at start: restart it when a file changed. That briefly cuts all audio;
-# ears and voice reopen their devices by themselves.
+# Up to 2026-10-28 Buddy added PipeWire echo cancellation and bigger USB buffers (the buffers only because
+# echo cancellation tied mic and speaker clocks together). Raw mic since (D13): stock PipeWire. This step removes
+# the old files and restarts PipeWire only if there were any (briefly cuts audio; ears and voice reopen by themselves).
 step_audio() {
-    local pw=~/.config/pipewire/pipewire.conf.d wp=~/.config/wireplumber/wireplumber.conf.d
-    mkdir -p "$pw" "$wp"
-    if cmp -s "$CONFIG/pipewire/buddy-audio.conf" "$pw/buddy-audio.conf" \
-        && cmp -s "$CONFIG/wireplumber/buddy-alsa.conf" "$wp/buddy-alsa.conf"; then
-        echo "  ✓ unchanged"
+    local old=(~/.config/pipewire/pipewire.conf.d/buddy-audio.conf ~/.config/wireplumber/wireplumber.conf.d/buddy-alsa.conf)
+    local found=()
+    for f in "${old[@]}"; do [[ -e "$f" ]] && found+=("$f"); done
+    if [[ ${#found[@]} -eq 0 ]]; then
+        echo "  ✓ stock PipeWire"
         return
     fi
-    install -m 644 "$CONFIG/pipewire/buddy-audio.conf" "$pw/"
-    install -m 644 "$CONFIG/wireplumber/buddy-alsa.conf" "$wp/"
+    rm -f "${found[@]}"
     systemctl --user restart pipewire pipewire-pulse wireplumber
-    echo "  ✓ installed, PipeWire restarted"
+    echo "  ✓ removed ${#found[@]} old config file(s), PipeWire restarted"
 }
 
 step_mosquitto() {
