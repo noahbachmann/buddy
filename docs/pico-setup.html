@@ -8,6 +8,8 @@
   --bg: #f5f7f4; --surface: #ffffff; --fg: #1b231d; --muted: #5b6a5f; --line: #d5ddd6;
   --accent: #2b7a4b; --accent-soft: #e2efe6; --warn: #b4441f; --warn-soft: #f8e6de;
   --w-sig: #d9790f; --w-pos: #cc2a2a; --w-gnd: #5a3b22; --w-usb: #2c5ea8; --board: #e8f0ea;
+  --bb: #fbfbf7; --bb-gap: #e4e7e1; --hole: #a3aba4; --pin: #c79a1c; --res: #dcc28d; --rail-n: #2f62c9;
+  --pico: #2e7a4c; --pico-fg: #f2fbf5;
   --f-display: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
   --f-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
   --f-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
@@ -16,11 +18,15 @@
   --bg: #121814; --surface: #19211b; --fg: #e3ebe5; --muted: #95a59a; --line: #2c372f;
   --accent: #5fc387; --accent-soft: #1d3326; --warn: #f0875e; --warn-soft: #3a2119;
   --w-sig: #f2a03d; --w-pos: #f05a5a; --w-gnd: #c79a6e; --w-usb: #6f9fe6; --board: #1d2b21;
+  --bb: #232a25; --bb-gap: #181d19; --hole: #59665d; --pin: #d9b445; --res: #b59a63; --rail-n: #6f9fe6;
+  --pico: #2a6b44; --pico-fg: #eaf7ee;
   color-scheme: dark } }
 :root[data-theme="dark"] {
   --bg: #121814; --surface: #19211b; --fg: #e3ebe5; --muted: #95a59a; --line: #2c372f;
   --accent: #5fc387; --accent-soft: #1d3326; --warn: #f0875e; --warn-soft: #3a2119;
   --w-sig: #f2a03d; --w-pos: #f05a5a; --w-gnd: #c79a6e; --w-usb: #6f9fe6; --board: #1d2b21;
+  --bb: #232a25; --bb-gap: #181d19; --hole: #59665d; --pin: #d9b445; --res: #b59a63; --rail-n: #6f9fe6;
+  --pico: #2a6b44; --pico-fg: #eaf7ee;
   color-scheme: dark }
 
 body { background: var(--bg); color: var(--fg); font: 15px/1.6 var(--f-body); }
@@ -53,6 +59,11 @@ svg .sig { stroke: var(--w-sig); } svg .pos { stroke: var(--w-pos); } svg .gnd {
 svg .dot-g { fill: var(--w-gnd); } svg .dot-p { fill: var(--w-pos); }
 svg .no { stroke: var(--warn); stroke-width: 2.5; }
 svg .nolbl { fill: var(--warn); font-size: 11px; }
+svg .cas { fill: none; stroke: var(--bb); stroke-width: 8; stroke-linecap: round; }
+svg .jw { fill: none; stroke-width: 4; stroke-linecap: round; }
+svg .tag { font-size: 10px; paint-order: stroke; stroke: var(--bb); stroke-width: 4px; stroke-linejoin: round; }
+svg .pl { font-size: 9px; fill: var(--pico-fg); }
+svg .ax { font-size: 9px; fill: var(--muted); }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font: 12px var(--f-mono); color: var(--muted); padding: 10px 4px 0; }
 .legend span::before { content: ""; display: inline-block; width: 18px; height: 3px; margin-right: 6px; vertical-align: middle; background: var(--c); }
 
@@ -104,8 +115,104 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     </div>
   </header>
 
+  <section aria-labelledby="breadboard">
+    <h2 id="breadboard">Breadboard layout</h2>
+    <p>Top view of an 830-hole breadboard, columns 1–42 of 63. Only the bottom rails are used: that is the Pico's pin 1–20 side, which has no power pins. VBUS and VSYS sit on the other side, so servo 5 V never runs near them.</p>
+    <div class="figure">
+      <svg viewBox="0 0 900 400" role="img" aria-label="Breadboard top view: Pico 2 H in columns 1 to 20, pins 1 to 20 in row h; jumpers from GP2 and GP3 to columns 22 and 30; 330 ohm resistors to servo headers at g26 to g28 and g34 to g36; servo plus and ground jumpers to the bottom rails; capacitor across the bottom rails at columns 31 and 32; DC socket leads into the right end of the bottom rails.">
+        <rect x="30" y="20" width="760" height="330" rx="8" fill="var(--bb)" stroke="var(--line)"/>
+        <rect x="30" y="176" width="760" height="16" fill="var(--bb-gap)"/>
+        <path d="M60 30 H780" stroke="var(--w-pos)" stroke-width="2"/><path d="M60 67 H780" stroke="var(--rail-n)" stroke-width="2"/>
+        <path d="M60 301 H780" stroke="var(--rail-n)" stroke-width="2"/><path d="M60 338 H780" stroke="var(--w-pos)" stroke-width="2"/>
+        <g id="bb-holes" fill="var(--hole)"></g>
+        <g id="bb-axes"></g>
+        <!-- Pico -->
+        <rect x="38" y="172" width="26" height="22" rx="3" fill="var(--surface)" stroke="var(--fg)" stroke-width="1.5"/>
+        <rect x="60" y="113" width="343" height="141" rx="5" fill="var(--pico)"/>
+        <g id="pico-pins" fill="var(--pin)"></g>
+        <text class="ttl" x="240" y="182" text-anchor="middle" style="fill: var(--pico-fg)">Pico 2 H</text>
+        <text class="pl" x="240" y="198" text-anchor="middle">USB to the Pi, pin 1 next to the USB</text>
+        <text class="pl" transform="translate(73 234) rotate(-90)">pin 1</text>
+        <text class="pl" transform="translate(107 234) rotate(-90)">3 GND</text>
+        <text class="pl" transform="translate(124 234) rotate(-90)">4 GP2</text>
+        <text class="pl" transform="translate(141 234) rotate(-90)">5 GP3</text>
+        <text class="pl" transform="translate(67 133) rotate(90)">40 VBUS</text>
+        <text class="pl" transform="translate(84 133) rotate(90)">39 VSYS</text>
+        <path class="w no" d="M66 86 l8 8 M74 86 l-8 8 M66 103 l8 8 M74 103 l-8 8 M83 86 l8 8 M91 86 l-8 8 M83 103 l8 8 M91 103 l-8 8"/>
+        <!-- signal jumpers -->
+        <path class="cas" d="M121 277 Q274 306 427 277"/><path class="jw sig" d="M121 277 Q274 306 427 277"/>
+        <path class="cas" d="M138 277 Q350 320 563 277"/><path class="jw sig" d="M138 277 Q350 320 563 277"/>
+        <!-- resistors i22–i26, i30–i34 -->
+        <path d="M427 260 H495 M563 260 H631" stroke="var(--muted)" stroke-width="1.5"/>
+        <rect x="445" y="254" width="32" height="12" rx="5" fill="var(--res)"/>
+        <rect x="581" y="254" width="32" height="12" rx="5" fill="var(--res)"/>
+        <g fill="#e07b1a"><rect x="450" y="254" width="3" height="12"/><rect x="456" y="254" width="3" height="12"/><rect x="586" y="254" width="3" height="12"/><rect x="592" y="254" width="3" height="12"/></g>
+        <g fill="#6b3f1f"><rect x="462" y="254" width="3" height="12"/><rect x="598" y="254" width="3" height="12"/></g>
+        <g fill="#c9a227"><rect x="470" y="254" width="3" height="12"/><rect x="606" y="254" width="3" height="12"/></g>
+        <text class="tag" x="461" y="214" text-anchor="middle">330 Ω</text>
+        <text class="tag" x="597" y="214" text-anchor="middle">330 Ω</text>
+        <!-- servo headers + plugs -->
+        <rect x="487" y="219" width="50" height="14" rx="2" fill="var(--fg)"/>
+        <rect x="623" y="219" width="50" height="14" rx="2" fill="var(--fg)"/>
+        <g fill="var(--pin)"><rect x="492" y="223" width="6" height="6"/><rect x="509" y="223" width="6" height="6"/><rect x="526" y="223" width="6" height="6"/>
+          <rect x="628" y="223" width="6" height="6"/><rect x="645" y="223" width="6" height="6"/><rect x="662" y="223" width="6" height="6"/></g>
+        <path class="jw sig" d="M495 218 V196 M631 218 V196"/><path class="jw pos" d="M512 218 V196 M648 218 V196"/><path class="jw gnd" d="M529 218 V196 M665 218 V196"/>
+        <text class="tag" x="512" y="172" text-anchor="middle" style="font-weight: 500">ch0 · pan plug</text>
+        <text class="tag" x="648" y="172" text-anchor="middle" style="font-weight: 500">ch1 · tilt plug</text>
+        <!-- rail jumpers -->
+        <path class="cas" d="M104 277 V311"/><path class="jw gnd" d="M104 277 V311"/>
+        <path class="cas" d="M512 277 V328"/><path class="jw pos" d="M512 277 V328"/>
+        <path class="cas" d="M529 277 V311"/><path class="jw gnd" d="M529 277 V311"/>
+        <path class="cas" d="M648 277 V328"/><path class="jw pos" d="M648 277 V328"/>
+        <path class="cas" d="M665 277 V311"/><path class="jw gnd" d="M665 277 V311"/>
+        <!-- capacitor: − leg col 31 (− rail), + leg col 32 (+ rail) -->
+        <path d="M580 311 L583 352 M597 328 L595 352" stroke="var(--muted)" stroke-width="1.5"/>
+        <circle cx="589" cy="364" r="13" fill="var(--fg)"/>
+        <rect x="577" y="356" width="7" height="16" fill="var(--muted)"/>
+        <text class="tag" x="608" y="368">1000 µF, stripe leg in −</text>
+        <!-- supply leads -->
+        <path class="cas" d="M750 311 Q785 298 812 304"/><path class="jw gnd" d="M750 311 Q785 298 812 304"/>
+        <path class="cas" d="M733 328 Q775 350 812 332"/><path class="jw pos" d="M733 328 Q775 350 812 332"/>
+        <rect class="box" x="812" y="290" width="80" height="56" rx="5"/>
+        <text class="lbl" x="820" y="310" style="font-size: 11px">DC socket</text>
+        <text class="sm" x="820" y="326">5 V / 5 A</text>
+        <text class="sm" x="820" y="340">black − · red +</text>
+        <text class="sm" x="785" y="392" text-anchor="end">columns 43–63 not shown</text>
+      </svg>
+      <div class="legend">
+        <span style="--c: var(--pin)">Pico pin / header pin</span>
+        <span style="--c: var(--w-sig)">signal jumper</span>
+        <span style="--c: var(--w-pos)">5 V jumper / red lead</span>
+        <span style="--c: var(--w-gnd)">GND jumper / black lead</span>
+        <span style="--c: var(--warn)">✕ leave empty (VBUS, VSYS)</span>
+      </div>
+    </div>
+    <p>Row letters and the rail order differ between brands. Go by the Pico's pin numbers: pin 1 is next to the USB connector, and pins 1–20 face the rails you use.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Part</th><th>From</th><th>To</th><th>Note</th></tr></thead>
+        <tbody>
+          <tr><td>Pico 2 H</td><td class="mono">h1–h20 (pins 1–20)</td><td class="mono">c1–c20 (pins 40–21)</td><td>Straddles the gap, USB pointing off the left end</td></tr>
+          <tr><td>Jumper, black</td><td class="mono">j3 (pin 3 GND)</td><td>bottom − rail</td><td>Shared ground</td></tr>
+          <tr><td>Jumper, orange</td><td class="mono">j4 (pin 4 GP2)</td><td class="mono">j22</td><td>ch0 signal</td></tr>
+          <tr><td>Resistor 330 Ω</td><td class="mono">i22</td><td class="mono">i26</td><td>Bands orange, orange, brown</td></tr>
+          <tr><td>Jumper, orange</td><td class="mono">j5 (pin 5 GP3)</td><td class="mono">j30</td><td>ch1 signal</td></tr>
+          <tr><td>Resistor 330 Ω</td><td class="mono">i30</td><td class="mono">i34</td><td></td></tr>
+          <tr><td>3-pin header</td><td class="mono">g26–g28</td><td class="mono">g34–g36</td><td>One piece each, broken off the 1 × 40 strip</td></tr>
+          <tr><td>Jumper, red</td><td class="mono">j27 · j35</td><td>bottom + rail</td><td>Servo 5 V</td></tr>
+          <tr><td>Jumper, black</td><td class="mono">j28 · j36</td><td>bottom − rail</td><td>Servo GND</td></tr>
+          <tr><td>Capacitor 1000 µF</td><td>− leg (stripe): − rail, col 31</td><td>+ leg: + rail, col 32</td><td>Reversed it heats up and can burst</td></tr>
+          <tr><td>DC socket leads (22 AWG)</td><td>black: − rail, col 41</td><td>red: + rail, col 40</td><td>Supply unplugged while wiring</td></tr>
+          <tr><td>Servo plugs</td><td>ch0 (pan) on g26–g28</td><td>ch1 (tilt) on g34–g36</td><td>Orange on col 26/34, brown on col 28/36</td></tr>
+          <tr class="never"><td>Top rails, a1/b1, a2/b2</td><td colspan="3">Stay empty. Nothing connects to VBUS (pin 40) or VSYS (pin 39).</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Before the first power-up, with the supply unplugged: continuity between the bottom − rail and Pico pin 3, and <em>no</em> continuity between the bottom + rail and Pico pins 39/40.</p>
+  </section>
+
   <section aria-labelledby="wiring">
-    <h2 id="wiring">Wiring</h2>
+    <h2 id="wiring">Circuit</h2>
     <div class="figure">
       <svg viewBox="0 0 920 470" role="img" aria-label="Wiring diagram: Pi 5 USB to Pico 2 H; GP2 and GP3 through 330 ohm resistors to two servos; separate 5 V supply feeds the servo rail; Pico GND, supply minus and servo grounds share one ground rail; VSYS and VBUS stay unconnected.">
         <!-- Pi -->
@@ -294,6 +401,25 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
       <li><code>deploy/test.sh --pi -R MotionProtocol</code> passes.</li>
     </ul>
   </section>
+
+  <script>
+  (() => {
+    const x = c => 70 + (c - 1) * 17;
+    const sq = (cx, cy) => `<rect x="${cx - 3}" y="${cy - 3}" width="6" height="6" rx="1"/>`;
+    const rows = [90, 107, 124, 141, 158, 209, 226, 243, 260, 277], rails = [40, 57, 311, 328];
+    let holes = "", pins = "", axes = "";
+    for (let c = 1; c <= 42; c++) {
+      for (const y of [...rails, ...rows]) holes += sq(x(c), y);
+      if (c <= 20) pins += sq(x(c), 124) + sq(x(c), 243);
+      if (c === 1 || c % 5 === 0) axes += `<text class="ax" x="${x(c)}" y="80" text-anchor="middle">${c}</text>`;
+    }
+    "abcdefghij".split("").forEach((r, i) => { axes += `<text class="ax" x="48" y="${rows[i] + 3}" text-anchor="middle">${r}</text>`; });
+    [["+", 40], ["−", 57], ["−", 311], ["+", 328]].forEach(([s, y]) => { axes += `<text class="ax" x="48" y="${y + 3}" text-anchor="middle">${s}</text>`; });
+    document.getElementById("bb-holes").innerHTML = holes;
+    document.getElementById("pico-pins").innerHTML = pins;
+    document.getElementById("bb-axes").innerHTML = axes;
+  })();
+  </script>
 
   <footer>Source: <code>docs/guides/02-02-motion-controller.md</code>. That guide wins if this page and it disagree.</footer>
 </main>

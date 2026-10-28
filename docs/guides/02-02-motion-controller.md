@@ -131,14 +131,19 @@ Pinout (Pico 2 pin numbers are printed on the underside; pin 1 is next to the US
 | 39 (VSYS), 40 (VBUS) | — | **nothing** | Never connect servo 5 V here |
 | USB | power + data | Pi | The Pico's only power source |
 
-1. Pico 2H straddling the centre gap at one end of the breadboard, USB connector pointing outwards.
-2. Pico pin 3 (GND) → ground rail (−) with a short jumper.
-3. Supply leads from the DC socket: red → **+ rail on the far side** (the servo rail), black → ground rail. If the
-   breadboard's two long sides aren't bridged, bridge the two **− rails only** with one jumper; the + rails stay separate.
-4. Capacitor straight across the servo rail, as close to the servo headers as possible. Stripe leg into −.
-5. For each servo: a 3-pin header piece in three rows. Row 1 gets a jumper to −, row 2 a jumper to + (servo rail),
-   row 3 gets a 330 Ω resistor from the Pico pin (GP2 / GP3). The MG90S plug colours: **brown = GND, red = 5 V,
-   orange = signal**. Plug it on so brown sits on the − row.
+Hole-by-hole drawing: `docs/pico-setup.html`. Hole letters differ between brands; go by the Pico's pin numbers. Only
+the rails on the pin 1–20 side are used: that side has no power pins, VBUS/VSYS are on the other.
+
+1. Pico 2H straddling the centre gap at the left end, USB pointing off the board: pins 1–20 in row h, 40–21 in row c,
+   columns 1–20.
+2. Pico pin 3 (GND): jumper j3 → bottom − rail.
+3. Supply leads from the DC socket into the right end of the bottom rails: black → −, red → + (the servo rail). The top
+   rails stay empty.
+4. Capacitor across the bottom rails next to the servo headers (− leg col 31, + leg col 32). Stripe leg into −.
+5. For each servo: a 3-pin header piece in row g (ch0: g26–g28, ch1: g34–g36). Signal: jumper from the Pico pin
+   (GP2 j4 → j22, GP3 j5 → j30), then a 330 Ω resistor to the header's first column (i22 → i26, i30 → i34). Middle
+   column: jumper to + (j27, j35). Last column: jumper to − (j28, j36). The MG90S plug colours: **brown = GND,
+   red = 5 V, orange = signal**. Plug it on so brown sits on col 28 / 36.
 6. Before powering: multimeter on **Ω** (or the continuity beep), supply unplugged. Check that servo rail + and Pico
    pin 39/40 show **no** connection, and that rail − and Pico pin 3 **do**.
 
