@@ -2,7 +2,7 @@
 
 > Written 2026-10-25 at the Phase 1 review. Everything here needs you: your voice, the music box, the Spotify login.
 > The code and the other docs are done and describe the state *after* this guide. **Delete this file when you're
-> through** (and tell Claude the results that need a decision: steps 2, 8, 10). Items marked ⚠️ are untested assumptions.
+> through** (and tell Claude the results that need a decision: steps 2, 8, 10, 12). Items marked ⚠️ are untested assumptions.
 
 ## Goal
 
@@ -195,6 +195,39 @@ louder", "… pause". Count: wake word triggered / box ducked / right action. **
 **Pi**, in `~/buddy/config/buddy.env`: `BUDDY_EARS_SAVE_DIR=/home/dev/buddy/voice-live`, then
 `systemctl --user restart buddy@ears`. After a few weeks: `deploy/train.sh pull`, `deploy/train.sh label`, retrain.
 
+### 12. Hue: pair the bridge, set your room (added 2026-10-28)
+
+Buddy runs `hue` and `web` already (deployed 2026-10-28) but has no key for the bridge yet. Why the button: the bridge
+only hands out a key to an app while someone presses it, so nobody on the Wi-Fi can take over your lights unnoticed.
+
+1. Press the round link button on top of the Hue Bridge, then within 30 s, **Pi:**
+   ```bash
+   ~/buddy/bin/buddy-hue --pair
+   ```
+   Expected: `bridge ecb5fafffe9164da at 192.168.1.219: press its link button…` then `✓ paired, key saved to …/hue.json`.
+2. In the router: give the bridge a fixed IP (DHCP reservation for MAC `ec:b5:fa:91:64:da`). If it ever moves, Buddy
+   says "I can't reach the Hue bridge."
+3. **Pi:** load `buddy.env` (1.8/1.9 in the summary), then `~/buddy/bin/buddy-hue --cmd list`: your rooms, zones, scenes
+   and lights with their exact names. Put the room Buddy stands in into `~/buddy/config/buddy.env`:
+   `BUDDY_HUE_DEFAULT_ROOM=<room>` ("lights off" without a room then means that one), then
+   `systemctl --user restart buddy@hue`.
+4. Try: `~/buddy/bin/buddy-hue --cmd off "" "<room>"`, then `--cmd on "" "<room>"`, `--cmd scene "<scene>"`,
+   `--cmd color blue "<a colour light>"`.
+5. **Tell Claude** the `--cmd list` output (or paste it): the test fixture and `buddy-hardware.md` get your real lights,
+   and the corpus gets your room and scene names.
+6. Your names into `skeleton/tools/voice/commands.tsv` (lights section, like step 4): every room, zone and scene you
+   will say, 5+ sentences each across `train` and `test`; `deploy/test.sh --pi -R Corpus` must pass. Record them with
+   the next voice session (CLAUDE.md → Deferred → Next voice session).
+
+### 13. Panel and voice, live
+
+1. Phone on the home Wi-Fi: `http://buddy.local:8080` (Android without `.local` support: `http://192.168.1.72:8080`).
+   The service chips at the top are green; rooms show their real state.
+2. Switch a room on the phone → the light follows within ~1 s. Switch it in the Hue app or at the wall → the panel
+   follows within ~1 s (eventstream). Drag a brightness slider: smooth, no flicker storm.
+3. Voice, 5× each: "Hey Jarvis, lights off", "… turn on the lights in the \<room\>", "… dim the \<room\> to 30 %",
+   "… are the lights on?". Count right actions; **tell Claude** the counts and what failed.
+
 ## Verify
 
 - [ ] `--cmd devices` lists the box; standby behaviour reported (step 2).
@@ -203,7 +236,9 @@ louder", "… pause". Count: wake word triggered / box ducked / right action. **
 - [ ] `deploy/train.sh check`: ≥ 500 training clips, ≥ 150 test clips, no warnings.
 - [ ] New model installed: intent ≥ 95 %, WER < 5 %, ≤ 0.3 s on the new test session (step 7).
 - [ ] AEC decision reported (step 8); wake word threshold set (step 9).
-- [ ] Live test passed (step 10). Then delete this file.
+- [ ] Live test passed (step 10).
+- [ ] Hue paired, default room set, `--cmd list` sent to Claude (step 12); light names in the corpus.
+- [ ] Panel follows the Hue app and vice versa; voice light commands right ≥ 9 of 10 (step 13). Then delete this file.
 
 ## Troubleshooting
 
@@ -215,4 +250,6 @@ louder", "… pause". Count: wake word triggered / box ducked / right action. **
 | `deploy/record.sh`: prompts but no recording | `ssh buddy pw-record --list-targets`; is `buddy_aec_source` there? (`setup.sh audio`) |
 | `deploy/train.sh`: `uv missing` / no CUDA | `docs/voice-training.md` → One-time PC setup |
 | Training: `kept epoch 0` | Not enough new data, or the sessions failed `check`: look at its output |
+| `buddy-hue`: anything | Summary guide 1.13 → Troubleshooting |
+| Panel: anything | Summary guide 1.14 → Troubleshooting |
 | Anything else | `docs/voice-training.md` → Troubleshooting |

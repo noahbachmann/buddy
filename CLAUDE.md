@@ -39,13 +39,15 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 | Phase | Step | Status |
 |---|---|---|
 | 1 – Voice | 1.1 – 1.12 Hardware, OS, audio, skeleton, wake word, STT, brain, Spotify, voice, background music, boot | ✅ |
+| 1 – Voice (extra) | 1.13 Hue lights, 1.14 web panel: code deployed, waiting for pairing and the live test (`01-cleanup.md` steps 12–13) | 🟨 |
 | 2 – Head | 2.1 – 2.6 | ⬜ |
 | 3 – Hand | 3.1 – 3.4 | ⬜ |
 | 4 – Arm & vision | 4.1 – 4.3 | ⬜ |
 
 Legend: ⬜ not started · 🟨 in progress · ✅ done
 
-Open until Dev deletes it: `docs/guides/01-cleanup.md` (new recordings and training, music box tests, AEC decision).
+Open until Dev deletes it: `docs/guides/01-cleanup.md` (new recordings and training, music box tests, AEC decision,
+Hue pairing and panel test).
 
 ---
 
@@ -71,6 +73,9 @@ Open until Dev deletes it: `docs/guides/01-cleanup.md` (new recordings and train
 | D16 | Voice data | Recordings are personal data and the repo is public: never in Git. Master copy on Dev's PC in `~/buddy-voice` (backed up); the Pi keeps sessions only until pulled. Training runs on Dev's PC (NVIDIA GPU, CUDA 12.8 PyTorch). | ✅ |
 | D17 | Motion controller | Raspberry Pi Pico 2 H on the Pi's USB, servos on its GPIO hardware PWM (50 Hz, 16 outputs), no PCA9685. Firmware C++ with Pico SDK 2.3.1 (FetchContent) in `skeleton/firmware/pico`, built and flashed on the Pi (picotool 2.3.1 in `/opt/picotool`). Text protocol v1 over USB CDC (`/dev/buddy-pico`), header shared with motion. The Pico enforces per-channel pulse limits and relaxes all servos 2 s after the last command. Servo power: separate 5 V supply, shared ground, never via the Pi or the Pico's VBUS/VSYS. | ✅ |
 
+| D18 | Lights | Philips Hue via the Hue Bridge's local CLIP v2 API (no cloud, no Hue account): service `hue`. TLS verified against Hue's `root-bridge` CA (compiled in) with the bridge id as host name (`CURLOPT_RESOLVE` → bridge IP). Application key from `buddy-hue --pair` (link button) in `~/buddy/config/hue.json`. Live state from the bridge's eventstream → retained `buddy/hue/state`. Hue Bridge Pro would need its newer CA ⚠️. | ✅ |
+| D19 | Web panel | Service `web` (C++, cpp-httplib pinned via FetchContent): static page + HTTP⇄MQTT bridge, no skill logic. Retained `buddy/+/state` and `/status` → browser (server-sent events); `POST /api/cmd/<svc>` → `buddy/<svc>/cmd` (non-planned command topics only). `http://buddy.local:8080`, LAN only, **no login**: Host allowlist (IP, `*.local`, `BUDDY_WEB_HOSTS`) against DNS rebinding, JSON-only same-origin POSTs against other sites in the same browser. Add auth before anything that moves (motion) goes on the page. | ✅ |
+
 Update this table when a decision is made or changed.
 
 ---
@@ -82,11 +87,13 @@ Update this table when a decision is made or changed.
                                                                         ▼
                                                          MQTT  ◄──► [brain]  intent → skill routing
                                                                         │
-        ┌────────────────┬──────────────────────────────────────────────┼────────────────┐
-        ▼                ▼                                              ▼                ▼
-   [voice] TTS     [spotify] skill ──Web API──► music box             [motion] ──USB──► Pico (servos, eyes)
-        │           (ducks the box while ears listens / voice speaks)
+        ┌────────────────┬──────────────────────────┬───────────────────┼────────────────┐
+        ▼                ▼                          ▼                   ▼                ▼
+   [voice] TTS     [spotify] skill ──Web API──►  [hue] skill ──LAN──►  [motion] ──USB──► Pico (servos, eyes)
+        │           music box (ducked while       Hue Bridge
+        │           ears listens / voice speaks)  (eventstream back)
         └──► Jabra speaker
+                                        phone / PC browser ◄──HTTP──► [web] panel ◄──► MQTT (state in, commands out)
 ```
 
 - Every component is a small, independent service with one job.
@@ -99,7 +106,8 @@ Update this table when a decision is made or changed.
 
 ## Phase 1 – Voice assistant ✅
 
-Summary of every step, rebuild order, config and troubleshooting: `docs/guides/01-setup-summary.md`.
+Summary of every step, rebuild order, config and troubleshooting: `docs/guides/01-setup-summary.md` (incl. the extras
+1.13 Hue lights and 1.14 web panel).
 Speech-to-text training: `docs/voice-training.md`.
 
 ### Deferred (not needed for Phase 1, pick up when useful)
@@ -113,7 +121,6 @@ Speech-to-text training: `docs/voice-training.md`.
   lines, ideally after 2.6 (new mic position). The installed model stays until then.
 - **Custom "Hey buddy"** (summary guide 1.6): train with box music in the negatives; the training could move into
   `tools/` like speech-to-text.
-- **Smart-home skill:** light commands are already in the corpus (whisper learns them), brain returns `unknown`.
 - **LLM brain:** implement `IntentParser`; keep the rules as the fast path.
 - **Persistent journald** (`Storage=persistent`, `SystemMaxUse=50M`) for boot post-mortems.
 
@@ -158,12 +165,14 @@ buddy/
 │   └── voice-training.md    ← speech-to-text training workflow
 ├── skeleton/                ← project root (CMake + uv workspace); paths below and in "Dev workflow" are relative to it
 │   ├── shared/              ← topics.json (all MQTT topics), C++ helpers, python/buddy_shared
-│   ├── third_party/         ← ONNX Runtime, libpiper (prebuilt in /opt), whisper.cpp (FetchContent)
+│   ├── third_party/         ← ONNX Runtime, libpiper (prebuilt in /opt), whisper.cpp, cpp-httplib (FetchContent)
 │   ├── services/
 │   │   ├── ears/            ← wake word, VAD, STT
 │   │   ├── brain/           ← intent routing
 │   │   ├── voice/           ← TTS
 │   │   ├── spotify/         ← Spotify skill, ducking the music box
+│   │   ├── hue/             ← Hue lights skill (Hue Bridge, local API)
+│   │   ├── web/             ← web panel: HTTP ⇄ MQTT bridge + www/ page
 │   │   └── motion/          ← joints → Pico serial protocol (planned)
 │   ├── tools/voice/         ← commands.tsv (corpus) + buddy_voice (record/train/eval, runs on the PC)
 │   ├── firmware/pico/       ← Pico 2 firmware: servos, later display (separate CMake project, D17; planned)
@@ -181,7 +190,7 @@ buddy/
 | Test | `deploy/test.sh` (gtest under ASan/UBSan, pytest, shellcheck); `deploy/test.sh --pi` runs the C++ tests on the Pi |
 | Keep | `git commit && git push` (GitHub, public: no secrets, no voice data) |
 | Deploy | `deploy/deploy.sh [service…]` → rsync to `~/buddy/src`, Release build (C++) or uv sync (Python), install to `~/buddy/bin`, restart `buddy@<service>` |
-| Check | `deploy/logs.sh <service>`, `deploy/status.sh [-l]`, `ssh buddy "mosquitto_sub -v -t 'buddy/#'"` |
+| Check | `deploy/logs.sh <service>`, `deploy/status.sh [-l]`, `ssh buddy "mosquitto_sub -v -t 'buddy/#'"`, panel `http://buddy.local:8080` |
 | Voice training | `deploy/record.sh <label> [test]`, `deploy/train.sh` (`docs/voice-training.md`) |
 | Pi setup | `deploy/deploy.sh --setup` (runs `deploy/pi/setup.sh`; single steps: `setup.sh <step>`, `setup.sh check`) |
 

@@ -28,6 +28,13 @@ Current hardware and software used for the Buddy desk robot. Roadmap, architectu
 | Mic + speaker | Jabra Speak 510 MS (USB speakerphone, microphone and speaker in one device) |
 | Music | Music box, a Spotify Connect speaker named "Main speaker" in the Spotify app (model ⚠️ not noted yet). Buddy controls it via the Web API; music never plays through the Jabra |
 
+## Smart home
+
+| Item | Details |
+|---|---|
+| Hue Bridge | Philips Hue Bridge v2 (square, model BSB002), LAN 192.168.1.219 ⚠️ give it a fixed IP in the router. Buddy talks to it locally (D18) |
+| Hue lights | ⚠️ not noted yet: `buddy-hue --cmd list` after pairing shows rooms, lights and what they can do |
+
 ## Dev machines
 
 | Item | Details |

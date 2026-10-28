@@ -24,7 +24,8 @@ is turned down. Starts on power-on, recovers from crashes, hangs and audio hiccu
 | 4 | `~/buddy/config/buddy.env` | `BUDDY_SPOTIFY_CLIENT_ID`, `BUDDY_SPOTIFY_DEVICE` (box name), `BUDDY_SPOTIFY_DEFAULT_URI`, your voice/STT settings |
 | 5 | Own models (PC → Pi) | `scp ggml-buddy-*.bin buddy:buddy/models/` (and a custom wake word if any); `fetch-models.sh` names what's missing |
 | 6 | Spotify login | `buddy-spotify --login` (1.8/1.9) |
-| 7 | Check | `deploy/status.sh`, then "Hey Jarvis, play Spotify" |
+| 6b | Hue pairing | Bridge's link button, then `buddy-hue --pair` (1.13); `BUDDY_HUE_DEFAULT_ROOM` |
+| 7 | Check | `deploy/status.sh`, then "Hey Jarvis, play Spotify", "… lights off"; panel `http://buddy.local:8080` |
 
 `setup.sh <step>` runs single steps (`setup.sh audio`); `setup.sh check` warns about unknown keys in `buddy.env`.
 
@@ -376,3 +377,75 @@ Done when: with the box at normal volume, "Hey Jarvis" triggers from 1 m and 2�
 | `Failed with result 'watchdog'` | Hung ≥ 60 s: look at the lines before |
 | Restarts every ~60 s, nothing in the log | Main loop without `notify_watchdog()` |
 | Everything reconnects ~35 s after boot | NTP clock jump: harmless |
+
+## 1.13 Hue lights (D18)
+
+```
+ ears ──► brain ──buddy/hue/cmd──► hue ──HTTPS (LAN)──► Hue Bridge ──Zigbee──► lights
+                                    ▲  └─► voice/say (errors, "are the lights on?")
+                                    └── eventstream (Hue app, switches) ──► retained buddy/hue/state ──► web panel
+```
+
+- **Local API only:** CLIP v2 on the bridge, no cloud, no Hue account. Requests go to `https://<bridge id>/…`, resolved to
+  the bridge's IP; the bridge's certificate is signed by Hue's `root-bridge` CA (compiled into `buddy-hue`) with the
+  bridge id as common name, so TLS is fully verified. Checked 2026-10-28 on the BSB002 (firmware 1978545030).
+- **Pairing** (once): press the bridge's link button, then within 30 s **Pi:** `~/buddy/bin/buddy-hue --pair`. It finds
+  the bridge via `discovery.meethue.com` (Hue limits that to about one call per 15 min) or `BUDDY_HUE_BRIDGE`, and
+  writes `~/buddy/config/hue.json` (bridge id, IP, key; mode 600). Then `systemctl --user restart buddy@hue`.
+- **State:** on start hue loads every room, zone, light and scene (`GET /clip/v2/resource`); the bridge's eventstream
+  keeps it current, also for changes from the Hue app or wall switches. Renames and new lights → full reload.
+- **Limits:** PUTs to one light at most every 100 ms, to a room or zone (grouped_light) or scene every 1 s (Hue's
+  guidance ⚠️ not measured); what piles up for one target merges, so a slider sends its last value.
+- **Who talks:** only hue, and only for errors and status questions. Switching is silent: the light is the answer.
+
+| You say (examples) | Intent → what hue does |
+|---|---|
+| "turn on the lights", "lights off", "turn everything off" | `on` / `off` → `BUDDY_HUE_DEFAULT_ROOM` (empty: every light); "everything", "all the lights" → every light |
+| "living room lights off", "turn on the lights in the kitchen", "switch off desk lamp" | the same for that room, zone or light. Name: exact, contained or a word 1–2 letters off; equal matches: room > zone > light; two → "Which one, …?" |
+| "dim the bedroom to 20 %", "set lights to 50 %" | `brightness` (0 = off) |
+| "make it brighter", "dim the lights", "turn the lights down" | `brighter` / `darker` (±`BUDDY_HUE_STEP`, 20 %) |
+| "turn the lights blue", "set the desk lamp to warm white" | `color`: red, orange, yellow, green, cyan/turquoise, blue, purple/violet, magenta, pink; whites: candle, warm, neutral, cool, daylight, or kelvin |
+| "activate the movie scene", "turn on the relax scene in the bedroom" | `scene`: in the named room, else the default room first, then any room |
+| "are the kitchen lights on?" | `status` → "The Kitchen lights are on at 40 percent." |
+
+Light rules need a light word ("light(s)", "lamp(s)", "scene", "brighter", "darker", "dim", "everything"), so music
+phrasings ("turn it down") stay with spotify.
+
+Offline (**Pi**, load `buddy.env` first as in 1.8/1.9): `buddy-hue --cmd list` (rooms, zones, scenes, lights with exact
+names), `buddy-hue --cmd <action> [query] [room]` (real bridge, no MQTT), `buddy-brain --test "Bedroom lights off."`.
+
+| Symptom | Fix |
+|---|---|
+| "The lights aren't set up yet." / log `not paired yet` | `buddy-hue --pair` (link button first), restart `buddy@hue` |
+| `--pair`: `link button not pressed within 30 s` | Press the button, then start `--pair` right away |
+| `--pair`: `no bridge found` / discovery HTTP 429 | `BUDDY_HUE_BRIDGE=<ip> buddy-hue --pair` (IP from the router or the Hue app: Settings → Bridges) |
+| "I can't reach the Hue bridge." / log `Couldn't connect` | Bridge off or new IP: fixed IP in the router, or `BUDDY_HUE_BRIDGE=<ip>` in `buddy.env` |
+| Log `SSL certificate problem` | Bridge with an old self-signed certificate, or a Hue Bridge Pro (other CA): tell Claude (D18) |
+| "The Hue bridge doesn't know me anymore." (HTTP 403) | Key deleted in the Hue app: `--pair` again |
+| "I don't know a room or light called …" | `--cmd list` for the exact names; whisper mishears them → names into `commands.tsv` and train (`docs/voice-training.md`) |
+| A light doesn't react, others do | Light unreachable (no power at the switch): the bridge accepts the command anyway ⚠️ |
+
+## 1.14 Web panel (D19)
+
+`http://buddy.local:8080` (or the Pi's IP) from a phone or PC on the LAN. Rooms with on/off, brightness, warm↔cool,
+colours and scenes (each room's single lights behind "N lights ▾"); music play/pause/next/previous and volume; a chip per
+service (green = online) with ears/voice activity.
+
+- **web** is an HTTP ⇄ MQTT bridge with no skill logic: it streams every retained `buddy/+/state` and `buddy/+/status` to
+  the browser (server-sent events, `/api/events`) and publishes the browser's commands to `buddy/<svc>/cmd`, only for
+  command topics in `topics.json`. The page (`services/web/www/`, plain HTML/CSS/JS, installed to `~/buddy/share/web`)
+  sends the same commands brain does, plus `id` for hue (no name matching).
+- **No login.** Anyone on the Wi-Fi can switch lights and music (like a guest with the Hue app). Protections: only IPs,
+  `localhost`, `*.local` names and `BUDDY_WEB_HOSTS` may open it (a web page elsewhere can't reach it through its own
+  DNS name), and commands must be JSON from the panel's own origin (another site open in your browser can't send them).
+  Don't forward the port on the router.
+- Measured 2026-10-28 on the Pi, idle: `buddy-web` 10 MB RSS, `buddy-hue` 14 MB (unpaired), ~0 % CPU. Shutdown with a
+  browser connected: ~0.2 s.
+
+| Symptom | Fix |
+|---|---|
+| Page doesn't load | `deploy/status.sh` (web active?); phone on the same Wi-Fi; `buddy.local` not resolving on Android → use the IP |
+| `unknown host name` (403) | Opened via a router DNS name: add it to `BUDDY_WEB_HOSTS` |
+| "reconnecting…" at the top | web restarting or the Pi gone; the page reconnects by itself |
+| "The hue service isn't running." | `deploy/logs.sh hue` |
+| `can't listen on 0.0.0.0:8080` | Port taken: `BUDDY_WEB_PORT` |
