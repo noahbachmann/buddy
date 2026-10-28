@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Record a voice session for speech-to-text training (docs/voice-training.md). Runs on the PC: prompts show here,
 # the Pi records from the Jabra — raw and echo-cancelled at the same time — into ~/buddy/voice/<date>-<label>/.
+# buddy@ears is stopped meanwhile (it would react to the prompts) and started again on exit.
 # deploy/train.sh pulls the sessions to the PC.
 #
 # Usage: deploy/record.sh <label> [train|test] [wake count]
@@ -36,6 +37,13 @@ export XDG_RUNTIME_DIR="/run/user/$(id -u)"
 dir=~/buddy/voice/"$1"
 mkdir -p "$dir/raw" "$dir/aec"
 [[ -f "$dir/metadata.csv" ]] || echo "file,sentence,set" > "$dir/metadata.csv"
+
+# ears would trigger on the prompts ("Hey Jarvis"): duck the box, speak into the clips. Off while recording.
+if systemctl --user -q is-active buddy@ears; then
+    systemctl --user stop buddy@ears
+    trap 'systemctl --user start buddy@ears && echo "ears started again"' EXIT
+    echo "ears stopped while recording"
+fi
 
 # Levels: peak dBFS of a 16-bit WAV
 peak() { python3 -I -c 'import sys, wave, array, math
