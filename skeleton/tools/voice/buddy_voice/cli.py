@@ -5,11 +5,12 @@
     check                    dataset report: levels, missing files, clips without speech
     eval <model>… [options]  score models on the test clips on the Pi
     install <model> [--ctx]  copy to the Pi, set BUDDY_STT_MODEL / BUDDY_STT_AUDIO_CTX, restart ears
-    label                    go through saved live commands (BUDDY_EARS_SAVE_DIR) and keep them as training data
+    history                  live commands ears saved (BUDDY_EARS_SAVE_DIR): pull, label, delete on the Pi
     import <dir> <name>      old record-voice.sh folder → session (repairs its numbering faults)
 """
 
 import argparse
+import shlex
 import shutil
 import subprocess
 import sys
@@ -19,15 +20,20 @@ from pathlib import Path
 from . import data, pi
 
 
-def cmd_pull(_args=None) -> None:
+def _live_dir() -> str:
+    return pi.run(f"{pi.LOAD_ENV}; echo \"$BUDDY_EARS_SAVE_DIR\"").strip()
+
+
+def cmd_pull(_args=None) -> str:
     data.SESSIONS.mkdir(parents=True, exist_ok=True)
     if pi.run("test -d ~/buddy/voice && echo yes", check=False).strip() == "yes":
         pi.rsync(f"{pi.HOST}:buddy/voice/", f"{data.SESSIONS}/", "--exclude", "prompts.tsv")
-    live = pi.run(f"{pi.LOAD_ENV}; echo \"$BUDDY_EARS_SAVE_DIR\"").strip()
+    live = _live_dir()
     if live:
         pi.rsync(f"{pi.HOST}:{live}/", f"{data.DATA / 'live'}/")
     names = data.session_names()
     print(f"✓ {len(names)} session(s) in {data.SESSIONS}" + (f", live commands from {live}" if live else ""))
+    return live
 
 
 def cmd_check(args) -> bool:
@@ -113,36 +119,51 @@ def _player() -> list[str] | None:
     return None
 
 
-def cmd_label(args) -> None:
+def cmd_history(args) -> None:
+    live_dir = cmd_pull()
+    if not live_dir:
+        raise SystemExit("BUDDY_EARS_SAVE_DIR not set in the Pi's buddy.env: ears saves no commands")
     live = data.DATA / "live"
     wavs = sorted(live.glob("*.wav"))
     if not wavs:
-        raise SystemExit(f"no live commands in {live}: set BUDDY_EARS_SAVE_DIR on the Pi, use Buddy, then pull")
+        print(f"no new live commands in {live_dir}")
+        return
     player = _player()
     session = "live"
     existing = data.load_session(session) if (data.SESSIONS / session / "metadata.csv").exists() else []
     n = max([int(c.file[:5]) for c in existing], default=0)
-    print("Enter = transcript is right, type the correct sentence, d = not a command (delete), s = later, q = quit")
-    for wav in wavs:
-        heard = wav.with_suffix(".txt").read_text().strip() if wav.with_suffix(".txt").exists() else ""
-        if player:
-            subprocess.run([*player, str(wav)], check=False)
-        answer = input(f"\n  {wav.name}\n  heard: {heard}\n  > ").strip()
-        if answer == "q":
-            break
-        if answer == "s":
-            continue
-        if answer != "d":
-            n += 1
-            file = f"{n:05d}.wav"
-            dst = data.SESSIONS / session / args.source / file
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(wav, dst)
-            existing.append(data.Clip(session, file, answer or heard, "train"))
-            data.write_session(session, existing)
-        wav.unlink()
-        wav.with_suffix(".txt").unlink(missing_ok=True)
-    print(f"✓ {len(existing)} live clips in session '{session}'. The Pi keeps its copies: delete them there when done.")
+    done: list[str] = []
+    print(f"{len(wavs)} live commands. Enter = transcript is right, type the correct sentence, "
+          "d = not a command (delete), s = later, q = quit")
+    try:
+        for wav in wavs:
+            heard = wav.with_suffix(".txt").read_text().strip() if wav.with_suffix(".txt").exists() else ""
+            if player:
+                subprocess.run([*player, str(wav)], check=False)
+            answer = input(f"\n  {wav.name}\n  heard: {heard}\n  > ").strip()
+            if answer == "q":
+                break
+            if answer == "s":
+                continue
+            if answer != "d":
+                n += 1
+                file = f"{n:05d}.wav"
+                dst = data.SESSIONS / session / args.source / file
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(wav, dst)
+                existing.append(data.Clip(session, file, answer or heard, "train"))
+                data.write_session(session, existing)
+            wav.unlink()
+            wav.with_suffix(".txt").unlink(missing_ok=True)
+            done.append(wav.stem)
+    finally:
+        # handled clips off the Pi too, else the next pull brings them back to label twice
+        if done:
+            files = " ".join(shlex.quote(f"{stem}{ext}") for stem in done for ext in (".wav", ".txt"))
+            pi.run(f"cd {shlex.quote(live_dir)} && rm -f -- {files}")
+    left = len(wavs) - len(done)
+    print(f"✓ {len(existing)} clips in session '{session}', {len(done)} handled and deleted on the Pi"
+          + (f", {left} left for next time" if left else ""))
 
 
 def cmd_import(args) -> None:
@@ -196,9 +217,9 @@ def main() -> int:
     sp.add_argument("--ctx", default=None, help="BUDDY_STT_AUDIO_CTX (default: what the model was trained for)")
     sp.set_defaults(fn=cmd_install)
 
-    sp = sub.add_parser("label")
+    sp = sub.add_parser("history")
     sp.add_argument("--source", default="raw", choices=["raw", "aec"], help="what BUDDY_EARS_DEVICE records")
-    sp.set_defaults(fn=cmd_label)
+    sp.set_defaults(fn=cmd_history)
 
     sp = sub.add_parser("import")
     sp.add_argument("dir")

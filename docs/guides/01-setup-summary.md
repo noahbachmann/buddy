@@ -217,8 +217,8 @@ After the wake word, ears records until you stop talking, transcribes on the Pi'
   multi-second worst cases.
 - `BUDDY_STT_PROMPT` (vocabulary hint) and the language: compare with `deploy/train.sh eval --prompt …`. `.en` models are
   English only; German needs a multilingual model + `BUDDY_STT_LANGUAGE=de` (never `auto` on 1-second commands).
-- **Data from real use:** `BUDDY_EARS_SAVE_DIR=~/buddy/voice-live` keeps every command's audio + transcript (newest
-  `BUDDY_EARS_SAVE_MAX`, ~100 KB each) for `deploy/train.sh label`.
+- **Data from real use:** `BUDDY_EARS_SAVE_DIR=/home/dev/buddy/voice-live` keeps every command's audio + transcript
+  (newest `BUDDY_EARS_SAVE_MAX`, ~100 KB each) for `deploy/train.sh history` (`docs/voice-training.md`).
 
 MQTT: `buddy/ears/transcript {"text":"Play Spotify.","language":"en","audio_ms":2160,"stt_ms":200}` (text verbatim
 from whisper; normalising is brain's job).

@@ -184,8 +184,8 @@ louder", "… pause". Count: wake word triggered / box ducked / right action. **
 
 ### 11. Keep collecting (optional, recommended)
 
-**Pi**, in `~/buddy/config/buddy.env`: `BUDDY_EARS_SAVE_DIR=/home/dev/buddy/voice-live`, then
-`systemctl --user restart buddy@ears`. After a few weeks: `deploy/train.sh pull`, `deploy/train.sh label`, retrain.
+Turn on saving live commands and use Buddy normally: `docs/voice-training.md` → "Data from real use" (turn on, then
+every week or two `deploy/train.sh history`, retrain at ~100 clips).
 
 ### 12. Hue: pair the bridge, set your room (added 2026-10-28)
 

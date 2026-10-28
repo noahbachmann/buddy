@@ -8,7 +8,7 @@ whisper.cpp build. Phase 1 history and numbers: `guides/01-setup-summary.md` →
  PC                                          Pi
  deploy/record.sh <label> [test] ──ssh──►    records the raw Jabra mic → ~/buddy/voice/<date>-<label>/raw/
  deploy/train.sh                              
-   pull ◄──────────────────────────rsync──   sessions (+ saved live commands)
+   pull ◄──────────────────────────rsync──   sessions (+ saved live commands: train.sh history)
    check: levels, missing files, VAD trim
    train: fine-tune on the GPU, convert to GGML (+ q8_0)
    eval ───────────────────────────ssh───►   buddy-ears --transcribe, buddy-brain --test: scores per session
@@ -105,17 +105,68 @@ Copies the model to the Pi, sets `BUDDY_STT_MODEL` and `BUDDY_STT_AUDIO_CTX` (de
 
 ## Data from real use (recommended)
 
-`BUDDY_EARS_SAVE_DIR=/home/dev/buddy/voice-live` in the Pi's `buddy.env` (restart ears) saves every command ears
-transcribes (newest 500, ~100 KB each). `deploy/train.sh pull` copies them, `deploy/train.sh label` plays each one (if
-the PC can play audio) and shows what whisper heard: Enter = right, type the correction, `d` = not a command. Labelled
-clips join the session `live` as training data: your real voice, room and music, exactly as ears hears them. Delete the
-Pi's copies when done.
+Recorded sessions are you reading prompts at the desk. Real use is how you actually talk: from across the room, with
+the box playing, phrasings the corpus doesn't have. ears can keep every command it transcribes, and those clips train
+whisper like any session.
+
+```
+ Pi: ears ── wake word → command → whisper ──► ~/buddy/voice-live/<time>.wav + .txt (what whisper heard)
+ PC: deploy/train.sh history
+       pull ◄──rsync── voice-live            → ~/buddy-voice/live/
+       label: play, Enter / correct / d / s  → session sessions/live/ (set train)
+       delete the handled clips on the Pi
+     deploy/train.sh                          trains on all sessions incl. live, evals, asks to install
+```
+
+**What is saved:** only the command after a wake word that whisper turned into text: no audio before the wake word,
+no wake word itself, nothing when you said nothing. Newest `BUDDY_EARS_SAVE_MAX` (default 500, ~100 KB each, ~50 MB),
+older ones are deleted by ears. It's your voice and whatever was said in the room after a (false) wake word: personal
+data, never in Git (D16).
+
+### Turn on (once)
+
+**Pi**, in `~/buddy/config/buddy.env` (absolute path: systemd doesn't expand `~`):
+
+```
+BUDDY_EARS_SAVE_DIR=/home/dev/buddy/voice-live
+```
+
+`systemctl --user restart buddy@ears`. Check after the next command: `ls ~/buddy/voice-live`. Off: remove the line,
+restart ears.
+
+### Collect and label: `deploy/train.sh history`
+
+Every week or two (at 500 unlabelled clips the oldest get lost):
+
+1. **pull**: the Pi's saved commands → `~/buddy-voice/live/` (and any new recorded sessions).
+2. **label**: plays each clip (if the PC can play audio: `paplay`, `aplay` or `ffplay`) and shows what whisper heard.
+   - Enter: the transcript is right.
+   - Type the correct sentence: written like the corpus (digits for numbers, names spelled like in Spotify).
+   - `d`: not a command (false wake word, someone else talking, cut off): thrown away.
+   - `s`: decide later (stays, comes back next time). `q`: stop here.
+3. **delete on the Pi** the clips you answered (kept or thrown away), also after `q` or Ctrl-C. Otherwise the next pull
+   would bring them back to label twice.
+
+Kept clips are appended to the session `live` (`~/buddy-voice/sessions/live/`, numbered on), all as `train`.
+
+Label honestly: the label is what you *said*, not what you meant. A wrong label teaches whisper the wrong thing, so
+`d` when you can't hear it clearly. Commands whisper got wrong are the valuable ones.
+
+### Retrain and compare: `deploy/train.sh`
+
+Same as after recording (above): trains on **all** sessions (recorded + `live`), then evals the new model against the
+installed one on the Pi and asks whether to install it. Live clips are never test clips: the test sessions stay the
+fixed yardstick, so the before/after numbers stay comparable. Install only if intent clearly improves (box sessions
+especially); otherwise keep collecting.
+
+Worth a run at ~100 new live clips (`deploy/train.sh check` lists the count per session). After the Jabra moves (2.6),
+the old clips still help, but record a fresh test session first so the eval measures the new position.
 
 ## When to retrain
 
 - New artists or playlists whisper gets wrong (add sentences to the corpus, record a short session).
 - The mic sounds different: Jabra moved into the body (Phase 2.6), another room.
-- Enough live clips collected (~100).
+- Enough live clips labelled (~100, `deploy/train.sh history`).
 
 Each run trains on all sessions; nothing is ever thrown away.
 
