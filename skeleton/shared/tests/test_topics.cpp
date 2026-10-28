@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
+
 #include "buddy/topics.hpp"
 #include "cases.hpp"
 
@@ -13,4 +15,8 @@ TEST(Topics, MatchesSharedCases) {
 TEST(Topics, GeneratedHeader) {
     EXPECT_EQ(buddy::topic::ears_state, "buddy/ears/state");
     EXPECT_EQ(buddy::topic::status("ears"), "buddy/ears/status");
+    const auto& cmds = buddy::topic::commands;
+    EXPECT_NE(std::find(std::begin(cmds), std::end(cmds), buddy::topic::hue_cmd), std::end(cmds));
+    EXPECT_EQ(std::find(std::begin(cmds), std::end(cmds), buddy::topic::motion_cmd), std::end(cmds));  // planned
+    EXPECT_EQ(std::find(std::begin(cmds), std::end(cmds), buddy::topic::ears_state), std::end(cmds));  // event
 }

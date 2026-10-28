@@ -57,3 +57,17 @@ foreach(t whisper ggml ggml-base ggml-cpu)
         target_compile_options(${t} PRIVATE $<$<CONFIG:Debug>:-O2>)
     endif()
 endforeach()
+
+# cpp-httplib (web panel): header only. Pinned upstream release instead of Debian's package: the VM's Ubuntu
+# ships 0.14, the Pi 0.18, so one pin keeps both builds on the same code (and on its security fixes).
+# SOURCE_SUBDIR that doesn't exist: download only, skip its CMakeLists (it would link OpenSSL, zlib, brotli, zstd).
+FetchContent_Declare(httplib
+    URL https://github.com/yhirose/cpp-httplib/archive/refs/tags/v0.60.1.tar.gz
+    URL_HASH SHA256=f42fc046e55f968a9dd43b272251f033b08538d3e359235608f980f551053215
+    SOURCE_SUBDIR none
+)
+FetchContent_MakeAvailable(httplib)
+add_library(httplib INTERFACE)
+target_include_directories(httplib SYSTEM INTERFACE ${httplib_SOURCE_DIR})
+find_package(Threads REQUIRED)
+target_link_libraries(httplib INTERFACE Threads::Threads)

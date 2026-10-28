@@ -17,7 +17,7 @@ Roadmap, decisions and conventions: `../CLAUDE.md`.
 
 | File | What |
 |---|---|
-| `topics.json` | All topic names (single source). CMake generates `build/shared/include/buddy/topics.hpp` from it (`topics.hpp.in`) |
+| `topics.json` | All topic names (single source). CMake generates `build/shared/include/buddy/topics.hpp` from it (`topics.hpp.in`), incl. `topic::commands` (command topics in use: what web may publish) |
 | `src/topics.cpp` | Wildcard `matches()` |
 | `mqtt.*` | Paho wrapper: client id `buddy-<svc>`, retained status + last will, resubscribe on reconnect, backoff, exceptions contained |
 | `systemd.*` | READY / WATCHDOG (rate-limited) / STATUS via `$NOTIFY_SOCKET`; no-op outside systemd |
@@ -35,6 +35,7 @@ Roadmap, decisions and conventions: `../CLAUDE.md`.
 | brain | `rules` (normalize + regex `RuleParser` behind `IntentParser`; light rules (skill hue) first, need a light word, `light_device()` turns "the kitchen lights" into "kitchen", `parse_room()` splits "… in the kitchen") = `brain_core` | `--test "text"…` |
 | spotify | `auth` (PKCE, token file), `player` (Web API; target = named speaker (`speaker()`, `names::best_matches`) / box / active device, own-playlist cache, duck/restore by device id with tmpfs recovery file) | `--login`, `--cmd <action> [query] [speaker]`, `--cmd devices\|duck\|restore` |
 | hue | `bridge` (CLIP v2 on `Http`: TLS by bridge id + compiled-in root CA, pairing, discovery, key file), `home` (rooms/zones/lights/scenes from `/clip/v2/resource`, eventstream updates, `find()` by spoken name: room > zone > light), `lights` (`plan()`: command → PUT requests + reply, no I/O), `sse` (event parser), `throttle` (per-resource interval, merges piled-up bodies); main: eventstream thread → queue | `--pair`, `--cmd <action> [query] [device]`, `--cmd list` |
+| web | `state` (`StateStore`: last payload per topic + version, `wait()` for event streams), `access` (Host allowlist against DNS rebinding, same-origin + JSON-only POSTs, command topics from `topic::commands`), `server` (cpp-httplib routes: static `www/`, `/api/state`, `/api/events` SSE, `POST /api/cmd/<svc>`) = `web_core`; `www/` vanilla HTML/CSS/JS, no build step | – (tests run a real server on a free port) |
 | voice | `tts` (libpiper, sentence streaming), `audio_sink` (ALSA per utterance / WAV) | `--say "…" [--wav out.wav]` |
 
 ## tools/voice (Python, runs on the PC; `deploy/record.sh`, `deploy/train.sh`)
@@ -79,6 +80,8 @@ built), pytest, shellcheck. `deploy/test.sh --pi`: the C++ tests on the Pi (`~/b
 - `const json`'s `operator[]` asserts on a missing key: spotify reads device fields with `field()`.
 - `for (… : make_json()["items"])` loops over a destroyed temporary (e0bf506): name the object first. ASan in
   `deploy/test.sh` catches it.
+- `third_party/`: cpp-httplib pinned (FetchContent, header only, its CMakeLists skipped): the VM's apt has 0.14, the Pi's 0.18.
+- web: an open `/api/events` stream holds one httplib worker thread; `StateStore::close()` ends them on shutdown.
 - hue `Target` points into `Home`'s maps: use it before the next `load()`.
 - hue fixture `services/hue/tests/resources.json` is hand-written in CLIP v2 shape; replace with `GET /clip/v2/resource` from the real bridge when its shape surprises.
 - `BUDDY_STT_AUDIO_CTX=auto` breaks stock whisper models (hallucination loops); only models trained with `--ctx auto`.

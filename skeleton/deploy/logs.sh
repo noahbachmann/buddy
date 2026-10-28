@@ -6,5 +6,5 @@
 set -euo pipefail
 HOST="${BUDDY_HOST:-buddy}"
 unit="${1:?service name}"
-[[ " ears brain spotify hue voice " == *" $unit "* ]] && unit="buddy@$unit"
+[[ " ears brain spotify hue web voice " == *" $unit "* ]] && unit="buddy@$unit"
 ssh -t "$HOST" journalctl --user-unit "$unit" -n 50 -f
