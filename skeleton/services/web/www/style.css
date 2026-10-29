@@ -231,7 +231,8 @@ input.warmth { accent-color: var(--muted); }
 
 .cog {
   position: fixed;
-  left: max(16px, env(safe-area-inset-left));
+  /* inside a 1100px column: not stuck to the window edge on big screens (% of fixed = viewport w/o scrollbar) */
+  left: max(16px, env(safe-area-inset-left), calc((100% - 1100px) / 2 + 16px));
   bottom: max(16px, env(safe-area-inset-bottom));
   z-index: 3;
   width: 44px;
