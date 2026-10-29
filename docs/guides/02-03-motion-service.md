@@ -73,7 +73,8 @@ ears ─"Cut off Andi's balls."─► brain ─{"action":"gesture","query":"shak
                                                                                   └─► demo −80, +80, −80, +80 (400 ms each), 0, relax
 ```
 
-- brain: one rule (`cut off|of andi's|andy's|andis|andies balls`), intent `gesture`, skill `motion`. The sentence is in
+- brain: one rule (`cut off|of` + ≤ 2 words + `balls`: whisper doesn't know "Andi's" and hears "on these", "undies",
+  "undistballs"), intent `gesture`, skill `motion`. The sentence is in
   `commands.tsv` as set `extra`: brain's corpus test checks it, record.sh never prompts it, train.sh never scores it.
 - motion plays the steps itself (timing independent of MQTT) and speaks the reply (D11). Disconnected Pico: "My motors
   aren't connected."; unknown gesture name: "I don't know that move."

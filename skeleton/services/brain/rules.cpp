@@ -159,9 +159,9 @@ RuleParser::RuleParser() {
     light(R"(turn down {L}|turn {L} down|dim {L}|dim {R})", "darker", 0);
     light(R"((?:turn|make|set|change|switch) {L} (?:to )?(?!(?:up|down|on|off)\b)([a-z ]+))", "color", 1, 2);
 
-    // Demo gesture for friends (motion "shake" on the demo servo); "Andi's" loses its apostrophe in normalize().
-    // Remove with the gesture in 2.5.
-    rules_.push_back({std::regex(R"(cut (off|of) and(i|y|ie)s? balls)"), "gesture", "motion", 0, "shake"});
+    // Demo gesture for friends (motion "shake" on the demo servo). Whisper doesn't know "Andi's": live 2026-10-29 it
+    // heard "on these", "undies", "undistballs", so any ≤ 2 words (or one glued to "balls") count. Remove in 2.5.
+    rules_.push_back({std::regex(R"(cut (off|of) ([a-z]+ ){0,2}[a-z]*balls)"), "gesture", "motion", 0, "shake"});
 
     auto add = [this](const char* pattern, const char* name, int query_group = 0, const char* fixed_query = "") {
         rules_.push_back({std::regex(pattern), name, "spotify", query_group, fixed_query});
