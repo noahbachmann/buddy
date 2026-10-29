@@ -244,15 +244,22 @@ function renderMusic() {
 
 // --- services ---------------------------------------------------------------------------------------------------
 
+// Fixed list: stale retained statuses (removed services, test clients) never show up. Chip online = every member online.
+const SERVICE_CHIPS = [
+  { name: "voice", members: ["ears", "brain", "voice"] },
+  { name: "hue", members: ["hue"] },
+  { name: "spotify", members: ["spotify"] },
+];
+
 function renderServices() {
   const box = $("services");
   box.replaceChildren();
-  const names = Object.keys(state).filter((t) => t.endsWith("/status")).map((t) => t.split("/")[1]).sort();
-  for (const name of names) {
-    const online = state[`buddy/${name}/status`] === "online";
-    const s = state[`buddy/${name}/state`];
-    const detail = online && s && typeof s.state === "string" && s.state !== "idle" ? s.state : "";
-    box.append(el("span", { class: `chip${online ? " online" : ""}`, title: online ? "online" : "offline" },
+  for (const { name, members } of SERVICE_CHIPS) {
+    const offline = members.filter((m) => state[`buddy/${m}/status`] !== "online");
+    const online = offline.length === 0;
+    const busy = members.map((m) => state[`buddy/${m}/state`]?.state).find((v) => typeof v === "string" && v !== "idle");
+    const detail = online && busy ? busy : "";
+    box.append(el("span", { class: `chip${online ? " online" : ""}`, title: online ? "online" : `offline: ${offline.join(", ")}` },
       name, detail && el("span", { class: "detail" }, detail)));
   }
 }

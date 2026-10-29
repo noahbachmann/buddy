@@ -427,8 +427,9 @@ names), `buddy-hue --cmd <action> [query] [room]` (real bridge, no MQTT), `buddy
 ## 1.14 Web panel (D19)
 
 `http://buddy.local:8080` (or the Pi's IP) from a phone or PC on the LAN. Rooms with on/off, brightness, warm↔cool,
-colours and scenes (each room's single lights behind "N lights ▾"); music play/pause/next/previous and volume; a chip per
-service (green = online) with ears/voice activity.
+colours and scenes (each room's single lights behind "N lights ▾"); music play/pause/next/previous and volume; fixed chips
+`voice` (green = ears, brain and voice all online; shows listening/speaking), `hue`, `spotify`. The list lives in
+`SERVICE_CHIPS` in `app.js`: add new services there.
 
 - **web** is an HTTP ⇄ MQTT bridge with no skill logic: it streams every retained `buddy/+/state` and `buddy/+/status` to
   the browser (server-sent events, `/api/events`) and publishes the browser's commands to `buddy/<svc>/cmd`, only for

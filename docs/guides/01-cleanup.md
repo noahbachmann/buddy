@@ -214,7 +214,7 @@ only hands out a key to an app while someone presses it, so nobody on the Wi-Fi 
 ### 13. Panel and voice, live
 
 1. Phone on the home Wi-Fi: `http://buddy.local:8080` (Android without `.local` support: `http://192.168.1.72:8080`).
-   The service chips at the top are green; rooms show their real state.
+   The chips `voice`, `hue`, `spotify` at the top are green (hover a grey one: it names the offline service); rooms show their real state.
 2. Switch a room on the phone → the light follows within ~1 s. Switch it in the Hue app or at the wall → the panel
    follows within ~1 s (eventstream). Drag a brightness slider: smooth, no flicker storm.
 3. Voice, 5× each: "Hey Jarvis, lights off", "… turn on the lights in the \<room\>", "… dim the \<room\> to 30 %",
