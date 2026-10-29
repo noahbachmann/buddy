@@ -40,8 +40,10 @@ async function send(service, cmd) {
       body: JSON.stringify(cmd),
     });
     if (!r.ok) toast((await r.json().catch(() => ({}))).error || `${service}: HTTP ${r.status}`);
+    return r.ok;
   } catch {
     toast("Buddy is not reachable");
+    return false;
   }
 }
 
@@ -327,6 +329,82 @@ function renderLights() {
   for (const room of shown) rooms.append(room.kind === "home" ? homeBar(room, lightsById) : roomCard(room, lightsById));
 }
 
+// --- hue tab: scenes -------------------------------------------------------------------------------------------
+
+let savingScene = null;  // {group, name}: toast once the new scene shows up in the bridge's state
+let sceneGroupsKey = "";
+
+function sceneGroups() {
+  const hs = state["buddy/hue/state"];
+  return hs ? hs.rooms.filter((r) => r.kind !== "home") : [];  // the bridge keeps scenes per room or zone
+}
+
+function sameName(a, b) { return a.trim().toLowerCase() === b.trim().toLowerCase(); }
+
+function renderHue() {
+  const hs = state["buddy/hue/state"];
+  const groups = sceneGroups();
+  const select = $("scene-group");
+  const key = groups.map((g) => `${g.id}:${g.name}`).join("|");
+  if (key !== sceneGroupsKey) {  // rebuilt only when rooms change: an open dropdown survives updates
+    const keep = select.value;
+    select.replaceChildren(...groups.map((g) => el("option", { value: g.id }, g.kind === "zone" ? `${g.name} (zone)` : g.name)));
+    if (groups.some((g) => g.id === keep)) select.value = keep;
+    sceneGroupsKey = key;
+  }
+  const group = groups.find((g) => g.id === select.value);
+
+  const lightsById = hs ? Object.fromEntries(hs.lights.map((l) => [l.id, l])) : {};
+  const lights = group ? group.lights.map((id) => lightsById[id]).filter(Boolean) : [];
+  $("scene-lights").replaceChildren(...(lights.length ? lights.map((l) => el("div", { class: "light", style: lightStyle([l]) },
+    el("div", { class: "row" },
+      el("div", { class: "name" }, l.name, el("small", {}, l.on ? (l.dimming ? `${l.brightness} %` : "on") : "off")),
+      toggle(l.on, `${l.name} on/off`, (on) => hue({ action: on ? "on" : "off", id: l.id }))),
+    lightControls(l, [l], `scene-${l.id}`)))
+    : [el("p", { class: "empty" }, hs ? "No rooms or zones with lights." : "The hue service isn't running.")]));
+
+  if (savingScene) {
+    const g = groups.find((x) => x.id === savingScene.group);
+    if (g && g.scenes.some((s) => sameName(s.name, savingScene.name))) {
+      toast(`Saved ${savingScene.name}`);
+      savingScene = null;
+    }
+  }
+
+  $("scene-list").replaceChildren(...groups.map((g) => el("div", { class: "scene-group" },
+    el("div", { class: "scene-group-name" }, g.name),
+    g.scenes.length ? el("div", { class: "controls" }, g.scenes.map((s) => el("span", { class: "scene-chip" },
+      el("button", {
+        class: "scene-load", title: `Show ${s.name} and load it for editing`,
+        onclick: () => {
+          hue({ action: "scene", query: s.name, id: g.id });
+          select.value = g.id;
+          $("scene-name").value = s.name;
+          render();
+        },
+      }, s.name),
+      el("button", {
+        class: "scene-x", "aria-label": `Delete ${s.name} in ${g.name}`, title: "Delete",
+        onclick: () => {
+          if (confirm(`Delete the scene "${s.name}" in ${g.name}? It's gone from the Hue app too.`)) hue({ action: "scene_delete", id: s.id });
+        },
+      }, "✕"))))
+      : el("span", { class: "muted" }, "no scenes"))));
+}
+
+$("scene-group").addEventListener("change", () => render());
+$("scene-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const group = sceneGroups().find((g) => g.id === $("scene-group").value);
+  const name = $("scene-name").value.trim();
+  if (!group || !name) return;
+  const existing = group.scenes.find((s) => sameName(s.name, name));
+  if (existing && !confirm(`"${existing.name}" already exists in ${group.name}. Replace it with the lights as they are now?`)) return;
+  if (!existing) savingScene = { group: group.id, name };
+  if (await send("hue", { action: "scene_save", query: name, id: group.id }) && existing) toast(`Updated ${existing.name}`);
+  $("scene-name").value = "";
+});
+
 // --- music ------------------------------------------------------------------------------------------------------
 
 function renderMusic() {
@@ -379,9 +457,21 @@ function renderServices() {
 
 function render() {
   renderServices();
-  renderLights();
-  renderMusic();
+  const hue = location.hash === "#hue";
+  $("page-dashboard").hidden = hue;
+  $("page-hue").hidden = !hue;
+  $("customize").hidden = hue;
+  $("tab-dashboard").toggleAttribute("aria-current", !hue);
+  $("tab-hue").toggleAttribute("aria-current", hue);
+  if (hue) {
+    renderHue();
+  } else {
+    renderLights();
+    renderMusic();
+  }
 }
+
+addEventListener("hashchange", () => render());
 
 $("customize").addEventListener("click", (e) => {
   editing = !editing;

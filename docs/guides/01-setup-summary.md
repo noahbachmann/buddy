@@ -395,6 +395,10 @@ Done when: with the box at normal volume, "Hey Jarvis" triggers from 1 m and 2�
   keeps it current, also for changes from the Hue app or wall switches. Renames and new lights → full reload.
 - **Limits:** PUTs to one light at most every 100 ms, to a room or zone (grouped_light) or scene every 1 s (Hue's
   guidance ⚠️ not measured); what piles up for one target merges, so a slider sends its last value.
+- **Scenes:** `scene_save` (web panel's Hue tab, or `--cmd scene_save "<name>" "<room or zone>"`) stores the
+  group's lights as they are now (on/off, brightness, white or colour); a scene of the same name in that group is
+  overwritten, not duplicated. Names up to 32 characters (checked on the bridge). `scene_delete` by id (panel) or
+  `--cmd scene_delete "<name>" "<room>"`. Both show up in the Hue app too. Not by voice.
 - **Who talks:** only hue, and only for errors and status questions. Switching is silent: the light is the answer.
 
 | You say (examples) | Intent → what hue does |
@@ -429,7 +433,9 @@ names), `buddy-hue --cmd <action> [query] [room]` (real bridge, no MQTT), `buddy
 `http://buddy.local:8080` (or the Pi's IP) from a phone or PC on the LAN. Rooms with on/off, brightness, warm↔cool,
 colours and scenes (each room's single lights behind "N lights ▾"), the room and light colour shown on the card border and
 switch; "All lights" is only a thin bar with "Turn off" (switching everything on is left to voice and rooms); ⚙ bottom
-left arranges the rooms (order, hide, add back), saved per browser (`localStorage`, so phone and PC differ); music play/pause/next/previous and volume; fixed chips
+left arranges the rooms (order, hide, add back), saved per browser (`localStorage`, so phone and PC differ); music
+play/pause/next/previous and volume. Tab **Hue** (`#hue`): pick a room or zone, set its lights (live), name, Save →
+scene; scene list per room/zone: tap = recall and load for editing, ✕ = delete (asks first). Fixed chips
 `voice` (green = ears, brain and voice all online; shows listening/speaking), `hue`, `spotify`. The list lives in
 `SERVICE_CHIPS` in `app.js`: add new services there.
 

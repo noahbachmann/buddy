@@ -17,6 +17,12 @@
   </header>
 
   <main>
+    <nav class="tabs" aria-label="Pages">
+      <a href="#" id="tab-dashboard">Dashboard</a>
+      <a href="#hue" id="tab-hue">Hue</a>
+    </nav>
+
+    <div id="page-dashboard">
     <section aria-labelledby="lights-title">
       <div class="section-head">
         <h2 id="lights-title">Lights</h2>
@@ -32,6 +38,33 @@
       </div>
       <div id="music" class="card music"></div>
     </section>
+    </div>
+
+    <!-- static form: re-renders on every state update would drop focus and typed text -->
+    <div id="page-hue" hidden>
+    <section aria-labelledby="new-scene-title">
+      <div class="section-head">
+        <h2 id="new-scene-title">New scene</h2>
+        <span class="muted">set the lights, then save them as they are</span>
+      </div>
+      <div class="card">
+        <select id="scene-group" class="field" aria-label="Room or zone"></select>
+        <div id="scene-lights" class="lights"></div>
+        <form id="scene-form" class="row scene-form">
+          <input id="scene-name" class="field" maxlength="32" placeholder="Scene name" aria-label="Scene name" autocomplete="off" required>
+          <button class="text-btn primary" type="submit">Save</button>
+        </form>
+      </div>
+    </section>
+
+    <section aria-labelledby="scenes-title">
+      <div class="section-head">
+        <h2 id="scenes-title">Scenes</h2>
+        <span class="muted">tap one to load it for editing</span>
+      </div>
+      <div id="scene-list" class="card"></div>
+    </section>
+    </div>
   </main>
 
   <button id="customize" class="cog" aria-label="Arrange rooms" title="Arrange rooms" aria-pressed="false">⚙</button>
