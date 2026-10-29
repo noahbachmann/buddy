@@ -100,6 +100,23 @@ function throttled(key, ms, fn) {
   }
 }
 
+// Light values a slider just set, shown until the state reports them. hue sends a room at most 1/s and the bridge
+// reports each step ~1 s later: a slider let go at 70 % saw 30 → 45 → 60 → 70 meanwhile and jumped back
+// (measured 2026-10-30). Kept 5 s at most: a light may clamp it (2000 K on a 2200 K lamp) and never report it.
+const sent = new Map();  // "b:<id>" / "t:<id>" → { value, tol, until }
+function hold(key, value, tol) {
+  const until = Date.now() + 5000;
+  sent.set(key, { value, tol, until });
+  setTimeout(() => { if (sent.get(key)?.until === until) { sent.delete(key); rebuild(); } }, 5050);
+}
+function held(key, reported) {
+  const s = sent.get(key);
+  if (!s) return reported;
+  if (Math.abs(reported - s.value) <= s.tol) sent.delete(key);  // caught up (rooms report an average: ±tol)
+  return s.value;
+}
+const shownBrightness = (t) => held(`b:${t.id}`, t.brightness);
+
 // RFC 6902 as the web service sends it (nlohmann's json::diff: add, remove, replace; JSON Pointer paths). Returns the
 // patched value (changed in place); throws when the patch doesn't fit `doc`.
 function applyPatch(doc, ops) {
@@ -257,18 +274,24 @@ function lightControls(target, lights, key) {
   const white = lights.some((l) => l.temperature);
   if (target.on && dimmable) {
     nodes.push(el("div", { class: "row" }, slider({
-      min: 1, max: 100, value: Math.max(1, target.brightness), label: `${target.name} brightness`,
+      min: 1, max: 100, value: Math.max(1, shownBrightness(target)), label: `${target.name} brightness`,
       format: (v) => `${v} %`,
-      onInput: (v) => throttled(`b-${key}`, 300, () => hue({ action: "brightness", query: String(v), id: target.id })),
+      onInput: (v) => {
+        hold(`b:${target.id}`, v, 1);
+        throttled(`b-${key}`, 300, () => hue({ action: "brightness", query: String(v), id: target.id }));
+      },
     })));
   }
   if (target.on && white) {
     const mireks = lights.filter((l) => l.mirek).map((l) => l.mirek);
     const mirek = mireks.length ? mireks.reduce((a, b) => a + b) / mireks.length : 370;
     nodes.push(el("div", { class: "row" }, slider({
-      min: 2000, max: 6500, value: Math.round(1e6 / mirek / 100) * 100, label: `${target.name} warm to cool`,
+      min: 2000, max: 6500, value: held(`t:${target.id}`, Math.round(1e6 / mirek / 100) * 100), label: `${target.name} warm to cool`,
       format: (v) => `${v} K`, cls: "warmth",
-      onInput: (v) => throttled(`t-${key}`, 300, () => hue({ action: "temperature", query: String(v), id: target.id })),
+      onInput: (v) => {
+        hold(`t:${target.id}`, v, 100);
+        throttled(`t-${key}`, 300, () => hue({ action: "temperature", query: String(v), id: target.id }));
+      },
     })));
   }
   if (colour) {
@@ -285,7 +308,7 @@ function roomCard(room, lightsById) {
   const lights = room.lights.map((id) => lightsById[id]).filter(Boolean);
   const onCount = lights.filter((l) => l.on).length;
   const sub = lights.length === 0 ? "no lights"
-    : room.on ? `${onCount} of ${lights.length} on · ${room.brightness} %` : `${lights.length} light${lights.length > 1 ? "s" : ""} · off`;
+    : room.on ? `${onCount} of ${lights.length} on · ${shownBrightness(room)} %` : `${lights.length} light${lights.length > 1 ? "s" : ""} · off`;
   const card = el("article", { class: `card${room.on ? " lit" : ""}`, "aria-label": room.name, style: lightStyle(lights) },
     el("div", { class: "row" },
       el("div", { class: "name" }, room.name, el("small", {}, room.kind === "zone" ? `zone · ${sub}` : sub)),
@@ -307,7 +330,7 @@ function roomCard(room, lightsById) {
     if (open) {
       card.append(el("div", { class: "lights" }, lights.map((l) => el("div", { class: "light", style: lightStyle([l]) },
         el("div", { class: "row" },
-          el("div", { class: "name" }, l.name, el("small", {}, l.on ? (l.dimming ? `${l.brightness} %` : "on") : "off")),
+          el("div", { class: "name" }, l.name, el("small", {}, l.on ? (l.dimming ? `${shownBrightness(l)} %` : "on") : "off")),
           toggle(l.on, `${l.name} on/off`, (on) => hue({ action: on ? "on" : "off", id: l.id }))),
         lightControls(l, [l], `${room.id}-${l.id}`)))));
     }
@@ -430,7 +453,7 @@ function renderHue() {
   const lights = group ? group.lights.map((id) => lightsById[id]).filter(Boolean) : [];
   keyed($("scene-lights"), lights.length ? lights.map((l) => [l.id, JSON.stringify(l), () => el("div", { class: "light", style: lightStyle([l]) },
     el("div", { class: "row" },
-      el("div", { class: "name" }, l.name, el("small", {}, l.on ? (l.dimming ? `${l.brightness} %` : "on") : "off")),
+      el("div", { class: "name" }, l.name, el("small", {}, l.on ? (l.dimming ? `${shownBrightness(l)} %` : "on") : "off")),
       toggle(l.on, `${l.name} on/off`, (on) => hue({ action: on ? "on" : "off", id: l.id }))),
     lightControls(l, [l], `scene-${l.id}`))])
     : [emptyNote(hs ? "No rooms or zones with lights." : "The hue service isn't running.")]);

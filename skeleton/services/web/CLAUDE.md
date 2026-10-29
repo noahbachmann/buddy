@@ -19,7 +19,7 @@ with their retained state. User-facing behaviour and troubleshooting: `docs/guid
 | Section | What |
 |---|---|
 | core | `state` (topic → payload), `el()` DOM builder, `keyed(container, [key, sig, make])`: rebuilds only children whose `sig` (JSON of their inputs) changed, `rebuild()` forgets that cache (snaps an optimistic switch back after a failed command) |
-| talking to Buddy | `send(svc, cmd)` → POST, toast on error; `throttled()` for sliders (≤ 1 cmd per interval, always the last value); `applyPatch()`; `connect()`: EventSource, on a patch that doesn't fit it reconnects (new stream = full payloads) |
+| talking to Buddy | `send(svc, cmd)` → POST, toast on error; `throttled()` for sliders (≤ 1 cmd per interval, always the last value); `hold()`/`held()`: a light slider's value wins over lagging hue states until reported (≤ 5 s); `applyPatch()`; `connect()`: EventSource, on a patch that doesn't fit it reconnects (new stream = full payloads) |
 | widgets, lights | toggles/sliders (`interacting` > 0 blocks re-render while a finger holds a slider), light colour from `mirek`/`xy`, room cards, "All lights" bar, room layout (order/hidden) in `localStorage` key `buddy.lights.layout` |
 | hue tab | `#hue`: scene editor and list (`scene_save` / `scene_delete`, `savingScene` toasts once the bridge reports it) |
 | music | Spotify card from `buddy/spotify/state`, progress bar runs locally from `progress.at`; `watchSpotify()` POSTs `{"action":"watch"}` every 20 s while the dashboard is visible (spotify only polls Spotify while watched) |
