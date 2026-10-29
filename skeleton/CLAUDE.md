@@ -17,7 +17,7 @@ Roadmap, decisions and conventions: `../CLAUDE.md`.
 
 | File | What |
 |---|---|
-| `topics.json` | All topic names (single source). CMake generates `build/shared/include/buddy/topics.hpp` from it (`topics.hpp.in`), incl. `topic::commands` (command topics in use: what web may publish) |
+| `topics.json` | All topic names (single source). CMake generates `build/shared/include/buddy/topics.hpp` from it (`topics.hpp.in`), incl. `topic::commands` (command topics in use and not `"web": false`: what web may publish) |
 | `src/topics.cpp` | Wildcard `matches()` |
 | `mqtt.*` | Paho wrapper: client id `buddy-<svc>`, retained status + last will, resubscribe on reconnect, backoff, exceptions contained |
 | `systemd.*` | READY / WATCHDOG (rate-limited) / STATUS via `$NOTIFY_SOCKET`; no-op outside systemd |
@@ -38,6 +38,7 @@ Roadmap, decisions and conventions: `../CLAUDE.md`.
 | hue | `bridge` (CLIP v2 on `Http`: TLS by bridge id + compiled-in root CA, pairing, discovery, key file), `home` (rooms/zones/lights/scenes from `/clip/v2/resource`, eventstream updates, `find()` by spoken name: room > zone > light), `lights` (`plan()`: command → PUT requests + reply, no I/O), `sse` (event parser), `throttle` (per-resource interval, merges piled-up bodies); main: eventstream thread → queue | `--pair`, `--cmd <action> [query] [device]`, `--cmd list` |
 | web | `state` (`StateStore`: last payload per topic + version, `wait()` for event streams), `access` (Host allowlist against DNS rebinding, same-origin + JSON-only POSTs, command topics from `topic::commands`), `server` (cpp-httplib routes: static `www/`, `/api/state`, `/api/events` SSE, `POST /api/cmd/<svc>`) = `web_core`; `www/` vanilla HTML/CSS/JS, no build step | – (tests run a real server on a free port) |
 | voice | `tts` (libpiper, sentence streaming), `audio_sink` (ALSA per utterance / WAV) | `--say "…" [--wav out.wav]` |
+| motion | `joints` (table: name → channel/µs, `plan_move()` clamps + speed cap; `demo` on ch0 until 2.5), `gestures` (steps + spoken reply, `GesturePlayer` timing), `command` (cmd JSON), `serial_link` (termios + flock, reader thread, id-matched replies 500 ms, `* …` events queue, handshake HELLO → LIMITs, lost after I/O error / 3 timeouts) = `motion_core`; main: reconnect 1 → 10 s, PING 500 ms, unexpected `* BOOT` = re-handshake, `RELAX *` on stop | `--cmd move\|center\|relax\|gesture …`, `--raw "<id> <line>"` |
 
 ## firmware/pico-motion (Pico 2, own CMake project, `deploy.sh --firmware`)
 
@@ -54,7 +55,7 @@ No unit tests on the Pico: the logic that can break (protocol) lives in the shar
 
 | File | What |
 |---|---|
-| `commands.tsv` | Corpus: set, sentence, intent, query, device. Prompts, brain corpus test, intent scoring |
+| `commands.tsv` | Corpus: set (train/test/wake/extra = brain test only), sentence, intent, query, device. Prompts, brain corpus test, intent scoring |
 | `buddy_voice/data.py` | `~/buddy-voice` layout, sessions, import of old record-voice.sh data, check, trimmed cache |
 | `vad.py`, `audio.py` | Silero trimming like ears; WAV I/O; `auto_audio_ctx` (= `stt.hpp`, both checked against `audio_ctx.json`) |
 | `train.py` | HF Whisper fine-tune: sentence-level validation split, short-context encoder (`short_context()`), greedy validation |
@@ -71,6 +72,7 @@ built), pytest, shellcheck. `deploy/test.sh --pi`: the C++ tests on the Pi (`~/b
 | `shared/tests/` | gtest: topics, config, motion protocol, queue, MQTT round trip (localhost broker, skipped without), systemd (own exe: process-wide state) |
 | `shared/tests/cases/*.json` | Cases both languages check (`cases.hpp` / plain `json.load`): topic matching, `BUDDY_*` parsing, `audio_ctx` |
 | `services/<svc>/tests/` | gtest, `test_<unit>.cpp` → `buddy-<svc>-tests`, linked against `<svc>_core` (the service's logic without main/hardware) |
+| `services/motion/tests/test_serial_link.cpp` | `FakePico` on a pseudo-terminal (`openpty`): answers with the shared protocol code like the firmware |
 | `shared/tests/fake_http.hpp` | `FakeHttp`: canned responses per `"METHOD /path"` (URL prefix → path mapping per service, e.g. `fake_spotify.hpp`), records requests; temp dir for token/state files |
 | `shared/python/tests/`, `tools/voice/tests/` | pytest, `test_<module>.py` |
 

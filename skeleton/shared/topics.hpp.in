@@ -20,7 +20,7 @@ inline std::string status(std::string_view service) {
 }
 
 @TOPIC_CONSTANTS@
-// Every command topic in use (not "planned"): what the web panel may publish.
+// Every command topic in use (not "planned", not "web": false): what the web panel may publish.
 inline constexpr std::string_view commands[] = {
 @TOPIC_COMMANDS@};
 

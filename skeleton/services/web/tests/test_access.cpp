@@ -24,7 +24,7 @@ TEST(Access, CommandTopics) {
     EXPECT_EQ(command_topic("hue"), "buddy/hue/cmd");
     EXPECT_EQ(command_topic("spotify"), "buddy/spotify/cmd");
     EXPECT_EQ(command_topic("voice"), std::nullopt);   // voice/say isn't a …/cmd
-    EXPECT_EQ(command_topic("motion"), std::nullopt);  // planned
+    EXPECT_EQ(command_topic("motion"), std::nullopt);  // web: false (moves things)
     EXPECT_EQ(command_topic("ears"), std::nullopt);
 }
 

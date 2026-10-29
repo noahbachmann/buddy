@@ -4,7 +4,7 @@
 //    reach the panel through a DNS name of its own that points at the Pi (DNS rebinding).
 //  - Commands need Content-Type application/json and, if the browser sends one, an Origin equal to the Host:
 //    another site open in the same browser can't send a "simple" cross-site POST.
-//  - Only buddy/<service>/cmd topics in topics.json (not planned) can be published.
+//  - Only buddy/<service>/cmd topics in topics.json (not planned, not "web": false) can be published.
 
 #include <optional>
 #include <string>

@@ -5,7 +5,7 @@
 ## Goal
 
 `[motion]`, a C++ service on the Pi, turns MQTT commands into the Pico's serial protocol (2.2). The rest of Buddy speaks
-in joints and degrees (`head_pan: 30`). Only motion knows channels, microseconds and the serial port.
+in joints and degrees (`demo: 30`). Only motion knows channels, microseconds and the serial port.
 
 ```
  any service ──buddy/motion/cmd──► [motion] ──/dev/buddy-pico (protocol v1)──► Pico ──► servos
@@ -15,7 +15,8 @@ in joints and degrees (`head_pan: 30`). Only motion knows channels, microseconds
 
 **Done when:**
 
-- `mosquitto_pub -t buddy/motion/cmd -m '{"action":"move","joints":{"head_pan":30},"ms":500}'` turns the servo.
+- `mosquitto_pub -t buddy/motion/cmd -m '{"action":"move","joints":{"demo":30},"ms":500}'` turns the servo.
+- "Hey Jarvis, cut off Andi's balls" → Buddy says "As you wish." and the ch0 servo swings left, right, left, right.
 - Unplugging the Pico sets `connected:false`; replugging it recovers without a restart.
 - Stopping the service makes the servos go limp within 2 s.
 - `deploy/test.sh --pi` passes, including the new motion tests.
@@ -31,40 +32,58 @@ in joints and degrees (`head_pan: 30`). Only motion knows channels, microseconds
 
 A joint table in code (`services/motion/joints.cpp`) is the only place that maps names to hardware:
 
-| Field | head_pan | head_tilt | Meaning |
+| Field | demo | head_tilt | Meaning |
 |---|---|---|---|
 | `channel` | 0 (GP2) | 1 (GP3) | Pico channel (2.2 pinout) |
-| `min_us` / `max_us` | 1000 / 2000 ⚠️ | 1100 / 1900 ⚠️ | Sent as `LIMIT` on every connect; the Pico enforces them |
+| `min_us` / `max_us` | 700 / 2300 ⚠️ | 1100 / 1900 ⚠️ | Sent as `LIMIT` on every connect; the Pico enforces them |
 | `center_us` | 1500 ⚠️ | 1500 ⚠️ | 0° |
 | `us_per_deg` | 10 ⚠️ | 10 ⚠️ | MG90S ≈ 2000 µs over 180° ⚠️ |
-| `max_deg_per_s` | 120 | 90 | Speed cap: the service stretches `ms` if a move would be faster |
+| `max_deg_per_s` | 400 | 90 | Speed cap: the service stretches `ms` if a move would be faster |
 
-The ⚠️ values get measured in 2.5 once the servos sit in the head. The table is code, not `buddy.env`: it describes this
+`demo` is the loose servo on ch0 for the demo gesture below (±80°, no horn, nothing to jam), not a body joint. In 2.5
+`head_pan` (1000 / 2000 µs, 120°/s ⚠️) takes ch0 and the `demo` row goes together with the gesture. The ⚠️ values get
+measured in 2.5 once the servos sit in the head. The table is code, not `buddy.env`: it describes this
 robot's mechanics, not a host, and changes with the CAD, so it belongs in Git next to it. Degrees outside the joint's
 range are clamped by the service; µs outside the limits are clamped again by the Pico.
 
 ### Topics (`shared/topics.json`; drop `"planned"`)
 
 ```json
-{"name": "motion_cmd",   "topic": "buddy/motion/cmd",   "kind": "command",
- "payload": ["action: move|center|relax", "[joints: {name: deg}]", "[ms]"]},
+{"name": "motion_cmd",   "topic": "buddy/motion/cmd",   "kind": "command", "web": false,
+ "payload": ["action: move|center|relax|gesture", "[joints: {name: deg}]", "[ms]", "[query: gesture name]"]},
 {"name": "motion_state", "topic": "buddy/motion/state", "kind": "event", "retained": true,
- "payload": ["connected", "joints: {name: deg|null}"]}
+ "payload": ["connected", "joints: {name: deg|null}", "gesture: name|null"]}
 ```
+
+`"web": false` keeps motion off the web panel: it has no login (D19), and nothing that moves goes on it before auth.
 
 | Command | Effect |
 |---|---|
-| `{"action":"move","joints":{"head_pan":30,"head_tilt":-10},"ms":400}` | All listed joints move together and arrive at the same time (`ms` stretched by the slowest joint's speed cap). `ms` default 300 |
-| `{"action":"center"}` / `{"action":"center","joints":{"head_pan":0}}` | All / the listed joints to 0° (the values in `joints` are ignored) |
+| `{"action":"move","joints":{"demo":30,"head_tilt":-10},"ms":400}` | All listed joints move together and arrive at the same time (`ms` stretched by the slowest joint's speed cap). `ms` default 300 |
+| `{"action":"center"}` / `{"action":"center","joints":{"demo":0}}` | All / the listed joints to 0° (the values in `joints` are ignored) |
 | `{"action":"relax"}` | All servos limp |
+| `{"action":"gesture","query":"shake"}` | Plays a gesture from `gestures.cpp`, publishes its reply to `buddy/voice/say`. Any valid command cancels it |
 
-A multi-joint `move` is already what a Phase 3 pose or gesture step is. No new action is needed there, only callers that
-send sequences.
+### Demo gesture: "Hey Jarvis, cut off Andi's balls"
+
+A showcase for friends, removed in 2.5 with the `demo` joint:
+
+```
+ears ─"Cut off Andi's balls."─► brain ─{"action":"gesture","query":"shake"}─► motion ─► voice/say "As you wish."
+                                                                                  └─► demo −80, +80, −80, +80 (400 ms each), 0, relax
+```
+
+- brain: one rule (`cut off|of andi's|andy's|andis|andies balls`), intent `gesture`, skill `motion`. The sentence is in
+  `commands.tsv` as set `extra`: brain's corpus test checks it, record.sh never prompts it, train.sh never scores it.
+- motion plays the steps itself (timing independent of MQTT) and speaks the reply (D11). Disconnected Pico: "My motors
+  aren't connected."; unknown gesture name: "I don't know that move."
+
+A multi-joint `move` is what a gesture step is; Phase 3 gestures (wave, high five) become rows in the gesture table.
 
 `motion_state` is published on change only: (dis)connect, an accepted move (targets), relax. A relaxed or unknown joint is
 `null`. After a reconnect every joint is `null` until the next command: the service doesn't know where an unpowered servo
 was left, and doesn't move anything unasked. Unknown joint names, bad JSON or a command while disconnected are logged
-once and dropped. No error topic: nobody would consume it yet.
+and dropped (a gesture says why). No error topic: nobody would consume it yet.
 
 ### Inside the service
 
@@ -74,9 +93,11 @@ Pattern from `skeleton/CLAUDE.md`. New files in `services/motion/`:
 |---|---|
 | `main.cpp` | Flags, config, `Mqtt("motion", …)`, main loop: `notify_watchdog()`, `BlockingQueue::pop(200 ms)` for MQTT commands, PING every 500 ms, state publishing |
 | `serial_link.hpp/.cpp` | termios (raw, 115200 nominal: CDC ignores the baud rate), a reader thread that splits lines and matches `<id>` replies to waiting requests (timeout 500 ms), unsolicited `*` lines into a queue. Open → `HELLO` (protocol version must be 1, else log and retry slowly) → `LIMIT` per joint → connected |
-| `joints.hpp/.cpp` | Table above; `deg → µs` with clamping; the speed cap |
+| `joints.hpp/.cpp` | Table above; `deg → µs` with clamping; `plan_move()` with the speed cap (unknown position = worst case over the range) |
+| `gestures.hpp/.cpp` | Gesture table (steps + reply) and `GesturePlayer` (when the next step is due; no I/O) |
+| `command.hpp/.cpp` | `buddy/motion/cmd` JSON → `Command` |
 | `motion_protocol.hpp` | Shared with the firmware (2.2, `shared/include/buddy/`) |
-| `tests/test_joints.cpp`, `tests/test_serial_link.cpp` | GoogleTest against `motion_core` (= `serial_link` + `joints`), see Steps 4 |
+| `tests/test_*.cpp` | GoogleTest against `motion_core` (= everything but `main.cpp`), see Steps 4 |
 
 **Pico missing ≠ crash.** Without `/dev/buddy-pico` the service stays up, `status` stays `online`, `state.connected` is
 `false`, and it retries the port with backoff 1 → 10 s. A crash loop would restart and fail every 30 s and fill the
@@ -99,9 +120,10 @@ via the handshake. The Pico relaxes by itself 2 s after the last PING, so a hung
 ### Offline entry points (no MQTT, print instead of publish)
 
 ```bash
-buddy-motion --cmd move head_pan=30 head_tilt=-10 --ms 400
+buddy-motion --cmd move demo=30 head_tilt=-10 --ms 400
 buddy-motion --cmd center
 buddy-motion --cmd relax
+buddy-motion --cmd gesture shake                   # prints the reply instead of speaking it
 buddy-motion --raw "1 MOVE 0 1500 300"     # one protocol line, prints the reply
 ```
 
@@ -111,7 +133,7 @@ Claude writes the code; you run the checks.
 
 1. **Code:** `services/motion/` as above, plus `add_subdirectory(services/motion)` in `CMakeLists.txt` and
    `install(TARGETS buddy-motion … COMPONENT motion)` (no new libraries: termios is libc). Joints and the serial link go
-   into `motion_core`, which the service and `buddy_add_tests(motion tests/test_joints.cpp tests/test_serial_link.cpp …)`
+   into `motion_core`, which the service and `buddy_add_tests(motion tests/test_*.cpp …)`
    link.
 2. **Topics:** `motion_cmd`/`motion_state` in `topics.json` as above (the `Topics` tests check the generated header).
 3. **Deploy wiring:** `motion` in `SERVICES` in `deploy/deploy.sh`, env keys in `buddy.env.example` (`setup.sh check`
@@ -123,9 +145,11 @@ Claude writes the code; you run the checks.
    |---|---|
    | `MotionProtocol` (`shared/tests/`) | from 2.2: format/parse round trips, malformed lines |
    | `MotionJoints` | deg → µs, clamping at both ends, speed cap stretches `ms`, multi-joint moves arrive together |
+| `MotionGestures`, `MotionCommand` | gesture table uses real joints within range and ends limp, player timing, command JSON |
+| `RuleParser.DemoGesture`, corpus `extra` rows | brain: the phrase and whisper's spellings of "Andi's" |
    | `MotionLink` | `serial_link` against a fake Pico on a pseudo-terminal (`openpty`): handshake sends every `LIMIT`, reply matching, timeout → disconnect, `* BOOT` → re-handshake |
 
-5. **Deploy:** stop anything holding the port, then `deploy/deploy.sh motion`. Expected: `buddy@motion active`.
+5. **Deploy:** stop anything holding the port, then `deploy/deploy.sh motion brain`. Expected: `buddy@motion active`.
 6. **Run the checks below.**
 
 ## Verify
@@ -136,18 +160,20 @@ Watch everything in one terminal:
 ssh buddy "mosquitto_sub -v -t 'buddy/motion/#'"
 ```
 
-Expected right after the deploy: `buddy/motion/status online` and `buddy/motion/state {"connected":true,"joints":{"head_pan":null,"head_tilt":null}}`.
+Expected right after the deploy: `buddy/motion/status online` and `buddy/motion/state {"connected":true,"gesture":null,"joints":{"demo":null,"head_tilt":null}}`.
 
 | # | Do | Expected |
 |---|---|---|
-| 1 | `ssh buddy "mosquitto_pub -t buddy/motion/cmd -m '{\"action\":\"move\",\"joints\":{\"head_pan\":30},\"ms\":500}'"` | Servo 0 turns in ~0.5 s, state shows `head_pan: 30` |
-| 2 | Same with `"head_pan":200` | Stops at the joint's end, state shows the clamped angle |
-| 3 | `{"action":"move","joints":{"head_pan":-30,"head_tilt":10},"ms":50}` | Both move, slower than 50 ms (speed cap), arriving together |
+| 1 | `ssh buddy "mosquitto_pub -t buddy/motion/cmd -m '{\"action\":\"move\",\"joints\":{\"demo\":30},\"ms\":500}'"` | Servo 0 turns in ~0.5 s, state shows `demo: 30` |
+| 2 | Same with `"demo":200` | Stops at the joint's end, state shows the clamped angle |
+| 3 | `{"action":"move","joints":{"demo":-30,"head_tilt":10},"ms":50}` | Both move (head_tilt only if a servo sits on ch1), slower than 50 ms (speed cap), arriving together |
 | 4 | Unplug the Pico's USB | `connected:false` within ~1 s; `deploy/status.sh` still shows `buddy@motion active` |
 | 5 | Plug it back in | `connected:true` within ~10 s, joints `null`; a move works again |
 | 6 | `ssh buddy systemctl --user stop buddy@motion` | Servos limp (immediate `RELAX *`); status `offline` |
 | 7 | `ssh buddy systemctl --user kill -s KILL buddy@motion` | Servos limp after ≤ 2 s (Pico link watchdog); systemd restarts the service |
 | 8 | `deploy/logs.sh motion` after a few minutes idle | Nothing new in steady state (PINGs are not logged) |
+| 9 | Say "Hey Jarvis, cut off Andi's balls." | "As you wish.", servo 0 swings left, right, left, right (~2 s), back to center, goes limp; state shows `gesture: shake` meanwhile |
+| 10 | Same with the Pico unplugged | "My motors aren't connected." |
 
 ## Troubleshooting
 
@@ -158,6 +184,8 @@ Expected right after the deploy: `buddy/motion/status online` and `buddy/motion/
 | Handshake fails with `protocol version` | Firmware older than the service: `deploy/deploy.sh --firmware` |
 | Servos limp after ~2 s even while the service runs | PINGs aren't arriving: main loop blocked (check the watchdog log) or `BUDDY_MOTION_DEBUG=1` to see the traffic |
 | A joint moves the wrong way | Swap the sign in its `us_per_deg` (calibration, 2.5) |
+| Servo buzzes or strains at ±80° in the demo | The MG90S's travel ends earlier: narrow `demo`'s `min_us`/`max_us` in `joints.cpp` |
+| "Sorry, I didn't catch that." for the demo | `deploy/logs.sh brain` shows the transcript: add whisper's spelling to the rule in `rules.cpp` |
 | Killed every 60 s by the systemd watchdog | A blocking serial call in the main loop: serial I/O belongs on the reader thread |
 
 ## Notes for later phases

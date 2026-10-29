@@ -40,7 +40,7 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 |---|---|---|
 | 1 – Voice | 1.1 – 1.12 Hardware, OS, audio, skeleton, wake word, STT, brain, Spotify, voice, background music, boot | ✅ |
 | 1 – Voice (extra) | 1.13 Hue lights, 1.14 web panel: code deployed, waiting for pairing and the live test (`01-cleanup.md` steps 12–13) | 🟨 |
-| 2 – Head | 2.2 motion controller: Pi setup, firmware and flash done; servo test with picocom (guide step 9) open | 🟨 |
+| 2 – Head | 2.2 motion controller: Pi setup, firmware and flash done; servo test with picocom (guide step 9) open. 2.3 motion service + demo gesture ("cut off Andi's balls"): code and tests done, deploy and Verify on the Pi open | 🟨 |
 | 3 – Hand | 3.1 – 3.4 | ⬜ |
 | 4 – Arm & vision | 4.1 – 4.3 | ⬜ |
 
@@ -74,7 +74,7 @@ panel test).
 | D17 | Motion controller | Raspberry Pi Pico 2 H on the Pi's USB, servos on its GPIO hardware PWM (50 Hz, 16 outputs), no PCA9685. Firmware C++ with Pico SDK 2.3.1 (FetchContent) in `skeleton/firmware/pico-motion` (one folder per Pico role: `pico-<job>`; this one drives every servo: head, hand, arm), built and flashed on the Pi (`deploy.sh --firmware`, picotool 2.3.1 in `/opt/picotool`). Text protocol v1 over USB CDC (`/dev/buddy-pico`), header shared with motion. The Pico enforces per-channel pulse limits and relaxes all servos 2 s after the last command. Servo power: separate 5 V supply, shared ground, never via the Pi or the Pico's VBUS/VSYS. | ✅ |
 
 | D18 | Lights | Philips Hue via the Hue Bridge's local CLIP v2 API (no cloud, no Hue account): service `hue`. TLS verified against Hue's `root-bridge` CA (compiled in) with the bridge id as host name (`CURLOPT_RESOLVE` → bridge IP). Application key from `buddy-hue --pair` (link button) in `~/buddy/config/hue.json`. Live state from the bridge's eventstream → retained `buddy/hue/state`. Hue Bridge Pro would need its newer CA ⚠️. | ✅ |
-| D19 | Web panel | Service `web` (C++, cpp-httplib pinned via FetchContent): static page + HTTP⇄MQTT bridge, no skill logic. Retained `buddy/+/state` and `/status` → browser (server-sent events); `POST /api/cmd/<svc>` → `buddy/<svc>/cmd` (non-planned command topics only). `http://buddy.local:8080`, LAN only, **no login**: Host allowlist (IP, `*.local`, `BUDDY_WEB_HOSTS`) against DNS rebinding, JSON-only same-origin POSTs against other sites in the same browser. Add auth before anything that moves (motion) goes on the page. | ✅ |
+| D19 | Web panel | Service `web` (C++, cpp-httplib pinned via FetchContent): static page + HTTP⇄MQTT bridge, no skill logic. Retained `buddy/+/state` and `/status` → browser (server-sent events); `POST /api/cmd/<svc>` → `buddy/<svc>/cmd` (non-planned command topics only). `http://buddy.local:8080`, LAN only, **no login**: Host allowlist (IP, `*.local`, `BUDDY_WEB_HOSTS`) against DNS rebinding, JSON-only same-origin POSTs against other sites in the same browser. Add auth before anything that moves (motion) goes on the page: `"web": false` in topics.json keeps `buddy/motion/cmd` off it. | ✅ |
 
 Update this table when a decision is made or changed.
 
@@ -173,7 +173,7 @@ buddy/
 │   │   ├── spotify/         ← Spotify skill, ducking the music box
 │   │   ├── hue/             ← Hue lights skill (Hue Bridge, local API)
 │   │   ├── web/             ← web panel: HTTP ⇄ MQTT bridge + www/ page
-│   │   └── motion/          ← joints → Pico serial protocol (planned)
+│   │   └── motion/          ← joints → Pico serial protocol, gestures
 │   ├── tools/voice/         ← commands.tsv (corpus) + buddy_voice (record/train/eval, runs on the PC)
 │   ├── firmware/pico-motion/ ← Pico 2 firmware: all servos (separate CMake project, D17)
 │   └── deploy/              ← PC scripts; pi/ = scripts that run on the Pi; config/ = units, env example, PipeWire
