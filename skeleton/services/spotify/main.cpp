@@ -133,6 +133,7 @@ int serve(Player& player, Auth& auth, const Config& cfg) {
     // Spotify has no push: poll while a panel is open (watched_until), else stay quiet.
     const auto poll_every = std::chrono::seconds(std::max(cfg.poll_s, 1));
     auto watched_until = Clock::now(), next_poll = Clock::now();
+    Expected expected;
 
     // Duck on the first sign of activity (the wake word); restore after hold_ms of quiet, which covers the gap
     // between the transcript and the reply (brain → spotify → voice) so the music doesn't jump up and down.
@@ -156,6 +157,7 @@ int serve(Player& player, Auth& auth, const Config& cfg) {
         }
         if (Clock::now() < watched_until && Clock::now() >= next_poll) {
             if (auto fresh = player.snapshot()) {
+                expected.apply(*fresh, Clock::now());
                 (*fresh)["progress"] = progress_to_publish(state, *fresh);
                 for (const auto& [key, value] : fresh->items()) state[key] = value;
             }
@@ -184,8 +186,9 @@ int serve(Player& player, Auth& auth, const Config& cfg) {
                   << (cmd->device_id.empty() ? "" : " on " + cmd->device_id) << (r.ok ? " ok" : " failed") << " (" << ms.count() << " ms)" << std::endl;
 
         if (!r.say.empty()) mqtt.publish(topic::voice_say, json{{"text", r.say}}.dump(), 1);
-        if (r.playing) state["playing"] = *r.playing;
-        if (r.volume) state["volume"] = *r.volume;
+        const auto until = Clock::now() + std::chrono::seconds(8);
+        if (r.playing) expected.set("playing", state["playing"] = *r.playing, until);
+        if (r.volume) expected.set("volume", state["volume"] = *r.volume, until);
         publish_state();
         // Spotify shows a change about a second later
         if (Clock::now() < watched_until) next_poll = std::min(next_poll, Clock::now() + std::chrono::milliseconds(1500));

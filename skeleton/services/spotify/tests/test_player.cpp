@@ -334,3 +334,26 @@ TEST(ProgressToPublish, KeptWhileItExtrapolates) {
     EXPECT_EQ(progress_to_publish(old, other)["ms"], 15000);
     EXPECT_TRUE(progress_to_publish(old, json{{"progress", nullptr}}).is_null());  // nothing playing
 }
+
+TEST(Expected, HoldsACommandedValueUntilThePollShowsIt) {
+    using namespace std::chrono_literals;
+    const auto t0 = Expected::Clock::now();
+    Expected e;
+    e.set("volume", 64, t0 + 8s);
+
+    json lagging = {{"volume", 66}, {"playing", true}};
+    e.apply(lagging, t0 + 1s);
+    EXPECT_EQ(lagging["volume"], 64);  // old value still reported: held
+    EXPECT_EQ(lagging["playing"], true);
+
+    json caught_up = {{"volume", 64}};
+    e.apply(caught_up, t0 + 2s);
+    json later = {{"volume", 50}};  // changed on the phone afterwards: shown
+    e.apply(later, t0 + 3s);
+    EXPECT_EQ(later["volume"], 50);
+
+    e.set("volume", 30, t0 + 8s);
+    json rounded = {{"volume", 31}};  // never matches: shown once the time is up
+    e.apply(rounded, t0 + 9s);
+    EXPECT_EQ(rounded["volume"], 31);
+}

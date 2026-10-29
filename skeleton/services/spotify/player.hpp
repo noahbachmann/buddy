@@ -13,6 +13,7 @@
 // not the ducked one.
 
 #include <chrono>
+#include <map>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -134,6 +135,27 @@ private:
     std::chrono::steady_clock::time_point playlists_at_{};
     bool duck_disallowed_ = false;  // box refuses remote volume (403): stop trying
     bool snapshot_failing_ = false;  // log a failing snapshot once, not every poll
+};
+
+// Values a command just set, kept over polls that still show the old ones: Spotify reports a new volume 0.7–2.6 s
+// later (measured 2026-10-29), and the panel's slider would jump back meanwhile.
+class Expected {
+public:
+    using Clock = std::chrono::steady_clock;
+    void set(const std::string& key, nlohmann::json value, Clock::time_point until) { fields_[key] = {std::move(value), until}; }
+    // Puts the expected value into `fresh` where the poll still differs; forgets a key once the poll shows it or its
+    // time is up (the device rounded it, or someone changed it again elsewhere).
+    void apply(nlohmann::json& fresh, Clock::time_point now) {
+        std::erase_if(fields_, [&](const auto& f) {
+            const auto& [key, expected] = f;
+            if (now >= expected.second || fresh.value(key, nlohmann::json()) == expected.first) return true;
+            fresh[key] = expected.first;
+            return false;
+        });
+    }
+
+private:
+    std::map<std::string, std::pair<nlohmann::json, Clock::time_point>> fields_;
 };
 
 // The progress to publish in `fresh` state: the published one (`old`) while it still extrapolates to within 2 s of
