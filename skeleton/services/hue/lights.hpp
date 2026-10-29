@@ -10,6 +10,9 @@
 //   temperature  query: kelvin ("2700") or a white
 //   scene        query: scene name, in the target room if one is named
 //   status       says whether the target is on, and how bright
+//   scene_save   query: name. The target room/zone's lights as they are now become a scene; a scene of that name in
+//                the group is overwritten (no duplicates: the bridge holds a limited number)
+//   scene_delete id: scene id (web panel), or query: scene name in the target room
 // Target: id (web panel: room/zone/light id) > device (spoken name) > BUDDY_HUE_DEFAULT_ROOM > every light.
 
 #include <optional>
@@ -33,6 +36,8 @@ struct Command {
     std::string device{};
     std::string id{};
 };
+
+inline constexpr std::size_t kSceneNameMax = 32;  // bridge rejects longer metadata.name
 
 struct Plan {
     bool ok = true;

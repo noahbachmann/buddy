@@ -228,6 +228,18 @@ const Scene* Home::scene(const std::string& spoken, const Group* group) const {
     return candidates[best[0]];
 }
 
+const Scene* Home::scene_by_id(const std::string& id) const {
+    const auto it = scenes_.find(id);
+    return it == scenes_.end() ? nullptr : &it->second;
+}
+
+std::vector<const Scene*> Home::scenes_in(const Group& group) const {
+    std::vector<const Scene*> out;
+    for (const auto& [id, s] : scenes_)
+        if (s.group == group.id) out.push_back(&s);
+    return out;
+}
+
 json Home::state() const {
     json rooms = json::array();
     std::vector<const Group*> groups;

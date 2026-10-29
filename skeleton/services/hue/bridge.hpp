@@ -35,11 +35,12 @@ struct BridgeError : std::runtime_error {
     long status;
 };
 
-// One PUT /clip/v2/resource/<type>/<id>.
+// One request to /clip/v2/resource/<type>[/<id>]: PUT and DELETE name the resource, POST creates one (no id).
 struct Request {
     std::string type;  // light, grouped_light, scene
     std::string id;
     nlohmann::json body;
+    std::string method = "PUT";
 };
 
 class Bridge {
@@ -56,7 +57,7 @@ public:
     // GET /clip/v2/resource: every resource's JSON ("data"). Throws BridgeError, HttpError.
     nlohmann::json resources();
     // Throws BridgeError (with the bridge's error description), HttpError.
-    void put(const Request& r);
+    void send(const Request& r);
 
     // POST /api with the link button pressed: the new application key, nullopt while the button isn't pressed.
     // Throws BridgeError, HttpError.

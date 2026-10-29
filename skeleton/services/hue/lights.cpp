@@ -60,6 +60,44 @@ Plan status(const Target& t) {
     return said(capitalized(spoken(t)) + verb + "on at " + std::to_string(pct) + " percent.");
 }
 
+// A light's current state as a scene action (only what it can do: the bridge rejects the rest)
+json scene_action(const Light& l) {
+    json a = {{"on", {{"on", l.on}}}};
+    if (l.on && l.dimming) a["dimming"] = {{"brightness", std::max(1.0, l.brightness)}};
+    if (l.on && l.mirek && l.temperature) a["color_temperature"] = {{"mirek", *l.mirek}};
+    else if (l.on && l.xy && l.color) a["color"] = {{"xy", {{"x", l.xy->first}, {"y", l.xy->second}}}};
+    return {{"target", {{"rid", l.id}, {"rtype", "light"}}}, {"action", a}};
+}
+
+std::string trimmed(const std::string& s) {
+    const auto b = s.find_first_not_of(" \t");
+    if (b == std::string::npos) return "";
+    return s.substr(b, s.find_last_not_of(" \t") - b + 1);
+}
+
+Plan save_scene(const Target& t, const Home& home, const std::string& query) {
+    const std::string name = trimmed(query);
+    if (name.empty()) return failed("What should the scene be called?");
+    if (name.size() > kSceneNameMax) return failed("That scene name is too long.");
+    if (!t.group || t.group->kind == "home") return failed("Scenes belong to a room or zone.");
+    json actions = json::array();
+    for (const auto& id : t.group->lights)
+        if (const Light* l = home.light(id)) actions.push_back(scene_action(*l));
+    if (actions.empty()) return failed(t.group->name + " has no lights.");
+    for (const Scene* s : home.scenes_in(*t.group))
+        if (names::lower(s->name) == names::lower(name))
+            return {.ok = true, .say = "", .requests = {{.type = "scene", .id = s->id, .body = {{"actions", actions}}}}};
+    json body = {{"type", "scene"},
+                 {"metadata", {{"name", name}}},
+                 {"group", {{"rid", t.group->id}, {"rtype", t.group->kind}}},
+                 {"actions", actions}};
+    return {.ok = true, .say = "", .requests = {{.type = "scene", .id = "", .body = std::move(body), .method = "POST"}}};
+}
+
+Plan delete_scene(const Scene& s) {
+    return {.ok = true, .say = "", .requests = {{.type = "scene", .id = s.id, .body = nullptr, .method = "DELETE"}}};
+}
+
 } // namespace
 
 std::optional<std::pair<double, double>> color_xy(const std::string& name) {
@@ -98,6 +136,10 @@ std::optional<int> white_mirek(const std::string& name) {
 Plan plan(const Command& c, const Home& home, const LightsConfig& cfg) {
     if (c.action.empty()) return {};
     if (!home.loaded()) return failed("I can't reach the Hue bridge.");
+    if (c.action == "scene_delete" && !c.id.empty()) {  // panel: scene id, not a target
+        const Scene* s = home.scene_by_id(c.id);
+        return s ? delete_scene(*s) : failed("That scene is gone.");
+    }
 
     std::optional<Target> target;
     const bool named = !c.id.empty() || !c.device.empty();
@@ -159,6 +201,18 @@ Plan plan(const Command& c, const Home& home, const LightsConfig& cfg) {
             if (!s && !named && in) s = home.scene(c.query, nullptr);
             if (!s) return failed("I don't know a scene called " + c.query + (named && in ? " in " + in->name : "") + ".");
             return {.ok = true, .say = "", .requests = {{.type = "scene", .id = s->id, .body = {{"recall", {{"action", "active"}}}}}}};
+        } catch (const Ambiguous& e) {
+            return failed("Which one, " + e.a + " or " + e.b + "?");
+        }
+    }
+
+    if (c.action == "scene_save") return save_scene(t, home, c.query);
+    if (c.action == "scene_delete") {
+        if (c.query.empty()) return failed("Which scene?");
+        try {
+            const Scene* s = home.scene(c.query, t.group && t.group->kind != "home" ? t.group : nullptr);
+            if (!s) return failed("I don't know a scene called " + c.query + ".");
+            return delete_scene(*s);
         } catch (const Ambiguous& e) {
             return failed("Which one, " + e.a + " or " + e.b + "?");
         }

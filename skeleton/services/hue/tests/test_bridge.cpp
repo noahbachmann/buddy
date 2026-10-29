@@ -44,11 +44,22 @@ TEST(Bridge, Put) {
     FakeHttp http;
     Bridge bridge(kBridge, http);
     http.on("PUT /clip/v2/resource/light/l1", 200, R"({"errors": [], "data": [{"rid": "l1", "rtype": "light"}]})");
-    bridge.put({.type = "light", .id = "l1", .body = {{"on", {{"on", true}}}}});
+    bridge.send({.type = "light", .id = "l1", .body = {{"on", {{"on", true}}}}});
     EXPECT_EQ(http.calls.back().body, R"({"on":{"on":true}})");
     // 207: partly applied, still an error to report
     http.on("PUT /clip/v2/resource/light/l1", 207, R"({"errors": [{"description": "device unreachable"}], "data": []})");
-    EXPECT_THROW(bridge.put({.type = "light", .id = "l1", .body = json::object()}), BridgeError);
+    EXPECT_THROW(bridge.send({.type = "light", .id = "l1", .body = json::object()}), BridgeError);
+}
+
+TEST(Bridge, PostAndDelete) {
+    FakeHttp http;
+    Bridge bridge(kBridge, http);
+    http.on("POST /clip/v2/resource/scene", 200, R"({"errors": [], "data": [{"rid": "new", "rtype": "scene"}]})");
+    bridge.send({.type = "scene", .id = "", .body = {{"type", "scene"}}, .method = "POST"});
+    EXPECT_EQ(http.calls.back().body, R"({"type":"scene"})");
+    http.on("DELETE /clip/v2/resource/scene/s1", 200, R"({"errors": [], "data": [{"rid": "s1", "rtype": "scene"}]})");
+    bridge.send({.type = "scene", .id = "s1", .body = nullptr, .method = "DELETE"});
+    EXPECT_EQ(http.calls.back().body, "");
 }
 
 TEST(Bridge, Pair) {

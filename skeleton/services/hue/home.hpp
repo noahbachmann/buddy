@@ -74,6 +74,9 @@ public:
     // Best-matching scene name in `group` (any group if null). nullptr = none. Throws Ambiguous.
     const Scene* scene(const std::string& spoken, const Group* group) const;
 
+    const Scene* scene_by_id(const std::string& id) const;
+    std::vector<const Scene*> scenes_in(const Group& group) const;
+
     // Retained buddy/hue/state payload (without "bridge").
     nlohmann::json state() const;
 

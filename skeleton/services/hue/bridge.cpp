@@ -77,9 +77,10 @@ json Bridge::resources() {
     return j["data"];
 }
 
-void Bridge::put(const Request& r) {
-    const std::string path = "/clip/v2/resource/" + r.type + "/" + r.id;
-    parse_ok(http_.request("PUT", url(path), headers(), r.body.dump()), "PUT " + r.type + " " + r.id);
+void Bridge::send(const Request& r) {
+    const std::string path = "/clip/v2/resource/" + r.type + (r.method == "POST" ? "" : "/" + r.id);
+    const std::string body = r.method == "DELETE" ? "" : r.body.dump();
+    parse_ok(http_.request(r.method, url(path), headers(), body), r.method + " " + r.type + " " + r.id);
 }
 
 std::optional<std::string> Bridge::pair(const std::string& device_type) {

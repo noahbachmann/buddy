@@ -5,7 +5,8 @@
 //   buddy-hue --pair                   once: press the bridge's link button, then run this within 30 s; saves the
 //                                      key file. Finds the bridge via discovery.meethue.com, or BUDDY_HUE_BRIDGE.
 //   buddy-hue --cmd <action> [query] [device]
-//                                      test: runs one command and prints the reply (no MQTT)
+//                                      test: runs one command and prints the reply (no MQTT), e.g.
+//                                      --cmd scene_save "Movie night" "living room"
 //   buddy-hue --cmd list               test: rooms, zones, lights and scenes the bridge has (exact names)
 //
 // Config (env, see deploy/buddy.env.example): BUDDY_HUE_*
@@ -165,6 +166,18 @@ int serve(const Config& cfg, const std::optional<BridgeConfig>& bridge_cfg) {
     auto say = [&](const std::string& text) {
         if (!text.empty()) mqtt.publish(topic::voice_say, json{{"text", text}}.dump(), 1);
     };
+    auto send = [&](const Request& r) {
+        try {
+            bridge->send(r);
+        } catch (const BridgeError& e) {
+            report(e.what());
+            say(e.status == 403 ? "The Hue bridge doesn't know me anymore." : "The Hue bridge said no.");
+        } catch (const HttpError& e) {
+            report(e.what());
+            set_bridge_state("unreachable");
+            say("I can't reach the Hue bridge.");
+        }
+    };
 
     while (running()) {
         systemd::notify_watchdog();
@@ -195,23 +208,15 @@ int serve(const Config& cfg, const std::optional<BridgeConfig>& bridge_cfg) {
                           << (c->device.empty() ? "" : " in \"" + c->device + "\"") << (c->id.empty() ? "" : " #" + c->id)
                           << (p.ok ? " ok" : " failed") << std::endl;
                 say(p.say);
-                for (const auto& r : p.requests) throttle.push(r);
+                for (const auto& r : p.requests) {
+                    if (r.method == "PUT") throttle.push(r);
+                    else send(r);  // scene create/delete: rare, nothing to merge
+                }
             }
         }
         if (bridge && reload && Clock::now() >= next_reload) load();
 
-        for (const auto& r : throttle.due(Clock::now())) {
-            try {
-                bridge->put(r);
-            } catch (const BridgeError& e) {
-                report(e.what());
-                say(e.status == 403 ? "The Hue bridge doesn't know me anymore." : "The Hue bridge said no.");
-            } catch (const HttpError& e) {
-                report(e.what());
-                set_bridge_state("unreachable");
-                say("I can't reach the Hue bridge.");
-            }
-        }
+        for (const auto& r : throttle.due(Clock::now())) send(r);
 
         if (dirty && Clock::now() - last_publish >= milliseconds(200)) {
             json state = home.loaded() ? home.state() : json{{"rooms", json::array()}, {"lights", json::array()}};
@@ -317,8 +322,8 @@ int main(int argc, char** argv) {
                 const Plan p = plan({.action = argv[2], .query = argc >= 4 ? argv[3] : "", .device = argc == 5 ? argv[4] : ""},
                                     home, cfg->lights);
                 for (const auto& r : p.requests) {
-                    std::cout << "PUT " << r.type << "/" << r.id << " " << r.body.dump() << std::endl;
-                    bridge.put(r);
+                    std::cout << r.method << " " << r.type << "/" << r.id << " " << r.body.dump() << std::endl;
+                    bridge.send(r);
                 }
                 std::cout << (p.ok ? "ok" : "failed") << (p.say.empty() ? "" : ", says: \"" + p.say + "\"") << std::endl;
                 rc = p.ok ? 0 : 1;

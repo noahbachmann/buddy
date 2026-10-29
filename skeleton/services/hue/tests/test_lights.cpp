@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <map>
 
 #include "fixture.hpp"
 #include "lights.hpp"
@@ -105,4 +106,63 @@ TEST(Whites, Mirek) {
     EXPECT_EQ(white_mirek("Daylight"), 153);
     EXPECT_EQ(white_mirek("50"), std::nullopt);
     EXPECT_EQ(white_mirek("blue"), std::nullopt);
+}
+
+TEST_F(LightsTest, SceneSaveCreates) {
+    const Plan p = run("scene_save", " Reading time ", "", "living");
+    ASSERT_TRUE(p.ok) << p.say;
+    ASSERT_EQ(p.requests.size(), 1u);
+    const Request& r = p.requests[0];
+    EXPECT_EQ(r.method, "POST");
+    EXPECT_EQ(r.type, "scene");
+    EXPECT_EQ(r.body["metadata"], json({{"name", "Reading time"}}));
+    EXPECT_EQ(r.body["group"], json({{"rid", "living"}, {"rtype", "room"}}));
+    std::map<std::string, json> by_light;
+    for (const auto& a : r.body["actions"]) by_light[a["target"]["rid"]] = a["action"];
+    EXPECT_EQ(by_light.size(), 3u);
+    // white mode: mirek wins over the approximate xy
+    EXPECT_EQ(by_light["ceiling"], json::parse(R"({"on":{"on":true},"dimming":{"brightness":40.0},"color_temperature":{"mirek":366}})"));
+    // dimmable white only: no colour fields (the bridge rejects them)
+    EXPECT_EQ(by_light["desk"], json::parse(R"({"on":{"on":true},"dimming":{"brightness":100.0}})"));
+}
+
+TEST_F(LightsTest, SceneSaveOffLightsAndZones) {
+    const Plan bed = run("scene_save", "Sleep", "bedroom");
+    ASSERT_TRUE(bed.ok) << bed.say;
+    for (const auto& a : bed.requests[0].body["actions"]) EXPECT_EQ(a["action"], json::parse(R"({"on":{"on":false}})"));
+    const Plan zone = run("scene_save", "Focus", "reading");
+    ASSERT_TRUE(zone.ok) << zone.say;
+    EXPECT_EQ(zone.requests[0].body["group"]["rtype"], "zone");
+}
+
+TEST_F(LightsTest, SceneSaveOverwritesSameName) {
+    const Plan p = run("scene_save", "movie NIGHT", "", "living");
+    ASSERT_TRUE(p.ok) << p.say;
+    ASSERT_EQ(p.requests.size(), 1u);
+    EXPECT_EQ(p.requests[0].method, "PUT");
+    EXPECT_EQ(p.requests[0].id, "s-movie");
+    EXPECT_TRUE(p.requests[0].body.contains("actions"));
+    EXPECT_FALSE(p.requests[0].body.contains("metadata"));  // keeps the bridge's name and picture
+    // same name in another room: a new scene there
+    EXPECT_EQ(run("scene_save", "Movie night", "", "bedroom").requests[0].method, "POST");
+}
+
+TEST_F(LightsTest, SceneSaveFails) {
+    EXPECT_FALSE(run("scene_save", "  ", "", "living").ok);
+    EXPECT_FALSE(run("scene_save", std::string(kSceneNameMax + 1, 'x'), "", "living").ok);
+    EXPECT_TRUE(run("scene_save", std::string(kSceneNameMax, 'x'), "", "living").ok);
+    EXPECT_EQ(run("scene_save", "Party", "all").say, "Scenes belong to a room or zone.");
+    EXPECT_EQ(run("scene_save", "Party", "desk lamp").say, "Scenes belong to a room or zone.");
+    EXPECT_TRUE(run("scene_save", "Party", "desk lamp").requests.empty());
+}
+
+TEST_F(LightsTest, SceneDelete) {
+    Plan p = run("scene_delete", "", "", "s-night");  // web: by scene id
+    ASSERT_TRUE(p.ok) << p.say;
+    EXPECT_EQ(p.requests[0].method + " " + p.requests[0].type + "/" + p.requests[0].id, "DELETE scene/s-night");
+    p = run("scene_delete", "relax", "bedroom");  // CLI: by name in a room
+    ASSERT_TRUE(p.ok) << p.say;
+    EXPECT_EQ(p.requests[0].id, "s-relax-bed");
+    EXPECT_EQ(run("scene_delete", "", "", "gone").say, "That scene is gone.");
+    EXPECT_FALSE(run("scene_delete", "relax", "all").ok);  // two rooms have one: ambiguous
 }
