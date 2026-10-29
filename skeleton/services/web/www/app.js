@@ -129,6 +129,51 @@ const WHITES = [["warm white", "#ffd8a1"], ["neutral white", "#fff3e0"], ["dayli
 
 // --- lights -----------------------------------------------------------------------------------------------------
 
+// Light's current colour at full brightness as [r, g, b] 0..255, null = unknown (white-only lamp: no xy/mirek).
+// mirek wins: the bridge reports an approximate xy in white mode too, and only sends mirek while it's valid.
+function lightRgb(l) {
+  if (l.mirek) return kelvinRgb(1e6 / l.mirek);
+  if (l.xy) return xyRgb(l.xy[0], l.xy[1]);
+  return null;
+}
+
+// Tanner Helland's blackbody fit, fine for 1000..40000 K
+function kelvinRgb(k) {
+  const t = k / 100;
+  const r = t <= 66 ? 255 : 329.698727446 * (t - 60) ** -0.1332047592;
+  const g = t <= 66 ? 99.4708025861 * Math.log(t) - 161.1195681661 : 288.1221695283 * (t - 60) ** -0.0755148492;
+  const b = t >= 66 ? 255 : t <= 19 ? 0 : 138.5177312231 * Math.log(t - 10) - 305.0447927307;
+  return [r, g, b].map((v) => Math.min(255, Math.max(0, v)));
+}
+
+// CIE xy → sRGB (Philips' wide-gamut matrix), normalised so the brightest channel is 1: hue, not dimming
+function xyRgb(x, y) {
+  if (y <= 0) return null;
+  const X = x / y, Z = (1 - x - y) / y;
+  const lin = [
+    X * 1.656492 - 0.354851 - Z * 0.255038,
+    -X * 0.707196 + 1.655397 + Z * 0.036152,
+    X * 0.051713 - 0.121364 + Z * 1.01153,
+  ].map((v) => Math.max(0, v));
+  const max = Math.max(...lin);
+  if (max <= 0) return null;
+  const gamma = (v) => (v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055);
+  return lin.map((v) => gamma(v / max) * 255);
+}
+
+// Average colour of the lights that are on (all of them while off: the switch shows it once turned on)
+function lightStyle(lights) {
+  const on = lights.filter((l) => l.on);
+  const rgbs = (on.length ? on : lights).map(lightRgb).filter(Boolean);
+  if (!rgbs.length) return undefined;
+  let avg = [0, 1, 2].map((i) => rgbs.reduce((a, c) => a + c[i], 0) / rgbs.length);
+  // near-white (cool/daylight) would hide the white switch knob: dim to a light grey of the same tint
+  const max = Math.max(...avg), min = Math.min(...avg);
+  if (max > 0 && (max - min) / max < 0.15) avg = avg.map((v) => v * 0.8);
+  avg = avg.map(Math.round);
+  return `--light: rgb(${avg.join(" ")})`;
+}
+
 function hue(cmd) { send("hue", cmd); }
 
 function lightControls(target, lights, key) {
@@ -167,7 +212,7 @@ function roomCard(room, lightsById) {
   const onCount = lights.filter((l) => l.on).length;
   const sub = lights.length === 0 ? "no lights"
     : room.on ? `${onCount} of ${lights.length} on · ${room.brightness} %` : `${lights.length} light${lights.length > 1 ? "s" : ""} · off`;
-  const card = el("article", { class: `card${room.on ? " lit" : ""}`, "aria-label": room.name },
+  const card = el("article", { class: `card${room.on ? " lit" : ""}`, "aria-label": room.name, style: lightStyle(lights) },
     el("div", { class: "row" },
       el("div", { class: "name" }, room.name, el("small", {}, room.kind === "zone" ? `zone · ${sub}` : sub)),
       toggle(room.on, `${room.name} on/off`, (on) => hue({ action: on ? "on" : "off", id: room.id }))),
@@ -186,7 +231,7 @@ function roomCard(room, lightsById) {
       onclick: () => { open ? expanded.delete(room.id) : expanded.add(room.id); render(); },
     }, open ? "Hide lights ▴" : `${lights.length} lights ▾`));
     if (open) {
-      card.append(el("div", { class: "lights" }, lights.map((l) => el("div", { class: "light" },
+      card.append(el("div", { class: "lights" }, lights.map((l) => el("div", { class: "light", style: lightStyle([l]) },
         el("div", { class: "row" },
           el("div", { class: "name" }, l.name, el("small", {}, l.on ? (l.dimming ? `${l.brightness} %` : "on") : "off")),
           toggle(l.on, `${l.name} on/off`, (on) => hue({ action: on ? "on" : "off", id: l.id }))),

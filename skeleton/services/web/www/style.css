@@ -97,7 +97,7 @@ section { margin-top: 20px; }
   padding: 14px;
   box-shadow: var(--shadow);
 }
-.card.lit { border-color: color-mix(in srgb, var(--on) 45%, var(--line)); }
+.card.lit { border-color: color-mix(in srgb, var(--light, var(--on)) 60%, var(--line)); }
 
 .row { display: flex; align-items: center; gap: 12px; }
 .row + .row, .row + .controls, .controls + .controls { margin-top: 12px; }
@@ -128,7 +128,8 @@ section { margin-top: 20px; }
   box-shadow: 0 1px 3px rgb(0 0 0 / 25%);
   transition: transform 0.15s;
 }
-.switch[aria-checked="true"] { background: var(--on); }
+/* inset line: near-white light colours would vanish on the light theme */
+.switch[aria-checked="true"] { background: var(--light, var(--on)); box-shadow: inset 0 0 0 1px rgb(0 0 0 / 12%); }
 .switch[aria-checked="true"]::after { transform: translateX(20px); }
 .switch:focus-visible, .btn:focus-visible, .swatch:focus-visible, .chip-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
