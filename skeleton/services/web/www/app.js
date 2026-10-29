@@ -241,6 +241,14 @@ function roomCard(room, lightsById) {
   return card;
 }
 
+// Whole home: only "all off" here; switching everything on or tuning it is a room's job
+function homeBar(home, lightsById) {
+  const onCount = home.lights.filter((id) => lightsById[id]?.on).length;
+  return el("div", { class: "home-bar", "aria-label": home.name },
+    el("div", { class: "name" }, home.name, el("small", {}, onCount ? `${onCount} on` : "all off")),
+    el("button", { class: "chip-btn", disabled: !home.on, onclick: () => hue({ action: "off", id: home.id }) }, "Turn off"));
+}
+
 function renderLights() {
   const hs = state["buddy/hue/state"];
   const online = state["buddy/hue/status"] === "online";
@@ -256,7 +264,7 @@ function renderLights() {
     return;
   }
   const lightsById = Object.fromEntries(hs.lights.map((l) => [l.id, l]));
-  for (const room of hs.rooms) rooms.append(roomCard(room, lightsById));
+  for (const room of hs.rooms) rooms.append(room.kind === "home" ? homeBar(room, lightsById) : roomCard(room, lightsById));
 }
 
 // --- music ------------------------------------------------------------------------------------------------------

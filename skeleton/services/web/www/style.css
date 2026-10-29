@@ -99,6 +99,19 @@ section { margin-top: 20px; }
 }
 .card.lit { border-color: color-mix(in srgb, var(--light, var(--on)) 60%, var(--line)); }
 
+.home-bar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 6px 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+.home-bar .name { font-weight: 500; }
+.home-bar .name small { display: inline; margin-left: 8px; }
+.chip-btn:disabled { opacity: 0.45; cursor: default; }
+
 .row { display: flex; align-items: center; gap: 12px; }
 .row + .row, .row + .controls, .controls + .controls { margin-top: 12px; }
 .name { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

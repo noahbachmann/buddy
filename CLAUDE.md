@@ -39,7 +39,7 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 | Phase | Step | Status |
 |---|---|---|
 | 1 – Voice | 1.1 – 1.12 Hardware, OS, audio, skeleton, wake word, STT, brain, Spotify, voice, background music, boot | ✅ |
-| 1 – Voice (extra) | 1.13 Hue lights, 1.14 web panel: code deployed, waiting for pairing and the live test (`01-cleanup.md` steps 12–13) | 🟨 |
+| 1 – Voice (extra) | 1.13 Hue lights, 1.14 web panel: bridge paired, panel working (2026-10-29); voice live test open (`01-cleanup.md` steps 12–13) | 🟨 |
 | 2 – Head | 2.2 motion controller: Pi setup, firmware and flash done; servo test with picocom (guide step 9) open. 2.3 motion service + demo gesture ("cut off Andi's balls"): code and tests done, deploy and Verify on the Pi open | 🟨 |
 | 3 – Hand | 3.1 – 3.4 | ⬜ |
 | 4 – Arm & vision | 4.1 – 4.3 | ⬜ |
