@@ -3,6 +3,7 @@
 import socket
 import threading
 
+import paho.mqtt.publish
 import pytest
 
 from buddy_shared import lifecycle
@@ -50,8 +51,12 @@ def test_status_roundtrip_and_handler_errors():
     svc.stop()
 
     assert done.wait(3)
-    watcher.publish("buddy/pytest-svc/status", "", qos=1, retain=True)  # clear the retained status
     watcher.stop()
+    # plain paho, not Mqtt: that would leave its own retained status behind. Else the web panel shows test clients.
+    paho.mqtt.publish.multiple(
+        [{"topic": f"buddy/{s}/status", "payload": "", "qos": 1, "retain": True} for s in ("pytest-svc", "pytest-watcher")],
+        hostname="localhost",
+    )
     assert ("buddy/pytest-svc/status", "online") in got
     assert ("buddy/pytest-svc/event", '{"x":1}') in got
     assert lifecycle.running()

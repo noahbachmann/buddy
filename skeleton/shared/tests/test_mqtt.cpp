@@ -31,6 +31,14 @@ bool broker_up() {
     return up;
 }
 
+// Plain Paho, not buddy::Mqtt: that would leave its own retained status behind. Else the web panel shows test clients.
+void clear_retained(const std::vector<std::string>& topics) {
+    mqtt::async_client c("tcp://localhost:1883", "buddy-gtest-cleaner", mqtt::create_options(MQTTVERSION_3_1_1));
+    c.connect()->wait_for(3s);
+    for (const auto& t : topics) c.publish(mqtt::make_message(t, "", 1, true))->wait_for(2s);
+    c.disconnect()->wait_for(2s);
+}
+
 // Messages from Paho's thread, waited for on the test thread.
 struct Inbox {
     std::mutex m;
@@ -77,6 +85,6 @@ TEST(Mqtt, StatusRoundTripAndHandlerErrors) {
         svc.stop();
     }
     EXPECT_TRUE(inbox.wait_for("buddy/gtest-svc/status", "offline", 3s));  // also proves the throwing handler didn't kill Paho
-    watcher.publish("buddy/gtest-svc/status", "", 1, true);  // clear the retained status
     watcher.stop();
+    clear_retained({"buddy/gtest-svc/status", "buddy/gtest-watcher/status"});
 }
