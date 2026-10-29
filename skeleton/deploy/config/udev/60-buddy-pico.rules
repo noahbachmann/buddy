@@ -1,0 +1,3 @@
+# Motion controller (D17): stable /dev/buddy-pico, whatever ttyACM number the boot order gives it.
+# "Buddy motion" = USBD_PRODUCT of firmware/pico. Installed by `setup.sh pico`.
+SUBSYSTEM=="tty", ATTRS{idVendor}=="2e8a", ATTRS{product}=="Buddy motion", SYMLINK+="buddy-pico"

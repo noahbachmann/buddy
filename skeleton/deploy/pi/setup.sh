@@ -7,6 +7,7 @@
 #   onnxruntime  Microsoft's prebuilt ONNX Runtime → /opt/onnxruntime (D9)
 #   libpiper     Piper TTS library built from source → /opt/libpiper (D12)
 #   uv           Python package manager → ~/.local/bin/uv, for Python services (D15)
+#   pico         Pico 2 firmware toolchain: ARM GCC, picotool → /opt/picotool, udev rules (D17)
 #   audio        stock PipeWire: removes Buddy's old echo-cancellation config if present (D13)
 #   mosquitto    MQTT broker, localhost only (D2)
 #   session      lingering: user services start at boot without a login (D7)
@@ -25,6 +26,10 @@ PIPER_BUILD="$PIPER_VERSION-buddy1"  # -buddy1: patched thread count, see step_l
 PIPER_SHA256=0a22987a6157f14e2fb7cf4aa702b547467fd0448bea9f233abd503c3ff4a0e1  # source tarball
 UV_VERSION=0.12.24
 UV_SHA256=5231be65f496304623895dacdbf1de8504fec90303684bdf05805aa34414dd21  # uv-aarch64-unknown-linux-gnu tarball
+PICOTOOL_VERSION=2.3.1
+PICOTOOL_SHA256=07946d294ab5c474b610660c53c5d94216e4ab13555de075ed521f98afc4f44c  # source tarball
+PICO_SDK_VERSION=2.3.1  # keep = the tag firmware/pico fetches
+PICO_SDK_SHA256=38d315b7091985134721cd3bb6a9656f0ef8462ec8dc7b62d5886bc7a9d275a2  # source tarball
 
 step_packages() {
     sudo apt-get update
@@ -100,6 +105,45 @@ step_uv() {
     echo "  ✓ uv $UV_VERSION"
 }
 
+# Firmware toolchain for the Pico 2 (D17). picotool from source: Debian's 2.1.1 is older than the SDK, which needs
+# it for the UF2 and to flash. Its build only needs the SDK's headers (tarball, no submodules); the firmware fetches
+# its own SDK. No mbedtls submodule → no signing/hashing (unused). udev: picotool's rules (BOOTSEL access via plugdev,
+# no sudo) + /dev/buddy-pico.
+step_pico() {
+    sudo apt-get update
+    sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib \
+        libusb-1.0-0-dev picocom
+    local prefix="/opt/picotool-$PICOTOOL_VERSION"
+    if [[ ! -x "$prefix/bin/picotool" ]]; then
+        local tmp
+        tmp="$(mktemp -d)"
+        curl -fL --progress-bar -o "$tmp/picotool.tgz" \
+            "https://github.com/raspberrypi/picotool/archive/refs/tags/$PICOTOOL_VERSION.tar.gz"
+        curl -fL --progress-bar -o "$tmp/sdk.tgz" \
+            "https://github.com/raspberrypi/pico-sdk/archive/refs/tags/$PICO_SDK_VERSION.tar.gz"
+        echo "$PICOTOOL_SHA256  $tmp/picotool.tgz" | sha256sum -c --quiet
+        echo "$PICO_SDK_SHA256  $tmp/sdk.tgz" | sha256sum -c --quiet
+        tar xzf "$tmp/picotool.tgz" -C "$tmp"
+        tar xzf "$tmp/sdk.tgz" -C "$tmp"
+        cmake -S "$tmp/picotool-$PICOTOOL_VERSION" -B "$tmp/build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPICO_SDK_PATH="$tmp/pico-sdk-$PICO_SDK_VERSION" \
+            -DCMAKE_INSTALL_PREFIX="$prefix" > /dev/null
+        cmake --build "$tmp/build"
+        sudo cmake --install "$tmp/build" > /dev/null
+        sudo install -m 644 "$tmp/picotool-$PICOTOOL_VERSION/udev/60-picotool.rules" "$prefix/"
+        rm -rf "$tmp"
+    fi
+    sudo ln -sfn "$prefix" /opt/picotool
+    sudo ln -sfn /opt/picotool/bin/picotool /usr/local/bin/picotool
+    sudo install -m 644 /opt/picotool/60-picotool.rules "$CONFIG/udev/60-buddy-pico.rules" /etc/udev/rules.d/
+    sudo udevadm control --reload
+    sudo udevadm trigger --subsystem-match=usb --subsystem-match=tty
+    id -nG | grep -qw plugdev || echo "  ⚠ $USER is not in plugdev: picotool needs sudo (sudo usermod -aG plugdev $USER)"
+    id -nG | grep -qw dialout || echo "  ⚠ $USER is not in dialout: no access to /dev/buddy-pico (sudo usermod -aG dialout $USER)"
+    echo "  ✓ arm-none-eabi-gcc $(arm-none-eabi-gcc -dumpversion), picotool $PICOTOOL_VERSION"
+}
+
 # Up to 2026-10-28 Buddy added PipeWire echo cancellation and bigger USB buffers (the buffers only because
 # echo cancellation tied mic and speaker clocks together). Raw mic since (D13): stock PipeWire. This step removes
 # the old files and restarts PipeWire only if there were any (briefly cuts audio; ears and voice reopen by themselves).
@@ -151,7 +195,7 @@ step_check() {
     echo "  ✓ checked"
 }
 
-ALL=(packages onnxruntime libpiper uv audio mosquitto session config models check)
+ALL=(packages onnxruntime libpiper uv pico audio mosquitto session config models check)
 steps=("$@")
 [[ ${#steps[@]} -gt 0 ]] || steps=("${ALL[@]}")
 for s in "${steps[@]}"; do
