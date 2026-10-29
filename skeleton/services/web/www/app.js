@@ -21,6 +21,36 @@ function el(tag, attrs = {}, ...children) {
   return e;
 }
 
+function setText(node, text) { if (node.textContent !== text) node.textContent = text; }
+
+// Children rebuilt only when what they show changed: items are [key, sig, make], sig = JSON of make's inputs.
+// Unchanged children keep their DOM nodes; a light change rebuilds one card, not the page.
+let built = new WeakMap();  // container → Map(key → {sig, node})
+function keyed(container, items) {
+  const old = built.get(container) || new Map();
+  const next = new Map();
+  const nodes = items.map(([key, sig, make]) => {
+    const o = old.get(key);
+    const node = o && o.sig === sig ? o.node : make();
+    next.set(key, { sig, node });
+    return node;
+  });
+  built.set(container, next);
+  const kids = container.childNodes;
+  // Same slots, only new nodes in the changed ones: swap those. Otherwise (added, removed, moved) lay out anew.
+  if (kids.length === nodes.length && nodes.every((n, i) => kids[i] === n || !n.isConnected)) {
+    nodes.forEach((n, i) => { if (kids[i] !== n) kids[i].replaceWith(n); });
+  } else {
+    container.replaceChildren(...nodes);
+  }
+}
+
+// Forget the built DOM: e.g. a switch flipped optimistically for a command that failed snaps back.
+function rebuild() {
+  built = new WeakMap();
+  queueRender();
+}
+
 // --- talking to Buddy -------------------------------------------------------------------------------------------
 
 let toastTimer;
@@ -39,10 +69,14 @@ async function send(service, cmd) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(cmd),
     });
-    if (!r.ok) toast((await r.json().catch(() => ({}))).error || `${service}: HTTP ${r.status}`);
+    if (!r.ok) {
+      toast((await r.json().catch(() => ({}))).error || `${service}: HTTP ${r.status}`);
+      rebuild();
+    }
     return r.ok;
   } catch {
     toast("Buddy is not reachable");
+    rebuild();
     return false;
   }
 }
@@ -66,6 +100,35 @@ function throttled(key, ms, fn) {
   }
 }
 
+// RFC 6902 as the web service sends it (nlohmann's json::diff: add, remove, replace; JSON Pointer paths). Returns the
+// patched value (changed in place); throws when the patch doesn't fit `doc`.
+function applyPatch(doc, ops) {
+  for (const { op, path, value } of ops) {
+    if (path === "") {
+      if (op === "remove") throw new Error("patch removes the whole payload");
+      doc = value;
+      continue;
+    }
+    const keys = path.split("/").slice(1).map((k) => k.replaceAll("~1", "/").replaceAll("~0", "~"));
+    const last = keys.pop();
+    let parent = doc;
+    for (const k of keys) parent = parent?.[k];
+    if (parent === null || typeof parent !== "object") throw new Error(`patch path ${path} not found`);
+    if (Array.isArray(parent)) {
+      const i = last === "-" ? parent.length : Number(last);
+      if (!Number.isInteger(i) || i < 0 || i > parent.length - (op === "add" ? 0 : 1)) throw new Error(`patch index ${path}`);
+      if (op === "add") parent.splice(i, 0, value);
+      else if (op === "remove") parent.splice(i, 1);
+      else parent[i] = value;
+    } else {
+      if (op !== "add" && !Object.hasOwn(parent, last)) throw new Error(`patch key ${path} not found`);
+      if (op === "remove") delete parent[last];
+      else parent[last] = value;
+    }
+  }
+  return doc;
+}
+
 function connect() {
   const link = $("link");
   const events = new EventSource("/api/events");
@@ -78,9 +141,17 @@ function connect() {
     link.classList.remove("up");
   };
   events.onmessage = (e) => {
-    const { topic, payload } = JSON.parse(e.data);
-    if (payload === null) delete state[topic];
-    else state[topic] = payload;
+    const { topic, payload, patch } = JSON.parse(e.data);
+    try {
+      if (patch) state[topic] = applyPatch(state[topic], patch);  // against what this stream sent last
+      else if (payload === null) delete state[topic];
+      else state[topic] = payload;
+    } catch (err) {
+      console.warn(err);
+      events.close();  // out of step: a new stream starts with every payload in full
+      connect();
+      return;
+    }
     queueRender();
   };
 }
@@ -312,22 +383,23 @@ function renderLights() {
     ok: "", connecting: "connecting to the bridge…", unreachable: "bridge not reachable", error: "bridge error",
     "key revoked": "bridge forgot Buddy: run buddy-hue --pair", "not paired": "not paired: run buddy-hue --pair",
   };
-  $("bridge").textContent = !online ? "hue service offline" : hs ? (note[hs.bridge] ?? hs.bridge) : "";
-  rooms.replaceChildren();
-  if (!hs || !hs.rooms.length) {
-    rooms.append(el("p", { class: "empty" }, online ? "No rooms yet." : "The hue service isn't running."));
-    return;
-  }
+  setText($("bridge"), !online ? "hue service offline" : hs ? (note[hs.bridge] ?? hs.bridge) : "");
+  if (!hs || !hs.rooms.length) return keyed(rooms, [emptyNote(online ? "No rooms yet." : "The hue service isn't running.")]);
   const ordered = orderedRooms(hs.rooms);
   if (editing) {
-    rooms.append(editList(ordered));
-    return;
+    const sig = JSON.stringify([ordered.map((r) => [r.id, r.name]), layout.hidden]);
+    return keyed(rooms, [["edit", sig, () => editList(ordered)]]);
   }
   const lightsById = Object.fromEntries(hs.lights.map((l) => [l.id, l]));
   const shown = ordered.filter((r) => !layout.hidden.includes(r.id));
-  if (!shown.length) rooms.append(el("p", { class: "empty" }, "All rooms hidden: add them back with ⚙."));
-  for (const room of shown) rooms.append(room.kind === "home" ? homeBar(room, lightsById) : roomCard(room, lightsById));
+  if (!shown.length) return keyed(rooms, [emptyNote("All rooms hidden: add them back with ⚙.")]);
+  keyed(rooms, shown.map((room) => {
+    const sig = JSON.stringify([room, room.lights.map((id) => lightsById[id]), expanded.has(room.id)]);
+    return [room.id, sig, () => (room.kind === "home" ? homeBar(room, lightsById) : roomCard(room, lightsById))];
+  }));
 }
+
+function emptyNote(text) { return [`empty:${text}`, "", () => el("p", { class: "empty" }, text)]; }
 
 // --- hue tab: scenes -------------------------------------------------------------------------------------------
 
@@ -356,12 +428,12 @@ function renderHue() {
 
   const lightsById = hs ? Object.fromEntries(hs.lights.map((l) => [l.id, l])) : {};
   const lights = group ? group.lights.map((id) => lightsById[id]).filter(Boolean) : [];
-  $("scene-lights").replaceChildren(...(lights.length ? lights.map((l) => el("div", { class: "light", style: lightStyle([l]) },
+  keyed($("scene-lights"), lights.length ? lights.map((l) => [l.id, JSON.stringify(l), () => el("div", { class: "light", style: lightStyle([l]) },
     el("div", { class: "row" },
       el("div", { class: "name" }, l.name, el("small", {}, l.on ? (l.dimming ? `${l.brightness} %` : "on") : "off")),
       toggle(l.on, `${l.name} on/off`, (on) => hue({ action: on ? "on" : "off", id: l.id }))),
-    lightControls(l, [l], `scene-${l.id}`)))
-    : [el("p", { class: "empty" }, hs ? "No rooms or zones with lights." : "The hue service isn't running.")]));
+    lightControls(l, [l], `scene-${l.id}`))])
+    : [emptyNote(hs ? "No rooms or zones with lights." : "The hue service isn't running.")]);
 
   if (savingScene) {
     const g = groups.find((x) => x.id === savingScene.group);
@@ -371,7 +443,7 @@ function renderHue() {
     }
   }
 
-  $("scene-list").replaceChildren(...groups.map((g) => el("div", { class: "scene-group" },
+  keyed($("scene-list"), groups.map((g) => [g.id, JSON.stringify([g.name, g.scenes]), () => el("div", { class: "scene-group" },
     el("div", { class: "scene-group-name" }, g.name),
     g.scenes.length ? el("div", { class: "controls" }, g.scenes.map((s) => el("span", { class: "scene-chip" },
       el("button", {
@@ -389,7 +461,7 @@ function renderHue() {
           if (confirm(`Delete the scene "${s.name}" in ${g.name}? It's gone from the Hue app too.`)) hue({ action: "scene_delete", id: s.id });
         },
       }, "✕"))))
-      : el("span", { class: "muted" }, "no scenes"))));
+      : el("span", { class: "muted" }, "no scenes"))]));
 }
 
 $("scene-group").addEventListener("change", () => render());
@@ -410,27 +482,24 @@ $("scene-form").addEventListener("submit", async (e) => {
 function renderMusic() {
   const s = state["buddy/spotify/state"];
   const online = state["buddy/spotify/status"] === "online";
-  $("music-note").textContent = !online ? "spotify service offline" : s && s.ducked ? "quieter while Buddy listens" : "";
+  setText($("music-note"), !online ? "spotify service offline" : s && s.ducked ? "quieter while Buddy listens" : "");
   const box = $("music");
-  box.replaceChildren();
-  if (!online) {
-    box.append(el("p", { class: "empty" }, "The spotify service isn't running."));
-    return;
-  }
+  if (!online) return keyed(box, [emptyNote("The spotify service isn't running.")]);
   const playing = s && s.playing === true;
   const spotify = (action, query) => send("spotify", query === undefined ? { action } : { action, query });
-  box.append(el("div", { class: "row" },
+  const items = [["controls", JSON.stringify(s?.playing ?? null), () => el("div", { class: "row" },
     el("button", { class: "btn", "aria-label": "Previous", onclick: () => spotify("previous") }, "⏮"),
     el("button", { class: "btn primary", "aria-label": playing ? "Pause" : "Play", onclick: () => spotify(playing ? "pause" : "play") }, playing ? "⏸" : "▶"),
     el("button", { class: "btn", "aria-label": "Next", onclick: () => spotify("next") }, "⏭"),
     el("div", { class: "name" }, playing ? "Playing" : s && s.playing === false ? "Paused" : "—",
-      el("small", {}, "on the music box"))));
+      el("small", {}, "on the music box")))]];
   if (s && typeof s.volume === "number") {
-    box.append(el("div", { class: "row" }, slider({
+    items.push(["volume", String(s.volume), () => el("div", { class: "row" }, slider({
       min: 0, max: 100, value: s.volume, label: "Volume", format: (v) => `${v} %`,
       onInput: (v) => throttled("volume", 400, () => spotify("set_volume", String(v))),
-    })));
+    }))]);
   }
+  keyed(box, items);
 }
 
 // --- services ---------------------------------------------------------------------------------------------------
@@ -443,16 +512,15 @@ const SERVICE_CHIPS = [
 ];
 
 function renderServices() {
-  const box = $("services");
-  box.replaceChildren();
-  for (const { name, members } of SERVICE_CHIPS) {
+  keyed($("services"), SERVICE_CHIPS.map(({ name, members }) => {
     const offline = members.filter((m) => state[`buddy/${m}/status`] !== "online");
     const online = offline.length === 0;
     const busy = members.map((m) => state[`buddy/${m}/state`]?.state).find((v) => typeof v === "string" && v !== "idle");
     const detail = online && busy ? busy : "";
-    box.append(el("span", { class: `chip${online ? " online" : ""}`, title: online ? "online" : `offline: ${offline.join(", ")}` },
-      name, detail && el("span", { class: "detail" }, detail)));
-  }
+    return [name, JSON.stringify([offline, detail]), () => el("span",
+      { class: `chip${online ? " online" : ""}`, title: online ? "online" : `offline: ${offline.join(", ")}` },
+      name, detail && el("span", { class: "detail" }, detail))];
+  }));
 }
 
 function render() {
