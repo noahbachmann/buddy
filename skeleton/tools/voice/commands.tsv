@@ -2,7 +2,8 @@
 # (services/brain/tests/test_corpus.cpp) and intent scoring (deploy/train.sh). Tab-separated:
 #
 #   set       train = recorded for training, test = rephrasings recorded only for the test session,
-#             wake = the wake word (recorded on its own, repeated)
+#             wake = the wake word (recorded on its own, repeated),
+#             extra = brain test only: never recorded, trained or scored (demos)
 #   sentence  written the way it should be transcribed: digits for numbers ("50%"), real capitalisation
 #   intent    what brain must return; unknown = no skill for it
 #   query     brain's query for that intent, empty if none
@@ -187,3 +188,6 @@ test	Living room lights to 80%.	brightness	80	living room
 test	Turn all the lights off.	off		all
 test	Make the bedroom lights darker.	darker		bedroom
 test	Turn the lights green.	color	green
+# --- demo gesture (motion "shake"): brain test only, remove with the gesture in 2.5
+extra	Cut off Andi's balls.	gesture	shake
+extra	Hey Jarvis, cut off Andi's balls.	gesture	shake

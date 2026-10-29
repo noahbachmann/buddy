@@ -4,7 +4,7 @@ from buddy_voice import corpus
 def test_corpus_is_valid():
     commands = corpus.load()
     sets = {c.set for c in commands}
-    assert sets == {"train", "test", "wake"}
+    assert sets == {"train", "test", "wake", "extra"}
     sentences = [c.sentence for c in commands]
     assert len(sentences) == len(set(sentences)), "duplicate sentence in commands.tsv"
     assert all(c.intent for c in commands)

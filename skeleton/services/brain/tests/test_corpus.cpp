@@ -1,4 +1,4 @@
-// Every train/test sentence in tools/voice/commands.tsv must give its intent, query and device: one test each.
+// Every train/test/extra sentence in tools/voice/commands.tsv must give its intent, query and device: one test each.
 #include <gtest/gtest.h>
 
 #include <fstream>
@@ -27,7 +27,7 @@ std::vector<Line> corpus() {
         std::vector<std::string> cols;
         std::istringstream fields(line);
         for (std::string f; std::getline(fields, f, '\t');) cols.push_back(f);
-        if (cols.size() < 3 || (cols[0] != "train" && cols[0] != "test")) continue;
+        if (cols.size() < 3 || (cols[0] != "train" && cols[0] != "test" && cols[0] != "extra")) continue;
         cols.resize(5);
         lines.push_back({row, cols[1], cols[2], cols[3], cols[4]});
     }

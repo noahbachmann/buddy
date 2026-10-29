@@ -33,6 +33,7 @@ const char* kNotUnderstood = "Sorry, I didn't catch that.";
 std::string_view command_topic(const std::string& skill) {
     if (skill == "spotify") return topic::spotify_cmd;
     if (skill == "hue") return topic::hue_cmd;
+    if (skill == "motion") return topic::motion_cmd;
     return {};
 }
 

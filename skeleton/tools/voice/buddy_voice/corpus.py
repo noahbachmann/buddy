@@ -8,7 +8,7 @@ PATH = Path(__file__).resolve().parents[1] / "commands.tsv"
 
 @dataclass(frozen=True)
 class Command:
-    set: str  # train | test | wake
+    set: str  # train | test | wake | extra (brain test only)
     sentence: str
     intent: str
     query: str
@@ -21,8 +21,8 @@ def load(path: Path = PATH) -> list[Command]:
         if not line.strip() or line.startswith("#"):
             continue
         cols = line.split("\t")
-        if len(cols) < 2 or cols[0] not in ("train", "test", "wake"):
-            raise ValueError(f"{path}:{n}: expected <train|test|wake> TAB <sentence> TAB <intent> [TAB <query> [TAB <device>]]")
+        if len(cols) < 2 or cols[0] not in ("train", "test", "wake", "extra"):
+            raise ValueError(f"{path}:{n}: expected <train|test|wake|extra> TAB <sentence> TAB <intent> [TAB <query> [TAB <device>]]")
         cols += [""] * (5 - len(cols))
         out.append(Command(*cols[:5]))
     return out

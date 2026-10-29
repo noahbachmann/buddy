@@ -76,3 +76,15 @@ TEST(RuleParser, LightsNeedALightWord) {  // music phrasings stay spotify
     EXPECT_EQ(parser.parse("Turn the lights down.")->name, "darker");  // not colour "down"
     EXPECT_EQ(parser.parse("Turn the lights on in my bedroom.")->device, "bedroom");
 }
+
+TEST(RuleParser, DemoGesture) {  // whisper's spellings of "Andi's"; the corpus has the canonical one
+    const buddy::brain::RuleParser parser;
+    for (const char* text : {"Hey Jarvis, cut off Andi's balls.", "Cut off Andy's balls!", "cut of andis balls",
+                             "Cut off Andies balls."}) {
+        const auto intent = parser.parse(text);
+        ASSERT_TRUE(intent) << text;
+        EXPECT_EQ(intent->skill, "motion") << text;
+        EXPECT_EQ(intent->query, "shake") << text;
+    }
+    EXPECT_FALSE(parser.parse("Cut off the music."));
+}
