@@ -230,3 +230,107 @@ TEST_F(PlayerTest, StaleWarmListIsRefetchedOn404) {
     EXPECT_TRUE(run({.action = "play"}).ok);
     EXPECT_EQ(http.to("GET /me/player/devices").size(), 2u);
 }
+
+// --- web panel: device ids, seek, snapshot ---
+
+TEST_F(PlayerTest, DeviceIdTargetsThatDeviceSilently) {
+    devices({device("box", "Main speaker"), device("px", "Pixel 8", true, 40)});
+    http.on("PUT /me/player", 204);
+    http.on("PUT /me/player/pause", 204);
+    http.on("PUT /me/player/volume", 204);
+
+    const auto moved = run({.action = "play", .device_id = "box"});  // box not active: transfer
+    EXPECT_TRUE(moved.ok);
+    EXPECT_EQ(moved.say, "");
+    EXPECT_TRUE(has(last_body("PUT /me/player"), "\"box\""));
+
+    EXPECT_TRUE(run({.action = "pause", .device_id = "px"}).ok);
+    EXPECT_TRUE(has(last_url("PUT /me/player/pause"), "device_id=px"));
+    EXPECT_EQ(run({.action = "set_volume", .query = "25", .device_id = "px"}).volume, 25);
+    EXPECT_TRUE(has(last_url("PUT /me/player/volume"), "volume_percent=25&device_id=px"));
+}
+
+TEST_F(PlayerTest, UnknownDeviceId) {
+    devices({device("box", "Main speaker")});
+    const auto r = run({.action = "pause", .device_id = "gone"});
+    EXPECT_FALSE(r.ok);
+    EXPECT_EQ(r.say, "That speaker isn't available any more.");
+}
+
+TEST_F(PlayerTest, Seek) {
+    devices({device("px", "Pixel 8", true)});
+    http.on("PUT /me/player/seek", 204);
+    EXPECT_TRUE(run({.action = "seek", .query = "93000"}).ok);
+    EXPECT_TRUE(has(last_url("PUT /me/player/seek"), "position_ms=93000&device_id=px"));
+    for (const char* bad : {"", "-5", "1.5", "abc"}) EXPECT_FALSE(run({.action = "seek", .query = bad}).ok) << bad;
+    EXPECT_EQ(http.to("PUT /me/player/seek").size(), 1u);
+}
+
+TEST_F(PlayerTest, SnapshotOfATrackOnAnotherDevice) {
+    json phone = device("px", "Pixel 8", true, 40);
+    devices({device("box", "Main speaker"), phone, {{"id", "tv"}, {"name", "TV"}, {"type", "TV"}, {"is_active", false},
+                                                     {"volume_percent", nullptr}, {"supports_volume", false}}});
+    http.on("GET /me/player", 200, json{{"is_playing", true}, {"device", phone}, {"progress_ms", 61000},
+                                        {"item", {{"name", "One More Time"}, {"duration_ms", 320000},
+                                                  {"artists", {{{"name", "Daft Punk"}}, {{"name", "Romanthony"}}}},
+                                                  {"album", {{"name", "Discovery"}, {"images", {{{"url", "big"}, {"width", 640}},
+                                                                                                {{"url", "mid"}, {"width", 300}},
+                                                                                                {{"url", "small"}, {"width", 64}}}}}}}}}
+                                       .dump());
+    const auto s = player->snapshot();
+    ASSERT_TRUE(s);
+    EXPECT_EQ((*s)["playing"], true);
+    EXPECT_EQ((*s)["volume"], 40);
+    EXPECT_EQ((*s)["device"]["name"], "Pixel 8");
+    EXPECT_EQ((*s)["track"], (json{{"name", "One More Time"}, {"artist", "Daft Punk, Romanthony"}, {"album", "Discovery"}, {"image", "small"}}));
+    EXPECT_EQ((*s)["progress"]["ms"], 61000);
+    EXPECT_EQ((*s)["progress"]["duration_ms"], 320000);
+    ASSERT_EQ((*s)["devices"].size(), 3u);
+    EXPECT_EQ((*s)["devices"][1]["active"], true);
+    EXPECT_TRUE((*s)["devices"][2]["volume"].is_null());  // TV refuses remote volume
+}
+
+TEST_F(PlayerTest, SnapshotWithNothingActiveListsTheBoxInStandby) {
+    devices({device("box", "Main speaker")});
+    http.on("GET /me/player", 204);
+    ASSERT_TRUE(player->snapshot());
+    devices({});  // box in standby: still offered, on its last id
+    const auto s = player->snapshot();
+    ASSERT_TRUE(s);
+    EXPECT_EQ((*s)["playing"], false);
+    EXPECT_TRUE((*s)["device"].is_null());
+    EXPECT_TRUE((*s)["track"].is_null());
+    ASSERT_EQ((*s)["devices"].size(), 1u);
+    EXPECT_EQ((*s)["devices"][0]["id"], "box");
+}
+
+TEST_F(PlayerTest, SnapshotReportsTheVolumeBeforeTheDuck) {
+    now(device("box", "Main speaker", true, 60));
+    devices({device("box", "Main speaker", true, 18)});
+    http.on("PUT /me/player/volume", 204);
+    player->duck();
+    now(device("box", "Main speaker", true, 18));
+    EXPECT_EQ((*player->snapshot())["volume"], 60);
+}
+
+TEST_F(PlayerTest, SnapshotFailureIsNullopt) {
+    http.on("GET /me/player", 500);
+    EXPECT_FALSE(player->snapshot());
+}
+
+TEST(ProgressToPublish, KeptWhileItExtrapolates) {
+    const json track = {{"name", "a"}};
+    auto state = [&](bool playing, long ms, long at) {
+        return json{{"playing", playing}, {"track", track}, {"progress", {{"ms", ms}, {"duration_ms", 300000}, {"at", at}}}};
+    };
+    const json old = state(true, 10000, 1000);
+    EXPECT_EQ(progress_to_publish(old, state(true, 15500, 6000)), old["progress"]);   // 0.5 s off: keep
+    EXPECT_EQ(progress_to_publish(old, state(true, 40000, 6000))["ms"], 40000);       // seek elsewhere
+    EXPECT_EQ(progress_to_publish(old, state(false, 15000, 6000))["ms"], 15000);      // paused
+    const json paused = state(false, 10000, 1000);
+    EXPECT_EQ(progress_to_publish(paused, state(false, 10000, 9000)), paused["progress"]);
+    json other = state(true, 15000, 6000);
+    other["track"] = {{"name", "b"}};
+    EXPECT_EQ(progress_to_publish(old, other)["ms"], 15000);
+    EXPECT_TRUE(progress_to_publish(old, json{{"progress", nullptr}}).is_null());  // nothing playing
+}

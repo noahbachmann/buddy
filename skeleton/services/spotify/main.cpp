@@ -3,7 +3,8 @@
 //
 //   buddy-spotify                      live: buddy/spotify/cmd in, buddy/spotify/state + buddy/voice/say out;
 //                                      buddy/ears/state + buddy/voice/state duck the box (and warm up token,
-//                                      connection and device for the command that follows)
+//                                      connection and device for the command that follows); while a web panel
+//                                      watches ({"action": "watch"} every 20 s), polls what plays on any device
 //   buddy-spotify --login              once: OAuth login, saves the refresh token
 //   buddy-spotify --cmd <action> [q] [speaker]
 //                                      test: runs one command and prints the result (no MQTT)
@@ -72,16 +73,17 @@ struct Config {
         .duck_devices = name_list(env_string("BUDDY_SPOTIFY_DUCK_DEVICES", "")),
     };
     int duck_hold_ms = env_int("BUDDY_SPOTIFY_DUCK_HOLD_MS", 1500);
+    int poll_s = env_int("BUDDY_SPOTIFY_POLL_S", 5);
 };
 
-int serve(Player& player, Auth& auth, int hold_ms) {
+int serve(Player& player, Auth& auth, const Config& cfg) {
     if (!auth.logged_in())
         std::cout << "[spotify] not logged in yet: run ~/buddy/bin/buddy-spotify --login (commands will fail)"
                   << std::endl;
 
     BlockingQueue<Command> queue;  // HTTP runs on this thread, not on Paho's
     on_stop([&] { queue.close(); });
-    std::atomic<bool> listening{false}, speaking{false};
+    std::atomic<bool> listening{false}, speaking{false}, watch{false};
     auto state_of = [](const std::string& payload) {
         const auto msg = json::parse(payload, nullptr, /*allow_exceptions=*/false);
         return msg.is_object() ? msg.value("state", "") : std::string();
@@ -93,7 +95,13 @@ int serve(Player& player, Auth& auth, int hold_ms) {
             std::cout << "[spotify] bad command: " << payload << std::endl;
             return;
         }
-        Command c{.action = msg["action"], .query = msg.value("query", ""), .device = msg.value("device", "")};
+        if (msg["action"] == "watch") {  // panel heartbeat: frequent, never logged
+            watch = true;
+            queue.push({});
+            return;
+        }
+        auto text = [&](const char* key) { return msg.contains(key) && msg[key].is_string() ? msg[key].get<std::string>() : ""; };
+        Command c{.action = msg["action"], .query = text("query"), .device = text("device"), .device_id = text("id")};
         if (const auto f = msg.value("fallback", json()); f.is_object() && f["action"].is_string()) {
             c.fallback_action = f["action"];
             c.fallback_query = f.value("query", "");
@@ -112,13 +120,23 @@ int serve(Player& player, Auth& auth, int hold_ms) {
     player.recover();  // a crash while ducked must not leave the box quiet
     if (!mqtt.start()) return 0;
 
-    json state = {{"playing", nullptr}, {"volume", nullptr}, {"ducked", false}};
-    auto publish_state = [&] { mqtt.publish(topic::spotify_state, state.dump(), 1, true); };
+    json state = {{"playing", nullptr}, {"volume", nullptr}, {"ducked", false}, {"device", nullptr}, {"track", nullptr},
+                  {"progress", nullptr}, {"devices", json::array()}};
+    json published;
+    auto publish_state = [&] {
+        if (state == published) return;
+        mqtt.publish(topic::spotify_state, state.dump(), 1, true);
+        published = state;
+    };
     publish_state();
+
+    // Spotify has no push: poll while a panel is open (watched_until), else stay quiet.
+    const auto poll_every = std::chrono::seconds(std::max(cfg.poll_s, 1));
+    auto watched_until = Clock::now(), next_poll = Clock::now();
 
     // Duck on the first sign of activity (the wake word); restore after hold_ms of quiet, which covers the gap
     // between the transcript and the reply (brain → spotify → voice) so the music doesn't jump up and down.
-    const auto hold = std::chrono::milliseconds(hold_ms);
+    const auto hold = std::chrono::milliseconds(cfg.duck_hold_ms);
     bool was_busy = false;
     auto quiet_since = Clock::now();
     while (running()) {
@@ -127,7 +145,22 @@ int serve(Player& player, Auth& auth, int hold_ms) {
         if (player.ducked() && !was_busy)
             timeout = std::clamp(std::chrono::duration_cast<std::chrono::milliseconds>(quiet_since + hold - Clock::now()),
                                  std::chrono::milliseconds(0), timeout);
+        if (Clock::now() < watched_until)
+            timeout = std::clamp(std::chrono::duration_cast<std::chrono::milliseconds>(next_poll - Clock::now()),
+                                 std::chrono::milliseconds(0), timeout);
         const auto cmd = queue.pop(timeout);
+
+        if (watch.exchange(false)) {
+            if (Clock::now() >= watched_until) next_poll = Clock::now();  // panel just opened: now, not in 5 s
+            watched_until = Clock::now() + std::chrono::seconds(30);
+        }
+        if (Clock::now() < watched_until && Clock::now() >= next_poll) {
+            if (auto fresh = player.snapshot()) {
+                (*fresh)["progress"] = progress_to_publish(state, *fresh);
+                for (const auto& [key, value] : fresh->items()) state[key] = value;
+            }
+            next_poll = Clock::now() + poll_every;
+        }
 
         const bool busy = listening || speaking;
         if (busy && !was_busy) player.duck();  // most commands follow: also warms up token, connection, device
@@ -137,22 +170,25 @@ int serve(Player& player, Auth& auth, int hold_ms) {
             player.restore();
             if (player.ducked()) quiet_since = Clock::now();  // failed: retry after another hold
         }
-        if (state["ducked"] != player.ducked()) {
-            state["ducked"] = player.ducked();
+        state["ducked"] = player.ducked();
+        if (!cmd || cmd->action.empty()) {
             publish_state();
+            continue;
         }
-        if (!cmd || cmd->action.empty()) continue;
 
         const auto t0 = Clock::now();
         const Result r = player.run(*cmd);
         const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - t0);
         std::cout << "[spotify] " << cmd->action << (cmd->query.empty() ? "" : " \"" + cmd->query + "\"")
-                  << (cmd->device.empty() ? "" : " on \"" + cmd->device + "\"") << (r.ok ? " ok" : " failed") << " (" << ms.count() << " ms)" << std::endl;
+                  << (cmd->device.empty() ? "" : " on \"" + cmd->device + "\"")
+                  << (cmd->device_id.empty() ? "" : " on " + cmd->device_id) << (r.ok ? " ok" : " failed") << " (" << ms.count() << " ms)" << std::endl;
 
         if (!r.say.empty()) mqtt.publish(topic::voice_say, json{{"text", r.say}}.dump(), 1);
         if (r.playing) state["playing"] = *r.playing;
         if (r.volume) state["volume"] = *r.volume;
-        if (r.playing || r.volume) publish_state();
+        publish_state();
+        // Spotify shows a change about a second later
+        if (Clock::now() < watched_until) next_poll = std::min(next_poll, Clock::now() + std::chrono::milliseconds(1500));
     }
 
     player.restore();
@@ -224,7 +260,7 @@ int main(int argc, char** argv) {
         std::cout << (r.ok ? "ok" : "failed") << (r.say.empty() ? "" : ", says: \"" + r.say + "\"") << std::endl;
         rc = r.ok ? 0 : 1;
     } else {
-        rc = serve(player, auth, cfg->duck_hold_ms);
+        rc = serve(player, auth, *cfg);
     }
     curl_global_cleanup();
     return rc;

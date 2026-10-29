@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -82,6 +83,32 @@ const json& field(const json& d, const char* key) {
     static const json null;
     const auto it = d.find(key);
     return it == d.end() ? null : *it;
+}
+
+// "42" → 42; anything else (sign, fraction, trailing text) → nullopt
+std::optional<long> whole_number(const std::string& s) {
+    if (s.empty() || s.find_first_not_of("0123456789") != std::string::npos || s.size() > 9) return std::nullopt;
+    return std::stol(s);
+}
+
+// Smallest image at least 64 px wide (a thumbnail for the panel), else the first; empty if none.
+std::string thumbnail(const json& images) {
+    std::string url;
+    int best = 0;
+    if (!images.is_array()) return url;
+    for (const auto& i : images) {
+        if (!field(i, "url").is_string()) continue;
+        const int w = field(i, "width").is_number() ? field(i, "width").get<int>() : 0;
+        if (url.empty() || (w >= 64 && (best < 64 || w < best))) {
+            url = i["url"];
+            best = w;
+        }
+    }
+    return url;
+}
+
+std::int64_t epoch_ms() {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
 bool starts_playback(const std::string& action) {
@@ -224,6 +251,12 @@ Result Player::dispatch(const Command& c) {
 }
 
 Result Player::dispatch(const json& list, const Command& c) {
+    if (!c.device_id.empty()) {
+        const auto d = std::find_if(list.begin(), list.end(), [&](const json& x) { return field(x, "id") == c.device_id; });
+        if (d != list.end()) return dispatch(device_of(*d), c.action, c.query);
+        if (c.device_id == last_id_) return dispatch(box(list), c.action, c.query);  // box in standby (snapshot lists it)
+        throw Failure("device id " + c.device_id + " not in the device list", "That speaker isn't available any more.");
+    }
     if (c.device.empty()) return dispatch(starts_playback(c.action) ? box(list) : active(list), c.action, c.query);
 
     const auto d = speaker(list, c.device);
@@ -284,6 +317,12 @@ Result Player::dispatch(const Device& d, const std::string& action, const std::s
         return said(state == "track" ? "Repeating this song." : state == "off" ? "Repeat is off." : "Repeat is on.");
     }
     if (action == "play_liked") return play_liked(d, query == "shuffle");
+    if (action == "seek") {
+        const auto ms = whole_number(query);
+        if (!ms) throw Failure("seek position \"" + query + "\" is not a number of ms", "I can't skip there.");
+        expect_ok(api("PUT", "/me/player/seek?position_ms=" + std::to_string(*ms) + "&device_id=" + d.id), "seek");
+        return {};
+    }
     throw Failure("unknown action \"" + action + "\"", "I can't do that with Spotify.");
 }
 
@@ -416,13 +455,7 @@ json Player::best_own_playlist(const std::string& name, int min_score) {
 }
 
 Result Player::set_volume(const Device& d, const std::string& query) {
-    int volume = -1;
-    try {
-        std::size_t used = 0;
-        volume = std::stoi(query, &used);
-        if (used != query.size()) volume = -1;
-    } catch (const std::exception&) {
-    }
+    const int volume = static_cast<int>(whole_number(query).value_or(-1));
     if (volume < 0 || volume > 100)
         throw Failure("volume \"" + query + "\" out of range", "The volume goes from 0 to 100.");
     if (duck_ && duck_->device_id == d.id) {  // applied by restore(), like "louder"
@@ -475,6 +508,71 @@ Result Player::play_liked(const Device& d, bool shuffle) {
     expect_ok(r, "play liked");
     if (shuffle) expect_ok(api("PUT", "/me/player/shuffle?state=true&device_id=" + d.id), "shuffle");
     return playing(true, shuffle ? "Shuffling your liked songs." : "Playing your liked songs.");
+}
+
+std::optional<json> Player::snapshot() {
+    try {
+        const auto r = api("GET", "/me/player");
+        if (r.status != 204) expect_ok(r, "player");
+        const json p = r.status == 204 || r.body.empty() ? json::object() : json::parse(r.body);
+        const json list = fetch_devices();
+
+        json out = {{"playing", p.value("is_playing", false)}, {"volume", nullptr}, {"device", nullptr},
+                    {"track", nullptr}, {"progress", nullptr}, {"devices", json::array()}};
+        const json& d = field(p, "device");
+        if (d.is_object() && field(d, "id").is_string()) {
+            out["device"] = {{"id", d["id"]}, {"name", d.value("name", "")}, {"type", d.value("type", "")}};
+            if (duck_ && d["id"] == duck_->device_id) out["volume"] = duck_->restore_to;
+            else if (field(d, "volume_percent").is_number() && d.value("supports_volume", true)) out["volume"] = d["volume_percent"];
+        }
+        const json& item = field(p, "item");
+        if (item.is_object() && field(item, "name").is_string()) {
+            // track: artists + album; podcast episode: show
+            std::string artist;
+            if (field(item, "artists").is_array())
+                for (const auto& a : item["artists"])
+                    if (field(a, "name").is_string()) artist += (artist.empty() ? "" : ", ") + a["name"].get<std::string>();
+            const json& album = field(item, "album");
+            const json& show = field(item, "show");
+            if (artist.empty() && show.is_object()) artist = show.value("name", "");
+            const json& images = album.is_object() ? field(album, "images") : show.is_object() ? field(show, "images") : field(item, "images");
+            out["track"] = {{"name", item["name"]}, {"artist", artist},
+                            {"album", album.is_object() ? album.value("name", "") : ""}, {"image", thumbnail(images)}};
+            if (field(p, "progress_ms").is_number() && field(item, "duration_ms").is_number())
+                out["progress"] = {{"ms", p["progress_ms"]}, {"duration_ms", item["duration_ms"]}, {"at", epoch_ms()}};
+        }
+        bool box_listed = false;
+        for (const auto& x : list) {
+            if (!field(x, "id").is_string()) continue;
+            const bool volume = field(x, "volume_percent").is_number() && x.value("supports_volume", true);
+            out["devices"].push_back({{"id", x["id"]}, {"name", x.value("name", "")}, {"type", x.value("type", "")},
+                                      {"active", x.value("is_active", false)},
+                                      {"volume", volume ? x["volume_percent"] : json(nullptr)}});
+            box_listed = box_listed || lower(x.value("name", "")) == lower(cfg_.device_name);
+        }
+        // The box in standby leaves the list but may still take playback on its last id ⚠️
+        if (!box_listed && !last_id_.empty())
+            out["devices"].push_back({{"id", last_id_}, {"name", cfg_.device_name}, {"type", "Speaker"},
+                                      {"active", false}, {"volume", nullptr}});
+        if (snapshot_failing_) std::cout << "[spotify] player state is back" << std::endl;
+        snapshot_failing_ = false;
+        return out;
+    } catch (const std::exception& e) {
+        if (!snapshot_failing_) std::cout << "[spotify] player state: " << e.what() << std::endl;
+        snapshot_failing_ = true;
+        return std::nullopt;
+    }
+}
+
+json progress_to_publish(const json& old, const json& fresh) {
+    const json& was = field(old, "progress");
+    const json& now = field(fresh, "progress");
+    if (!was.is_object() || !now.is_object() || field(old, "track") != field(fresh, "track") ||
+        field(old, "playing") != field(fresh, "playing") || was["duration_ms"] != now["duration_ms"])
+        return now;
+    const std::int64_t expected = was["ms"].get<std::int64_t>() +
+                                  (fresh.value("playing", false) ? now["at"].get<std::int64_t>() - was["at"].get<std::int64_t>() : 0);
+    return std::abs(expected - now["ms"].get<std::int64_t>()) <= 2000 ? was : now;
 }
 
 std::vector<std::string> Player::devices() {

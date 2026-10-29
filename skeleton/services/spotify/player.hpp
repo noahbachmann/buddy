@@ -1,5 +1,6 @@
 #pragma once
 // Spotify Web API player calls on Spotify Connect devices. Which device:
+//   - a device id in the command (web panel): exactly that device
 //   - a speaker named in the command ("… on the bathroom speaker"): the best match in the device list
 //   - play, play_playlist, play_liked without one: the music box (BUDDY_SPOTIFY_DEVICE, its name in the Spotify app)
 //   - pause, next, volume, shuffle, …: the device playing right now, else the box
@@ -38,6 +39,7 @@ struct Command {
     std::string action{};  // see Player::run; empty = no command (main loop: ears/voice state changed)
     std::string query{};
     std::string device{};  // speaker as spoken, empty = default for the action
+    std::string device_id{};  // exact Connect device id (web panel); wins over `device`, no "on X" in the reply
     std::string fallback_action{};  // run instead (on the box) when `device` matches no speaker; empty = none
     std::string fallback_query{};
 };
@@ -54,8 +56,8 @@ public:
     Player(PlayerConfig cfg, Auth& auth, Http& http);
 
     // action: play, play_playlist, play_liked, pause, next, previous, volume_up, volume_down, set_volume, shuffle,
-    // repeat, now_playing (see brain/intent.hpp for the queries); play without a query on a named speaker moves
-    // the music there. Never throws: errors become Result{ok = false, say = "…"} and a log line.
+    // repeat, now_playing (see brain/intent.hpp for the queries), seek (query: position in ms; web panel only);
+    // play without a query on a named speaker moves the music there. Never throws: errors become Result{ok = false, say = "…"} and a log line.
     Result run(const Command& c);
 
     // Refreshes the access token, opens the HTTPS connection and fetches the device list. Never throws; failures
@@ -68,6 +70,9 @@ public:
     // Brings back the volume from before duck(), plus volume commands since. Skipped if someone else (phone app)
     // changed the volume meanwhile. Never throws.
     void restore();
+    // What Spotify plays right now on any device, as the state fields playing, volume, device, track, progress,
+    // devices (shared/topics.json). Two requests. Never throws: nullopt on failure, logged once per failure streak.
+    std::optional<nlohmann::json> snapshot();
     // Spotify Connect devices the account sees right now, one "name (type, active, volume %)" line each. Throws.
     std::vector<std::string> devices();
 
@@ -128,6 +133,12 @@ private:
     nlohmann::json playlists_;  // own_playlists() cache
     std::chrono::steady_clock::time_point playlists_at_{};
     bool duck_disallowed_ = false;  // box refuses remote volume (403): stop trying
+    bool snapshot_failing_ = false;  // log a failing snapshot once, not every poll
 };
+
+// The progress to publish in `fresh` state: the published one (`old`) while it still extrapolates to within 2 s of
+// the fresh poll (same track, same playing), else the fresh one. Keeps a playing song from re-publishing every poll;
+// the browser moves the bar itself (ms + now - at).
+nlohmann::json progress_to_publish(const nlohmann::json& old, const nlohmann::json& fresh);
 
 } // namespace buddy::spotify
