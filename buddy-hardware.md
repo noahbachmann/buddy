@@ -33,7 +33,15 @@ Current hardware and software used for the Buddy desk robot. Roadmap, architectu
 | Item | Details |
 |---|---|
 | Hue Bridge | Philips Hue Bridge v2 (square, model BSB002), LAN 192.168.1.219 ⚠️ give it a fixed IP in the router. Buddy talks to it locally (D18) |
-| Hue lights | ⚠️ not noted yet: `buddy-hue --cmd list` after pairing shows rooms, lights and what they can do |
+| Hue lights | 5 (`deploy/run.sh hue --cmd list`, 2026-10-30): colour "Bedroom Ceiling"; white "Kitchen Ceiling", "Living Room Corner"; colour "Hue color lamp 2" and "3" (in no room). Room "Home" (the three ceiling/corner lights), zones "Bedroom" and "Living Room", each with scenes |
+
+## Motion (Phase 2, guide 2.2)
+
+| Item | Details |
+|---|---|
+| Motion controller | Raspberry Pi Pico 2 H (RP2350), firmware `pico-motion` flashed 2026-10-29, on the Pi's USB as `/dev/buddy-pico` (D17) |
+| Servos | ⚠️ not noted yet (2.2 parts list: MG90S metal-gear micro servo, 180°) |
+| Servo supply | ⚠️ not noted yet (2.2 parts list: 5 V / 5 A brick, 5.5 × 2.1 mm, 1000 µF on the rail) |
 
 ## Dev machines
 

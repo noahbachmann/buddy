@@ -273,8 +273,7 @@ Spotify app is open.
 
 Setup (once): developer.spotify.com → **Create app** (Redirect URI exactly `http://127.0.0.1:8888/callback`, Web API),
 Client ID into `BUDDY_SPOTIFY_CLIENT_ID`; owner needs **Premium** (Development Mode, max 5 users, search max 10 results).
-Login: load `buddy.env` (`while IFS="=" read -r k v; do [[ "$k" =~ ^BUDDY_ ]] && export "$k=${v%$'\r'}"; done < ~/buddy/config/buddy.env`),
-`~/buddy/bin/buddy-spotify --login`, open the URL on the PC, copy the failing `http://127.0.0.1:8888/callback?code=…` URL
+Login: `deploy/run.sh spotify --login` on the PC (runs it on the Pi with `buddy.env` loaded), open the URL on the PC, copy the failing `http://127.0.0.1:8888/callback?code=…` URL
 back. A new scope (e.g. liked songs) needs `--login` again.
 
 Offline: `buddy-brain --test "Play Daft Punk." …`; `buddy-spotify --cmd <action> [query] [speaker]` (real API, no MQTT;

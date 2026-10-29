@@ -46,7 +46,7 @@ measured in 2.5 once the servos sit in the head. The table is code, not `buddy.e
 robot's mechanics, not a host, and changes with the CAD, so it belongs in Git next to it. Degrees outside the joint's
 range are clamped by the service; µs outside the limits are clamped again by the Pico.
 
-### Topics (`shared/topics.json`; drop `"planned"`)
+### Topics (`shared/topics.json`)
 
 ```json
 {"name": "motion_cmd",   "topic": "buddy/motion/cmd",   "kind": "command", "web": false,
@@ -130,7 +130,8 @@ buddy-motion --raw "1 MOVE 0 1500 300"     # one protocol line, prints the reply
 
 ## Steps
 
-Claude writes the code; you run the checks.
+Steps 1–5 are done (code, topics, deploy wiring and tests on 2026-10-29, deployed the same day). What's left for you:
+the Verify table, once 2.2 is wired and the Pico is plugged in. Step 5 again only after code changes.
 
 1. **Code:** `services/motion/` as above, plus `add_subdirectory(services/motion)` in `CMakeLists.txt` and
    `install(TARGETS buddy-motion … COMPONENT motion)` (no new libraries: termios is libc). Joints and the serial link go
@@ -146,8 +147,8 @@ Claude writes the code; you run the checks.
    |---|---|
    | `MotionProtocol` (`shared/tests/`) | from 2.2: format/parse round trips, malformed lines |
    | `MotionJoints` | deg → µs, clamping at both ends, speed cap stretches `ms`, multi-joint moves arrive together |
-| `MotionGestures`, `MotionCommand` | gesture table uses real joints within range and ends limp, player timing, command JSON |
-| `RuleParser.DemoGesture`, corpus `extra` rows | brain: the phrase and whisper's spellings of "Andi's" |
+   | `MotionGestures`, `MotionCommand` | gesture table uses real joints within range and ends limp, player timing, command JSON |
+   | `RuleParser.DemoGesture`, corpus `extra` rows | brain: the phrase and whisper's spellings of "Andi's" |
    | `MotionLink` | `serial_link` against a fake Pico on a pseudo-terminal (`openpty`): handshake sends every `LIMIT`, reply matching, timeout → disconnect, `* BOOT` → re-handshake |
 
 5. **Deploy:** stop anything holding the port, then `deploy/deploy.sh motion brain`. Expected: `buddy@motion active`.

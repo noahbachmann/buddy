@@ -1,7 +1,8 @@
 # skeleton/ – code quick reference
 
 Project root for CMake (C++) and the uv workspace (Python). One executable per service, `buddy@<name>` on the Pi.
-Roadmap, decisions and conventions: `../CLAUDE.md`.
+Roadmap, decisions and conventions: `../CLAUDE.md`. Everyday commands for Dev: `../README.md`. Deeper per-directory
+notes: `services/web/CLAUDE.md`.
 
 ## Service pattern (C++: `services/<name>/main.cpp`; Python: same steps with `buddy_shared`)
 
@@ -37,9 +38,9 @@ Roadmap, decisions and conventions: `../CLAUDE.md`.
 |---|---|---|
 | ears | `audio_source` (ALSA capture thread, reopens device; WAV read/write), `wake_word` (3 ONNX models), `vad` (Silero), `endpoint` (endpointer + level gate on a `SpeechModel` interface, no ONNX = `ears_core`), `stt` (whisper.cpp; `audio_ctx` auto = `auto_audio_ctx()`, shared with tools/voice), `transcript` (hallucination guards: `max_tokens` by length, repeated first sentence dropped; in `ears_core`) | `--wav f.wav`, `--transcribe f.wav…` |
 | brain | `rules` (normalize + regex `RuleParser` behind `IntentParser`; light rules (skill hue) first, need a light word, `light_device()` turns "the kitchen lights" into "kitchen", `parse_room()` splits "… in the kitchen") = `brain_core` | `--test "text"…` |
-| spotify | `auth` (PKCE, token file), `player` (Web API; target = named speaker (`speaker()`, `names::best_matches`) / box / active device, own-playlist cache, duck/restore by device id with tmpfs recovery file) | `--login`, `--cmd <action> [query] [speaker]`, `--cmd devices\|duck\|restore` |
+| spotify | `auth` (PKCE, token file), `player` (Web API; target = `device_id` (panel) / named speaker (`speaker()`, `names::best_matches`) / box / active device, own-playlist cache, duck/restore by device id with tmpfs recovery file, `seek` (panel only), `snapshot()` = live state for the panel: playing, device, track, progress, devices; values a command just set win over lagging polls for 8 s); main: polls `snapshot()` every `BUDDY_SPOTIFY_POLL_S` only while a panel sends `watch` (30 s), once 1.5 s after each command | `--login`, `--cmd <action> [query] [speaker]`, `--cmd devices\|duck\|restore` |
 | hue | `bridge` (CLIP v2 on `Http`: TLS by bridge id + compiled-in root CA, pairing, discovery, key file), `home` (rooms/zones/lights/scenes from `/clip/v2/resource`, eventstream updates, `find()` by spoken name: room > zone > light), `lights` (`plan()`: command → requests + reply, no I/O; `scene_save` snapshots a group's lights → POST scene, same name → PUT; `scene_delete`), `sse` (event parser), `throttle` (per-resource interval, merges piled-up bodies); main: eventstream thread → queue; PUTs via throttle, POST/DELETE direct | `--pair`, `--cmd <action> [query] [device]`, `--cmd list` |
-| web | `state` (`StateStore`: last payload per topic + version; each change encoded once into shared SSE frames, a JSON Patch (`json::diff`) for streams that have the previous payload; `wait()` for event streams), `access` (Host allowlist against DNS rebinding, same-origin + JSON-only POSTs, command topics from `topic::commands`), `server` (cpp-httplib routes: static `www/`, `/api/state`, `/api/events` SSE, `POST /api/cmd/<svc>`) = `web_core`; `www/` vanilla HTML/CSS/JS, no build step; `applyPatch` (reconnects when out of step), `keyed()` rebuilds only children whose data changed; pages by `location.hash` (dashboard, `#hue` scenes); forms live in `index.html` (re-renders would drop typed text) | – (tests run a real server on a free port) |
+| web | `state` (`StateStore`: last payload per topic, SSE frames shared by all streams, JSON Patch deltas), `access` (Host allowlist, same-origin JSON-only POSTs), `server` (cpp-httplib routes) = `web_core`; `www/` vanilla HTML/CSS/JS, no build step. Details: `services/web/CLAUDE.md` | – (tests run a real server on a free port) |
 | voice | `tts` (libpiper, sentence streaming), `audio_sink` (ALSA per utterance / WAV) | `--say "…" [--wav out.wav]` |
 | motion | `joints` (table: name → channel/µs, `plan_move()` clamps + speed cap; `demo` on ch0 until 2.5), `gestures` (steps + spoken reply, `GesturePlayer` timing), `command` (cmd JSON), `serial_link` (termios + flock, reader thread, id-matched replies 500 ms, `* …` events queue, handshake HELLO → LIMITs, lost after I/O error / 3 timeouts) = `motion_core`; main: reconnect 1 → 10 s, PING 500 ms, unexpected `* BOOT` = re-handshake, `RELAX *` on stop | `--cmd move\|center\|relax\|gesture …`, `--raw "<id> <line>"` |
 
@@ -64,6 +65,22 @@ No unit tests on the Pico: the logic that can break (protocol) lives in the shar
 | `train.py` | HF Whisper fine-tune: sentence-level validation split, short-context encoder (`short_context()`), greedy validation |
 | `convert.py` | GGML via whisper.cpp's converter (release from `third_party/whisper.json`, like CMake) + q8_0 |
 | `evaluate.py`, `pi.py` | Scores on the Pi via ssh (`buddy-ears --transcribe`, `buddy-brain --test`), install |
+
+## deploy/ (bash, run on the PC; `BUDDY_HOST` overrides the `buddy` SSH alias)
+
+| Script | What |
+|---|---|
+| `sync.sh` | rsync `skeleton/` → Pi `~/buddy/src` (warns about uncommitted changes); every script below that builds on the Pi calls it |
+| `deploy.sh [--setup] [--firmware] [svc…]` | sync, Release build + install to `~/buddy/bin` (C++) / uv sync (Python), restart `buddy@<svc>`; `SERVICES` = default list |
+| `test.sh [--pi] [ctest args]` | see Tests |
+| `run.sh <svc> [flags]` | `~/buddy/bin/buddy-<svc> <flags>` on the Pi with `buddy.env` exported (CRLF-safe), tty if interactive |
+| `status.sh [-l]`, `logs.sh <svc>` | health overview (units, restarts, RSS, retained statuses, throttling) / `journalctl -f` of one unit |
+| `record.sh`, `train.sh` | voice sessions on the Pi / training pipeline on the PC (`tools/voice`, `docs/voice-training.md`) |
+| `pi/setup.sh [step…\|check]` | Pi provisioning, pinned versions + hashes at the top; `check` warns about unknown `buddy.env` keys |
+| `pi/fetch-models.sh` | models `buddy.env` names → `~/buddy/models` |
+| `config/` | `buddy.env.example` (every `BUDDY_*` key, defaults commented out), `systemd/buddy@.service`, `udev/60-buddy-pico.rules` |
+
+A new service name goes into `SERVICES` in `deploy.sh` *and* the list in `logs.sh`.
 
 ## Tests
 

@@ -45,12 +45,11 @@ Commands run **on the PC** in the repo's `skeleton/` folder unless marked **Pi**
 
 ### 1. Spotify: new login, the box's name
 
-Liked songs need a new permission. **Pi:**
+Liked songs need a new permission. On the PC (`deploy/run.sh` runs the command on the Pi with `buddy.env` loaded):
 
 ```bash
-while IFS="=" read -r k v; do [[ "$k" =~ ^BUDDY_ ]] && export "$k=${v%$'\r'}"; done < ~/buddy/config/buddy.env
-~/buddy/bin/buddy-spotify --login
-~/buddy/bin/buddy-spotify --cmd devices
+deploy/run.sh spotify --login
+deploy/run.sh spotify --cmd devices
 ```
 
 `--login` works like in 1.9 (open the URL on the PC, paste the failing `127.0.0.1` URL back). Start a song on the box
@@ -59,10 +58,10 @@ quotes must be what `BUDDY_SPOTIFY_DEVICE` says in `~/buddy/config/buddy.env` (c
 
 ### 2. The box from standby ⚠️
 
-Pause the music and leave the box alone until it goes to standby (often 10–20 min). **Pi:**
+Pause the music and leave the box alone until it goes to standby (often 10–20 min). Then:
 
 ```bash
-~/buddy/bin/buddy-spotify --cmd devices     # still listed?
+deploy/run.sh spotify --cmd devices         # still listed?
 ```
 
 Then say "Hey Jarvis, play Spotify". **Tell Claude** whether the box was listed in standby and whether it started.
@@ -71,11 +70,11 @@ saw the box since it started). If it doesn't start, the fix depends on the box (
 
 ### 3. Ducking
 
-With music playing on the box at your normal volume. **Pi:**
+With music playing on the box at your normal volume:
 
 ```bash
-~/buddy/bin/buddy-spotify --cmd duck        # ducked: clearly quieter
-~/buddy/bin/buddy-spotify --cmd restore     # back to before
+deploy/run.sh spotify --cmd duck            # ducked: clearly quieter
+deploy/run.sh spotify --cmd restore         # back to before
 ```
 
 Then live: "Hey Jarvis, …" (say nothing): the music drops right after the wake word and comes back ~1.5 s after Buddy
@@ -192,21 +191,18 @@ every week or two `deploy/train.sh history`, retrain at ~100 clips).
 Buddy runs `hue` and `web` already (deployed 2026-10-28) but has no key for the bridge yet. Why the button: the bridge
 only hands out a key to an app while someone presses it, so nobody on the Wi-Fi can take over your lights unnoticed.
 
-1. Press the round link button on top of the Hue Bridge, then within 30 s, **Pi:**
-   ```bash
-   ~/buddy/bin/buddy-hue --pair
-   ```
-   Expected: `bridge ecb5fafffe9164da at 192.168.1.219: press its link button…` then `✓ paired, key saved to …/hue.json`.
+1. ✅ Paired 2026-10-29 (`~/buddy/config/hue.json`). Again only if the key is revoked: press the round link button on
+   top of the Hue Bridge, then within 30 s `deploy/run.sh hue --pair`.
 2. In the router: give the bridge a fixed IP (DHCP reservation for MAC `ec:b5:fa:91:64:da`). If it ever moves, Buddy
    says "I can't reach the Hue bridge."
-3. **Pi:** load `buddy.env` (1.8/1.9 in the summary), then `~/buddy/bin/buddy-hue --cmd list`: your rooms, zones, scenes
-   and lights with their exact names. Put the room Buddy stands in into `~/buddy/config/buddy.env`:
+3. `deploy/run.sh hue --cmd list`: your rooms, zones, scenes and lights with their exact names (as of 2026-10-30 in
+   `buddy-hardware.md`). Put the room Buddy stands in into `~/buddy/config/buddy.env`:
    `BUDDY_HUE_DEFAULT_ROOM=<room>` ("lights off" without a room then means that one), then
    `systemctl --user restart buddy@hue`.
-4. Try: `~/buddy/bin/buddy-hue --cmd off "" "<room>"`, then `--cmd on "" "<room>"`, `--cmd scene "<scene>"`,
+4. Try: `deploy/run.sh hue --cmd off "" "<room>"`, then `--cmd on "" "<room>"`, `--cmd scene "<scene>"`,
    `--cmd color blue "<a colour light>"`.
-5. **Tell Claude** the `--cmd list` output (or paste it): the test fixture and `buddy-hardware.md` get your real lights,
-   and the corpus gets your room and scene names.
+5. ✅ `--cmd list` read 2026-10-30, lights in `buddy-hardware.md`. Claude still puts your room and scene names into the
+   corpus once you've settled them (step 6).
 6. Your names into `skeleton/tools/voice/commands.tsv` (lights section, like step 4): every room, zone and scene you
    will say, 5+ sentences each across `train` and `test`; `deploy/test.sh --pi -R Corpus` must pass. Record them with
    the next voice session (CLAUDE.md → Deferred → Next voice session).
