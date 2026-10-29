@@ -428,7 +428,8 @@ names), `buddy-hue --cmd <action> [query] [room]` (real bridge, no MQTT), `buddy
 
 `http://buddy.local:8080` (or the Pi's IP) from a phone or PC on the LAN. Rooms with on/off, brightness, warm↔cool,
 colours and scenes (each room's single lights behind "N lights ▾"), the room and light colour shown on the card border and
-switch; "All lights" is only a thin bar with "Turn off" (switching everything on is left to voice and rooms); music play/pause/next/previous and volume; fixed chips
+switch; "All lights" is only a thin bar with "Turn off" (switching everything on is left to voice and rooms); ⚙ bottom
+left arranges the rooms (order, hide, add back), saved per browser (`localStorage`, so phone and PC differ); music play/pause/next/previous and volume; fixed chips
 `voice` (green = ears, brain and voice all online; shows listening/speaking), `hue`, `spotify`. The list lives in
 `SERVICE_CHIPS` in `app.js`: add new services there.
 

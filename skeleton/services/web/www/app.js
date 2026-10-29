@@ -4,6 +4,7 @@
 
 const state = {};               // topic → payload (JSON, or a string like "online")
 const expanded = new Set();     // room ids showing their single lights
+let editing = false;            // cog pressed: rooms as a list to reorder, hide and add back
 let interacting = 0;            // > 0 while a slider is held: re-rendering would yank it from the finger
 let renderQueued = false;
 
@@ -249,6 +250,58 @@ function homeBar(home, lightsById) {
     el("button", { class: "chip-btn", disabled: !home.on, onclick: () => hue({ action: "off", id: home.id }) }, "Turn off"));
 }
 
+// Room order and hidden rooms, per browser (phone and PC may want different panels). Rooms the bridge adds later
+// show up at the end; ids of deleted rooms stay in here harmlessly.
+const LAYOUT_KEY = "buddy.lights.layout";
+function loadLayout() {
+  try {
+    const l = JSON.parse(localStorage.getItem(LAYOUT_KEY));
+    if (l && Array.isArray(l.order) && Array.isArray(l.hidden)) return l;
+  } catch { /* private mode or garbage: default layout */ }
+  return { order: [], hidden: [] };
+}
+const layout = loadLayout();
+function saveLayout() {
+  try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout)); } catch { /* layout lasts until reload */ }
+}
+
+function orderedRooms(rooms) {
+  const rank = (r) => { const i = layout.order.indexOf(r.id); return i < 0 ? Infinity : i; };
+  return rooms.map((r, i) => [r, i]).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map(([r]) => r);
+}
+
+function moveRoom(visible, i, by) {
+  const ids = visible.map((r) => r.id);
+  [ids[i], ids[i + by]] = [ids[i + by], ids[i]];
+  layout.order = [...ids, ...layout.order.filter((id) => !ids.includes(id))];
+  saveLayout();
+  render();
+}
+
+function setHidden(id, hide) {
+  layout.hidden = layout.hidden.filter((h) => h !== id);
+  if (hide) layout.hidden.push(id);
+  saveLayout();
+  render();
+}
+
+function editList(rooms) {
+  const visible = rooms.filter((r) => !layout.hidden.includes(r.id));
+  const hidden = rooms.filter((r) => layout.hidden.includes(r.id));
+  const icon = (label, text, onclick, disabled) =>
+    el("button", { class: "icon-btn", "aria-label": label, title: label, disabled, onclick }, text);
+  const nodes = visible.map((r, i) => el("div", { class: "edit-row" },
+    el("div", { class: "name" }, r.name),
+    icon(`Move ${r.name} up`, "↑", () => moveRoom(visible, i, -1), i === 0),
+    icon(`Move ${r.name} down`, "↓", () => moveRoom(visible, i, 1), i === visible.length - 1),
+    icon(`Hide ${r.name}`, "✕", () => setHidden(r.id, true))));
+  if (hidden.length) {
+    nodes.push(el("div", { class: "edit-hidden" }, el("span", { class: "muted" }, "Hidden"),
+      hidden.map((r) => el("button", { class: "chip-btn", onclick: () => setHidden(r.id, false) }, `+ ${r.name}`))));
+  }
+  return el("div", { class: "edit-list" }, nodes);
+}
+
 function renderLights() {
   const hs = state["buddy/hue/state"];
   const online = state["buddy/hue/status"] === "online";
@@ -263,8 +316,15 @@ function renderLights() {
     rooms.append(el("p", { class: "empty" }, online ? "No rooms yet." : "The hue service isn't running."));
     return;
   }
+  const ordered = orderedRooms(hs.rooms);
+  if (editing) {
+    rooms.append(editList(ordered));
+    return;
+  }
   const lightsById = Object.fromEntries(hs.lights.map((l) => [l.id, l]));
-  for (const room of hs.rooms) rooms.append(room.kind === "home" ? homeBar(room, lightsById) : roomCard(room, lightsById));
+  const shown = ordered.filter((r) => !layout.hidden.includes(r.id));
+  if (!shown.length) rooms.append(el("p", { class: "empty" }, "All rooms hidden: add them back with ⚙."));
+  for (const room of shown) rooms.append(room.kind === "home" ? homeBar(room, lightsById) : roomCard(room, lightsById));
 }
 
 // --- music ------------------------------------------------------------------------------------------------------
@@ -322,6 +382,12 @@ function render() {
   renderLights();
   renderMusic();
 }
+
+$("customize").addEventListener("click", (e) => {
+  editing = !editing;
+  e.currentTarget.setAttribute("aria-pressed", String(editing));
+  render();
+});
 
 render();
 connect();
