@@ -24,6 +24,7 @@ Roadmap, decisions and conventions: `../CLAUDE.md`.
 | `queue.hpp` | `BlockingQueue<T>`: Paho callback → service thread |
 | `config.*` | Env lookups, trims whitespace and `\r` |
 | `http.*`, `curl_http.*` | `Http` interface + `url_encode` (`buddy_http`, no libcurl: logic and tests); `CurlHttp` (`buddy_curl_http`): keep-alive, own CA (PEM blob), `CURLOPT_RESOLVE`, `stream()` for server-sent events |
+| `motion_protocol.hpp` | Protocol v1 Pi ⇄ Pico (header only, constexpr, no heap/exceptions): `parse_request`/`format_*` for the firmware, `format_request`/`parse_message`/`parse_hello` for motion (2.3) |
 | `names.*` | `buddy_names`: fuzzy matching of spoken names (`best_matches`, `match_score`): spotify speakers/playlists, hue rooms/lights |
 | `python/buddy_shared/` | The same for Python: `topics` (reads topics.json), `mqtt` (paho-mqtt 2), `systemd`, `config`, `lifecycle` |
 
@@ -37,6 +38,17 @@ Roadmap, decisions and conventions: `../CLAUDE.md`.
 | hue | `bridge` (CLIP v2 on `Http`: TLS by bridge id + compiled-in root CA, pairing, discovery, key file), `home` (rooms/zones/lights/scenes from `/clip/v2/resource`, eventstream updates, `find()` by spoken name: room > zone > light), `lights` (`plan()`: command → PUT requests + reply, no I/O), `sse` (event parser), `throttle` (per-resource interval, merges piled-up bodies); main: eventstream thread → queue | `--pair`, `--cmd <action> [query] [device]`, `--cmd list` |
 | web | `state` (`StateStore`: last payload per topic + version, `wait()` for event streams), `access` (Host allowlist against DNS rebinding, same-origin + JSON-only POSTs, command topics from `topic::commands`), `server` (cpp-httplib routes: static `www/`, `/api/state`, `/api/events` SSE, `POST /api/cmd/<svc>`) = `web_core`; `www/` vanilla HTML/CSS/JS, no build step | – (tests run a real server on a free port) |
 | voice | `tts` (libpiper, sentence streaming), `audio_sink` (ALSA per utterance / WAV) | `--say "…" [--wav out.wav]` |
+
+## firmware/pico-motion (Pico 2, own CMake project, `deploy.sh --firmware`)
+
+| File | What |
+|---|---|
+| `CMakeLists.txt` | SDK 2.3.1 + TinyUSB as hashed tarballs before `project()`; picotool from `/opt/picotool`; `USBD_PRODUCT` → udev `/dev/buddy-pico`; warnings on our files only |
+| `board.hpp` | Channel → GPIO (ch0 = GP2 …) |
+| `servo.*` | PWM at 1 MHz tick / 50 Hz (level = µs, 0 = relaxed), limits, linear ramps, `update()` reports DONE |
+| `main.cpp` | Line reader (bounded per loop), request handling, link watchdog (2 s → relax all), hardware watchdog 500 ms, `* BOOT` on first connect |
+
+No unit tests on the Pico: the logic that can break (protocol) lives in the shared header and is tested on the host.
 
 ## tools/voice (Python, runs on the PC; `deploy/record.sh`, `deploy/train.sh`)
 
@@ -56,7 +68,7 @@ built), pytest, shellcheck. `deploy/test.sh --pi`: the C++ tests on the Pi (`~/b
 
 | Where | What |
 |---|---|
-| `shared/tests/` | gtest: topics, config, queue, MQTT round trip (localhost broker, skipped without), systemd (own exe: process-wide state) |
+| `shared/tests/` | gtest: topics, config, motion protocol, queue, MQTT round trip (localhost broker, skipped without), systemd (own exe: process-wide state) |
 | `shared/tests/cases/*.json` | Cases both languages check (`cases.hpp` / plain `json.load`): topic matching, `BUDDY_*` parsing, `audio_ctx` |
 | `services/<svc>/tests/` | gtest, `test_<unit>.cpp` → `buddy-<svc>-tests`, linked against `<svc>_core` (the service's logic without main/hardware) |
 | `shared/tests/fake_http.hpp` | `FakeHttp`: canned responses per `"METHOD /path"` (URL prefix → path mapping per service, e.g. `fake_spotify.hpp`), records requests; temp dir for token/state files |

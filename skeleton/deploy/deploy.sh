@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Deploy Buddy to the Pi: sync sources, Release build on the Pi, install, (re)start services.
 #
-# Usage: deploy/deploy.sh [--setup] [service ...]
-#   --setup   run deploy/pi/setup.sh on the Pi first (asks for your sudo password)
-#   service   e.g. "ears"; default: all services in SERVICES
+# Usage: deploy/deploy.sh [--setup] [--firmware] [service ...]
+#   --setup     run deploy/pi/setup.sh on the Pi first (asks for your sudo password)
+#   --firmware  build firmware/pico-motion on the Pi and flash the Pico (D17); alone: no services
+#   service     e.g. "ears"; default: all services in SERVICES
 #
 # Env: BUDDY_HOST (default "buddy", the alias from ~/.ssh/config)
 set -euo pipefail
@@ -13,14 +14,36 @@ SERVICES=(ears brain spotify hue web voice)
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"   # project root = parent of deploy/
 
 setup=false
-if [[ "${1:-}" == "--setup" ]]; then setup=true; shift; fi
+firmware=false
+while [[ "${1:-}" == --* ]]; do
+    case "$1" in
+        --setup) setup=true ;;
+        --firmware) firmware=true ;;
+        *) echo "unknown option $1" >&2; exit 2 ;;
+    esac
+    shift
+done
 services=("$@")
-[[ ${#services[@]} -eq 0 ]] && services=("${SERVICES[@]}")
+if [[ ${#services[@]} -eq 0 ]] && ! $firmware; then services=("${SERVICES[@]}"); fi
 
 "$ROOT/deploy/sync.sh"
 
 if $setup; then
     ssh -t "$HOST" 'bash ~/buddy/src/deploy/pi/setup.sh'
+fi
+
+if $firmware; then
+    echo "→ firmware: build, flash"
+    # -f: reboots a running firmware into the bootloader (USB reset interface); a Pico already in BOOTSEL works too.
+    # -x: start the new firmware. First configure downloads the SDK + TinyUSB into build-pico.
+    ssh "$HOST" bash -s <<'REMOTE'
+set -euo pipefail
+cd ~/buddy
+cmake -S src/firmware/pico-motion -B build-pico -G Ninja -DCMAKE_BUILD_TYPE=Release > /dev/null
+cmake --build build-pico
+/opt/picotool/bin/picotool load -x -f build-pico/buddy-motion.uf2
+REMOTE
+    [[ ${#services[@]} -gt 0 ]] || { echo "✓ firmware flashed. Check: ssh buddy ls -l /dev/buddy-pico"; exit 0; }
 fi
 
 echo "→ build, install, restart: ${services[*]}"

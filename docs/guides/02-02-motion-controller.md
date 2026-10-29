@@ -127,7 +127,7 @@ Pinout (Pico 2 pin numbers are printed on the underside; pin 1 is next to the US
 | 4 (GP2) | servo ch0 = head pan | 330 Ω → servo 0 signal (orange) | |
 | 5 (GP3) | servo ch1 = head tilt | 330 Ω → servo 1 signal (orange) | |
 | 6–12 (GP4–GP9) | servo ch2–ch7 | reserved: hand (Phase 3) | |
-| 14–17, 19–20 (GP10–GP15) | SPI1 | reserved: round display (2.4) ⚠️ final in 2.4 | |
+| 14–17, 19–20 (GP10–GP15) | SPI1 | reserved: round display (2.4) ⚠️ final in 2.4 | If the Pi drives the display, these go to the arm (Phase 4) |
 | 39 (VSYS), 40 (VBUS) | — | **nothing** | Never connect servo 5 V here |
 | USB | power + data | Pi | The Pico's only power source |
 
@@ -151,34 +151,41 @@ Power-up order (from now on, every time): Pico USB first, then the servo supply.
 Reason: a servo with power but no signal sits still. A Pico whose pins see voltage before it has its own power is driven
 through its pins.
 
-### 4. Pi setup: toolchain, picotool, udev (new `setup.sh pico` step)
+### 4. Pi setup: toolchain, picotool, udev (`setup.sh pico`)
 
-Claude adds a `pico` step to `deploy/pi/setup.sh` (and to its `ALL` list). Run it with
-`ssh buddy 'bash ~/buddy/src/deploy/pi/setup.sh pico'` after a `deploy/deploy.sh` has synced the sources.
+Part of the full `setup.sh` run. Alone: `ssh buddy 'bash ~/buddy/src/deploy/pi/setup.sh pico'` after `deploy/sync.sh`.
+Expected end: `✓ arm-none-eabi-gcc 14.2.1, picotool 2.3.1`. `picotool info` (no sudo) then finds a Pico in bootloader
+mode.
 
 | What | How | Why |
 |---|---|---|
 | ARM bare-metal compiler | apt: `gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib` (trixie: GCC 14.2) | builds the firmware on the Pi |
-| picotool 2.3.1 | built from source (pinned, like libpiper) → `/opt/picotool`; apt: `libusb-1.0-0-dev` | Debian ships 2.1.1, older than the SDK. The SDK needs picotool to make the UF2 and the Pi uses it to flash |
+| picotool 2.3.1 | built from source (pinned, like libpiper) against the SDK 2.3.1 headers → `/opt/picotool`, `picotool` in `/usr/local/bin`; apt: `libusb-1.0-0-dev` | Debian ships 2.1.1, older than the SDK. The SDK needs picotool to make the UF2 and the Pi uses it to flash |
 | Pico SDK 2.3.1 | fetched by the firmware's CMake at the pinned tag, not installed | same pattern as whisper.cpp (D9) |
 | picocom | apt | manual serial tests |
-| udev rule `/etc/udev/rules.d/60-buddy-pico.rules` | `SUBSYSTEM=="tty", ATTRS{idVendor}=="2e8a", ATTRS{product}=="Buddy motion", SYMLINK+="buddy-pico"` + picotool's own rules file for BOOTSEL access as `dev` | stable `/dev/buddy-pico` instead of `ttyACM0/1` (the order depends on boot timing); flashing without sudo |
+| udev rule `/etc/udev/rules.d/60-buddy-pico.rules` (from `deploy/config/udev/`) | `SUBSYSTEM=="tty", ATTRS{idVendor}=="2e8a", ATTRS{product}=="Buddy motion", SYMLINK+="buddy-pico"` + picotool's own rules file (`60-picotool.rules`, group `plugdev`) for BOOTSEL access as `dev` | stable `/dev/buddy-pico` instead of `ttyACM0/1` (the order depends on boot timing); flashing without sudo |
 
-`dev` is already in the `dialout` group on Raspberry Pi OS (check: `id dev`), which owns `/dev/ttyACM*`.
+`dev` is already in the `dialout` group on Raspberry Pi OS (check: `id dev`), which owns `/dev/ttyACM*`, and in `plugdev`.
+The step warns if either is missing.
 
-### 5. Firmware: `skeleton/firmware/pico/`
+### 5. Firmware: `skeleton/firmware/pico-motion/`
+
+One folder per Pico role, named `pico-<what it does>`. This Pico drives every servo of the robot: head (2), hand (5,
+Phase 3), arm (2–3, Phase 4), about 10 of its 16 outputs. A second Pico would get its own folder, and only then would
+shared code move into `firmware/common`.
 
 The firmware lives inside `skeleton/` so `deploy.sh` syncs it and it can share the protocol header with the motion
 service. It's a **separate CMake project**: the Pico SDK sets its own toolchain before `project()`, so it can't be an
 `add_subdirectory` of the main build.
 
 ```
-skeleton/firmware/pico/
-├── CMakeLists.txt     ← PICO_BOARD=pico2, PICO_PLATFORM=rp2350-arm-s, pico-sdk 2.3.1 via FetchContent,
-│                        USBD_PRODUCT="Buddy motion", stdio over USB only (no UART)
+skeleton/firmware/pico-motion/
+├── CMakeLists.txt     ← PICO_BOARD=pico2, PICO_PLATFORM=rp2350-arm-s; pico-sdk 2.3.1 and its TinyUSB commit as
+│                        hashed tarballs (FetchContent), picotool from /opt/picotool, USBD_PRODUCT="Buddy motion",
+│                        stdio over USB only (no UART)
 ├── main.cpp           ← main loop: read lines, run ramps at 50 Hz, link watchdog, hardware watchdog
-├── servo.hpp/.cpp     ← channel table (ch → GPIO), PWM setup, limits, ramp state
-└── board.hpp          ← pin map from step 3
+├── servo.hpp/.cpp     ← PWM setup, limits, ramp state
+└── board.hpp          ← pin map from step 3 (channel → GPIO)
 skeleton/shared/include/buddy/motion_protocol.hpp  ← parse/format, shared with services/motion (2.3)
 ```
 
@@ -188,11 +195,11 @@ Behaviour:
 |---|---|---|
 | PWM | 150 MHz / 150 = 1 MHz tick, wrap 19 999 → 50 Hz; the compare value *is* the pulse in µs | Simple and exact: no conversion maths |
 | Boot | All channels **disabled** (no pulses); a channel needs `LIMIT` before it accepts `MOVE` | A fresh Pico never moves anything on its own |
-| Limits | Per channel `min_us`/`max_us` within a hard 500–2500 µs; `MOVE` outside gets clamped, and the reply says so | Mechanical safety stays on the Pico even if the Pi misbehaves |
-| Ramps | Linear from the current to the target pulse over `ms`, updated every 20 ms (one PWM period) | Smooth moves without the Pi streaming positions |
+| Limits | Per channel `min_us`/`max_us` within a hard 500–2500 µs; `MOVE` outside gets clamped, and the reply says so. A new `LIMIT` that excludes the current pulse relaxes the channel | Mechanical safety stays on the Pico even if the Pi misbehaves |
+| Ramps | Linear from the current to the target pulse over `ms` (≤ 10 000), updated every 20 ms (one PWM period). Every `MOVE` ends with `* DONE`, also `ms` = 0; a `MOVE` that replaces a running ramp cancels its `DONE`. From relaxed it jumps (position unknown) | Smooth moves without the Pi streaming positions; one rule for the service: wait for `DONE` |
 | Link watchdog | No line received for **2 s** → relax all channels, report `* RELAXED link` | Pi crashed or service stopped: servos go limp instead of holding against an obstacle |
-| Hardware watchdog | `watchdog_enable(500 ms)`, fed by the main loop | Firmware hang → the Pico reboots → channels disabled |
-| "Relax" | PWM output off (pin low) | A servo without pulses stops driving its motor: limp, no current |
+| Hardware watchdog | `watchdog_enable(500 ms)`, fed by the main loop; USB writes give up after 20 ms so a port nobody reads can't block it | Firmware hang → the Pico reboots → channels disabled, `* BOOT … watchdog` |
+| "Relax" | PWM compare level 0: pin stays low | A servo without pulses stops driving its motor: limp, no current |
 
 ⚠️ When a channel gets its first pulse after power-up, the servo jumps to that position at full speed: it doesn't know
 where it is. For the head this is harmless; for the hand and arm (Phase 3/4), the motion service sends the *expected*
@@ -203,7 +210,8 @@ rest position first.
 Text lines (`\n`-terminated, ASCII) over USB CDC. USB already checksums and retransmits, so no framing or CRC is
 needed, and you can type commands by hand in picocom.
 
-Every request starts with an id (1–65535) that the reply echoes, so the service matches replies to requests:
+Every request starts with an id (1–65535) that the reply echoes, so the service matches replies to requests. Commands
+are upper case; a line is at most 63 characters:
 
 | Request (Pi → Pico) | Reply | Meaning |
 |---|---|---|
@@ -212,13 +220,13 @@ Every request starts with an id (1–65535) that the reply echoes, so the servic
 | `<id> MOVE <ch> <us> <ms>` | `<id> OK` / `<id> OK clamped <us>` | Ramp to the pulse over `ms` (0 = jump) |
 | `<id> RELAX <ch>` / `<id> RELAX *` | `<id> OK` | Stop pulses on one / all channels |
 | `<id> PING` | `<id> OK` | Keeps the link watchdog happy (the service sends one every 500 ms) |
-| any error | `<id> ERR <reason>` | `bad-channel`, `no-limit`, `bad-args`, `unknown` |
+| any error | `<id> ERR <reason>` | `bad-channel`, `no-limit`, `bad-args`, `unknown`; id `0` if the id itself was unreadable or the line too long |
 
 | Unsolicited (Pico → Pi) | Meaning |
 |---|---|
 | `* DONE <ch> <us>` | A ramp reached its target |
 | `* RELAXED link` | The link watchdog fired |
-| `* BOOT <fw-version>` | The firmware just started (after a reset, a watchdog reboot or a flash) |
+| `* BOOT <fw-version> [watchdog]` | The firmware just started (after a reset or a flash; `watchdog`: it had hung). Sent when the Pi first opens the port |
 
 `motion_protocol.hpp` holds parsing and formatting for both sides: plain C++20, no heap and no exceptions (the firmware
 builds with `-fno-exceptions`). The host tests it with GoogleTest in `shared/tests/test_motion_protocol.cpp` (suite
@@ -226,10 +234,14 @@ builds with `-fno-exceptions`). The host tests it with GoogleTest in `shared/tes
 
 ### 7. Build and flash
 
-Claude adds `deploy/deploy.sh --firmware`. It syncs, then on the Pi:
+```bash
+deploy/deploy.sh --firmware          # firmware only; with service names: firmware, then those services
+```
+
+It syncs, then on the Pi:
 
 ```bash
-cmake -S ~/buddy/src/firmware/pico -B ~/buddy/build-pico -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake -S ~/buddy/src/firmware/pico-motion -B ~/buddy/build-pico -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build ~/buddy/build-pico
 /opt/picotool/bin/picotool load -x -f ~/buddy/build-pico/buddy-motion.uf2
 ```
@@ -238,12 +250,12 @@ cmake --build ~/buddy/build-pico
 `-x` starts the new firmware after flashing. Expected end of the output: `Loading into Flash: [====] 100%` and
 `The device was rebooted to start the application.`
 
-**First flash (and recovery):** a brand-new or crashed Pico has no firmware that can be asked to reboot. Hold the
-**BOOTSEL** button, plug in the USB cable, release. The Pico now shows up as a USB drive in bootloader mode, and the same
-`picotool load -x` (without `-f`) flashes it. `ssh buddy picotool info` should then list `buddy-motion`.
+**First flash:** a blank Pico starts in bootloader mode by itself (`lsusb`: `2e8a:000f … RP2350 Boot`), and `-f` flashes
+a Pico that is already in bootloader mode too: plain `deploy.sh --firmware`. **Recovery** (firmware hung so badly that
+`-f` can't reboot it): hold **BOOTSEL**, plug in the USB cable, release, then `deploy.sh --firmware` again.
 
-The first CMake configure downloads the SDK (~200 MB with submodules: TinyUSB is needed) into the build dir; later builds
-are incremental.
+The first configure downloads the SDK and TinyUSB tarballs into `build-pico/_deps`; a full build takes about a minute
+on the Pi, later builds are incremental. The UF2 is ~64 KB.
 
 ### 8. Check the device
 
@@ -264,11 +276,12 @@ ssh -t buddy picocom --echo --omap crlf /dev/buddy-pico
 Type (Enter after each line; exit with Ctrl-A Ctrl-X):
 
 ```
+                       → * BOOT 0.1.0              (on connect)
 1 HELLO                → 1 OK buddy-motion 0.1.0 1
 2 LIMIT 0 1000 2000    → 2 OK                      (servo doesn't move yet)
-3 MOVE 0 1500 0        → 3 OK                      (jumps to centre)
+3 MOVE 0 1500 0        → 3 OK, * DONE 0 1500       (jumps to centre)
 4 MOVE 0 1000 1000     → 4 OK, then * DONE 0 1000  (turns slowly for 1 s)
-5 MOVE 0 2400 500      → 5 OK clamped 2000         (stops at the limit)
+5 MOVE 0 2400 500      → 5 OK clamped 2000, then * DONE 0 2000 (stops at the limit)
 ```
 
 Now wait 2 s without typing: `* RELAXED link`, and the servo turns freely by hand.
@@ -313,8 +326,8 @@ fingers to load it.
 
 - **2.3:** `services/motion` owns `/dev/buddy-pico`: picocom and the service can't both have the port open. The service
   sends the `LIMIT`s on every connect (the Pico forgets them on reset).
-- **2.4:** the display gets SPI1 on GP10–GP15. Whether the Pico or the Pi drives it is a 2.4 decision; the reserved pins
-  keep both options open.
+- **2.4:** the display gets SPI1 on GP10–GP15. Whether the Pico or the Pi (own SPI) drives it is a 2.4 decision. A
+  display isn't motion: preferred is the Pi or a separate `firmware/pico-eyes`, which frees GP10–GP15 for the arm.
 - **2.5:** limits and centre per servo get calibrated with the head mechanics: `LIMIT` values in µs per joint.
 - **2.6:** the breadboard becomes a soldered perfboard or a small custom PCB inside the body: first soldering. Keep the
   servo rail and Pico on one board with short supply leads.

@@ -28,7 +28,7 @@ UV_VERSION=0.12.24
 UV_SHA256=5231be65f496304623895dacdbf1de8504fec90303684bdf05805aa34414dd21  # uv-aarch64-unknown-linux-gnu tarball
 PICOTOOL_VERSION=2.3.1
 PICOTOOL_SHA256=07946d294ab5c474b610660c53c5d94216e4ab13555de075ed521f98afc4f44c  # source tarball
-PICO_SDK_VERSION=2.3.1  # keep = the tag firmware/pico fetches
+PICO_SDK_VERSION=2.3.1  # keep = the tag firmware/pico-motion fetches
 PICO_SDK_SHA256=38d315b7091985134721cd3bb6a9656f0ef8462ec8dc7b62d5886bc7a9d275a2  # source tarball
 
 step_packages() {
