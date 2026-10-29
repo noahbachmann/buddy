@@ -433,8 +433,10 @@ names), `buddy-hue --cmd <action> [query] [room]` (real bridge, no MQTT), `buddy
 `http://buddy.local:8080` (or the Pi's IP) from a phone or PC on the LAN. Rooms with on/off, brightness, warm↔cool,
 colours and scenes (each room's single lights behind "N lights ▾"), the room and light colour shown on the card border and
 switch; "All lights" is only a thin bar with "Turn off" (switching everything on is left to voice and rooms); ⚙ bottom
-left arranges the rooms (order, hide, add back), saved per browser (`localStorage`, so phone and PC differ); music
-play/pause/next/previous and volume. Tab **Hue** (`#hue`): pick a room or zone, set its lights (live), name, Save →
+left arranges the rooms (order, hide, add back), saved per browser (`localStorage`, so phone and PC differ); music:
+what Spotify plays on **any** device (cover, title, artist, "on <device>"), a progress bar to seek, play/pause/next/
+previous and volume on that device, and the speaker list (tap one = move the music there; the box in standby is listed
+on its last id ⚠️). Tab **Hue** (`#hue`): pick a room or zone, set its lights (live), name, Save →
 scene; scene list per room/zone: tap = recall and load for editing, ✕ = delete (asks first). Fixed chips
 `voice` (green = ears, brain and voice all online; shows listening/speaking), `hue`, `spotify`. The list lives in
 `SERVICE_CHIPS` in `app.js`: add new services there.
@@ -442,7 +444,12 @@ scene; scene list per room/zone: tap = recall and load for editing, ✕ = delete
 - **web** is an HTTP ⇄ MQTT bridge with no skill logic: it streams every retained `buddy/+/state` and `buddy/+/status` to
   the browser (server-sent events, `/api/events`) and publishes the browser's commands to `buddy/<svc>/cmd`, only for
   command topics in `topics.json`. The page (`services/web/www/`, plain HTML/CSS/JS, installed to `~/buddy/share/web`)
-  sends the same commands brain does, plus `id` for hue (no name matching).
+  sends the same commands brain does, plus `id` for hue and spotify (no name matching), and spotify's panel-only `seek`.
+- **Live Spotify state:** Spotify can't push, so spotify polls `GET /me/player` + `/me/player/devices` every
+  `BUDDY_SPOTIFY_POLL_S` (5 s) **only while a panel is visible**: the page sends `{"action":"watch"}` every 20 s (not
+  from hidden tabs or the Hue tab), polling stops 30 s after the last one, and once 1.5 s after each command. Progress
+  is re-published only when it jumps (seek, pause, new song); the browser runs the bar on from `progress.at`. Without a
+  panel the state only follows Buddy's own commands, as before.
 - **No login.** Anyone on the Wi-Fi can switch lights and music (like a guest with the Hue app). Protections: only IPs,
   `localhost`, `*.local` names and `BUDDY_WEB_HOSTS` may open it (a web page elsewhere can't reach it through its own
   DNS name), and commands must be JSON from the panel's own origin (another site open in your browser can't send them).
@@ -456,4 +463,5 @@ scene; scene list per room/zone: tap = recall and load for editing, ✕ = delete
 | `unknown host name` (403) | Opened via a router DNS name: add it to `BUDDY_WEB_HOSTS` |
 | "reconnecting…" at the top | web restarting or the Pi gone; the page reconnects by itself |
 | "The hue service isn't running." | `deploy/logs.sh hue` |
+| Music card stuck on an old song | spotify can't poll: `deploy/logs.sh spotify` ("player state: …", logged once per outage) |
 | `can't listen on 0.0.0.0:8080` | Port taken: `BUDDY_WEB_PORT` |

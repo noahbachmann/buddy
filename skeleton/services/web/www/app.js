@@ -486,21 +486,84 @@ function renderMusic() {
   const box = $("music");
   if (!online) return keyed(box, [emptyNote("The spotify service isn't running.")]);
   const playing = s && s.playing === true;
-  const spotify = (action, query) => send("spotify", query === undefined ? { action } : { action, query });
-  const items = [["controls", JSON.stringify(s?.playing ?? null), () => el("div", { class: "row" },
+  const device = s?.device ?? null;
+  const track = s?.track ?? null;
+  // On the device that plays; without one, the service picks (play → the box)
+  const spotify = (action, query, id = device?.id) =>
+    send("spotify", { action, ...(query !== undefined && { query }), ...(id && { id }) });
+
+  const items = [["now", JSON.stringify([track, device?.name ?? null, s?.playing ?? null]), () => el("div", { class: "row" },
+    track?.image ? el("img", { class: "art", src: track.image, alt: "" }) : el("div", { class: "art" }),
+    el("div", { class: "name" }, track ? track.name : playing ? "Playing" : "Nothing playing",
+      el("small", {}, [track?.artist, device && `on ${device.name}`].filter(Boolean).join(" · ") || "\u00a0")))]];
+  if (track && s.progress) {
+    items.push(["progress", JSON.stringify([s.progress.duration_ms, !!device]), () => {
+      const out = el("span", { class: "range-label time", id: "music-time" });
+      const input = el("input", {
+        type: "range", min: 0, max: Math.round(s.progress.duration_ms / 1000), value: 0, id: "music-seek",
+        "aria-label": "Position", class: "seek",
+        oninput: (e) => { out.textContent = clock(+e.target.value * 1000); },
+        onchange: (e) => {
+          if (!device) return;
+          const ms = +e.target.value * 1000;
+          spotify("seek", String(ms));
+          s.progress = { ...s.progress, ms, at: Date.now() };  // until the poll confirms: no jump back
+        },
+        onpointerdown: () => { interacting++; },
+      });
+      return el("div", { class: "row" }, input, out);
+    }]);
+  }
+  items.push(["controls", JSON.stringify(s?.playing ?? null), () => el("div", { class: "row" },
     el("button", { class: "btn", "aria-label": "Previous", onclick: () => spotify("previous") }, "⏮"),
     el("button", { class: "btn primary", "aria-label": playing ? "Pause" : "Play", onclick: () => spotify(playing ? "pause" : "play") }, playing ? "⏸" : "▶"),
-    el("button", { class: "btn", "aria-label": "Next", onclick: () => spotify("next") }, "⏭"),
-    el("div", { class: "name" }, playing ? "Playing" : s && s.playing === false ? "Paused" : "—",
-      el("small", {}, "on the music box")))]];
+    el("button", { class: "btn", "aria-label": "Next", onclick: () => spotify("next") }, "⏭"))]);
   if (s && typeof s.volume === "number") {
     items.push(["volume", String(s.volume), () => el("div", { class: "row" }, slider({
       min: 0, max: 100, value: s.volume, label: "Volume", format: (v) => `${v} %`,
       onInput: (v) => throttled("volume", 400, () => spotify("set_volume", String(v))),
     }))]);
   }
+  const devices = Array.isArray(s?.devices) ? s.devices : [];
+  items.push(["speakers", JSON.stringify(devices.map((d) => [d.id, d.name, d.active])), () => el("div", { class: "speakers" },
+    el("span", { class: "muted" }, "Speakers"),
+    devices.length ? devices.map((d) => el("button", {
+      class: `chip-btn${d.active ? " active" : ""}`, "aria-pressed": String(d.active), title: d.type,
+      onclick: () => { if (!d.active) { spotify("play", undefined, d.id); toast(`Moving the music to ${d.name}`); } },
+    }, d.name))
+      : el("span", { class: "muted" }, "none: open Spotify on a phone or PC"))]);
   keyed(box, items);
+  updateProgress();
 }
+
+// 61000 → "1:01"
+function clock(ms) {
+  const t = Math.max(0, Math.floor(ms / 1000));
+  return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
+}
+
+// The service publishes progress only when it jumps (seek, pause, new song): the bar runs on here.
+function updateProgress() {
+  const s = state["buddy/spotify/state"];
+  const input = $("music-seek");
+  if (!input || !s?.progress || interacting > 0) return;
+  const { ms, duration_ms, at } = s.progress;
+  const pos = Math.min(duration_ms, ms + (s.playing ? Math.max(0, Date.now() - at) : 0));
+  input.value = String(Math.round(pos / 1000));
+  setText($("music-time"), `${clock(pos)} / ${clock(duration_ms)}`);
+}
+setInterval(updateProgress, 1000);
+
+// Spotify can't push: the service polls only while some panel shows the music card and says so every 20 s.
+function watchSpotify() {
+  if (document.visibilityState !== "visible" || location.hash === "#hue") return;
+  fetch("/api/cmd/spotify", { method: "POST", headers: { "Content-Type": "application/json" }, body: '{"action":"watch"}' })
+    .catch(() => {});  // offline: the link indicator says so
+}
+setInterval(watchSpotify, 20000);
+document.addEventListener("visibilitychange", watchSpotify);
+addEventListener("hashchange", watchSpotify);
+watchSpotify();
 
 // --- services ---------------------------------------------------------------------------------------------------
 

@@ -188,6 +188,10 @@ input.warmth { accent-color: var(--muted); }
 .light .name { font-weight: 500; }
 
 .music .row { flex-wrap: wrap; }
+.art { flex: none; width: 56px; height: 56px; border-radius: 8px; background: var(--track); object-fit: cover; }
+.range-label.time { width: auto; min-width: 6.5em; }
+.speakers { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.chip-btn.active { background: var(--on); border-color: var(--on); color: #14161a; }
 .btn {
   flex: none;
   width: 48px;
