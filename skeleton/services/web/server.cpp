@@ -1,6 +1,7 @@
 #include "server.hpp"
 
 #include <memory>
+#include <string_view>
 
 #include <httplib.h>
 #include <nlohmann/json.hpp>
@@ -12,12 +13,6 @@ namespace buddy::web {
 namespace {
 
 using json = nlohmann::json;
-
-json payload_json(const std::string& payload) {
-    if (payload.empty()) return nullptr;
-    auto j = json::parse(payload, nullptr, /*allow_exceptions=*/false);
-    return j.is_discarded() ? json(payload) : j;
-}
 
 void error(httplib::Response& res, int status, const std::string& why) {
     res.status = status;
@@ -42,22 +37,21 @@ bool add_routes(httplib::Server& server, StateStore& store, Publish publish, con
     server.set_payload_max_length(64 * 1024);
 
     server.Get("/api/state", [&store](const httplib::Request&, httplib::Response& res) {
-        std::uint64_t since = 0;
-        json state = json::object();
-        for (const auto& u : store.wait(since, std::chrono::milliseconds(0))) state[u.topic] = payload_json(u.payload);
-        res.set_content(state.dump(), "application/json");
+        res.set_content(store.snapshot().dump(), "application/json");
     });
 
     server.Get("/api/events", [&store, keepalive = cfg.keepalive](const httplib::Request&, httplib::Response& res) {
         auto since = std::make_shared<std::uint64_t>(0);
         res.set_chunked_content_provider("text/event-stream", [&store, since, keepalive](std::size_t, httplib::DataSink& sink) {
             if (store.closed()) return false;
-            const auto updates = store.wait(*since, keepalive);
-            std::string out;
-            for (const auto& u : updates)
-                out += "data: " + json{{"topic", u.topic}, {"payload", payload_json(u.payload)}}.dump() + "\n\n";
-            if (out.empty()) out = ": keepalive\n\n";
-            return !store.closed() && sink.write(out.data(), out.size());  // false: browser gone, frees the thread
+            const auto frames = store.wait(*since, keepalive);
+            if (frames.empty()) {
+                static constexpr std::string_view kKeepalive = ": keepalive\n\n";
+                return !store.closed() && sink.write(kKeepalive.data(), kKeepalive.size());
+            }
+            for (const auto& f : frames)  // shared, encoded once in StateStore::set
+                if (!sink.write(f->data(), f->size())) return false;  // browser gone, frees the thread
+            return !store.closed();
         });
     });
 

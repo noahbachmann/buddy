@@ -92,10 +92,10 @@ TEST_F(ServerTest, ForeignHostNameIsRefused) {  // DNS rebinding
 }
 
 TEST_F(ServerTest, EventStream) {
-    store.set("buddy/ears/state", R"({"state": "idle"})");
+    store.set("buddy/ears/state", R"({"state": "idle", "wake_word": "hey buddy", "threshold": 0.5})");
     std::thread later([this] {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        store.set("buddy/ears/state", R"({"state": "listening"})");
+        store.set("buddy/ears/state", R"({"state": "listening", "wake_word": "hey buddy", "threshold": 0.5})");
     });
     std::string received;
     auto c = client();
@@ -104,7 +104,9 @@ TEST_F(ServerTest, EventStream) {
         return received.find("listening") == std::string::npos;  // stop after the change
     });
     later.join();
-    EXPECT_NE(received.find(R"(data: {"payload":{"state":"idle"},"topic":"buddy/ears/state"})"), std::string::npos);
-    EXPECT_NE(received.find(R"("state":"listening")"), std::string::npos);
+    EXPECT_NE(received.find(R"(data: {"payload":{"state":"idle","threshold":0.5,"wake_word":"hey buddy"},"topic":"buddy/ears/state"})"),
+              std::string::npos);
+    EXPECT_NE(received.find(R"(data: {"patch":[{"op":"replace","path":"/state","value":"listening"}],"topic":"buddy/ears/state"})"),
+              std::string::npos);  // this stream has the previous payload: only the change
     EXPECT_NE(received.find(": keepalive"), std::string::npos);  // 100 ms of quiet > 50 ms keepalive
 }

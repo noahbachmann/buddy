@@ -3,7 +3,8 @@
 //
 //   GET  /                 static files from WebConfig::root (www/, installed to ~/buddy/share/web)
 //   GET  /api/state        {"<topic>": <payload>, …} (payload: JSON, or a string like "online")
-//   GET  /api/events       server-sent events, one per changed topic: {"topic", "payload"} (null = cleared);
+//   GET  /api/events       server-sent events, one per changed topic: {"topic", "payload"} (null = cleared), or
+//                          {"topic", "patch"} (RFC 6902 against the payload this stream sent last; state.hpp);
 //                          everything first, then changes; a comment every 15 s keeps proxies and phones awake
 //   POST /api/cmd/<svc>    JSON body → buddy/<svc>/cmd (command topics only, access.hpp). 202, or 4xx + {"error"}
 
