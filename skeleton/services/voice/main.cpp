@@ -123,6 +123,7 @@ int main(int argc, char** argv) {
 
     AlsaSink sink(cfg->device);
     BlockingQueue<Say> queue;  // synthesis and playback run on this thread, not on Paho's
+    on_stop([&] { queue.close(); });
     Mqtt mqtt("voice", mqtt_config_from_env());
     mqtt.subscribe(topic::voice_say, [&](const std::string&, const std::string& payload) {
         const auto msg = json::parse(payload, nullptr, /*allow_exceptions=*/false);
@@ -138,7 +139,7 @@ int main(int argc, char** argv) {
     set_state("idle");
     while (running()) {
         systemd::notify_watchdog();
-        auto msg = queue.pop(std::chrono::milliseconds(200));
+        auto msg = queue.pop(std::chrono::seconds(5));  // idle: watchdog only; a stop closes the queue
         if (!msg || msg->text.empty()) continue;
         if (Clock::now() - msg->received > kMaxAge) {
             std::cout << "[voice] skipped \"" << msg->text << "\": " << ms_since(msg->received) << " ms old" << std::endl;

@@ -12,7 +12,7 @@ Roadmap, decisions and conventions: `../CLAUDE.md`.
 4. Load models/devices inside one try block, exit 1 on failure.
 5. `Mqtt("<name>", …)`, `subscribe(…)`, `start()`: sends READY, blocks until connected.
 6. Main loop: `notify_watchdog()` + `BlockingQueue::pop(5 s)` with `on_stop([&] { queue.close(); })`, or `sleep(5s)`:
-   idle services don't wake to poll `running()` (voice, spotify still `pop(200ms)`). Slow work never on Paho's thread.
+   idle services don't wake to poll `running()`; a push wakes `pop()` at once. Slow work never on Paho's thread.
 7. Publish final retained state, `mqtt.stop()`.
 
 ## shared/

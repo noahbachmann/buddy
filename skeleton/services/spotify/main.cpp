@@ -80,6 +80,7 @@ int serve(Player& player, Auth& auth, int hold_ms) {
                   << std::endl;
 
     BlockingQueue<Command> queue;  // HTTP runs on this thread, not on Paho's
+    on_stop([&] { queue.close(); });
     std::atomic<bool> listening{false}, speaking{false};
     auto state_of = [](const std::string& payload) {
         const auto msg = json::parse(payload, nullptr, /*allow_exceptions=*/false);
@@ -122,7 +123,7 @@ int serve(Player& player, Auth& auth, int hold_ms) {
     auto quiet_since = Clock::now();
     while (running()) {
         systemd::notify_watchdog();
-        auto timeout = std::chrono::milliseconds(200);
+        std::chrono::milliseconds timeout = std::chrono::seconds(5);  // idle: watchdog only; a stop closes the queue
         if (player.ducked() && !was_busy)
             timeout = std::clamp(std::chrono::duration_cast<std::chrono::milliseconds>(quiet_since + hold - Clock::now()),
                                  std::chrono::milliseconds(0), timeout);
