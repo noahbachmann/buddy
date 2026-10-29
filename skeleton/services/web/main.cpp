@@ -82,7 +82,7 @@ int main(int argc, char** argv) {
 
     while (running()) {
         systemd::notify_watchdog();
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        sleep(std::chrono::seconds(5));  // pings go out every WatchdogSec / 4 at most
     }
 
     store.close();  // ends the event streams

@@ -29,3 +29,17 @@ TEST(BlockingQueue, PushWakesAWaitingPop) {
     EXPECT_LT(std::chrono::steady_clock::now() - t0, 1s);
     producer.join();
 }
+
+TEST(BlockingQueue, CloseWakesPopForGood) {
+    buddy::BlockingQueue<int> q;
+    std::thread closer([&] {
+        std::this_thread::sleep_for(20ms);
+        q.close();
+    });
+    const auto t0 = std::chrono::steady_clock::now();
+    EXPECT_EQ(q.pop(5s), std::nullopt);
+    EXPECT_LT(std::chrono::steady_clock::now() - t0, 1s);
+    closer.join();
+    q.push(1);
+    EXPECT_EQ(q.pop(5s), std::nullopt);  // closed: no more waiting, items or not
+}

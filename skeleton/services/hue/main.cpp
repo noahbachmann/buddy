@@ -97,13 +97,14 @@ void read_events(const BridgeConfig& cfg, BlockingQueue<Item>& queue) {
             std::cout << "[hue] eventstream lost" << (error.empty() ? "" : ": " + error) << ", reconnecting" << std::endl;
             reported = true;
         }
-        for (auto until = Clock::now() + backoff; running() && Clock::now() < until;) std::this_thread::sleep_for(milliseconds(200));
+        sleep(backoff);
         backoff = std::min(backoff * 2, std::chrono::seconds(30));
     }
 }
 
 int serve(const Config& cfg, const std::optional<BridgeConfig>& bridge_cfg) {
     BlockingQueue<Item> queue;  // HTTP runs on this thread, not on Paho's
+    on_stop([&] { queue.close(); });
     Mqtt mqtt("hue", mqtt_config_from_env());
     mqtt.subscribe(topic::hue_cmd, [&](const std::string&, const std::string& payload) {
         const auto msg = json::parse(payload, nullptr, /*allow_exceptions=*/false);
@@ -182,7 +183,7 @@ int serve(const Config& cfg, const std::optional<BridgeConfig>& bridge_cfg) {
     while (running()) {
         systemd::notify_watchdog();
         const auto now = Clock::now();
-        auto timeout = milliseconds(200);
+        auto timeout = milliseconds(5000);  // idle: watchdog only; a stop closes the queue
         auto until = [&](Clock::time_point t) {
             timeout = std::clamp(std::chrono::duration_cast<milliseconds>(t - now), milliseconds(0), timeout);
         };

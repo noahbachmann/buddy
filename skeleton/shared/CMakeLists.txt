@@ -41,6 +41,7 @@ configure_file(topics.hpp.in ${CMAKE_CURRENT_BINARY_DIR}/include/buddy/topics.hp
 
 add_library(buddy_shared STATIC
     src/config.cpp
+    src/lifecycle.cpp
     src/mqtt.cpp
     src/systemd.cpp
     src/topics.cpp
@@ -66,3 +67,5 @@ buddy_add_tests(shared tests/test_config.cpp tests/test_motion_protocol.cpp test
     LIBS buddy_shared buddy_names)
 # Own process: systemd.cpp reads WATCHDOG_USEC once, and Mqtt::start() would read it first.
 buddy_add_tests(systemd tests/test_systemd.cpp LIBS buddy_shared)
+# Own process: signal handlers and the stop state are process-wide, and stopping is for good.
+buddy_add_tests(lifecycle tests/test_lifecycle.cpp LIBS buddy_shared)

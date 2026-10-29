@@ -5,12 +5,14 @@ Roadmap, decisions and conventions: `../CLAUDE.md`.
 
 ## Service pattern (C++: `services/<name>/main.cpp`; Python: same steps with `buddy_shared`)
 
-1. `install_signal_handlers()` (`lifecycle.hpp` / `buddy_shared.lifecycle`): SIGINT/SIGTERM → `running()` false.
+1. `install_signal_handlers()` (`lifecycle.*` / `buddy_shared.lifecycle`): SIGINT/SIGTERM → `running()` false,
+   `on_stop()` callbacks, `sleep()` wakes.
 2. Parse test flags first (`--wav`, `--transcribe`, `--test`, `--say`, `--cmd`, `--login`): no MQTT, print instead of publishing.
 3. Config from `BUDDY_*` env (`config.hpp` `env_string/int/float` / `buddy_shared.config`): typos throw → exit 1 before MQTT.
 4. Load models/devices inside one try block, exit 1 on failure.
 5. `Mqtt("<name>", …)`, `subscribe(…)`, `start()`: sends READY, blocks until connected.
-6. Main loop: `notify_watchdog()` + `BlockingQueue::pop(200 ms)` or sleep; slow work never on Paho's thread.
+6. Main loop: `notify_watchdog()` + `BlockingQueue::pop(5 s)` with `on_stop([&] { queue.close(); })`, or `sleep(5s)`:
+   idle services don't wake to poll `running()` (voice, spotify still `pop(200ms)`). Slow work never on Paho's thread.
 7. Publish final retained state, `mqtt.stop()`.
 
 ## shared/
@@ -20,8 +22,9 @@ Roadmap, decisions and conventions: `../CLAUDE.md`.
 | `topics.json` | All topic names (single source). CMake generates `build/shared/include/buddy/topics.hpp` from it (`topics.hpp.in`), incl. `topic::commands` (command topics in use and not `"web": false`: what web may publish) |
 | `src/topics.cpp` | Wildcard `matches()` |
 | `mqtt.*` | Paho wrapper: client id `buddy-<svc>`, retained status + last will, resubscribe on reconnect, backoff, exceptions contained |
+| `lifecycle.*` | Signal handler → eventfd → stop thread: `on_stop()` callbacks, wakes `sleep()`; works whichever thread takes the signal |
 | `systemd.*` | READY / WATCHDOG (rate-limited) / STATUS via `$NOTIFY_SOCKET`; no-op outside systemd |
-| `queue.hpp` | `BlockingQueue<T>`: Paho callback → service thread |
+| `queue.hpp` | `BlockingQueue<T>`: Paho callback → service thread; `close()` wakes `pop()` for good |
 | `config.*` | Env lookups, trims whitespace and `\r` |
 | `http.*`, `curl_http.*` | `Http` interface + `url_encode` (`buddy_http`, no libcurl: logic and tests); `CurlHttp` (`buddy_curl_http`): keep-alive, own CA (PEM blob), `CURLOPT_RESOLVE`, `stream()` for server-sent events |
 | `motion_protocol.hpp` | Protocol v1 Pi ⇄ Pico (header only, constexpr, no heap/exceptions): `parse_request`/`format_*` for the firmware, `format_request`/`parse_message`/`parse_hello` for motion (2.3) |
@@ -69,7 +72,7 @@ built), pytest, shellcheck. `deploy/test.sh --pi`: the C++ tests on the Pi (`~/b
 
 | Where | What |
 |---|---|
-| `shared/tests/` | gtest: topics, config, motion protocol, queue, MQTT round trip (localhost broker, skipped without), systemd (own exe: process-wide state) |
+| `shared/tests/` | gtest: topics, config, motion protocol, queue, MQTT round trip (localhost broker, skipped without), systemd and lifecycle (own exes: process-wide state) |
 | `shared/tests/cases/*.json` | Cases both languages check (`cases.hpp` / plain `json.load`): topic matching, `BUDDY_*` parsing, `audio_ctx` |
 | `services/<svc>/tests/` | gtest, `test_<unit>.cpp` → `buddy-<svc>-tests`, linked against `<svc>_core` (the service's logic without main/hardware) |
 | `services/motion/tests/test_serial_link.cpp` | `FakePico` on a pseudo-terminal (`openpty`): answers with the shared protocol code like the firmware |

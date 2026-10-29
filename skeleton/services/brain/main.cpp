@@ -11,7 +11,6 @@
 #include <iostream>
 #include <optional>
 #include <string>
-#include <thread>
 
 #include <nlohmann/json.hpp>
 
@@ -107,7 +106,7 @@ int main(int argc, char** argv) {
     if (!mqtt.start()) return 0;
     while (running()) {
         systemd::notify_watchdog();
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        sleep(std::chrono::seconds(5));  // pings go out every WatchdogSec / 4 at most
     }
 
     mqtt.stop();
