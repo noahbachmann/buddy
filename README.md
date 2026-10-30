@@ -53,7 +53,8 @@ the hardware is real: lights switch, music plays, servos move.
 | brain | `--test "play some jazz" "lights off"`: what Buddy would do with a sentence |
 | spotify | `--cmd devices`, `--cmd play "daft punk"`, `--cmd pause`, `--cmd duck` / `restore`, `--login` (new Spotify login) |
 | hue | `--cmd list` (rooms, zones, scenes, lights), `--cmd off "" bedroom`, `--cmd scene relax "living room"`, `--pair` |
-| voice | `--say "Hello"` (plays on the Jabra), `--say "Hello" --wav /tmp/out.wav` |
+| voice | `--say "Hello"` (plays through `buddy_voice`: the Jabra, or the Nest that plays music), `--say "Hello" --wav /tmp/out.wav` |
+| speakers | `--cmd list` (the Nests, connected?), `--cmd connect "bathroom speaker"`, `--cmd disconnect`, `--pair "Bathroom speaker"` (say "Hey Google, pair Bluetooth" to the Nest first). The running service disconnects a Nest without music: stop `buddy@speakers` to keep one connected |
 | ears | `--transcribe a.wav b.wav`, `--wav a.wav` (whole pipeline on a file on the Pi) |
 | motion | `--cmd move demo=30 --ms 400`, `--cmd gesture shake`, `--cmd relax`, `--raw "1 PING"`. Stop `buddy@motion` first: it owns the Pico's port |
 

@@ -41,7 +41,7 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 | Phase | Step | Status |
 |---|---|---|
 | 1 – Voice | 1.1 – 1.12 Hardware, OS, audio, skeleton, wake word, STT, brain, Spotify, voice, background music, boot | ✅ |
-| 1 – Voice (extra) | 1.13 Hue lights, 1.14 web panel: bridge paired, panel working (2026-10-29); voice live test open (`01-cleanup.md` steps 12–13) | 🟨 |
+| 1 – Voice (extra) | 1.13 Hue lights, 1.14 web panel: bridge paired, panel working (2026-10-29); voice live test open (`01-cleanup.md` steps 12–13). 1.15 Nest speakers over Bluetooth (D20, #17): deployed 2026-10-30, first live test done; recheck after the speed fixes open | 🟨 |
 | 2 – Head | 2.1 printer: guide not written yet. 2.2 motion controller: Pi setup, firmware and flash done; wiring and servo test (guide steps 1–3, 9) open. 2.3 motion service + demo gesture ("cut off Andi's balls"): code and tests done, deployed 2026-10-29 (waits with `connected:false` while the Pico is unplugged); Verify open | 🟨 |
 | 3 – Hand | 3.1 – 3.4 | ⬜ |
 | 4 – Arm & vision | 4.1 – 4.3 | ⬜ |
@@ -60,6 +60,8 @@ What's left right now, in order. Update it with the progress table; GitHub issue
    ducking (3), your names in the corpus (4), recordings and training (5–7), wake word threshold (9), live test (10),
    Hue default room and fixed bridge IP (12), panel + voice light test (13). Then delete the file; Phase 1 extras → ✅.
 3. **Live check** for #12: "Hey Jarvis, play Spotify" ducks, plays, and Buddy answers without delay (idle loops changed).
+4. **Recheck #17** (1.15 "Done when"): switch Main ↔ Bathroom on the panel (time it), voice volume on a Nest, panel →
+   DESKTOP-1 puts the voice back on the Jabra. Then 1.15 → ✅.
 
 **Claude** (code and guides):
 
@@ -85,16 +87,17 @@ Phase 1 → Deferred lists what waits for a reason (wake word CPU, next voice se
 | D7 | Runtime packaging | systemd user units on the Pi (`buddy@<service>`, lingering on), Mosquitto from apt. Docker only for services offloaded to a LAN host later. | ✅ |
 | D8 | Audio capture | ears reads the raw Jabra mic via ALSA `default` (PipeWire's default source, no echo cancellation: D13), 16 kHz mono s16. Wake word, VAD and STT live in one service (`ears`) sharing that stream. | ✅ |
 | D9 | ML libraries | ONNX Runtime: Microsoft's prebuilt aarch64 release in `/opt/onnxruntime` (Debian's package spams the log). whisper.cpp: pinned tag built via CMake FetchContent. Models in `~/buddy/models` via `deploy/pi/fetch-models.sh` (what `buddy.env` names), not in Git; own models (fine-tuned whisper `ggml-buddy-*`) come from the PC. | ✅ |
-| D10 | Spotify | Music plays on the music box, a Spotify Connect speaker (`BUDDY_SPOTIFY_DEVICE`), never through the Jabra. Other Connect speakers by name ("… on the bathroom speaker"; brain splits off the name, spotify matches it against the device list); pause/next/volume follow the device that is playing. The web panel shows and controls whatever plays on any device and moves it between speakers (by device id; polled only while a panel is open). spotify controls them via the Web API (libcurl, OAuth PKCE, refresh token in `~/buddy/config/spotify-token.json`). Spotify Soloist (Connect client on the Pi) removed 2026-10-25. | ✅ |
+| D10 | Spotify | Music never through the Jabra. Default speaker `BUDDY_SPOTIFY_DEVICE` = the Main speaker Nest (D20). Speakers by name ("… on the bathroom speaker"; brain splits off the name, spotify matches it against the device list): the Nests plus whatever Spotify sees (DESKTOP-1, Pixel 8); pause/next/volume follow the device that is playing. The web panel shows and controls whatever plays on any device and moves it between speakers (by device id; polled every 3 s only while a panel is open). spotify controls them via the Web API (libcurl, OAuth PKCE, refresh token in `~/buddy/config/spotify-token.json`). Spotify Soloist on the Pi plays for the Nests (back 2026-10-30, D20). | ✅ |
 | D11 | Intents & replies | brain: regex rules behind `IntentParser` (LLM-replaceable), routes to `buddy/<skill>/cmd`. `skeleton/tools/voice/commands.tsv` is the phrasing it must understand (ctest). The service that knows the outcome publishes `buddy/voice/say`. | ✅ |
 | D12 | TTS | libpiper v1.8.0 built from source by `setup.sh` into `/opt/libpiper` (against `/opt/onnxruntime`), patched to read its ONNX thread count from `PIPER_INTRA_OP_THREADS` (stock: 1; voice sets 3 via `BUDDY_VOICE_THREADS`, first audio ~830 → ~450 ms); voice `en_GB-alan-medium`. | ✅ |
-| D13 | Background music, no echo cancellation | The box's music is room noise to Buddy. spotify ducks the box via the Web API while ears listens or voice speaks. **No echo cancellation** (removed 2026-10-28): on the same test session the model trained on the raw mic beat the echo-cancelled one (intent 50 vs 47 of 59, WER 7.4 vs 9.5 %), and its only job, removing Buddy's own voice, is covered by ears ignoring the wake word while voice speaks. Stock PipeWire, training on the raw track. | ✅ |
+| D13 | Background music, no echo cancellation | The box's music is room noise to Buddy. While ears listens or voice speaks the music is ducked: on a Nest by speakers on the Pi (`buddy_music`, D20), on any other device in the room by spotify via the Web API. **No echo cancellation** (removed 2026-10-28): on the same test session the model trained on the raw mic beat the echo-cancelled one (intent 50 vs 47 of 59, WER 7.4 vs 9.5 %), and its only job, removing Buddy's own voice, is covered by ears ignoring the wake word while voice speaks. Stock PipeWire, training on the raw track. | ✅ |
 | D14 | Recovery | `buddy@.service` is `Type=notify` with `WatchdogSec=60` (READY from `Mqtt::start`, pings from each main loop, `shared/systemd.*` / `buddy_shared.systemd`, no libsystemd). Crashes restart with backoff 1 → 30 s and never give up. No core files. | ✅ |
 | D15 | Python services | uv workspace in `skeleton/` (`pyproject.toml` + `uv.lock`, members listed explicitly). `shared/python/buddy_shared` mirrors the C++ shared helpers; `shared/topics.json` is the single topic list (CMake generates `topics.hpp`). On the Pi: uv in `~/.local/bin` (pinned), Debian's Python, one venv `~/buddy/venv`, console script linked into `~/buddy/bin`, same unit template. | ✅ |
 | D16 | Voice data | Recordings are personal data and the repo is public: never in Git. Master copy on Dev's PC in `~/buddy-voice` (backed up); the Pi keeps sessions only until pulled. Training runs on Dev's PC (NVIDIA GPU, CUDA 12.8 PyTorch). | ✅ |
 | D17 | Motion controller | Raspberry Pi Pico 2 H on the Pi's USB, servos on its GPIO hardware PWM (50 Hz, 16 outputs), no PCA9685. Firmware C++ with Pico SDK 2.3.1 (FetchContent) in `skeleton/firmware/pico-motion` (one folder per Pico role: `pico-<job>`; this one drives every servo: head, hand, arm), built and flashed on the Pi (`deploy.sh --firmware`, picotool 2.3.1 in `/opt/picotool`). Text protocol v1 over USB CDC (`/dev/buddy-pico`), header shared with motion. The Pico enforces per-channel pulse limits and relaxes all servos 2 s after the last command. Servo power: separate 5 V supply, shared ground, never via the Pi or the Pico's VBUS/VSYS. | ✅ |
 
 | D18 | Lights | Philips Hue via the Hue Bridge's local CLIP v2 API (no cloud, no Hue account): service `hue`. TLS verified against Hue's `root-bridge` CA (compiled in) with the bridge id as host name (`CURLOPT_RESOLVE` → bridge IP). Application key from `buddy-hue --pair` (link button) in `~/buddy/config/hue.json`. Live state from the bridge's eventstream → retained `buddy/hue/state`. Hue Bridge Pro would need its newer CA ⚠️. | ✅ |
+| D20 | Nest speakers | The two Nests play over **Bluetooth A2DP** (SBC) from the Pi: Spotify Soloist ("Buddy", hidden; sandboxed, weekly build update) → PipeWire sink `buddy_music` → the selected Nest; Buddy's voice → `buddy_voice` → that Nest while music plays there (60 %), else the Jabra. Service `speakers` (C++, `pactl`/`pw-link`/`bluetoothctl`, event-driven): connects on demand, one Nest at a time (the Pi refuses a second A2DP link), disconnects after 10 min without music, ducks `buddy_music` locally. spotify lists the Nests (`bt:<mac>`) in Soloist's place. Not Cast: Buddy can't start Spotify on an idle Nest (403 without Spotify's own desktop login), Soloist can't cast, Cast streaming lags ≥ 3.9 s (#16). | ✅ |
 | D19 | Web panel | Service `web` (C++, cpp-httplib pinned via FetchContent): static page + HTTP⇄MQTT bridge, no skill logic. Retained `buddy/+/state` and `/status` → browser (server-sent events); `POST /api/cmd/<svc>` → `buddy/<svc>/cmd` (non-planned command topics only). `http://buddy.local:8080`, LAN only, **no login**: Host allowlist (IP, `*.local`, `BUDDY_WEB_HOSTS`) against DNS rebinding, JSON-only same-origin POSTs against other sites in the same browser. Add auth before anything that moves (motion) goes on the page: `"web": false` in topics.json keeps `buddy/motion/cmd` off it. | ✅ |
 
 Update this table when a decision is made or changed.
@@ -111,9 +114,11 @@ Update this table when a decision is made or changed.
         ┌────────────────┬──────────────────────────┬───────────────────┼────────────────┐
         ▼                ▼                          ▼                   ▼                ▼
    [voice] TTS     [spotify] skill ──Web API──►  [hue] skill ──LAN──►  [motion] ──USB──► Pico (servos, eyes)
-        │           music box (ducked while       Hue Bridge
-        │           ears listens / voice speaks)  (eventstream back)
-        └──► Jabra speaker
+        │           Spotify devices; "Buddy" =     Hue Bridge
+        │           Soloist on the Pi              (eventstream back)
+        ▼                │ music
+   buddy_voice      buddy_music ──► [speakers] ──Bluetooth──► Nest (on demand, music ducked while Buddy listens/speaks)
+        └──────────────────────────► [speakers] ──► that Nest while music plays there, else the Jabra speaker
                                         phone / PC browser ◄──HTTP──► [web] panel ◄──► MQTT (state in, commands out)
 ```
 
@@ -121,14 +126,14 @@ Update this table when a decision is made or changed.
 - Services communicate only over MQTT (Mosquitto on the Pi).
 - Services are C++ or Python (D5, D15). MQTT topic names are defined once in `shared/topics.json` and used by every service.
 - ears and brain must be host-agnostic: broker address comes from config/env, never hard-coded.
-- Microphone and speaker are the same USB device (Jabra Speak 510 MS); music comes from the separate box (D10).
+- Microphone and speaker are the same USB device (Jabra Speak 510 MS); music comes from the Nests over Bluetooth (D20).
 
 ---
 
 ## Phase 1 – Voice assistant ✅
 
 Summary of every step, rebuild order, config and troubleshooting: `docs/guides/01-setup-summary.md` (incl. the extras
-1.13 Hue lights and 1.14 web panel).
+1.13 Hue lights, 1.14 web panel and 1.15 Nest speakers).
 Speech-to-text training: `docs/voice-training.md`.
 
 ### Deferred (not needed for Phase 1, pick up when useful)
@@ -195,6 +200,7 @@ buddy/
 │   │   ├── spotify/         ← Spotify skill, ducking the music box
 │   │   ├── hue/             ← Hue lights skill (Hue Bridge, local API)
 │   │   ├── web/             ← web panel: HTTP ⇄ MQTT bridge + www/ page
+│   │   ├── speakers/        ← Nests over Bluetooth: music and voice routing, ducking (D20)
 │   │   └── motion/          ← joints → Pico serial protocol, gestures
 │   ├── tools/voice/         ← commands.tsv (corpus) + buddy_voice (record/train/eval, runs on the PC)
 │   ├── firmware/pico-motion/ ← Pico 2 firmware: all servos (separate CMake project, D17)

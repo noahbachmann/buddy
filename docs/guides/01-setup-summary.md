@@ -1,11 +1,11 @@
 # Phase 1 summary: voice assistant (done)
 
-Condensed from the step guides 1.2–1.12 (full versions in Git history: `git log --all -- 'guides/*' 'docs/guides/*'`).
+Condensed from the step guides 1.2–1.12 plus the extras 1.13–1.15 (full versions in Git history: `git log --all -- 'guides/*' 'docs/guides/*'`).
 Everything needed to rebuild the Pi, re-tune or debug is here; walkthrough text and one-time checks are gone.
 Speech-to-text training is a recurring job with its own doc: `docs/voice-training.md`.
 
-Result: "Hey Jarvis, play Daft Punk" → the music box plays it and Buddy confirms. While Buddy listens or speaks, the box
-is turned down. Starts on power-on, recovers from crashes, hangs and audio hiccups by itself.
+Result: "Hey Jarvis, play Daft Punk" → the music box (a Nest over Bluetooth, 1.15) plays it and Buddy confirms, from that
+Nest. While Buddy listens or speaks, the music is turned down. Starts on power-on, recovers from crashes, hangs and audio hiccups by itself.
 
 ```
  Jabra mic ─────────────────► ears ──transcript──► brain ──cmd──► spotify ──Web API──► Spotify ──► music box (Connect)
@@ -20,11 +20,12 @@ is turned down. Starts on power-on, recovers from crashes, hangs and audio hiccu
 |---|---|---|
 | 1 | Hardware | 1.2 below |
 | 2 | Flash + first boot | 1.3 below; PC `~/.ssh/config` alias `buddy` |
-| 3 | `deploy/deploy.sh --setup` (PC, repo root `skeleton/`) | apt packages, ONNX Runtime, libpiper, uv, stock PipeWire, Mosquitto, lingering, `buddy.env`, models; then builds and starts all services |
+| 3 | `deploy/deploy.sh --setup` (PC, repo root `skeleton/`) | apt packages, ONNX Runtime, libpiper, uv, PipeWire sinks + Bluetooth, Mosquitto, lingering, `buddy.env`, Soloist, models; then builds and starts all services |
 | 4 | `~/buddy/config/buddy.env` | `BUDDY_SPOTIFY_CLIENT_ID`, `BUDDY_SPOTIFY_DEVICE` (box name), `BUDDY_SPOTIFY_DEFAULT_URI`, your voice/STT settings |
 | 5 | Own models (PC → Pi) | `scp ggml-buddy-*.bin buddy:buddy/models/` (and a custom wake word if any); `fetch-models.sh` names what's missing |
 | 6 | Spotify login | `buddy-spotify --login` (1.8/1.9) |
 | 6b | Hue pairing | Bridge's link button, then `buddy-hue --pair` (1.13); `BUDDY_HUE_DEFAULT_ROOM` |
+| 6c | Soloist + Nests | `SOLOIST_API_KEY` in `~/buddy/config/soloist.env`, `setup.sh soloist`, pick "Buddy" once in the Spotify app; pair each Nest: `buddy-speakers --pair "<name>"` (1.15) |
 | 7 | Check | `deploy/status.sh`, then "Hey Jarvis, play Spotify", "… lights off"; panel `http://buddy.local:8080` |
 
 `setup.sh <step>` runs single steps (`setup.sh models`); `setup.sh check` warns about unknown keys in `buddy.env`.
@@ -319,6 +320,8 @@ plays on the box unless a speaker is named), `--cmd devices` (exact device names
 
 Music plays on the **music box**, not the Jabra, so it reaches the mic as room noise that Buddy can't subtract (D13).
 
+- **Music on a Nest** (1.15): the speakers service ducks it on the Pi (`buddy_music` to `BUDDY_SPEAKERS_DUCK_PERCENT`,
+  instant, no Web API). The rest of this bullet is for every other device (DESKTOP-1, a phone casting to a Nest).
 - **Ducking** (spotify service): on `ears/state` listening/transcribing or `voice/state` speaking, the box goes to
   `BUDDY_SPOTIFY_DUCK_PERCENT` (30 %) of its volume via the Web API (~0.3 s, while you breathe in after "Hey Jarvis");
   `BUDDY_SPOTIFY_DUCK_HOLD_MS` (1500) after both are idle it comes back. "louder" while ducked changes the volume that
@@ -434,10 +437,10 @@ colours and scenes (each room's single lights behind "N lights ▾"), the room a
 switch; "All lights" is only a thin bar with "Turn off" (switching everything on is left to voice and rooms); ⚙ bottom
 left arranges the rooms (order, hide, add back), saved per browser (`localStorage`, so phone and PC differ); music:
 what Spotify plays on **any** device (cover, title, artist, "on <device>"), a progress bar to seek, play/pause/next/
-previous and volume on that device, and the speaker list (tap one = move the music there; the box in standby is listed
-on its last id ⚠️). Tab **Hue** (`#hue`): pick a room or zone, set its lights (live), name, Save →
+previous and volume on that device, and the speaker list (tap one = move the music there): the Nests (1.15) plus
+whatever Spotify sees (DESKTOP-1, Pixel 8 while its app is open), never Soloist's "Buddy". Tab **Hue** (`#hue`): pick a room or zone, set its lights (live), name, Save →
 scene; scene list per room/zone: tap = recall and load for editing, ✕ = delete (asks first). Fixed chips
-`voice` (green = ears, brain and voice all online; shows listening/speaking), `hue`, `spotify`. The list lives in
+`voice` (green = ears, brain and voice all online; shows listening/speaking), `hue`, `spotify`, `speakers`. The list lives in
 `SERVICE_CHIPS` in `app.js`: add new services there.
 
 - **web** is an HTTP ⇄ MQTT bridge with no skill logic: it streams every retained `buddy/+/state` and `buddy/+/status` to
@@ -445,8 +448,9 @@ scene; scene list per room/zone: tap = recall and load for editing, ✕ = delete
   command topics in `topics.json`. The page (`services/web/www/`, plain HTML/CSS/JS, installed to `~/buddy/share/web`)
   sends the same commands brain does, plus `id` for hue and spotify (no name matching), and spotify's panel-only `seek`.
 - **Live Spotify state:** Spotify can't push, so spotify polls `GET /me/player` + `/me/player/devices` every
-  `BUDDY_SPOTIFY_POLL_S` (5 s) **only while a panel is visible**: the page sends `{"action":"watch"}` every 20 s (not
-  from hidden tabs or the Hue tab), polling stops 30 s after the last one, and once 1.5 s after each command. Progress
+  `BUDDY_SPOTIFY_POLL_S` (3 s) **only while a panel is visible**: the page sends `{"action":"watch"}` every 20 s (not
+  from hidden tabs or the Hue tab), polling stops 30 s after the last one, and once 1 s after each command. The device
+  a command moves the music to shows at once (Spotify reports it 0.7–2.6 s later; the commanded one wins for 8 s). Progress
   is re-published only when it jumps (seek, pause, new song); the browser runs the bar on from `progress.at`. Without a
   panel the state only follows Buddy's own commands, as before.
 - **No login.** Anyone on the Wi-Fi can switch lights and music (like a guest with the Hue app). Protections: only IPs,
@@ -464,3 +468,54 @@ scene; scene list per room/zone: tap = recall and load for editing, ✕ = delete
 | "The hue service isn't running." | `deploy/logs.sh hue` |
 | Music card stuck on an old song | spotify can't poll: `deploy/logs.sh spotify` ("player state: …", logged once per outage) |
 | `can't listen on 0.0.0.0:8080` | Port taken: `BUDDY_WEB_PORT` |
+
+## 1.15 Nest speakers over Bluetooth (D20)
+
+Music plays on the two Google Nests, picked by voice ("play … on the bathroom speaker") or on the panel next to
+DESKTOP-1 and Pixel 8. Buddy's voice comes from the Nest that plays music, with the music turned down; otherwise
+from the Jabra.
+
+```
+ Spotify apps / panel / brain ──► spotify ──Web API──► "Buddy" = Soloist on the Pi (hidden; the Nests are listed instead)
+                                    └─ buddy/speakers/cmd {output: bt:<mac>} ──┐
+ Soloist ──► buddy_music ──pw-link──► Nest (Bluetooth A2DP, SBC)              speakers: connects on demand,
+ voice ────► buddy_voice ──────────► that Nest while music plays, else Jabra   routes, ducks buddy_music
+```
+
+- **Why Bluetooth:** Buddy can't start Spotify on an idle Nest over Cast (only an unofficial login of Spotify's desktop
+  app can), and Soloist can't cast. Streaming from the Pi over Cast lags ≥ 3.9 s; Bluetooth ≈ 0.35 s (Nest 300 ms +
+  PipeWire 43 ms). Measurements: #16.
+- **Soloist** (Spotify's headless Connect client, Premium API key) plays as "Buddy" into the virtual sink `buddy_music`
+  (`PULSE_SINK`), sandboxed, build updated weekly (builds expire after 90 days). spotify replaces "Buddy" in every
+  device list with one entry per Nest (`id: bt:<mac>`); a command to a Nest goes to Soloist, and playing on one first
+  sends `buddy/speakers/cmd {output}`. Nest to Nest while Soloist plays is only that output change.
+- **speakers** (`buddy@speakers`): music starts → connects the selected Nest (`BUDDY_SPEAKERS_DEFAULT`, else
+  `BUDDY_SPOTIFY_DEVICE`), links `buddy_music.output` to it, sets the Nest to `BUDDY_SPEAKERS_VOLUME` (80 %) 3 s later
+  (the Nest syncs its own volume first); voice to the Nest at `BUDDY_SPEAKERS_VOICE_PERCENT` (60 %). A gap under 2 s
+  ("next") isn't a pause. No music for `BUDDY_SPEAKERS_IDLE_S` (600) → disconnects. Ducking as in 1.11, locally.
+  No polling: `pactl subscribe` wakes it.
+- **One Nest at a time:** the Pi refuses a second A2DP connection, even idle. Switching releases the old Nest's audio
+  profile (15 ms), connects the new one (Main 1.2–2.4 s, Mini ~3.5 s), and disconnects the old one in the background
+  (a full disconnect takes 2.5–3 s). Music on both at once would need a USB Bluetooth adapter ⚠️ untested.
+- **Music never on the Jabra:** `buddy_music.output` has `node.autoconnect = false`; only speakers links it, and the
+  link disappears with the Nest. Volume: the Spotify slider changes Soloist's volume, inside the Nest's 80 %.
+- **Config files** (`setup.sh audio`): `deploy/config/pipewire/buddy-audio.conf` (the two sinks) and
+  `deploy/config/wireplumber/buddy-bluetooth.conf` (Bluetooth without a logind seat, SBC only, Nests at priority 100 so
+  they never become the default sink).
+- **Pairing a Nest:** say "Hey Google, pair Bluetooth" to it, then `deploy/run.sh speakers --pair "Bathroom speaker"`
+  (scans 60 s, pairs, trusts, sets the name the panel shows), restart `buddy@speakers`. The Nests don't store a pairing
+  key: a disconnected one shows `Paired: no` and still reconnects; speakers lists trusted devices.
+- Measured 2026-10-30: 0 dropouts (Main 3 min, Mini 1 min at −69 dBm); CPU while playing: Soloist 2.5 %, PipeWire 0.3 %.
+
+Done when: panel → Main speaker plays within ~3 s, "Hey Jarvis, what's playing?" answers from it with the music ducked,
+panel → Bathroom speaker moves it, panel → DESKTOP-1 puts the voice back on the Jabra.
+
+| Symptom | Fix |
+|---|---|
+| No "Buddy" in the Spotify app | `systemctl --user status buddy-soloist`: key missing in `soloist.env`, build expired (exit 10: `systemctl --user start buddy-soloist-update`) |
+| Music doesn't start on a Nest | `deploy/logs.sh speakers`: "didn't connect" → Nest off or out of range; "Hey Google, pair Bluetooth" + `--pair` if it was reset |
+| Nest connects, no sound | `pw-link -l \| grep -A2 buddy_music.output` shows no link: `systemctl --user restart buddy@speakers` |
+| Music or voice on the wrong device | `ssh buddy pactl list sink-inputs short`; `setup.sh audio` if `buddy_music`/`buddy_voice` are missing |
+| `br-connection-profile-unavailable` | WirePlumber without its Bluetooth monitor: `buddy-bluetooth.conf` missing (`setup.sh audio`) |
+| A Nest became the default sink | `wpctl set-default <Jabra id>`; check `buddy-bluetooth.conf` is installed |
+| Voice too loud / quiet on a Nest | `BUDDY_SPEAKERS_VOICE_PERCENT` |

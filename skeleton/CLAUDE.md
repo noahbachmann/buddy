@@ -38,10 +38,11 @@ notes: `services/web/CLAUDE.md`.
 |---|---|---|
 | ears | `audio_source` (ALSA capture thread, reopens device; WAV read/write), `wake_word` (3 ONNX models), `vad` (Silero), `endpoint` (endpointer + level gate on a `SpeechModel` interface, no ONNX = `ears_core`), `stt` (whisper.cpp; `audio_ctx` auto = `auto_audio_ctx()`, shared with tools/voice), `transcript` (hallucination guards: `max_tokens` by length, repeated first sentence dropped; in `ears_core`) | `--wav f.wav`, `--transcribe f.wav…` |
 | brain | `rules` (normalize + regex `RuleParser` behind `IntentParser`; light rules (skill hue) first, need a light word, `light_device()` turns "the kitchen lights" into "kitchen", `parse_room()` splits "… in the kitchen") = `brain_core` | `--test "text"…` |
-| spotify | `auth` (PKCE, token file), `player` (Web API; target = `device_id` (panel) / named speaker (`speaker()`, `names::best_matches`) / box / active device, own-playlist cache, duck/restore by device id with tmpfs recovery file, `seek` (panel only), `snapshot()` = live state for the panel: playing, device, track, progress, devices; values a command just set win over lagging polls for 8 s); main: polls `snapshot()` every `BUDDY_SPOTIFY_POLL_S` only while a panel sends `watch` (30 s), once 1.5 s after each command | `--login`, `--cmd <action> [query] [speaker]`, `--cmd devices\|duck\|restore` |
+| spotify | `auth` (PKCE, token file), `player` (Web API; `fetch_devices()` → `with_nests()`: Soloist ("Buddy") replaced by one entry per Nest (`bt:<mac>`, `local_id` = Soloist's id) from `buddy/speakers/state`, so everything below works on Nests; `device_of()` maps back, playing on a Nest calls `on_output` first (main → `buddy/speakers/cmd`); target = `device_id` (panel) / named speaker (`speaker()`, `names::best_matches`) / box / active device, own-playlist cache, duck/restore by device id with tmpfs recovery file, `seek` (panel only), `snapshot()` = live state for the panel: playing, device, track, progress, devices; values a command just set win over lagging polls for 8 s); main: polls `snapshot()` every `BUDDY_SPOTIFY_POLL_S` (3 s) only while a panel sends `watch` (30 s), once 1 s after each command; `Result::device` shows a move at once | `--login`, `--cmd <action> [query] [speaker]`, `--cmd devices\|duck\|restore` |
 | hue | `bridge` (CLIP v2 on `Http`: TLS by bridge id + compiled-in root CA, pairing, discovery, key file), `home` (rooms/zones/lights/scenes from `/clip/v2/resource`, eventstream updates, `find()` by spoken name: room > zone > light), `lights` (`plan()`: command → requests + reply, no I/O; `scene_save` snapshots a group's lights → POST scene, same name → PUT; `scene_delete`), `sse` (event parser), `throttle` (per-resource interval, merges piled-up bodies); main: eventstream thread → queue; PUTs via throttle, POST/DELETE direct | `--pair`, `--cmd <action> [query] [device]`, `--cmd list` |
 | web | `state` (`StateStore`: last payload per topic, SSE frames shared by all streams, JSON Patch deltas), `access` (Host allowlist, same-origin JSON-only POSTs), `server` (cpp-httplib routes) = `web_core`; `www/` vanilla HTML/CSS/JS, no build step. Details: `services/web/CLAUDE.md` | – (tests run a real server on a free port) |
-| voice | `tts` (libpiper, sentence streaming), `audio_sink` (ALSA per utterance / WAV) | `--say "…" [--wav out.wav]` |
+| voice | `tts` (libpiper, sentence streaming), `audio_sink` (ALSA per utterance into `pipewire:NODE=buddy_voice`, falls back to `default` / WAV) | `--say "…" [--wav out.wav]` |
+| speakers | `parse` (`pactl -f json` sinks/streams, `bluetoothctl devices/info`), `router` (World + ears/voice state → Actions: connect, release, link music, move voice, volumes; timers via `deadline()`; no I/O) = `speakers_core`; main: runs `pactl`/`pw-link`/`bluetoothctl` with `posix_spawn`, `PulseWatch` thread on `pactl subscribe` → queue, one PipeWire read per burst, background full disconnect after a profile release | `--cmd list\|connect <name>\|disconnect`, `--pair [alias]` |
 | motion | `joints` (table: name → channel/µs, `plan_move()` clamps + speed cap; `demo` on ch0 until 2.5), `gestures` (steps + spoken reply, `GesturePlayer` timing), `command` (cmd JSON), `serial_link` (termios + flock, reader thread, id-matched replies 500 ms, `* …` events queue, handshake HELLO → LIMITs, lost after I/O error / 3 timeouts) = `motion_core`; main: reconnect 1 → 10 s, PING 500 ms, unexpected `* BOOT` = re-handshake, `RELAX *` on stop | `--cmd move\|center\|relax\|gesture …`, `--raw "<id> <line>"` |
 
 ## firmware/pico-motion (Pico 2, own CMake project, `deploy.sh --firmware`)
@@ -78,7 +79,8 @@ No unit tests on the Pico: the logic that can break (protocol) lives in the shar
 | `record.sh`, `train.sh` | voice sessions on the Pi / training pipeline on the PC (`tools/voice`, `docs/voice-training.md`) |
 | `pi/setup.sh [step…\|check]` | Pi provisioning, pinned versions + hashes at the top; `check` warns about unknown `buddy.env` keys |
 | `pi/fetch-models.sh` | models `buddy.env` names → `~/buddy/models` |
-| `config/` | `buddy.env.example` (every `BUDDY_*` key, defaults commented out), `systemd/buddy@.service`, `udev/60-buddy-pico.rules` |
+| `pi/soloist-update.sh` | fetches the current Soloist build (expires after 90 days); `buddy-soloist-update.timer` weekly |
+| `config/` | `buddy.env.example` (every `BUDDY_*` key, defaults commented out), `soloist.env.example`, `systemd/buddy@.service` + `buddy-soloist*` (sandboxed Soloist, update timer), `pipewire/buddy-audio.conf` (sinks `buddy_music`/`buddy_voice`), `wireplumber/buddy-bluetooth.conf`, `udev/60-buddy-pico.rules` |
 
 A new service name goes into `SERVICES` in `deploy.sh` *and* the list in `logs.sh`.
 
@@ -118,4 +120,11 @@ built), pytest, shellcheck. `deploy/test.sh --pi`: the C++ tests on the Pi (`~/b
 - web: an open `/api/events` stream holds one httplib worker thread; `StateStore::close()` ends them on shutdown.
 - hue `Target` points into `Home`'s maps: use it before the next `load()`.
 - hue fixture `services/hue/tests/resources.json` is hand-written in CLIP v2 shape; replace with `GET /clip/v2/resource` from the real bridge when its shape surprises.
+- PipeWire/WirePlumber (D20): a stream with a missing `target.object` plus `node.dont-fallback` or `node.dont-reconnect` is
+  destroyed, and a loopback sink with it: `buddy_music.output` uses `node.autoconnect = false` + `pw-link` instead.
+  Headless WirePlumber needs `monitor.bluez.seat-monitoring = disabled`, else no Bluetooth audio.
+- Nests: no stored pairing key (`Paired: no` while disconnected) → list `devices Trusted`; they reset their volume right
+  after connecting (set ours 3 s later); a full disconnect takes 2.5–3 s, `bluetoothctl disconnect <mac> <A2DP uuid>` 15 ms.
+- Config defaults live in the config struct (`RouterConfig`, `PlayerConfig`); `main.cpp` reads env with the struct's
+  value as fallback, never a second literal.
 - `BUDDY_STT_AUDIO_CTX=auto` breaks stock whisper models (hallucination loops); only models trained with `--ctx auto`.

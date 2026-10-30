@@ -26,8 +26,9 @@ Current hardware and software used for the Buddy desk robot. Roadmap, architectu
 | Item | Details |
 |---|---|
 | Mic + speaker | Jabra Speak 510 MS (USB speakerphone, microphone and speaker in one device) |
-| Music | Music box: **Google Nest Audio** "Main speaker", LAN 192.168.1.221 (fixed in the router). A Google Cast device: Spotify reaches it via Cast, so Spotify's Web API lists it only while a Spotify session runs on it (#16). Buddy controls it via the Web API; music never plays through the Jabra |
-| Other speakers | **Google Nest Mini** "Bathroom speaker haha", LAN 192.168.1.222 (fixed in the router; Cast). Both Nests: no Google Home app needed for Cast from the Pi; their mics are not accessible |
+| Music | Music box: **Google Nest Audio** "Main speaker", LAN 192.168.1.221 (fixed in the router). Plays from the Pi over **Bluetooth** (A2DP, SBC; D20): Soloist on the Pi → speakers connects it on demand. Also a Cast device (phones can cast to it directly). Music never plays through the Jabra |
+| Other speakers | **Google Nest Mini**, Bluetooth alias "Bathroom speaker" (its Cast name: "Bathroom speaker haha"), LAN 192.168.1.222 (fixed in the router), −69 dBm at the Pi. Only one Nest connected at a time (the Pi's Bluetooth refuses a second A2DP link; a USB adapter might allow two ⚠️). Nest mics are not accessible |
+| Bluetooth | Pi 5 on-board (BlueZ 5.82, PipeWire `libspa-0.2-bluetooth`); Pi's Wi-Fi on 5 GHz, so no 2.4 GHz contention |
 
 ## Smart home
 
