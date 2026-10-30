@@ -38,31 +38,36 @@ Before you model anything: list your assumptions and the open questions, and wai
 
 ## Hard constraints
 
-- **Printer:** Bambu Lab P2S, 256 × 256 × 256 mm. Split bigger parts with keyed or doweled joints.
+- **Printer:** Bambu Lab X2D + AMS, two nozzles. 256 × 256 × 260 mm with one nozzle, 235.5 × 256 × 256 mm with both.
+  Split bigger parts with keyed or doweled joints.
 - **Tolerances from my 2.1 test print:** hole oversize {{… mm}}, press fit for bearings {{… mm}}, sliding fit
   {{… mm}}, M3 heat-set insert hole {{Ø … × … mm}}.
-- **No supports** wherever the geometry allows (45° roofs, teardrop horizontal holes, bridges ≤ {{20}} mm).
+- **No supports** wherever the geometry allows (45° roofs, teardrop horizontal holes, bridges ≤ {{20}} mm). Where a
+  support is unavoidable: PETG part, PLA support interface from the second nozzle; say which parts need it.
 - **Fasteners:** M3 socket screws into heat-set inserts for everything that comes apart; M2.5 for the Pi.
 - **Golden rule:** servo power never through the Pi. The servo supply's barrel socket and power switch mount in the
   back panel; the Pi gets its own USB-C cable.
 
 ## Materials
 
+Only **PETG** and **PLA**, no TPU.
+
 | Parts | Material |
 |---|---|
-| Structure: neck module, chassis, shells, brackets, sled | PETG |
-| Damping and grip: Jabra cradle, damper between neck module and chassis, feet, cable grommets | {{TPU 95A / none: off-the-shelf rubber}} |
-| Accents | {{PETG colour 2 / none}} |
+| Structure, anything loaded, with a fit, or near the Pi: neck module, chassis, sled, brackets, body shell around the Pi | PETG |
+| Support interface under PETG | PLA (second nozzle) |
+| Head shell, face plate, accents | {{PETG / PLA}}, colours {{…}} |
+| Test stand, dummy head, jigs | PLA |
+| Damping (Jabra cradle lining, neck mount, feet, grommets) | Bought rubber/foam parts: design pockets and holes for {{rubber grommets …, feet Ø …, pad thickness …}} |
 
-Print settings: 0.2 mm layers, 4 walls, 15 % gyroid unless a part needs more (say which and why). TPU parts: external
-spool, simple shapes, no bridges.
+Print settings: 0.2 mm layers, 4 walls, 15 % gyroid unless a part needs more (say which and why).
 
 ## Parts to house (my measurements)
 
 | Part | Size (mm) | Notes |
 |---|---|---|
 | Raspberry Pi 5 + Active Cooler | 85 × 56, height {{…}} with the USB stack | Holes M2.5 on 58 × 49. Measure plugged-in cable bend room: USB-C {{…}}, USB-A (Jabra) {{…}}, USB-A (Pico) {{…}}. microSD to a service hatch |
-| Jabra Speak 510 | Ø 120 × 33, 195 g | Position: {{A flat on the top deck / B upright, grille toward me}}. Fixed USB cable, length {{…}}. Grille free, TPU cradle, buttons {{reachable / covered}} |
+| Jabra Speak 510 | Ø 120 × 33, 195 g | Position: {{A flat on the top deck / B upright, grille toward me}}. Fixed USB cable, length {{…}}. Grille free, foam-lined cradle, buttons {{reachable / covered}} |
 | Pico board (breadboard now, perfboard later) | {{82 × 55 × …}} incl. wires | Removable sled; BOOTSEL reachable; room for 5 more servo cables later |
 | Servo DC socket + switch | socket {{…}}, switch {{…}} | Back panel |
 | MG90S (×2) | {{22.8 × 12.2 × 28.5}}, flange {{32.5}} wide, spline {{…T}}, horn {{…}} | Measure the horn you use |
@@ -83,8 +88,10 @@ spool, simple shapes, no bridges.
 
 - Inner chassis carries everything; shells only cover it and can be redesigned without touching the chassis.
 - Footprint at most {{… × …}} mm, total height about {{…}} mm. Must not tip when the head moves fast.
-- **Air:** intake near the Pi's fan, exhaust low on the back/side, ≥ 5 mm gap around the heatsink.
-- **Acoustics:** the Jabra is decoupled from the neck module (TPU), its grille free, no booming cavity behind it.
+- **Air:** the Active Cooler is a blower: intake above it, a vent at its side exhaust, ≥ 5 mm gap around the heatsink,
+  the Jabra mic away from the exhaust.
+- **Acoustics:** the Jabra and the neck module are decoupled from the chassis (rubber/foam), the grille free, no
+  booming cavity behind it.
   Nothing rattles.
 - **Radio:** no metal near the Pi's antenna end; keep that end high.
 - **Cables:** every one in a channel or clip, strain relief where it leaves the body, a connector where the neck cables

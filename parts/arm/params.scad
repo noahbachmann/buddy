@@ -14,7 +14,7 @@ forearm_profile   = [[-255, 30, 21], [-150, 35, 31], [-60, 41, 36]];
 
 wall = 2.4;  // tube wall (= 6 perimeters at 0.4 mm)
 
-// --- Print splits (P2S bed: 256 x 256 x 256) --------------------------------
+// --- Print splits (X2D bed: 256 x 256 x 260) --------------------------------
 ua_split  = 150;   // upper arm cut, z from elbow pivot
 fa_split  = -140;  // forearm cut, z from elbow pivot
 sock_len  = 16;    // coupler depth per side

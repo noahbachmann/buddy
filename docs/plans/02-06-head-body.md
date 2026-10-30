@@ -34,11 +34,11 @@ somewhere new.
         └─────┬─────┘
           neck module (2.5): pan bearing + servo, cable loop, plug at its base
    ┌──────────┴───────────┐
-   │  ╭───╮               │  upper body: Jabra in a TPU cradle (decoupled from the neck)
+   │  ╭───╮               │  upper body: Jabra in a foam-lined cradle (decoupled)
    │  │ J │  neck mount   │
    │  ╰───╯               │
    │  Pi 5 │ Pico board   │  lower body: chassis sled, air in at the bottom/side, out at the back top
-   └──────────────────────┘  TPU feet;  back panel: USB-C (Pi), 5 V barrel + switch (servos)
+   └──────────────────────┘  rubber feet; back panel: USB-C (Pi), 5 V barrel + switch (servos)
 ```
 
 ### Inner chassis + outer shells
@@ -61,8 +61,9 @@ eval`). Better score wins. B is the favourite if the scores are close.
 
 Rules for either position:
 - The grille stays completely free: no shell in front of it, no cavity behind it that booms.
-- The Jabra sits in a **TPU cradle**, not hard against PETG that the neck module is screwed to: servo noise would
-  travel through the frame straight into the mic.
+- The Jabra sits in a **cradle lined with foam or rubber** (neoprene or silicone pads, cut to size), not hard against
+  PETG that the neck module is screwed to: servo noise would travel through the frame straight into the mic. The
+  neck module sits on rubber grommets for the same reason.
 - Its USB cable is fixed to the puck: coil the extra length on a printed spool or in its own base groove ⚠️ (measure the
   length).
 - The touch buttons (mute, volume) stay reachable, or get covered on purpose: an accidental mute makes Buddy deaf.
@@ -72,8 +73,9 @@ Rules for either position:
 - Lower body, on the chassis with M2.5 standoffs (58 × 49 mm hole pattern).
 - Envelope with the Active Cooler: 85 × 56 mm board, ≈ 20 mm tall ⚠️ (the USB/Ethernet stack is the highest part, the
   cooler 13.7 mm). Plus the room the plugged-in cables need to bend: measure with the real cables.
-- **Air:** the Active Cooler blows down onto the board. Intake vents near the fan, exhaust low on the back/side, ≥ 5 mm
-  air gap around the heatsink. PETG softens around 80 °C ⚠️, the heatsink gets ~60–70 °C under load ⚠️.
+- **Air:** the Active Cooler is a blower: it pulls air in from above and pushes it out sideways through the fins.
+  Intake above the blower, a vent right at its side exhaust, ≥ 5 mm air gap around the heatsink. Keep the Jabra mic
+  away from the exhaust (fan noise). PETG softens around 80 °C ⚠️, the heatsink gets ~60–70 °C under load ⚠️.
 - **Power:** the 27 W cable plugs straight into the Pi through a slot in the back panel, with strain relief. No
   panel-mount USB-C extension: a weak one breaks the 5 A negotiation and the Pi then limits all USB ports to 600 mA.
 - **microSD** points to a service hatch (recovery without disassembly).
@@ -118,15 +120,16 @@ mounts to the desk/shelf instead (its plate already "bolts under a shelf"), or t
 
 | Part | Material | Why |
 |---|---|---|
-| Chassis, neck module, head and body shells, brackets, sled | **PETG** | Project rule; stiff, and its heat resistance covers the Pi |
-| Jabra cradle, damper between neck module and chassis, feet, cable grommets | **TPU 95A** ⚠️ | Decouples servo vibration from the mic and from the desk (desks resonate), grips the desk |
-| Accent parts (face plate, eye rims) | PETG in a second colour (optional) | Looks only |
+| Chassis, neck module, sled, brackets, body shell around the Pi | **PETG** | Carries load, has fits, or sits near the Pi's heat (PLA softens at ~55 °C ⚠️) |
+| Support interface under PETG overhangs (bearing seats, servo pockets) | **PLA** on the second nozzle | PLA doesn't bond to PETG: supports snap off and leave clean surfaces. Supports become an option, still not the default |
+| Head shell, face plate, eye rims, accents (nothing hot inside) | PETG, or **PLA** for colour and finish | PLA prints crisper and comes in more colours; fine as long as it's away from the Pi and out of the sun |
+| Jigs, test stand, mock-ups | PLA | Cheap and fast; not for fit tests (fits differ between PLA and PETG) |
+| Damping: Jabra cradle lining, neck mount, feet, cable grommets | **Bought:** neoprene/silicone pads, rubber grommets, self-adhesive rubber feet | No TPU |
 
-- ⚠️ **TPU breaks the current rule "PETG for every part".** It needs a decision change. TPU prints on the P2S from the
-  external spool only (not through the AMS), slowly; there are reports of clogs, so a slow first test print. Without
-  TPU: off-the-shelf rubber feet, grommets and silicone pads cut to size do the same job less neatly.
+- Printer: Bambu Lab X2D + AMS: two nozzles, so a PETG part with a PLA support interface or a two-colour face prints
+  in one go. Build volume 256 × 256 × 260 mm (235.5 × 256 with both nozzles in use).
 - Print rules as in the arm: 0.2 mm layers, 4 walls, 15 % gyroid, no supports where the geometry allows (45° roofs,
-  teardrop holes), build volume 256 mm, parts split with keyed joints when bigger.
+  teardrop holes); parts split with keyed joints when bigger than the bed.
 
 ## Order of work
 
@@ -147,6 +150,6 @@ mounts to the desk/shelf instead (its plate already "bolts under a shelf"), or t
 | # | Question | Recommendation |
 |---|---|---|
 | 1 | Jabra position | Measure A vs B on cardboard, then decide (B if close) |
-| 2 | TPU for damping parts | Yes: change the PETG-only rule to "PETG for structure, TPU 95A for damping and grip" |
+| 2 | PLA for the head shell and face | PETG unless you want a colour or finish only PLA has |
 | 3 | Look: size, shape, colours | Dev's call, in the CAD prompt |
 | 4 | CAD tool | Parametric OpenSCAD in `parts/` like the arm (Claude can build and check it), Onshape only for the look |

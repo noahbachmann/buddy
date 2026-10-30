@@ -90,10 +90,11 @@ voice training and turns into a second audio project. Not worth it for this step
 
 ### Test stand and dummy head
 
-- **Stand:** a printed foot plate that the neck module bolts onto with the same bolt pattern the 2.6 body will use,
+- **Stand** (PLA is fine: a jig, nothing hot): a printed foot plate that the neck module bolts onto with the same bolt pattern the 2.6 body will use,
   with a printed **protractor scale** for pan and tilt (needed for calibration).
-- **Dummy head:** a plate on the tilt fork with ballast (nuts, coins) at the planned 300 g and CoM. Cardboard face for
-  looks. It proves the bearing, the torque budget, the cable loop and the relaxed head staying put.
+- **Dummy head** (PLA): a plate on the tilt fork with ballast (nuts, coins) at the planned 300 g and CoM. Cardboard face for
+  looks. It proves the bearing, the torque budget, the cable loop and the relaxed head staying put. The neck module itself is
+  PETG (load, fits); its bearing seats print cleanly on a PLA support interface from the second nozzle.
 
 ## Electronics
 
@@ -139,7 +140,7 @@ voice training and turns into a second audio project. Not worth it for this step
 | Rail under load | Multimeter on the rail during pan + tilt | ≥ 4.8 V, `get_throttled` `0x0` |
 
 The servo noise lands right where ears starts listening. If the STT numbers drop, the levers in order: slower and
-shorter attention move, the move finishing before the speech starts (ears' VAD start), TPU damping (2.6), quieter servos.
+shorter attention move, the move finishing before the speech starts (ears' VAD start), rubber decoupling (2.6), quieter servos.
 
 ## Parts to buy
 
@@ -148,6 +149,7 @@ shorter attention move, the move finishing before the speech starts (ears' VAD s
 | 1 | 6808-2RS bearing (40 × 52 × 7) ⚠️ | Pan | Final size from the CAD; buy together with the 623s |
 | 2 | 623-2RS bearing (3 × 10 × 4) | Tilt idler (+1 spare) | |
 | 1 | Servo extension cable 30 cm | Tilt servo through the neck | |
+| 1 set | Rubber grommets (servo-type) + M3 shoulder screws ⚠️ | Mount the neck module to the body without hard contact | Keeps servo noise out of the frame and the mic |
 | – | M3 heat-set inserts (M3 × 5.7 short) + M3 socket screws assortment (6–16 mm) | All screwed joints | Inserts survive repeated assembly; self-tapping into PETG doesn't |
 | 1 | Temperature-controlled soldering iron (e.g. Pinecil) + heat-set insert tip | Inserts now, perfboard in 2.6 | Needed for 2.6 anyway, so buy it now |
 
@@ -158,7 +160,7 @@ Suppliers: Bastelgarage / Digitec Galaxus first; bearings maybe from a CH bearin
 | # | Who | What |
 |---|---|---|
 | 1 | Dev | 2.2 / 2.3 live (open work, Dev #1) |
-| 2 | Claude → Dev | 2.1 guide; print the tolerance test, report the fits |
+| 2 | Claude → Dev | 2.1 guide (X2D + AMS); print the tolerance test in PETG, report the fits |
 | 3 | Dev | Buy the parts above; measure MG90S, horn, bearings (calliper) for the CAD prompt |
 | 4 | Claude | Neck module + stand + dummy head CAD (`docs/plans/02-06-cad-prompt.md`, stage 1) |
 | 5 | Dev | Print, assemble, centre servos, calibrate |

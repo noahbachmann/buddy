@@ -28,7 +28,7 @@ Parametric OpenSCAD. All dimensions are in `params.scad`. `./build.sh` renders `
 | `forearm-bottom.scad` | Wrist plate (Ø20 cable/tendon hole, 4× M3 on 32 × 20) | plate down |
 | `couplers.scad` | 2 rings that join the halves | standing |
 
-The STLs are already in print orientation. Each limb is cut in two because 300 mm doesn't fit the P2S (256 mm).
+The STLs are already in print orientation. Each limb is cut in two because 300 mm doesn't fit the X2D (256 mm).
 
 ## How a joint works
 
@@ -57,9 +57,9 @@ The STLs are already in print orientation. Each limb is cut in two because 300 m
 | 1 | Servo extension cable ~50 cm | Elbow servo out of the upper arm |
 | – | 2-part epoxy or CA glue | Couplers |
 
-## Print (Bambu P2S)
+## Print (Bambu X2D)
 
-- PETG (project rule: PETG for every part). 0.2 mm layers, 4 walls, 15 % gyroid infill.
+- PETG (project rule: PETG for everything that carries load). 0.2 mm layers, 4 walls, 15 % gyroid infill.
 - **No supports.** Roofs inside the tubes are 45°, and horizontal holes are teardrops pointing up. Print in the exported orientation.
 - Print `upper-arm-top` first: it contains the fork and a bearing seat, so check the fit before printing the rest. If the 608 is too tight or too loose, adjust `press` in `params.scad` (default 0.1 mm), then run `./build.sh`.
 

@@ -8,8 +8,8 @@ Current hardware and software used for the Buddy desk robot. Roadmap, architectu
 
 | Item | Details |
 |---|---|
-| Printer | Bambu Lab P2S |
-| Filament | PETG (all parts, prototypes and final) |
+| Printer | Bambu Lab X2D + AMS (arriving): dual nozzle, enclosed. Build volume 256 × 256 × 260 mm with one nozzle, 235.5 × 256 × 256 mm with both |
+| Filament | PETG for structure and every part that carries load, sits near heat or has a fit; PLA only for support interfaces under PETG (second nozzle), jigs, mock-ups and cosmetic parts away from heat. No TPU |
 | CAD | Onshape |
 
 ## Compute & power

@@ -158,12 +158,12 @@ Speech-to-text training: `docs/voice-training.md`.
 
 | Step | Summary | Guide |
 |---|---|---|
-| 2.1 3D printer | Set up the Bambu Lab P2S. Print tolerance tests (holes, clearances) to find CAD offsets. | `docs/guides/02-01-printer.md` |
+| 2.1 3D printer | Set up the Bambu Lab X2D + AMS. Print tolerance tests (holes, clearances, PETG with PLA support interface) to find CAD offsets. | `docs/guides/02-01-printer.md` |
 | 2.2 Motion controller | Pico 2 H, servos on its hardware PWM, separate 5 V servo supply. USB serial link to the Pi, firmware flashed from the Pi (D17). | `docs/guides/02-02-motion-controller.md` |
 | 2.3 Motion service | `[motion]`: MQTT commands → Pico serial protocol. | `docs/guides/02-03-motion-service.md` |
 | 2.4 Eyes | Round display (e.g. GC9A01) with states: idle, listening, thinking, playing. | `docs/guides/02-04-eyes.md` |
 | 2.5 Head pan/tilt | Two servos. Head turns toward the user on wake word. | `docs/guides/02-05-head.md` |
-| 2.6 Head & body design | Onshape CAD, print head and body housing the Pi (PETG). Retrain speech-to-text afterwards (the mic sounds different). | `docs/guides/02-06-body-design.md` |
+| 2.6 Head & body design | Onshape CAD, print head and body housing the Pi (PETG; PLA only away from heat). Retrain speech-to-text afterwards (the mic sounds different). | `docs/guides/02-06-body-design.md` |
 
 ## Phase 3 – Hand
 
@@ -279,7 +279,8 @@ Pi paths: `~/buddy/{dev,src,build-release,build-pico,bin,venv,models,config,voic
 
 - **Step guides** (`docs/guides/XX-YY-name.md`): Goal → Prerequisites → Parts/Tools → Steps (copy-pasteable commands with expected output) → Verify → Troubleshooting → Notes for later phases. Mark untested assumptions with ⚠️.
 - **Code:** C++ with CMake, or Python with uv (D5). MQTT topics live in `shared/topics.json`. Broker address and other host-specific values come from config/env.
-- **CAD/printing** (Onshape, Bambu P2S): dimensions with clearance offsets, print orientation, supports. PETG for every part, prototypes included.
+- **CAD/printing** (Onshape or parametric OpenSCAD, Bambu X2D + AMS): dimensions with clearance offsets, print orientation, supports.
+  Filament: PETG for structure and every part that carries load, sits near heat or has a fit; PLA only for support interfaces under PETG (second nozzle), jigs, mock-ups and cosmetic parts away from heat. No TPU.
 - **Style:** concise, no filler. Tables for BOMs and pinouts, code blocks for commands.
 
 ## Maintenance
