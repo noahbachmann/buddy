@@ -37,11 +37,18 @@ Current hardware and software used for the Buddy desk robot. Roadmap, architectu
 
 ## Motion (Phase 2, guide 2.2)
 
+State 2026-10-30: one Pico with one servo (ch0) on the breadboard; Pico not on the Pi's USB yet.
+
 | Item | Details |
 |---|---|
-| Motion controller | Raspberry Pi Pico 2 H (RP2350), firmware `pico-motion` flashed 2026-10-29, on the Pi's USB as `/dev/buddy-pico` (D17) |
-| Servos | ⚠️ not noted yet (2.2 parts list: MG90S metal-gear micro servo, 180°) |
-| Servo supply | ⚠️ not noted yet (2.2 parts list: 5 V / 5 A brick, 5.5 × 2.1 mm, 1000 µF on the rail) |
+| Motion controller | 2 × Raspberry Pi Pico 2 H (RP2350). One in use: firmware `pico-motion` flashed 2026-10-29, on the Pi's USB as `/dev/buddy-pico` (D17). The second is a spare |
+| Servos | 2 × MG90 micro servo ⚠️ check the label: the 2.2 parts list asks for **MG90S** (metal gear, 180°); a plain "MG90" may be a different, weaker model. Servo 1 on ch0 (GP2) = head pan (left-right); runs as the `demo` joint until 2.5 renames it. Servo 2: head tilt (ch1, GP3) |
+| Servo supply | 5 V plug-in supply + female DC socket (5.5 × 2.1 mm, screw terminals) ⚠️ model and rating not noted (2.2 parts list: 5 V / 5 A). Check polarity (centre +) with the multimeter before connecting |
+| Breadboard | Small, 30 rows (half size, ~400 holes), with pre-cut solid copper jumper wires. ⚠️ The 2.2 wiring (step 3) is laid out for an 830-hole board (columns up to 36): the Pico 2 H takes 20 of the 30 rows, so servo headers and capacitor go in the remaining 10 |
+| Wiring | Assorted jumper wires (Dupont) |
+| Capacitors | Assortment ⚠️ values not noted: the servo rail needs a 1000 µF electrolytic (≥ 10 V, polarised) |
+| Resistors | Assortment (330 Ω used: one per servo signal line) |
+| Multimeter | XL830L, backlit (instead of the UNI-T UT33C+ in the parts list). Sockets: COM, VΩmA, 10A |
 
 ## Dev machines
 
