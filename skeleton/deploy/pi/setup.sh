@@ -8,10 +8,11 @@
 #   libpiper     Piper TTS library built from source → /opt/libpiper (D12)
 #   uv           Python package manager → ~/.local/bin/uv, for Python services (D15)
 #   pico         Pico 2 firmware toolchain: ARM GCC, picotool → /opt/picotool, udev rules (D17)
-#   audio        stock PipeWire: removes Buddy's old echo-cancellation config if present (D13)
+#   audio        PipeWire sinks buddy_music/buddy_voice, WirePlumber Bluetooth for the Nests (D20)
 #   mosquitto    MQTT broker, localhost only (D2)
 #   session      lingering: user services start at boot without a login (D7)
 #   config       ~/buddy folders, buddy.env from the example
+#   soloist      Spotify Connect device "Buddy" (Spotify Soloist, sandboxed), weekly update timer (D20)
 #   models       deploy/pi/fetch-models.sh: what buddy.env names
 #   check        warns about keys in buddy.env that no service reads (typos, removed settings)
 set -euo pipefail
@@ -37,7 +38,8 @@ step_packages() {
         build-essential cmake ninja-build gdb rsync git ccache pkg-config \
         mosquitto mosquitto-clients \
         libpaho-mqtt-dev libpaho-mqttpp-dev libssl-dev nlohmann-json3-dev \
-        libasound2-dev libcurl4-openssl-dev libgtest-dev curl patchelf
+        libasound2-dev libcurl4-openssl-dev libgtest-dev curl patchelf \
+        bluez libspa-0.2-bluetooth pulseaudio-utils
 }
 
 # Not Debian's libonnxruntime-dev: it prints ~570 "Schema error" lines on every start (see third_party/).
@@ -144,20 +146,24 @@ step_pico() {
     echo "  ✓ arm-none-eabi-gcc $(arm-none-eabi-gcc -dumpversion), picotool $PICOTOOL_VERSION"
 }
 
-# Up to 2026-10-28 Buddy added PipeWire echo cancellation and bigger USB buffers (the buffers only because
-# echo cancellation tied mic and speaker clocks together). Raw mic since (D13): stock PipeWire. This step removes
-# the old files and restarts PipeWire only if there were any (briefly cuts audio; ears and voice reopen by themselves).
+# Two virtual sinks (music, voice) that the speakers service routes, and WirePlumber's Bluetooth monitor for the
+# Nests (D20). PipeWire only reads its config at start: restart it when a file changed. That briefly cuts all
+# audio streams; ears and voice reopen their devices by themselves. Also removes the files of the echo-cancellation
+# setup (until 2026-10-28, D13).
 step_audio() {
-    local old=(~/.config/pipewire/pipewire.conf.d/buddy-audio.conf ~/.config/wireplumber/wireplumber.conf.d/buddy-alsa.conf)
-    local found=()
-    for f in "${old[@]}"; do [[ -e "$f" ]] && found+=("$f"); done
-    if [[ ${#found[@]} -eq 0 ]]; then
-        echo "  ✓ stock PipeWire"
+    local pw=~/.config/pipewire/pipewire.conf.d wp=~/.config/wireplumber/wireplumber.conf.d changed=0
+    mkdir -p "$pw" "$wp"
+    if [[ -e "$wp/buddy-alsa.conf" ]]; then rm -f "$wp/buddy-alsa.conf"; changed=1; fi
+    cmp -s "$CONFIG/pipewire/buddy-audio.conf" "$pw/buddy-audio.conf" \
+        || { install -m 644 "$CONFIG/pipewire/buddy-audio.conf" "$pw/"; changed=1; }
+    cmp -s "$CONFIG/wireplumber/buddy-bluetooth.conf" "$wp/buddy-bluetooth.conf" \
+        || { install -m 644 "$CONFIG/wireplumber/buddy-bluetooth.conf" "$wp/"; changed=1; }
+    if [[ $changed -eq 0 ]]; then
+        echo "  ✓ PipeWire config unchanged"
         return
     fi
-    rm -f "${found[@]}"
     systemctl --user restart pipewire pipewire-pulse wireplumber
-    echo "  ✓ removed ${#found[@]} old config file(s), PipeWire restarted"
+    echo "  ✓ PipeWire config installed, PipeWire restarted"
 }
 
 step_mosquitto() {
@@ -175,6 +181,29 @@ step_config() {
         echo "  created ~/buddy/config/buddy.env: set BUDDY_SPOTIFY_CLIENT_ID and BUDDY_SPOTIFY_DEVICE"
     fi
     chmod 600 ~/buddy/config/buddy.env
+}
+
+# Spotify Connect device "Buddy" (D20): Soloist in ~/buddy/bin, kept current by a weekly timer, run sandboxed.
+# Its key lives in soloist.env, not buddy.env (the sandbox hides everything else from it).
+step_soloist() {
+    bash ./soloist-update.sh
+    mkdir -p ~/.local/share/soloist ~/.cache/soloist ~/.config/systemd/user  # the only folders the sandbox maps in
+    if [[ ! -f ~/buddy/config/soloist.env ]]; then
+        cp "$CONFIG/soloist.env.example" ~/buddy/config/soloist.env
+        echo "  created ~/buddy/config/soloist.env: set SOLOIST_API_KEY"
+    fi
+    chmod 600 ~/buddy/config/soloist.env
+    install -m 644 "$CONFIG/systemd/buddy-soloist.service" "$CONFIG/systemd/buddy-soloist-update.service" \
+        "$CONFIG/systemd/buddy-soloist-update.timer" ~/.config/systemd/user/
+    systemctl --user daemon-reload
+    systemctl --user enable --now buddy-soloist-update.timer
+    if grep -q '^SOLOIST_API_KEY=.' ~/buddy/config/soloist.env; then
+        systemctl --user enable buddy-soloist
+        systemctl --user restart buddy-soloist
+        echo "  ✓ buddy-soloist running"
+    else
+        echo "  ⚠ SOLOIST_API_KEY is empty in ~/buddy/config/soloist.env: set it, then run setup.sh soloist again"
+    fi
 }
 
 step_models() {
@@ -195,7 +224,7 @@ step_check() {
     echo "  ✓ checked"
 }
 
-ALL=(packages onnxruntime libpiper uv pico audio mosquitto session config models check)
+ALL=(packages onnxruntime libpiper uv pico audio mosquitto session config soloist models check)
 steps=("$@")
 [[ ${#steps[@]} -gt 0 ]] || steps=("${ALL[@]}")
 for s in "${steps[@]}"; do
