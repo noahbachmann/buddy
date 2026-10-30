@@ -64,7 +64,7 @@ TEST_F(LightsTest, Colours) {
               R"(grouped_light/gl-bedroom {"color_temperature":{"mirek":250},"on":{"on":true}})");
     EXPECT_EQ(run("color", "blue", "bedroom lamp").say, "The Bedroom lamp can't change colour.");
     EXPECT_EQ(run("color", "blue", "bedroom").say, "The Bedroom lights can't change colour.");  // no colour light there
-    EXPECT_EQ(run("color", "warm", "desk lamp").say, "The Desk lamp can't change their white.");
+    EXPECT_EQ(run("color", "warm", "desk lamp").say, "The Desk lamp can't change its white.");
     EXPECT_EQ(run("color", "plaid", "living room").say, "I don't know the colour plaid.");
     EXPECT_EQ(run("temperature", "blue", "living room").ok, false);  // colours only via "color"
 }

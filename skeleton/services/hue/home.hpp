@@ -64,7 +64,8 @@ public:
     bool apply(const nlohmann::json& events);
 
     // Spoken name → target. Rooms win over zones over lights on equal scores ("bedroom" = the room, not
-    // "Bedroom lamp"); "all", "everything", "house", … = every light. nullopt = no match. Throws Ambiguous.
+    // "Bedroom lamp"); "all", "everything", "house", … = every light, unless a room/zone has exactly that name.
+    // nullopt = no match. Throws Ambiguous.
     std::optional<Target> find(const std::string& spoken) const;
     // Room/zone/home id, grouped_light id or light id (web panel).
     std::optional<Target> find_id(const std::string& id) const;

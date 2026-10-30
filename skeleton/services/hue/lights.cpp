@@ -183,7 +183,8 @@ Plan plan(const Command& c, const Home& home, const LightsConfig& cfg) {
 
     if (c.action == "color" || c.action == "temperature") {
         if (const auto mirek = white_mirek(c.query)) {
-            if (!can(t, home, &Light::temperature)) return failed(capitalized(spoken(t)) + " can't change their white.");
+            if (!can(t, home, &Light::temperature))
+                return failed(capitalized(spoken(t)) + (t.light ? " can't change its white." : " can't change their white."));
             return change(t, {{"on", turn_on}, {"color_temperature", {{"mirek", *mirek}}}});
         }
         const auto xy = c.action == "color" ? color_xy(c.query) : std::nullopt;

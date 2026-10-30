@@ -170,6 +170,9 @@ const Light* Home::light(const std::string& id) const {
 
 std::optional<Target> Home::find(const std::string& spoken) const {
     if (home_word(spoken)) {
+        // a room/zone named like that ("Home") wins, else voice can't reach it or its scenes
+        for (const auto& [id, g] : groups_)
+            if (g.kind != "home" && names::squash(g.name) == names::squash(names::spoken_name(spoken))) return Target{.group = &g};
         if (const Group* h = home()) return Target{.group = h};
         return std::nullopt;
     }
