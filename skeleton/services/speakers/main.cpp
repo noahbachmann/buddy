@@ -48,14 +48,16 @@ using namespace std::chrono_literals;
 using json = nlohmann::json;
 
 struct Config {
+    static inline const RouterConfig defaults{};  // defaults live in router.hpp; env only overrides
     // else spotify's default speaker: usually a Nest
     std::string default_speaker = env_string("BUDDY_SPEAKERS_DEFAULT", env_string("BUDDY_SPOTIFY_DEVICE", ""));
     RouterConfig router{
-        .idle = std::chrono::seconds(env_int("BUDDY_SPEAKERS_IDLE_S", 600)),
-        .duck_percent = env_int("BUDDY_SPEAKERS_DUCK_PERCENT", 30),
-        .duck_hold = std::chrono::milliseconds(env_int("BUDDY_SPEAKERS_DUCK_HOLD_MS", 1500)),
-        .volume = env_int("BUDDY_SPEAKERS_VOLUME", 80),
-        .voice_percent = env_int("BUDDY_SPEAKERS_VOICE_PERCENT", 60),
+        .idle = std::chrono::seconds(env_int("BUDDY_SPEAKERS_IDLE_S", static_cast<int>(defaults.idle.count()))),
+        .duck_percent = env_int("BUDDY_SPEAKERS_DUCK_PERCENT", defaults.duck_percent),
+        .duck_hold = std::chrono::milliseconds(
+            env_int("BUDDY_SPEAKERS_DUCK_HOLD_MS", static_cast<int>(defaults.duck_hold.count()))),
+        .volume = env_int("BUDDY_SPEAKERS_VOLUME", defaults.volume),
+        .voice_percent = env_int("BUDDY_SPEAKERS_VOICE_PERCENT", defaults.voice_percent),
     };
 };
 

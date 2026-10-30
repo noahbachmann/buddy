@@ -64,15 +64,16 @@ struct Config {
         .token_file = env_string("BUDDY_SPOTIFY_TOKEN_FILE",
                                  env_string("HOME", ".") + "/buddy/config/spotify-token.json"),
     };
+    static inline const PlayerConfig defaults{};  // defaults live in player.hpp; env only overrides
     PlayerConfig player{
         .device_name = env_string("BUDDY_SPOTIFY_DEVICE", ""),
-        .volume_step = env_int("BUDDY_SPOTIFY_VOLUME_STEP", 10),
+        .volume_step = env_int("BUDDY_SPOTIFY_VOLUME_STEP", defaults.volume_step),
         .default_uri = env_string("BUDDY_SPOTIFY_DEFAULT_URI", ""),
-        .duck_percent = env_int("BUDDY_SPOTIFY_DUCK_PERCENT", 30),
+        .duck_percent = env_int("BUDDY_SPOTIFY_DUCK_PERCENT", defaults.duck_percent),
         .duck_file = std::getenv("XDG_RUNTIME_DIR") ? std::string(std::getenv("XDG_RUNTIME_DIR")) + "/buddy-spotify-duck.json"
                                                     : "",
         .duck_devices = name_list(env_string("BUDDY_SPOTIFY_DUCK_DEVICES", "")),
-        .local_device = env_string("BUDDY_SPOTIFY_LOCAL_DEVICE", "Buddy"),
+        .local_device = env_string("BUDDY_SPOTIFY_LOCAL_DEVICE", defaults.local_device),
     };
     int duck_hold_ms = env_int("BUDDY_SPOTIFY_DUCK_HOLD_MS", 1500);
     int poll_s = env_int("BUDDY_SPOTIFY_POLL_S", 3);
