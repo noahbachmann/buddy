@@ -17,7 +17,6 @@ Jabra mic → [ears] wake word, speech-to-text → [brain] intent → [spotify] 
 |---|---|
 | Status, open work, decisions, architecture | `CLAUDE.md` |
 | Rebuild the Pi, config, every Phase 1 feature, troubleshooting | `docs/guides/01-setup-summary.md` |
-| Your open Phase 1 checks (recordings, Hue, live tests) | `docs/guides/01-cleanup.md` |
 | Current step guides (motion controller, motion service) | `docs/guides/02-*.md` |
 | Train speech-to-text on your voice | `docs/voice-training.md` |
 | Parts in use | `buddy-hardware.md` |

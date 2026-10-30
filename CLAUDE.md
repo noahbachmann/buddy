@@ -41,7 +41,7 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 | Phase | Step | Status |
 |---|---|---|
 | 1 – Voice | 1.1 – 1.12 Hardware, OS, audio, skeleton, wake word, STT, brain, Spotify, voice, background music, boot | ✅ |
-| 1 – Voice (extra) | 1.13 Hue lights, 1.14 web panel: bridge paired, panel working (2026-10-29); voice live test open (`01-cleanup.md` steps 12–13). 1.15 Nest speakers over Bluetooth (D20, #17): done 2026-10-30 (side issue: Deferred → Bathroom Bluetooth) | 🟨 |
+| 1 – Voice (extra) | 1.13 Hue lights, 1.14 web panel (#6), 1.15 Nest speakers over Bluetooth (D20, #17): done 2026-10-30 (side issue: Deferred → Bathroom Bluetooth) | ✅ |
 | 2 – Head | 2.1 printer: guide not written yet. 2.2 motion controller: Pi setup, firmware and flash done; wiring and servo test (guide steps 1–3, 9) open. 2.3 motion service + demo gesture ("cut off Andi's balls"): code and tests done, deployed 2026-10-29 (waits with `connected:false` while the Pico is unplugged); Verify open | 🟨 |
 | 3 – Hand | 3.1 – 3.4 | ⬜ |
 | 4 – Arm & vision | 4.1 – 4.3 | ⬜ |
@@ -56,16 +56,12 @@ What's left right now, in order. Update it with the progress table; GitHub issue
 
 1. **Motion live** (2.2 → 2.3): wire supply, Pico and a servo on ch0 (2.2 steps 1–3), plug the Pico into the Pi,
    picocom test (2.2 step 9), then 2.3 Verify (incl. the demo gesture). Then tick 2.2 and 2.3 in the progress table.
-2. **`docs/guides/01-cleanup.md`**, everything not ticked in its Verify list: Spotify login and standby box (1–2),
-   ducking (3), your names in the corpus (4), recordings and training (5–7), wake word threshold (9), live test (10),
-   Hue default room and fixed bridge IP (12), panel + voice light test (13). Then delete the file; Phase 1 extras → ✅.
-3. **Live check** for #12: "Hey Jarvis, play Spotify" ducks, plays, and Buddy answers without delay (idle loops changed).
+2. **Live check** for #12: "Hey Jarvis, play Spotify" ducks, plays, and Buddy answers without delay (idle loops changed).
 
 **Claude** (code and guides):
 
 1. #13 voice seek ("fast-forward 30 seconds", "go back 2 minutes").
-2. Act on what Dev reports from the cleanup (standby box, duck refusals, wake threshold, failed phrasings).
-3. Next guides: 2.1 printer (tolerance tests for CAD offsets), 2.4 eyes (decide: Pico or Pi drives the display, 2.2 →
+2. Next guides: 2.1 printer (tolerance tests for CAD offsets), 2.4 eyes (decide: Pico or Pi drives the display, 2.2 →
    Notes for later phases), 2.5 head pan/tilt (replaces the `demo` joint and gesture).
 
 Phase 1 → Deferred lists what waits for a reason (wake word CPU, next voice session, custom "Hey buddy", LLM brain).
