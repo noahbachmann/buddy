@@ -1,0 +1,2 @@
+Device 00:11:22:33:44:02 Bathroom speaker haha
+Device 00:11:22:33:44:01 Main speaker

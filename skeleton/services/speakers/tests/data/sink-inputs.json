@@ -1,0 +1,149 @@
+[
+ {
+  "index": 38,
+  "driver": "PipeWire",
+  "owner_module": null,
+  "client": null,
+  "sink": 4294967295,
+  "sample_specification": "float32le 2ch 48000Hz",
+  "channel_map": "front-left,front-right",
+  "format": "pcm, format.sample_format = \"\\\"float32ne\\\"\"  format.rate = \"48000\"  format.channels = \"2\"  format.channel_map = \"\\\"front-left,front-right\\\"\"",
+  "corked": true,
+  "mute": false,
+  "volume": {
+   "front-left": {
+    "value": 65536,
+    "value_percent": "100%",
+    "db": "0.00 dB"
+   },
+   "front-right": {
+    "value": 65536,
+    "value_percent": "100%",
+    "db": "0.00 dB"
+   }
+  },
+  "balance": 0.0,
+  "buffer_latency_usec": 0.0,
+  "sink_latency_usec": 0.0,
+  "resample_method": "PipeWire",
+  "properties": {
+   "node.name": "buddy_music.output",
+   "node.passive": "true",
+   "node.autoconnect": "false",
+   "audio.position": "[ FL FR ]",
+   "device.description": "Buddy music",
+   "node.group": "loopback-6024-30",
+   "node.link-group": "loopback-6024-30",
+   "node.virtual": "true",
+   "resample.prefill": "true",
+   "resample.disable": "true",
+   "media.name": "Buddy music output",
+   "stream.is-live": "true",
+   "node.want-driver": "true",
+   "node.trigger": "true",
+   "media.class": "Stream/Output/Audio",
+   "port.group": "stream.0",
+   "adapt.follower.spa-node": "",
+   "object.register": "false",
+   "factory.id": "19",
+   "clock.quantum-limit": "8192",
+   "node.loop.name": "data-loop.0",
+   "library.name": "audioconvert/libspa-audioconvert",
+   "client.id": "35",
+   "object.id": "38",
+   "object.serial": "38",
+   "module-stream-restore.id": "sink-input-by-media-name:Buddy music output"
+  }
+ },
+ {
+  "index": 40,
+  "driver": "PipeWire",
+  "owner_module": null,
+  "client": null,
+  "sink": 65,
+  "sample_specification": "float32le 2ch 48000Hz",
+  "channel_map": "front-left,front-right",
+  "format": "pcm, format.sample_format = \"\\\"float32ne\\\"\"  format.rate = \"48000\"  format.channels = \"2\"  format.channel_map = \"\\\"front-left,front-right\\\"\"",
+  "corked": true,
+  "mute": false,
+  "volume": {
+   "front-left": {
+    "value": 65536,
+    "value_percent": "100%",
+    "db": "0.00 dB"
+   },
+   "front-right": {
+    "value": 65536,
+    "value_percent": "100%",
+    "db": "0.00 dB"
+   }
+  },
+  "balance": 0.0,
+  "buffer_latency_usec": 0.0,
+  "sink_latency_usec": 0.0,
+  "resample_method": "PipeWire",
+  "properties": {
+   "node.name": "buddy_voice.output",
+   "node.passive": "true",
+   "device.description": "Buddy voice",
+   "node.group": "loopback-6024-31",
+   "node.link-group": "loopback-6024-31",
+   "node.virtual": "true",
+   "resample.prefill": "true",
+   "resample.disable": "true",
+   "media.name": "Buddy voice output",
+   "stream.is-live": "true",
+   "node.want-driver": "true",
+   "node.autoconnect": "true",
+   "node.trigger": "true",
+   "media.class": "Stream/Output/Audio",
+   "port.group": "stream.0",
+   "adapt.follower.spa-node": "",
+   "object.register": "false",
+   "factory.id": "19",
+   "clock.quantum-limit": "8192",
+   "node.loop.name": "data-loop.0",
+   "library.name": "audioconvert/libspa-audioconvert",
+   "client.id": "37",
+   "object.id": "40",
+   "object.serial": "40",
+   "node.driver-id": "65",
+   "module-stream-restore.id": "sink-input-by-media-name:Buddy voice output"
+  }
+ },
+ {
+  "index": 447,
+  "driver": "PipeWire",
+  "owner_module": 4294967295,
+  "client": 446,
+  "sink": 39,
+  "sample_specification": "float32le 2ch 48000Hz",
+  "channel_map": "front-left,front-right",
+  "format": "pcm, format.sample_format = \"\\\"float32ne\\\"\"  format.rate = \"48000\"  format.channels = \"2\"  format.channel_map = \"\\\"front-left,front-right\\\"\"",
+  "corked": false,
+  "mute": false,
+  "volume": {
+   "front-left": {
+    "value": 65536,
+    "value_percent": "100%",
+    "db": "0.00 dB"
+   },
+   "front-right": {
+    "value": 65536,
+    "value_percent": "100%",
+    "db": "0.00 dB"
+   }
+  },
+  "balance": 0.0,
+  "buffer_latency_usec": 0.0,
+  "sink_latency_usec": 0.0,
+  "resample_method": "PipeWire",
+  "properties": {
+   "application.name": "spotify",
+   "application.process.binary": "soloist",
+   "media.name": "Spotify",
+   "client.id": "446",
+   "object.serial": "447"
+  }
+ }
+]
