@@ -18,6 +18,7 @@ struct PlayerTest : testing::Test {
     FakeSpotify http;
     std::optional<Auth> auth;
     std::optional<Player> player;
+    std::vector<std::string> outputs;  // Nests on_output was called with
 
     PlayerTest() {
         write(dir / "token.json", R"({"refresh_token": "R"})");
@@ -26,6 +27,7 @@ struct PlayerTest : testing::Test {
         player.emplace(PlayerConfig{.device_name = "Main speaker", .volume_step = 10, .default_uri = "", .duck_percent = 30,
                                     .duck_file = dir / "duck.json", .duck_devices = {"Kitchen Echo"}},
                        *auth, http);
+        player->on_output([this](const std::string& id) { outputs.push_back(id); });
     }
 
     // Queues one device-list response (repeats until the next one is queued).
@@ -354,12 +356,13 @@ TEST_F(PlayerTest, PlayOnANestTransfersToSoloistAndSetsTheOutput) {
 
     const Result r = run({.action = "play", .device = "bathroom"});
     EXPECT_TRUE(r.ok);
-    EXPECT_EQ(r.output, "bt:2");
+    EXPECT_EQ(outputs, (std::vector<std::string>{"bt:2"}));
     EXPECT_EQ(r.say, "Moving the music to Bathroom speaker.");
     EXPECT_EQ(json::parse(last_body("PUT /me/player"))["device_ids"][0], "solo");
+    EXPECT_EQ(*r.device, (json{{"id", "bt:2"}, {"name", "Bathroom speaker"}, {"type", "Speaker"}}));
 
     const Result panel = run({.action = "play", .device_id = "bt:2"});  // panel: by id, no reply
-    EXPECT_EQ(panel.output, "bt:2");
+    EXPECT_EQ(outputs.back(), "bt:2");
     EXPECT_EQ(panel.say, "");
 }
 
@@ -368,7 +371,7 @@ TEST_F(PlayerTest, TheDefaultSpeakerIsANest) {
     devices({device("solo", "Buddy"), device("px", "Pixel 8", true)});
     http.on("PUT /me/player", 204);
     const Result r = run({.action = "play"});  // "play Spotify": resume on the box, which is the Main speaker Nest
-    EXPECT_EQ(r.output, "bt:1") << r.say;
+    EXPECT_EQ(outputs, (std::vector<std::string>{"bt:1"})) << r.say;
     EXPECT_EQ(r.say, "");
     EXPECT_EQ(json::parse(last_body("PUT /me/player"))["device_ids"][0], "solo");
 }
@@ -379,8 +382,29 @@ TEST_F(PlayerTest, ControlsOnANestGoToSoloistAndDontMoveTheMusic) {
     http.on("PUT /me/player/pause", 204);
     const Result r = run({.action = "pause", .device = "bathroom"});
     EXPECT_TRUE(r.ok);
-    EXPECT_EQ(r.output, "");
+    EXPECT_TRUE(outputs.empty());
+    EXPECT_FALSE(r.device);
     EXPECT_TRUE(has(last_url("PUT /me/player/pause"), "device_id=solo"));
+}
+
+TEST_F(PlayerTest, NestToNestWhileSoloistPlaysIsOnlyAnOutputChange) {
+    player->set_speakers(kNests);
+    devices({device("solo", "Buddy", true)});  // playing on Main speaker
+    http.on("PUT /me/player/play", 403, R"({"error": {"status": 403, "reason": "UNKNOWN"}})");  // already playing
+    const Result r = run({.action = "play", .device_id = "bt:2"});
+    EXPECT_TRUE(r.ok) << r.say;
+    EXPECT_EQ(outputs, (std::vector<std::string>{"bt:2"}));
+    EXPECT_TRUE(http.to("PUT /me/player").empty());  // no transfer: it would pause Soloist for a moment
+    EXPECT_EQ((*r.device)["name"], "Bathroom speaker");
+}
+
+TEST_F(PlayerTest, PlaybackReportsWhereItGoesForThePanel) {
+    devices({device("desk", "DESKTOP-1"), device("px", "Pixel 8", true)});
+    http.on("PUT /me/player", 204);
+    const Result r = run({.action = "play", .device_id = "desk"});
+    EXPECT_EQ(*r.device, (json{{"id", "desk"}, {"name", "DESKTOP-1"}, {"type", "Speaker"}}));
+    http.on("PUT /me/player/pause", 204);
+    EXPECT_FALSE(run({.action = "pause"}).device);
 }
 
 TEST_F(PlayerTest, APhoneCastingToTheNestShowsItsOwnEntryOnlyWhileItPlays) {

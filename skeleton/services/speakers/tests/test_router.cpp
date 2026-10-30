@@ -64,7 +64,7 @@ TEST_F(RouterTest, MusicConnectsTheSelectedNestThenLinksItAndMovesTheVoice) {
     ASSERT_EQ(a.size(), 1u);
     EXPECT_EQ(a[0], (Action{K::Connect, kMain}));
     const auto b = r.step(world(true, {kMain}), t + 3s);
-    EXPECT_EQ(b, (std::vector<Action>{{K::LinkMusic, kMainSink}, {K::MoveVoice, kMainSink}}));
+    EXPECT_EQ(b, (std::vector<Action>{{K::LinkMusic, kMainSink}, {K::MoveVoice, kMainSink}, {K::SetVolume, "buddy_voice", 60}}));
     // The Nest syncs its own volume right after connecting: ours comes later
     EXPECT_EQ(r.deadline(), t + 6s);
     EXPECT_TRUE(r.step(world(true, {kMain}), t + 4s).empty());
@@ -76,28 +76,43 @@ TEST_F(RouterTest, MusicConnectsTheSelectedNestThenLinksItAndMovesTheVoice) {
 
 TEST_F(RouterTest, PauseSendsTheVoiceBackAndDisconnectsAfterIdle) {
     play_on_main();
-    EXPECT_EQ(r.step(world(false, {kMain}), t + 10s), (std::vector<Action>{{K::MoveVoice, ""}}));
-    EXPECT_EQ(r.deadline(), t + 10s + 600s);
+    EXPECT_TRUE(r.step(world(false, {kMain}), t + 10s).empty());  // maybe just "next"
+    EXPECT_EQ(r.deadline(), t + 12s);
+    EXPECT_EQ(r.step(world(false, {kMain}), t + 12s),
+              (std::vector<Action>{{K::MoveVoice, ""}, {K::SetVolume, "buddy_voice", 100}}));
+    EXPECT_EQ(r.state()["music"], "idle");
+    EXPECT_EQ(r.deadline(), t + 12s + 600s);
     EXPECT_TRUE(r.step(world(false, {kMain}), t + 9min).empty());
-    EXPECT_EQ(r.step(world(false, {kMain}), t + 10s + 600s), (std::vector<Action>{{K::Disconnect, kMain}}));
+    EXPECT_EQ(r.step(world(false, {kMain}), t + 12s + 600s), (std::vector<Action>{{K::Disconnect, kMain}}));
     EXPECT_FALSE(r.step(world(false), t + 11min).size());
     EXPECT_EQ(r.deadline(), std::nullopt);
+}
+
+TEST_F(RouterTest, AShortGapIsNoPause) {  // Soloist pauses briefly on "next" and on transfers
+    play_on_main();
+    EXPECT_TRUE(r.step(world(false, {kMain}), t + 10s).empty());
+    EXPECT_TRUE(r.step(world(true, {kMain}), t + 11s).empty());
+    EXPECT_EQ(r.deadline(), std::nullopt);
+    EXPECT_EQ(r.state()["voice"], speaker_id(kMain));
 }
 
 TEST_F(RouterTest, ResumeWithinIdleKeepsTheConnection) {
     play_on_main();
     r.step(world(false, {kMain}), t + 10s);
-    EXPECT_EQ(r.step(world(true, {kMain}), t + 5min), (std::vector<Action>{{K::MoveVoice, kMainSink}}));
+    r.step(world(false, {kMain}), t + 12s);
+    EXPECT_EQ(r.step(world(true, {kMain}), t + 5min),
+              (std::vector<Action>{{K::MoveVoice, kMainSink}, {K::SetVolume, "buddy_voice", 60}}));
 }
 
 TEST_F(RouterTest, SwitchingNestsDisconnectsTheOtherFirst) {
     play_on_main();
     EXPECT_EQ(r.select("bathroom"), "");
     const auto a = r.step(world(true, {kMain}), t + 7s);
-    EXPECT_EQ(a, (std::vector<Action>{{K::Disconnect, kMain}, {K::Connect, kBath}, {K::MoveVoice, ""}}));
+    EXPECT_EQ(a, (std::vector<Action>{{K::Disconnect, kMain}, {K::Connect, kBath}, {K::MoveVoice, ""},
+                                      {K::SetVolume, "buddy_voice", 100}}));
     // Main gone: its links went with it, WirePlumber sent the voice to the default
     const auto b = r.step(world(true, {kBath}), t + 8s);
-    EXPECT_EQ(b, (std::vector<Action>{{K::LinkMusic, kBathSink}, {K::MoveVoice, kBathSink}}));
+    EXPECT_EQ(b, (std::vector<Action>{{K::LinkMusic, kBathSink}, {K::MoveVoice, kBathSink}, {K::SetVolume, "buddy_voice", 60}}));
     EXPECT_EQ(r.step(world(true, {kBath}), t + 11s), (std::vector<Action>{{K::SetVolume, kBathSink, 80}}));
 }
 
@@ -106,6 +121,7 @@ TEST_F(RouterTest, AFailedConnectIsNotRetriedUntilTheMusicRestarts) {
     r.connect_failed(kMain);
     EXPECT_TRUE(r.step(world(true), t + 20s).empty());
     r.step(world(false), t + 30s);
+    r.step(world(false), t + 32s);
     EXPECT_EQ(r.step(world(true), t + 40s), (std::vector<Action>{{K::Connect, kMain}}));
 }
 
@@ -114,6 +130,7 @@ TEST_F(RouterTest, ANestThatDropsOutIsReconnected) {
     const auto a = r.step(world(true), t + 60s);  // out of range, Nest rebooted…
     EXPECT_TRUE(has(a, K::Connect, kMain));
     EXPECT_FALSE(has(a, K::MoveVoice));  // WirePlumber already moved it back to the default
+    EXPECT_TRUE(has(a, K::SetVolume, "buddy_voice"));  // at full volume again
     EXPECT_EQ(r.state()["voice"], "jabra");
     EXPECT_TRUE(has(r.step(world(true, {kMain}), t + 63s), K::LinkMusic, kMainSink));
     EXPECT_TRUE(has(r.step(world(true, {kMain}), t + 66s), K::SetVolume, kMainSink));  // again: new connection
@@ -138,7 +155,8 @@ TEST_F(RouterTest, DisconnectWhilePlayingHoldsUntilTheMusicRestarts) {
     EXPECT_TRUE(r.step(world(true), t + 6s).size() <= 1u);  // at most the voice back
     EXPECT_FALSE(has(r.step(world(true), t + 7s), K::Connect));
     r.step(world(false), t + 8s);
-    EXPECT_TRUE(has(r.step(world(true), t + 9s), K::Connect, kMain));
+    r.step(world(false), t + 10s);
+    EXPECT_TRUE(has(r.step(world(true), t + 12s), K::Connect, kMain));
 }
 
 TEST_F(RouterTest, UnknownAndAmbiguousNames) {

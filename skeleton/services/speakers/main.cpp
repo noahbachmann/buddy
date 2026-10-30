@@ -55,6 +55,7 @@ struct Config {
         .duck_percent = env_int("BUDDY_SPEAKERS_DUCK_PERCENT", 30),
         .duck_hold = std::chrono::milliseconds(env_int("BUDDY_SPEAKERS_DUCK_HOLD_MS", 1500)),
         .volume = env_int("BUDDY_SPEAKERS_VOLUME", 80),
+        .voice_percent = env_int("BUDDY_SPEAKERS_VOICE_PERCENT", 60),
     };
 };
 
@@ -148,9 +149,11 @@ bool connect(const std::string& mac) {
     return false;
 }
 
+constexpr const char* kA2dpSink = "0000110b-0000-1000-8000-00805f9b34fb";
+
 // Runs the router's actions. Returns the MACs whose connect failed.
 std::vector<std::string> execute(const std::vector<Action>& actions, const Snapshot& snap, const Router& router) {
-    std::vector<std::string> failed;
+    std::vector<std::string> failed, released;
     for (const auto& a : actions) {
         const Speaker* sp = router.find(a.target);
         const std::string name = sp ? sp->name : a.target;
@@ -163,8 +166,11 @@ std::vector<std::string> execute(const std::vector<Action>& actions, const Snaps
             }
             break;
         case Action::Kind::Disconnect:
-            std::cout << "[speakers] disconnecting " << name << std::endl;
-            run({"bluetoothctl", "disconnect", a.target}, 10s);
+            // Only the audio profile (~15 ms): the next Nest can connect once it's free, while a full disconnect
+            // takes 2.5–3 s (measured 2026-10-30). That follows in the background, after a connect in this step.
+            std::cout << "[speakers] releasing " << name << std::endl;
+            run({"bluetoothctl", "disconnect", a.target, kA2dpSink});
+            released.push_back(a.target);
             break;
         case Action::Kind::LinkMusic:
             std::cout << "[speakers] music → " << a.target << std::endl;
@@ -183,6 +189,7 @@ std::vector<std::string> execute(const std::vector<Action>& actions, const Snaps
             break;
         }
     }
+    for (const auto& mac : released) std::thread([mac] { run({"bluetoothctl", "disconnect", mac}, 10s); }).detach();
     return failed;
 }
 
@@ -213,17 +220,18 @@ private:
                 pid_ = pid;
                 if (stop_) kill(pid, SIGTERM);  // stopped between spawn and pid_
                 wake_();                        // (re)started: state may have changed meanwhile
-                std::string line;
-                char c;
-                while (read(fds[0], &c, 1) == 1) {
-                    if (c != '\n') {
-                        line += c;
-                        continue;
+                std::string buf;
+                char chunk[1024];
+                ssize_t n;
+                while ((n = read(fds[0], chunk, sizeof chunk)) > 0) {
+                    buf.append(chunk, static_cast<size_t>(n));
+                    bool wake = false;
+                    for (size_t nl; (nl = buf.find('\n')) != std::string::npos; buf.erase(0, nl + 1)) {
+                        // "Event 'change' on sink-input #12"; client/module events don't matter
+                        const std::string_view line(buf.data(), nl);
+                        wake = wake || line.find(" on sink") != line.npos || line.find(" on server") != line.npos;
                     }
-                    // "Event 'change' on sink-input #12"; client/module events don't matter
-                    if (line.find(" on sink") != std::string::npos || line.find(" on server") != std::string::npos)
-                        wake_();
-                    line.clear();
+                    if (wake) wake_();
                 }
                 waitpid(pid, nullptr, 0);
                 pid_ = 0;
@@ -408,25 +416,29 @@ int main(int argc, char** argv) {
             timeout = std::clamp(left + 10ms, 0ms, timeout);
         }
         bool pulse = false;
-        for (auto ev = queue.pop(timeout); ev; ev = queue.pop(0ms)) {  // drain: one PipeWire read per burst
-            switch (ev->kind) {
+        auto handle = [&](Event& e) {
+            switch (e.kind) {
             case Event::Kind::Pulse: pulse = true; break;
-            case Event::Kind::Listening: router.set_listening(ev->on); break;
-            case Event::Kind::Speaking: router.set_speaking(ev->on); break;
+            case Event::Kind::Listening: router.set_listening(e.on); break;
+            case Event::Kind::Speaking: router.set_speaking(e.on); break;
             case Event::Kind::Command: {
-                const std::string action = ev->cmd["action"];
-                const std::string speaker = ev->cmd.value("speaker", "");
+                const std::string action = e.cmd["action"];
+                const std::string speaker = e.cmd.value("speaker", "");
                 std::string error;
                 if (action == "output") error = router.select(speaker);
                 else if (action == "connect") error = router.connect(speaker.empty() && router.selected()
                                                                          ? router.selected()->id : speaker, Clock::now());
                 else if (action == "disconnect") router.disconnect();
                 else error = "unknown action " + action;
-                if (!error.empty()) std::cout << "[speakers] " << ev->cmd.dump() << ": " << error << std::endl;
+                if (!error.empty()) std::cout << "[speakers] " << e.cmd.dump() << ": " << error << std::endl;
                 break;
             }
             }
-        }
+        };
+        for (auto ev = queue.pop(timeout); ev; ev = queue.pop(0ms)) handle(*ev);
+        // PipeWire changes come in bursts (a connect: card, sink, ports, volume): one read for all of them
+        if (pulse)
+            for (auto ev = queue.pop(30ms); ev; ev = queue.pop(30ms)) handle(*ev);
         if (!running()) break;
         if (router.speakers().empty() && std::chrono::steady_clock::now() - last_reload > 60s) {  // bluetoothd late
             last_reload = std::chrono::steady_clock::now();

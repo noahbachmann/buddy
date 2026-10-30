@@ -10,13 +10,15 @@
 //
 // Nests (D20): Soloist (local_device, "Buddy") plays on the Pi and the speakers service sends its sound to a Nest over
 // Bluetooth. The device list shows one entry per Nest (id "bt:<mac>", from buddy/speakers/state) in Soloist's place;
-// commands to a Nest go to Soloist, and playing on one sets Result::output so main tells speakers where to send it.
+// commands to a Nest go to Soloist. Playing on one calls on_output first, so speakers connects it while Spotify
+// starts; from one Nest to another while Soloist is active needs no Spotify call at all.
 //
 // Ducking: while Buddy listens or speaks, the active device plays at duck_percent of its volume if it is the box
 // or in duck_devices (same room). Volume commands to it during a duck change the volume that restore() brings back,
 // not the ducked one.
 
 #include <chrono>
+#include <functional>
 #include <map>
 #include <optional>
 #include <stdexcept>
@@ -55,7 +57,7 @@ struct Result {
     std::string say;                 // reply for voice; empty = nothing to say (the music is the answer)
     std::optional<bool> playing;
     std::optional<int> volume;
-    std::string output;              // music started on a Nest: its speakers id (buddy/speakers/cmd output)
+    std::optional<nlohmann::json> device;  // playback started or moved here: {id, name, type} for the panel at once
 };
 
 class Player {
@@ -89,6 +91,8 @@ public:
     // buddy/speakers/state: the Nests ({id, name}) and which one Soloist plays on. Until called, Soloist is listed
     // as itself (CLI runs without MQTT).
     void set_speakers(const nlohmann::json& state);
+    // Called with a Nest's id (bt:<mac>) before playback starts on it: main sends buddy/speakers/cmd output.
+    void on_output(std::function<void(const std::string&)> fn) { on_output_ = std::move(fn); }
     // Volume to report: while ducked, the one restore() brings back.
     std::optional<int> volume() const { return duck_ ? std::optional(duck_->restore_to) : std::nullopt; }
 
@@ -98,7 +102,9 @@ private:
         std::string name;
         bool active = false;
         int volume = 50;
-        std::string output;  // a Nest: its speakers id; `id` is then Soloist's
+        std::string type;
+        std::string output;         // a Nest: its speakers id; `id` is then Soloist's
+        bool local_active = false;  // a Nest: Soloist is the active device (on this Nest or another)
     };
     struct Duck {
         std::string device_id;
@@ -116,7 +122,7 @@ private:
 
     Result dispatch(const Command& c);
     Result dispatch(const nlohmann::json& list, const Command& c);
-    Result dispatch(const Device& d, const std::string& action, const std::string& query);  // + Result::output
+    Result dispatch(const Device& d, const std::string& action, const std::string& query);  // Nests, Result::device
     Result dispatch_on(const Device& d, const std::string& action, const std::string& query);
     Result play(const Device& d, const std::string& query);
     Result play_playlist(const Device& d, const std::string& name);  // your own/followed; empty = default
@@ -149,6 +155,7 @@ private:
     bool snapshot_failing_ = false;  // log a failing snapshot once, not every poll
     std::optional<nlohmann::json> nests_;  // [{id, name}] from speakers; nullopt = never heard from it
     std::string selected_nest_;           // the Nest Soloist plays on
+    std::function<void(const std::string&)> on_output_;
 };
 
 // Values a command just set, kept over polls that still show the old ones: Spotify reports a new volume 0.7–2.6 s

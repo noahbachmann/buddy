@@ -279,8 +279,20 @@ Result Player::dispatch(const json& list, const Command& c) {
 }
 
 Result Player::dispatch(const Device& d, const std::string& action, const std::string& query) {
+    if (!starts_playback(action)) return dispatch_on(d, action, query);  // "pause the bathroom speaker" moves nothing
+    const json here = {{"id", d.output.empty() ? d.id : d.output}, {"name", d.name}, {"type", d.type}};
+    if (!d.output.empty() && on_output_) on_output_(d.output);  // speakers connects while Spotify starts
+    if (action == "play" && query.empty() && !d.output.empty() && d.local_active) {
+        // Soloist already plays (maybe on another Nest): moving the music is speakers' job. A transfer to the same
+        // device would only pause Soloist for a moment. Resume in case it's paused; 403 = already playing.
+        const auto r = api("PUT", "/me/player/play?device_id=" + d.id);
+        if (r.status != 403) expect_ok(r, "resume");
+        Result moved = playing(true);
+        moved.device = here;
+        return moved;
+    }
     Result r = dispatch_on(d, action, query);
-    if (starts_playback(action)) r.output = d.output;  // "pause the bathroom speaker" doesn't move the music
+    r.device = here;
     return r;
 }
 
@@ -637,6 +649,7 @@ json Player::with_nests(json list) const {
         e["type"] = "Speaker";
         e["is_active"] = local.value("is_active", false) && n["id"] == selected_nest_;
         e["local_id"] = local["id"];
+        e["local_active"] = local.value("is_active", false);
         out.push_back(std::move(e));
     }
     return out;
@@ -647,7 +660,8 @@ Player::Device Player::device_of(const json& d) {
     return {.id = nest ? d["local_id"].get<std::string>() : d.value("id", ""), .name = d.value("name", ""),
             .active = d.value("is_active", false),
             .volume = field(d, "volume_percent").is_number() ? field(d, "volume_percent").get<int>() : 50,
-            .output = nest ? d.value("id", "") : ""};
+            .type = d.value("type", ""), .output = nest ? d.value("id", "") : "",
+            .local_active = d.value("local_active", false)};
 }
 
 Player::Device Player::box(const json& list) const {

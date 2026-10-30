@@ -70,7 +70,10 @@ std::vector<Action> Router::step(const World& world, Clock::time_point now) {
     };
     // Forget links to Nests that went away (the links went with them; WirePlumber sends voice back to the default)
     if (!music_sink_.empty() && !present(music_sink_)) music_sink_.clear();
-    if (voice_sink_ && !voice_sink_->empty() && !present(*voice_sink_)) voice_sink_ = "";
+    if (voice_sink_ && !voice_sink_->empty() && !present(*voice_sink_)) {
+        voice_sink_ = "";
+        out.push_back({K::SetVolume, "buddy_voice", 100});  // back on the Jabra: full volume
+    }
     auto gone = [&](const std::string& mac) {
         return std::ranges::none_of(world.connected, [&](const World::Nest& n) { return n.mac == mac; });
     };
@@ -78,12 +81,16 @@ std::vector<Action> Router::step(const World& world, Clock::time_point now) {
     std::erase_if(connected_at_, [&](const auto& kv) { return gone(kv.first); });
     for (const auto& n : world.connected) connected_at_.try_emplace(n.mac, now);
 
-    if (world.music && !music_) {  // music (re)starts: a failed Nest gets another try, a disconnect is over
+    if (world.music) paused_at_.reset();
+    else if (music_ && !paused_at_) paused_at_ = now;
+    const bool playing = world.music || (paused_at_ && now - *paused_at_ < cfg_.music_hold);
+    if (!playing) paused_at_.reset();
+    if (playing && !music_) {  // music (re)starts: a failed Nest gets another try, a disconnect is over
         failed_.clear();
         held_off_ = false;
     }
-    if (world.music || music_) last_music_ = now;  // idle counts from when the music stopped
-    music_ = world.music;
+    if (playing || music_) last_music_ = now;  // idle counts from when the music stopped
+    music_ = playing;
     const bool active = !held_off_ && last_music_ && now - *last_music_ < cfg_.idle;
 
     const Speaker* sel = selected();
@@ -109,6 +116,7 @@ std::vector<Action> Router::step(const World& world, Clock::time_point now) {
     const std::string voice = nest && active && music_ ? nest->sink : "";
     if (!speaking_ && voice_sink_ != voice) {
         out.push_back({K::MoveVoice, voice});
+        out.push_back({K::SetVolume, "buddy_voice", voice.empty() ? 100 : cfg_.voice_percent});
         voice_sink_ = voice;
     }
 
@@ -135,6 +143,7 @@ std::optional<Clock::time_point> Router::deadline() const {
         if (!next || t < *next) next = t;
     };
     if (ducked_ && quiet_since_ && !listening_ && !speaking_) earliest(*quiet_since_ + cfg_.duck_hold);
+    if (paused_at_) earliest(*paused_at_ + cfg_.music_hold);
     if (!music_ && last_music_ && !world_.connected.empty()) earliest(*last_music_ + cfg_.idle);
     for (const auto& [mac, at] : connected_at_)
         if (!volume_set_.contains(mac)) earliest(at + cfg_.volume_delay);

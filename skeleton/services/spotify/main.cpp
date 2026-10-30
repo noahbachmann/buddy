@@ -75,8 +75,14 @@ struct Config {
         .local_device = env_string("BUDDY_SPOTIFY_LOCAL_DEVICE", "Buddy"),
     };
     int duck_hold_ms = env_int("BUDDY_SPOTIFY_DUCK_HOLD_MS", 1500);
-    int poll_s = env_int("BUDDY_SPOTIFY_POLL_S", 5);
+    int poll_s = env_int("BUDDY_SPOTIFY_POLL_S", 3);
 };
+
+// The device playing is the active one in the list, also while a commanded move is still held over a lagging poll.
+void mark_active(json& state) {
+    const json& device = state["device"];
+    for (auto& d : state["devices"]) d["active"] = device.is_object() && d.value("id", "") == device.value("id", "");
+}
 
 int serve(Player& player, Auth& auth, const Config& cfg) {
     if (!auth.logged_in())
@@ -128,6 +134,9 @@ int serve(Player& player, Auth& auth, const Config& cfg) {
         speaking = state_of(payload) == "speaking";
         queue.push({});
     });
+    player.on_output([&](const std::string& id) {
+        mqtt.publish(topic::speakers_cmd, json{{"action", "output"}, {"speaker", id}}.dump(), 1);
+    });
     player.recover();  // a crash while ducked must not leave the box quiet
     if (!mqtt.start()) return 0;
 
@@ -176,6 +185,7 @@ int serve(Player& player, Auth& auth, const Config& cfg) {
                 expected.apply(*fresh, Clock::now());
                 (*fresh)["progress"] = progress_to_publish(state, *fresh);
                 for (const auto& [key, value] : fresh->items()) state[key] = value;
+                mark_active(state);
             }
             next_poll = Clock::now() + poll_every;
         }
@@ -201,14 +211,15 @@ int serve(Player& player, Auth& auth, const Config& cfg) {
                   << (cmd->device.empty() ? "" : " on \"" + cmd->device + "\"")
                   << (cmd->device_id.empty() ? "" : " on " + cmd->device_id) << (r.ok ? " ok" : " failed") << " (" << ms.count() << " ms)" << std::endl;
 
-        if (!r.output.empty()) mqtt.publish(topic::speakers_cmd, json{{"action", "output"}, {"speaker", r.output}}.dump(), 1);
         if (!r.say.empty()) mqtt.publish(topic::voice_say, json{{"text", r.say}}.dump(), 1);
         const auto until = Clock::now() + std::chrono::seconds(8);
         if (r.playing) expected.set("playing", state["playing"] = *r.playing, until);
         if (r.volume) expected.set("volume", state["volume"] = *r.volume, until);
+        if (r.device) expected.set("device", state["device"] = *r.device, until);  // the panel shows the move at once
+        mark_active(state);
         publish_state();
-        // Spotify shows a change about a second later
-        if (Clock::now() < watched_until) next_poll = std::min(next_poll, Clock::now() + std::chrono::milliseconds(1500));
+        // Spotify shows a change 0.7–2.6 s later: look after 1 s, then every poll_s
+        if (Clock::now() < watched_until) next_poll = std::min(next_poll, Clock::now() + std::chrono::seconds(1));
     }
 
     player.restore();

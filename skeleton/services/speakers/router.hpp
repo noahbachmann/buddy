@@ -3,7 +3,8 @@
 //
 //   music (Soloist → buddy_music) plays  → connect the selected Nest, link buddy_music.output to it
 //   no music for `idle`                  → disconnect it (Bluetooth only while needed)
-//   voice (buddy_voice)                  → that Nest while music plays there, else the default sink (Jabra)
+//   voice (buddy_voice)                  → that Nest while music plays there (at voice_percent), else the default sink
+//                                          (Jabra)
 //   ears listening or voice speaking     → buddy_music down to duck_percent, back after duck_hold of quiet
 //
 // Only one Nest at a time: the Pi's Bluetooth refuses a second A2DP connection (#16).
@@ -37,6 +38,9 @@ struct RouterConfig {
     int volume = 80;  // the Nest's own volume, set once per connection
     // after connecting: the Nest syncs its own volume first and overwrites one set earlier
     std::chrono::milliseconds volume_delay{3000};
+    int voice_percent = 60;  // Buddy's voice on a Nest, % (on the Jabra: 100)
+    // A shorter gap isn't a pause: Soloist briefly pauses on "next" and on transfers
+    std::chrono::milliseconds music_hold{2000};
 };
 
 // What PipeWire shows right now
@@ -97,7 +101,8 @@ private:
     std::string selected_;  // id
 
     World world_;
-    bool music_ = false;
+    bool music_ = false;                            // playing, or paused for less than music_hold
+    std::optional<Clock::time_point> paused_at_;    // Soloist's stream stopped, music_ still true
     std::optional<Clock::time_point> last_music_;  // also set by connect(): counts as use
     bool held_off_ = false;                        // after disconnect(), until the music starts again
     std::string failed_;                           // MAC that didn't connect
