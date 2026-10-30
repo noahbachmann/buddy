@@ -12,6 +12,8 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 | `README.md` | Front page for Dev: what Buddy is, where to read what, everyday commands (`deploy/run.sh` examples) |
 | `buddy-hardware.md` | Current parts and tools |
 | `docs/guides/XX-YY-name.md` | Detailed guide per step of the current phase, e.g. `docs/guides/02-01-printer.md` |
+| `docs/plans/XX-YY-name.md` | Plan for a step before its guide exists: decisions, parts, order of work; replaced by the guide |
+| `docs/plans/02-06-cad-prompt.md` | Prompt Dev fills in to get the neck, head and body CAD (2.5 stage 1, 2.6 stage 2) |
 | `docs/guides/0N-setup-summary.md` | A finished phase condensed into one file (rebuild, config, tests, troubleshooting); replaces its step guides |
 | `docs/voice-training.md` | Recurring workflow: record, train, score and install speech-to-text on Dev's voice |
 | `skeleton/CLAUDE.md` | Code quick reference: service pattern (C++ and Python), shared helpers, deploy scripts, tests |
@@ -42,7 +44,7 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 |---|---|---|
 | 1 – Voice | 1.1 – 1.12 Hardware, OS, audio, skeleton, wake word, STT, brain, Spotify, voice, background music, boot | ✅ |
 | 1 – Voice (extra) | 1.13 Hue lights, 1.14 web panel (#6), 1.15 Nest speakers over Bluetooth (D20, #17): done 2026-10-30 (side issue: Deferred → Bathroom Bluetooth) | ✅ |
-| 2 – Head | 2.1 printer: guide not written yet. 2.2 motion controller: Pi setup, firmware and flash done; wiring and servo test (guide steps 1–3, 9) open. 2.3 motion service + demo gesture ("cut off Andi's balls"): code and tests done, deployed 2026-10-29 (waits with `connected:false` while the Pico is unplugged); Verify open | 🟨 |
+| 2 – Head | 2.1 printer: guide not written yet. 2.2 motion controller: Pi setup, firmware and flash done; wiring and servo test (guide steps 1–3, 9) open. 2.3 motion service + demo gesture ("cut off Andi's balls"): code and tests done, deployed 2026-10-29 (waits with `connected:false` while the Pico is unplugged); Verify open. 2.4 eyes: postponed (Dev, 2026-10-30). 2.5 head pan/tilt and 2.6 head & body: plans in `docs/plans/` | 🟨 |
 | 3 – Hand | 3.1 – 3.4 | ⬜ |
 | 4 – Arm & vision | 4.1 – 4.3 | ⬜ |
 
@@ -57,12 +59,16 @@ What's left right now, in order. Update it with the progress table; GitHub issue
 1. **Motion live** (2.2 → 2.3): wire supply, Pico and a servo on ch0 (2.2 steps 1–3), plug the Pico into the Pi,
    picocom test (2.2 step 9), then 2.3 Verify (incl. the demo gesture). Then tick 2.2 and 2.3 in the progress table.
 2. **Live check** for #12: "Hey Jarvis, play Spotify" ducks, plays, and Buddy answers without delay (idle loops changed).
+3. **Decisions** in `docs/plans/02-05-head-pan-tilt.md` and `02-06-head-body.md` (end of each), then fill in
+   `docs/plans/02-06-cad-prompt.md` (measurements after 2.1 and the parts order).
 
 **Claude** (code and guides):
 
 1. #13 voice seek ("fast-forward 30 seconds", "go back 2 minutes").
-2. Next guides: 2.1 printer (tolerance tests for CAD offsets), 2.4 eyes (decide: Pico or Pi drives the display, 2.2 →
-   Notes for later phases), 2.5 head pan/tilt (replaces the `demo` joint and gesture).
+2. 2.1 printer guide (tolerance tests for CAD offsets): the 2.5 neck module is the first print that needs them.
+3. 2.5 / 2.6 per `docs/plans/` once Dev has made their decisions: neck module CAD (prompt stage 1), joint table,
+   `behaviour` service; then body CAD (stage 2). 2.4 eyes later (decide: Pico or Pi drives the display, 2.2 → Notes
+   for later phases).
 
 Phase 1 → Deferred lists what waits for a reason (wake word CPU, next voice session, custom "Hey buddy", LLM brain).
 
@@ -187,6 +193,7 @@ buddy/
 ├── buddy-hardware.md        ← current hardware & software
 ├── docs/
 │   ├── guides/              ← step guides of the current phase, one summary per finished phase
+│   ├── plans/               ← step plans before their guide exists, CAD prompt
 │   └── voice-training.md    ← speech-to-text training workflow
 ├── skeleton/                ← project root (CMake + uv workspace); paths below and in "Dev workflow" are relative to it
 │   ├── shared/              ← topics.json (all MQTT topics), C++ helpers, python/buddy_shared
