@@ -119,7 +119,8 @@ built), pytest, shellcheck. `deploy/test.sh --pi`: the C++ tests on the Pi (`~/b
 - `third_party/`: cpp-httplib pinned (FetchContent, header only, its CMakeLists skipped): the VM's apt has 0.14, the Pi's 0.18.
 - web: an open `/api/events` stream holds one httplib worker thread; `StateStore::close()` ends them on shutdown.
 - hue `Target` points into `Home`'s maps: use it before the next `load()`.
-- hue fixture `services/hue/tests/resources.json` is hand-written in CLIP v2 shape; replace with `GET /clip/v2/resource` from the real bridge when its shape surprises.
+- hue fixtures: `resources.json` hand-written (edge cases), `resources-dev.json` = Dev's bridge trimmed; `test_dev_home.cpp`
+  runs every corpus light line against it. Hue app renamed → refresh it from `GET /clip/v2/resource`.
 - PipeWire/WirePlumber (D20): a stream with a missing `target.object` plus `node.dont-fallback` or `node.dont-reconnect` is
   destroyed, and a loopback sink with it: `buddy_music.output` uses `node.autoconnect = false` + `pw-link` instead.
   Headless WirePlumber needs `monitor.bluez.seat-monitoring = disabled`, else no Bluetooth audio.

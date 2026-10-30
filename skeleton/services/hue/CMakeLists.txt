@@ -28,4 +28,5 @@ target_link_libraries(buddy-hue PRIVATE
 install(TARGETS buddy-hue RUNTIME DESTINATION bin COMPONENT hue)
 
 buddy_add_tests(hue tests/test_bridge.cpp tests/test_home.cpp tests/test_lights.cpp tests/test_sse.cpp tests/test_throttle.cpp
+    tests/test_dev_home.cpp
     LIBS hue_core)

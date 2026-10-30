@@ -154,35 +154,35 @@ test	Play my liked songs on my personal TV.	play_liked		personal tv
 test	Switch the music to my personal TV.	play		personal tv
 train	Move the music back to the box.	play		box
 test	Play music on the main speaker.	play		main speaker
-# --- lights (hue): rooms, lamps and scenes are examples; replace them with the names in your Hue app
+# --- lights (hue): rooms, lights and scenes from Dev's Hue app (2026-10-30); hue's test_dev_home.cpp checks they resolve
 train	Turn on the lights.	on
 train	Turn off the lights.	off
 train	Lights on.	on
 train	Living room lights off.	off		living room
 train	Bedroom lights off.	off		bedroom
-train	Switch off desk lamp.	off		desk lamp
+train	Switch off the corner light.	off		corner
 train	Dim living room to 30%.	brightness	30	living room
 train	Set lights to 50%.	brightness	50
 train	Make it brighter.	brighter
 train	Make lights darker.	darker
 train	Set bedroom light to warm white.	color	warm white	bedroom
 train	Turn lights blue.	color	blue
-train	Activate movie scene.	scene	movie
+train	Activate the energise scene.	scene	energise
 train	Good night, turn everything off.	off		everything
 train	Are the kitchen lights on?	status		kitchen
 train	Turn on the lights in the kitchen.	on		kitchen
 train	Turn the bedroom lights on.	on		bedroom
 train	Turn up the lights.	brighter
 train	Dim the lights.	darker
-train	Set the living room lights to warm white.	color	warm white	living room
-train	Make the desk lamp red.	color	red	desk lamp
-train	Turn on the relax scene in the bedroom.	scene	relax	bedroom
+train	Set the kitchen light to 40%.	brightness	40	kitchen
+train	Make the bedroom ceiling light red.	color	red	bedroom ceiling
+train	Turn on the relax scene in the living room.	scene	relax	living room
 train	Are the lights still on?	status
 test	Switch on the lights.	on
 test	Turn off living room lights.	off		living room
 test	Dim bedroom to 20%.	brightness	20	bedroom
-test	Set desk lamp to warm white.	color	warm white	desk lamp
-test	Start the movie scene.	scene	movie
+test	Set the bedroom ceiling light to warm white.	color	warm white	bedroom ceiling
+test	Start the dimmed scene.	scene	dimmed
 test	Is bedroom light on?	status		bedroom
 test	Living room lights to 80%.	brightness	80	living room
 test	Turn all the lights off.	off		all

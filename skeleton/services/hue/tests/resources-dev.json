@@ -1,0 +1,552 @@
+{
+ "errors": [],
+ "data": [
+  {
+   "id": "home",
+   "type": "bridge_home",
+   "children": [
+    {
+     "rid": "dev-lamp-2",
+     "rtype": "device"
+    },
+    {
+     "rid": "dev-bridge",
+     "rtype": "device"
+    },
+    {
+     "rid": "dev-lamp-3",
+     "rtype": "device"
+    },
+    {
+     "rid": "room-home",
+     "rtype": "room"
+    }
+   ],
+   "services": [
+    {
+     "rid": "gl-home",
+     "rtype": "grouped_light"
+    }
+   ]
+  },
+  {
+   "id": "room-home",
+   "type": "room",
+   "metadata": {
+    "name": "Home",
+    "archetype": "home"
+   },
+   "children": [
+    {
+     "rid": "dev-dimmer",
+     "rtype": "device"
+    },
+    {
+     "rid": "dev-bedroom-ceiling",
+     "rtype": "device"
+    },
+    {
+     "rid": "dev-kitchen-ceiling",
+     "rtype": "device"
+    },
+    {
+     "rid": "dev-living-corner",
+     "rtype": "device"
+    }
+   ],
+   "services": [
+    {
+     "rid": "gl-room-home",
+     "rtype": "grouped_light"
+    }
+   ]
+  },
+  {
+   "id": "zone-bedroom",
+   "type": "zone",
+   "metadata": {
+    "name": "Bedroom",
+    "archetype": "living_room"
+   },
+   "children": [
+    {
+     "rid": "bedroom-ceiling",
+     "rtype": "light"
+    }
+   ],
+   "services": [
+    {
+     "rid": "gl-zone-bedroom",
+     "rtype": "grouped_light"
+    }
+   ]
+  },
+  {
+   "id": "zone-living",
+   "type": "zone",
+   "metadata": {
+    "name": "Living Room",
+    "archetype": "living_room"
+   },
+   "children": [
+    {
+     "rid": "kitchen-ceiling",
+     "rtype": "light"
+    },
+    {
+     "rid": "living-corner",
+     "rtype": "light"
+    }
+   ],
+   "services": [
+    {
+     "rid": "gl-zone-living",
+     "rtype": "grouped_light"
+    }
+   ]
+  },
+  {
+   "id": "dev-bedroom-ceiling",
+   "type": "device",
+   "metadata": {
+    "name": "Bedroom Ceiling",
+    "archetype": "pendant_round"
+   },
+   "services": [
+    {
+     "rid": "bedroom-ceiling",
+     "rtype": "light"
+    }
+   ]
+  },
+  {
+   "id": "dev-bridge",
+   "type": "device",
+   "metadata": {
+    "name": "Hue Bridge",
+    "archetype": "bridge_v2"
+   },
+   "services": []
+  },
+  {
+   "id": "dev-dimmer",
+   "type": "device",
+   "metadata": {
+    "name": "Hue dimmer switch 1",
+    "archetype": "unknown_archetype"
+   },
+   "services": []
+  },
+  {
+   "id": "dev-kitchen-ceiling",
+   "type": "device",
+   "metadata": {
+    "name": "Kitchen Ceiling",
+    "archetype": "ceiling_round"
+   },
+   "services": [
+    {
+     "rid": "kitchen-ceiling",
+     "rtype": "light"
+    }
+   ]
+  },
+  {
+   "id": "dev-lamp-2",
+   "type": "device",
+   "metadata": {
+    "name": "Hue color lamp 2",
+    "archetype": "classic_bulb"
+   },
+   "services": [
+    {
+     "rid": "lamp-2",
+     "rtype": "light"
+    }
+   ]
+  },
+  {
+   "id": "dev-lamp-3",
+   "type": "device",
+   "metadata": {
+    "name": "Hue color lamp 3",
+    "archetype": "classic_bulb"
+   },
+   "services": [
+    {
+     "rid": "lamp-3",
+     "rtype": "light"
+    }
+   ]
+  },
+  {
+   "id": "dev-living-corner",
+   "type": "device",
+   "metadata": {
+    "name": "Living Room Corner",
+    "archetype": "floor_shade"
+   },
+   "services": [
+    {
+     "rid": "living-corner",
+     "rtype": "light"
+    }
+   ]
+  },
+  {
+   "id": "bedroom-ceiling",
+   "type": "light",
+   "owner": {
+    "rid": "dev-bedroom-ceiling",
+    "rtype": "device"
+   },
+   "metadata": {
+    "name": "Bedroom Ceiling",
+    "archetype": "pendant_round"
+   },
+   "on": {
+    "on": true
+   },
+   "dimming": {
+    "brightness": 9.88
+   },
+   "color_temperature": {
+    "mirek": null,
+    "mirek_valid": false
+   },
+   "color": {
+    "xy": {
+     "x": 0.2498,
+     "y": 0.0995
+    }
+   }
+  },
+  {
+   "id": "kitchen-ceiling",
+   "type": "light",
+   "owner": {
+    "rid": "dev-kitchen-ceiling",
+    "rtype": "device"
+   },
+   "metadata": {
+    "name": "Kitchen Ceiling",
+    "archetype": "ceiling_round"
+   },
+   "on": {
+    "on": true
+   },
+   "dimming": {
+    "brightness": 37.15
+   }
+  },
+  {
+   "id": "lamp-2",
+   "type": "light",
+   "owner": {
+    "rid": "dev-lamp-2",
+    "rtype": "device"
+   },
+   "metadata": {
+    "name": "Hue color lamp 2",
+    "archetype": "classic_bulb"
+   },
+   "on": {
+    "on": true
+   },
+   "dimming": {
+    "brightness": 66.01
+   },
+   "color_temperature": {
+    "mirek": 250,
+    "mirek_valid": true
+   },
+   "color": {
+    "xy": {
+     "x": 0.3812,
+     "y": 0.3794
+    }
+   }
+  },
+  {
+   "id": "lamp-3",
+   "type": "light",
+   "owner": {
+    "rid": "dev-lamp-3",
+    "rtype": "device"
+   },
+   "metadata": {
+    "name": "Hue color lamp 3",
+    "archetype": "classic_bulb"
+   },
+   "on": {
+    "on": true
+   },
+   "dimming": {
+    "brightness": 66.01
+   },
+   "color_temperature": {
+    "mirek": 250,
+    "mirek_valid": true
+   },
+   "color": {
+    "xy": {
+     "x": 0.3812,
+     "y": 0.3794
+    }
+   }
+  },
+  {
+   "id": "living-corner",
+   "type": "light",
+   "owner": {
+    "rid": "dev-living-corner",
+    "rtype": "device"
+   },
+   "metadata": {
+    "name": "Living Room Corner",
+    "archetype": "floor_shade"
+   },
+   "on": {
+    "on": true
+   },
+   "dimming": {
+    "brightness": 66.01
+   }
+  },
+  {
+   "id": "gl-home",
+   "type": "grouped_light",
+   "owner": {
+    "rid": "home",
+    "rtype": "bridge_home"
+   },
+   "on": {
+    "on": true
+   },
+   "dimming": {
+    "brightness": 49.01
+   },
+   "color_temperature": {}
+  },
+  {
+   "id": "gl-room-home",
+   "type": "grouped_light",
+   "owner": {
+    "rid": "room-home",
+    "rtype": "room"
+   },
+   "on": {
+    "on": true
+   },
+   "dimming": {
+    "brightness": 37.68
+   },
+   "color_temperature": {}
+  },
+  {
+   "id": "gl-zone-bedroom",
+   "type": "grouped_light",
+   "owner": {
+    "rid": "zone-bedroom",
+    "rtype": "zone"
+   },
+   "on": {
+    "on": true
+   },
+   "dimming": {
+    "brightness": 9.88
+   },
+   "color_temperature": {}
+  },
+  {
+   "id": "gl-zone-living",
+   "type": "grouped_light",
+   "owner": {
+    "rid": "zone-living",
+    "rtype": "zone"
+   },
+   "on": {
+    "on": true
+   },
+   "dimming": {
+    "brightness": 51.58
+   }
+  },
+  {
+   "id": "scene-bedroom-call",
+   "type": "scene",
+   "metadata": {
+    "name": "Call"
+   },
+   "group": {
+    "rid": "zone-bedroom",
+    "rtype": "zone"
+   }
+  },
+  {
+   "id": "scene-bedroom-concentrate",
+   "type": "scene",
+   "metadata": {
+    "name": "Concentrate"
+   },
+   "group": {
+    "rid": "zone-bedroom",
+    "rtype": "zone"
+   }
+  },
+  {
+   "id": "scene-bedroom-green",
+   "type": "scene",
+   "metadata": {
+    "name": "Green"
+   },
+   "group": {
+    "rid": "zone-bedroom",
+    "rtype": "zone"
+   }
+  },
+  {
+   "id": "scene-bedroom-nightlight",
+   "type": "scene",
+   "metadata": {
+    "name": "Nightlight"
+   },
+   "group": {
+    "rid": "zone-bedroom",
+    "rtype": "zone"
+   }
+  },
+  {
+   "id": "scene-bedroom-purple",
+   "type": "scene",
+   "metadata": {
+    "name": "Purple"
+   },
+   "group": {
+    "rid": "zone-bedroom",
+    "rtype": "zone"
+   }
+  },
+  {
+   "id": "scene-bedroom-read",
+   "type": "scene",
+   "metadata": {
+    "name": "Read"
+   },
+   "group": {
+    "rid": "zone-bedroom",
+    "rtype": "zone"
+   }
+  },
+  {
+   "id": "scene-bedroom-red",
+   "type": "scene",
+   "metadata": {
+    "name": "Red"
+   },
+   "group": {
+    "rid": "zone-bedroom",
+    "rtype": "zone"
+   }
+  },
+  {
+   "id": "scene-home-concentrate",
+   "type": "scene",
+   "metadata": {
+    "name": "Concentrate"
+   },
+   "group": {
+    "rid": "room-home",
+    "rtype": "room"
+   }
+  },
+  {
+   "id": "scene-home-energise",
+   "type": "scene",
+   "metadata": {
+    "name": "Energise"
+   },
+   "group": {
+    "rid": "room-home",
+    "rtype": "room"
+   }
+  },
+  {
+   "id": "scene-home-nightlight",
+   "type": "scene",
+   "metadata": {
+    "name": "Nightlight"
+   },
+   "group": {
+    "rid": "room-home",
+    "rtype": "room"
+   }
+  },
+  {
+   "id": "scene-home-read",
+   "type": "scene",
+   "metadata": {
+    "name": "Read"
+   },
+   "group": {
+    "rid": "room-home",
+    "rtype": "room"
+   }
+  },
+  {
+   "id": "scene-home-relax",
+   "type": "scene",
+   "metadata": {
+    "name": "Relax"
+   },
+   "group": {
+    "rid": "room-home",
+    "rtype": "room"
+   }
+  },
+  {
+   "id": "scene-living-dimmed",
+   "type": "scene",
+   "metadata": {
+    "name": "Dimmed"
+   },
+   "group": {
+    "rid": "zone-living",
+    "rtype": "zone"
+   }
+  },
+  {
+   "id": "scene-living-nightlight",
+   "type": "scene",
+   "metadata": {
+    "name": "Nightlight"
+   },
+   "group": {
+    "rid": "zone-living",
+    "rtype": "zone"
+   }
+  },
+  {
+   "id": "scene-living-read",
+   "type": "scene",
+   "metadata": {
+    "name": "Read"
+   },
+   "group": {
+    "rid": "zone-living",
+    "rtype": "zone"
+   }
+  },
+  {
+   "id": "scene-living-relax",
+   "type": "scene",
+   "metadata": {
+    "name": "Relax"
+   },
+   "group": {
+    "rid": "zone-living",
+    "rtype": "zone"
+   }
+  }
+ ]
+}
