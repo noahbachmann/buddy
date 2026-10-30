@@ -26,7 +26,8 @@ Current hardware and software used for the Buddy desk robot. Roadmap, architectu
 | Item | Details |
 |---|---|
 | Mic + speaker | Jabra Speak 510 MS (USB speakerphone, microphone and speaker in one device) |
-| Music | Music box, a Spotify Connect speaker named "Main speaker" in the Spotify app (model ⚠️ not noted yet). Buddy controls it via the Web API; music never plays through the Jabra |
+| Music | Music box: **Google Nest Audio** "Main speaker", LAN 192.168.1.221. A Google Cast device: Spotify reaches it via Cast, so Spotify's Web API lists it only while a Spotify session runs on it (#16). Buddy controls it via the Web API; music never plays through the Jabra |
+| Other speakers | **Google Nest Mini** "Bathroom speaker haha", LAN 192.168.1.148 (Cast). Both Nests: no Google Home app needed for Cast from the Pi; their mics are not accessible |
 
 ## Smart home
 
