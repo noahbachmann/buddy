@@ -59,7 +59,7 @@ The STLs are already in print orientation. Each limb is cut in two because 300 m
 
 ## Print (Bambu P2S)
 
-- PLA for the prototype (PETG HF for the final, per the project rules). 0.2 mm layers, 4 walls, 15 % gyroid infill.
+- PETG (project rule: PETG for every part). 0.2 mm layers, 4 walls, 15 % gyroid infill.
 - **No supports.** Roofs inside the tubes are 45°, and horizontal holes are teardrops pointing up. Print in the exported orientation.
 - Print `upper-arm-top` first: it contains the fork and a bearing seat, so check the fit before printing the rest. If the 608 is too tight or too loose, adjust `press` in `params.scad` (default 0.1 mm), then run `./build.sh`.
 

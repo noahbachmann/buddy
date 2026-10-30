@@ -9,7 +9,7 @@ Current hardware and software used for the Buddy desk robot. Roadmap, architectu
 | Item | Details |
 |---|---|
 | Printer | Bambu Lab P2S |
-| Filament | PLA (prototypes), PETG HF (functional / heat-exposed parts) |
+| Filament | PETG (all parts, prototypes and final) |
 | CAD | Onshape |
 
 ## Compute & power

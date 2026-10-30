@@ -37,7 +37,7 @@ is turned down. Starts on power-on, recovers from crashes, hangs and audio hiccu
 - **27 W supply** (5.1 V / 5 A) unlocks the 1.6 A USB budget (else 600 mA). Check: `od -An -tu4 --endian=big /proc/device-tree/chosen/power/max_current` → `5000`.
 - **GPIO header stays free**: motion goes through the Pico over USB (2.2). Bare board: no metal near the GPIO pins (5 V next to GND).
 - **Shutdown rule**: `sudo poweroff`, wait for the green LED to stop, then unplug. Pulling power while the OS runs risks the microSD.
-- Later: 2.6 housing needs an intake above the blower and a vent at its side exhaust, PETG HF near the Pi; keep the Jabra
+- Later: 2.6 housing needs an intake above the blower and a vent at its side exhaust (PETG, like every part); keep the Jabra
   mic away from the exhaust. Camera (4.2) uses a CAM/DISP flat-cable connector.
 
 ## 1.3 OS setup

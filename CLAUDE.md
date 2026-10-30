@@ -154,7 +154,7 @@ Speech-to-text training: `docs/voice-training.md`.
 | 2.3 Motion service | `[motion]`: MQTT commands → Pico serial protocol. | `docs/guides/02-03-motion-service.md` |
 | 2.4 Eyes | Round display (e.g. GC9A01) with states: idle, listening, thinking, playing. | `docs/guides/02-04-eyes.md` |
 | 2.5 Head pan/tilt | Two servos. Head turns toward the user on wake word. | `docs/guides/02-05-head.md` |
-| 2.6 Head & body design | Onshape CAD, print head and body housing the Pi (PLA prototypes, PETG HF final). Retrain speech-to-text afterwards (the mic sounds different). | `docs/guides/02-06-body-design.md` |
+| 2.6 Head & body design | Onshape CAD, print head and body housing the Pi (PETG). Retrain speech-to-text afterwards (the mic sounds different). | `docs/guides/02-06-body-design.md` |
 
 ## Phase 3 – Hand
 
@@ -268,7 +268,7 @@ Pi paths: `~/buddy/{dev,src,build-release,build-pico,bin,venv,models,config,voic
 
 - **Step guides** (`docs/guides/XX-YY-name.md`): Goal → Prerequisites → Parts/Tools → Steps (copy-pasteable commands with expected output) → Verify → Troubleshooting → Notes for later phases. Mark untested assumptions with ⚠️.
 - **Code:** C++ with CMake, or Python with uv (D5). MQTT topics live in `shared/topics.json`. Broker address and other host-specific values come from config/env.
-- **CAD/printing** (Onshape, Bambu P2S): dimensions with clearance offsets, print orientation, supports. PLA for prototypes, PETG HF near the Pi or motors.
+- **CAD/printing** (Onshape, Bambu P2S): dimensions with clearance offsets, print orientation, supports. PETG for every part, prototypes included.
 - **Style:** concise, no filler. Tables for BOMs and pinouts, code blocks for commands.
 
 ## Maintenance
