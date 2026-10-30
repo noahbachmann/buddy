@@ -8,6 +8,10 @@
 // id. duck() / warm_up() fetch it ahead of time (on the wake word, while the user is still talking); the next
 // command within 15 s uses it and saves a round trip.
 //
+// Nests (D20): Soloist (local_device, "Buddy") plays on the Pi and the speakers service sends its sound to a Nest over
+// Bluetooth. The device list shows one entry per Nest (id "bt:<mac>", from buddy/speakers/state) in Soloist's place;
+// commands to a Nest go to Soloist, and playing on one sets Result::output so main tells speakers where to send it.
+//
 // Ducking: while Buddy listens or speaks, the active device plays at duck_percent of its volume if it is the box
 // or in duck_devices (same room). Volume commands to it during a duck change the volume that restore() brings back,
 // not the ducked one.
@@ -33,6 +37,7 @@ struct PlayerConfig {
     int duck_percent = 30;     // BUDDY_SPOTIFY_DUCK_PERCENT, box volume while ducked, % of its volume; 100 = off
     std::string duck_file;     // remembers the volume to restore across a crash or restart (tmpfs); empty = off
     std::vector<std::string> duck_devices;  // BUDDY_SPOTIFY_DUCK_DEVICES, ducked like the box (same room)
+    std::string local_device = "Buddy";     // BUDDY_SPOTIFY_LOCAL_DEVICE, Soloist's Connect name: hidden behind the Nests
 };
 
 // One skill command (brain: buddy/spotify/cmd).
@@ -50,6 +55,7 @@ struct Result {
     std::string say;                 // reply for voice; empty = nothing to say (the music is the answer)
     std::optional<bool> playing;
     std::optional<int> volume;
+    std::string output;              // music started on a Nest: its speakers id (buddy/speakers/cmd output)
 };
 
 class Player {
@@ -80,6 +86,9 @@ public:
     // Call once at start: restores a duck that a crash or restart left behind (duck_file). Never throws.
     void recover();
     bool ducked() const { return duck_.has_value(); }
+    // buddy/speakers/state: the Nests ({id, name}) and which one Soloist plays on. Until called, Soloist is listed
+    // as itself (CLI runs without MQTT).
+    void set_speakers(const nlohmann::json& state);
     // Volume to report: while ducked, the one restore() brings back.
     std::optional<int> volume() const { return duck_ ? std::optional(duck_->restore_to) : std::nullopt; }
 
@@ -89,6 +98,7 @@ private:
         std::string name;
         bool active = false;
         int volume = 50;
+        std::string output;  // a Nest: its speakers id; `id` is then Soloist's
     };
     struct Duck {
         std::string device_id;
@@ -106,7 +116,8 @@ private:
 
     Result dispatch(const Command& c);
     Result dispatch(const nlohmann::json& list, const Command& c);
-    Result dispatch(const Device& d, const std::string& action, const std::string& query);
+    Result dispatch(const Device& d, const std::string& action, const std::string& query);  // + Result::output
+    Result dispatch_on(const Device& d, const std::string& action, const std::string& query);
     Result play(const Device& d, const std::string& query);
     Result play_playlist(const Device& d, const std::string& name);  // your own/followed; empty = default
     Result play_liked(const Device& d, bool shuffle);
@@ -117,7 +128,8 @@ private:
     HttpResponse api(const std::string& method, const std::string& path, const nlohmann::json& body = nullptr);
     void expect_ok(const HttpResponse& r, const std::string& what);
     static Device device_of(const nlohmann::json& d);
-    nlohmann::json fetch_devices();  // the "devices" array; remembers the box's id
+    nlohmann::json fetch_devices();  // the "devices" array, Soloist replaced by the Nests; remembers the box's id
+    nlohmann::json with_nests(nlohmann::json list) const;
     Device box(const nlohmann::json& list) const;
     Device active(const nlohmann::json& list) const;  // the active device, else the box
     std::optional<Device> speaker(const nlohmann::json& list, const std::string& spoken) const;  // throws if ambiguous
@@ -135,6 +147,8 @@ private:
     std::chrono::steady_clock::time_point playlists_at_{};
     bool duck_disallowed_ = false;  // box refuses remote volume (403): stop trying
     bool snapshot_failing_ = false;  // log a failing snapshot once, not every poll
+    std::optional<nlohmann::json> nests_;  // [{id, name}] from speakers; nullopt = never heard from it
+    std::string selected_nest_;           // the Nest Soloist plays on
 };
 
 // Values a command just set, kept over polls that still show the old ones: Spotify reports a new volume 0.7–2.6 s

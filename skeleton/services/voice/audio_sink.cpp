@@ -1,6 +1,7 @@
 #include "audio_sink.hpp"
 
 #include <fstream>
+#include <iostream>
 #include <stdexcept>
 
 #include <alsa/asoundlib.h>
@@ -13,10 +14,8 @@ AlsaSink::~AlsaSink() {
     if (pcm_) snd_pcm_close(pcm_);
 }
 
-void AlsaSink::begin(int sample_rate) {
-    // Opened per utterance, not held open: an idle open stream would keep the Jabra's sink busy
-    // and PipeWire from suspending it.
-    int err = snd_pcm_open(&pcm_, device_.c_str(), SND_PCM_STREAM_PLAYBACK, 0);
+int AlsaSink::open(const std::string& device, int sample_rate) {
+    int err = snd_pcm_open(&pcm_, device.c_str(), SND_PCM_STREAM_PLAYBACK, 0);
     if (err == 0) {
         err = snd_pcm_set_params(pcm_, SND_PCM_FORMAT_S16_LE, SND_PCM_ACCESS_RW_INTERLEAVED,
                                  /*channels=*/1, static_cast<unsigned>(sample_rate), /*soft_resample=*/1,
@@ -25,8 +24,21 @@ void AlsaSink::begin(int sample_rate) {
     if (err < 0) {
         if (pcm_) snd_pcm_close(pcm_);
         pcm_ = nullptr;
-        throw std::runtime_error("cannot open audio device \"" + device_ + "\": " + snd_strerror(err));
     }
+    return err;
+}
+
+void AlsaSink::begin(int sample_rate) {
+    // Opened per utterance, not held open: an idle open stream would keep the Jabra's sink busy
+    // and PipeWire from suspending it.
+    int err = open(device_, sample_rate);
+    if (err < 0 && device_ != "default") {
+        // buddy_voice missing (PipeWire config not installed, PipeWire restarting): better the Jabra than silence
+        if (!warned_) std::cerr << "[voice] cannot open \"" << device_ << "\" (" << snd_strerror(err) << "), using default" << std::endl;
+        warned_ = true;
+        err = open("default", sample_rate);
+    }
+    if (err < 0) throw std::runtime_error("cannot open audio device \"" + device_ + "\": " + snd_strerror(err));
     // ⚠️ A suspended sink can swallow the first ~100 ms while it wakes up: lead with silence.
     const std::vector<int16_t> lead(static_cast<size_t>(sample_rate / 10), 0);
     write(lead);

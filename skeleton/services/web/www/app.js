@@ -505,7 +505,9 @@ $("scene-form").addEventListener("submit", async (e) => {
 function renderMusic() {
   const s = state["buddy/spotify/state"];
   const online = state["buddy/spotify/status"] === "online";
-  setText($("music-note"), !online ? "spotify service offline" : s && s.ducked ? "quieter while Buddy listens" : "");
+  const nest = state["buddy/speakers/state"];  // music on a Nest: speakers ducks it, not spotify (D20)
+  const ducked = s?.ducked || (nest?.ducked && nest?.music === "playing");
+  setText($("music-note"), !online ? "spotify service offline" : ducked ? "quieter while Buddy listens" : "");
   const box = $("music");
   if (!online) return keyed(box, [emptyNote("The spotify service isn't running.")]);
   const playing = s && s.playing === true;
@@ -595,6 +597,7 @@ const SERVICE_CHIPS = [
   { name: "voice", members: ["ears", "brain", "voice"] },
   { name: "hue", members: ["hue"] },
   { name: "spotify", members: ["spotify"] },
+  { name: "speakers", members: ["speakers"] },
 ];
 
 function renderServices() {

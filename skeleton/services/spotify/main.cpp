@@ -19,6 +19,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <mutex>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -71,6 +72,7 @@ struct Config {
         .duck_file = std::getenv("XDG_RUNTIME_DIR") ? std::string(std::getenv("XDG_RUNTIME_DIR")) + "/buddy-spotify-duck.json"
                                                     : "",
         .duck_devices = name_list(env_string("BUDDY_SPOTIFY_DUCK_DEVICES", "")),
+        .local_device = env_string("BUDDY_SPOTIFY_LOCAL_DEVICE", "Buddy"),
     };
     int duck_hold_ms = env_int("BUDDY_SPOTIFY_DUCK_HOLD_MS", 1500);
     int poll_s = env_int("BUDDY_SPOTIFY_POLL_S", 5);
@@ -113,6 +115,15 @@ int serve(Player& player, Auth& auth, const Config& cfg) {
         listening = s == "listening" || s == "transcribing";
         queue.push({});
     });
+    std::mutex nests_mutex;  // the Nests (D20), handed to the player on its thread
+    std::optional<json> nests;
+    mqtt.subscribe(topic::speakers_state, [&](const std::string&, const std::string& payload) {
+        auto msg = json::parse(payload, nullptr, /*allow_exceptions=*/false);
+        if (!msg.is_object()) return;
+        std::lock_guard lock(nests_mutex);
+        nests = std::move(msg);
+        queue.push({});
+    });
     mqtt.subscribe(topic::voice_state, [&](const std::string&, const std::string& payload) {
         speaking = state_of(payload) == "speaking";
         queue.push({});
@@ -150,6 +161,11 @@ int serve(Player& player, Auth& auth, const Config& cfg) {
             timeout = std::clamp(std::chrono::duration_cast<std::chrono::milliseconds>(next_poll - Clock::now()),
                                  std::chrono::milliseconds(0), timeout);
         const auto cmd = queue.pop(timeout);
+        if (std::lock_guard lock(nests_mutex); nests) {
+            player.set_speakers(*nests);
+            nests.reset();
+            if (Clock::now() < watched_until) next_poll = Clock::now();  // another Nest active: show it
+        }
 
         if (watch.exchange(false)) {
             if (Clock::now() >= watched_until) next_poll = Clock::now();  // panel just opened: now, not in 5 s
@@ -185,6 +201,7 @@ int serve(Player& player, Auth& auth, const Config& cfg) {
                   << (cmd->device.empty() ? "" : " on \"" + cmd->device + "\"")
                   << (cmd->device_id.empty() ? "" : " on " + cmd->device_id) << (r.ok ? " ok" : " failed") << " (" << ms.count() << " ms)" << std::endl;
 
+        if (!r.output.empty()) mqtt.publish(topic::speakers_cmd, json{{"action", "output"}, {"speaker", r.output}}.dump(), 1);
         if (!r.say.empty()) mqtt.publish(topic::voice_say, json{{"text", r.say}}.dump(), 1);
         const auto until = Clock::now() + std::chrono::seconds(8);
         if (r.playing) expected.set("playing", state["playing"] = *r.playing, until);

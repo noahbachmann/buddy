@@ -1,4 +1,4 @@
-// voice: text → speech (Piper) → Jabra speaker.
+// voice: text → speech (Piper) → buddy_voice (the Jabra, or the Nest that plays music: speakers routes it).
 //
 //   buddy-voice                              live: buddy/voice/say in, buddy/voice/state out
 //   buddy-voice --say "text" [--wav f.wav]   offline test: speaks once (or writes a WAV), no MQTT
@@ -39,7 +39,8 @@ struct Say {
 };
 
 struct Config {
-    std::string device = env_string("BUDDY_VOICE_DEVICE", "default");
+    // buddy_voice: the speakers service sends it to the Nest that plays music, else the Jabra (D20)
+    std::string device = env_string("BUDDY_VOICE_DEVICE", "pipewire:NODE=buddy_voice");
     std::string models = env_string("BUDDY_MODELS_DIR", env_string("HOME", ".") + "/buddy/models");
     TtsConfig tts{
         .model_path = models + "/" + env_string("BUDDY_VOICE_MODEL", "en_GB-alan-medium.onnx"),

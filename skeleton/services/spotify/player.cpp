@@ -279,6 +279,12 @@ Result Player::dispatch(const json& list, const Command& c) {
 }
 
 Result Player::dispatch(const Device& d, const std::string& action, const std::string& query) {
+    Result r = dispatch_on(d, action, query);
+    if (starts_playback(action)) r.output = d.output;  // "pause the bathroom speaker" doesn't move the music
+    return r;
+}
+
+Result Player::dispatch_on(const Device& d, const std::string& action, const std::string& query) {
     const std::string on = "?device_id=" + d.id;
 
     if (action == "play") return play(d, query);
@@ -522,6 +528,9 @@ std::optional<json> Player::snapshot() {
         const json& d = field(p, "device");
         if (d.is_object() && field(d, "id").is_string()) {
             out["device"] = {{"id", d["id"]}, {"name", d.value("name", "")}, {"type", d.value("type", "")}};
+            for (const auto& x : list)  // Soloist plays: show the Nest it plays on
+                if (field(x, "local_id") == d["id"] && x.value("is_active", false))
+                    out["device"] = {{"id", x["id"]}, {"name", x["name"]}, {"type", x["type"]}};
             if (duck_ && d["id"] == duck_->device_id) out["volume"] = duck_->restore_to;
             else if (field(d, "volume_percent").is_number() && d.value("supports_volume", true)) out["volume"] = d["volume_percent"];
         }
@@ -594,12 +603,51 @@ json Player::fetch_devices() {
     json list = json::parse(r.body).value("devices", json::array());
     for (const auto& d : list)
         if (lower(d.value("name", "")) == lower(cfg_.device_name) && field(d, "id").is_string()) last_id_ = field(d, "id");
-    return list;
+    return with_nests(std::move(list));
+}
+
+void Player::set_speakers(const json& state) {
+    nests_ = json::array();
+    if (state.is_object() && field(state, "speakers").is_array())
+        for (const auto& s : state["speakers"])
+            if (field(s, "id").is_string() && field(s, "name").is_string()) nests_->push_back({{"id", s["id"]}, {"name", s["name"]}});
+    selected_nest_ = state.is_object() && field(state, "selected").is_string() ? state["selected"].get<std::string>() : "";
+}
+
+json Player::with_nests(json list) const {
+    if (!nests_) return list;
+    json local;
+    json out = json::array();
+    for (auto& d : list) {
+        if (lower(d.value("name", "")) == lower(cfg_.local_device)) local = std::move(d);
+        else out.push_back(std::move(d));
+    }
+    if (!local.is_object() || !field(local, "id").is_string()) return out;  // Soloist not running: no Nest playable
+    for (const auto& n : *nests_) {
+        const std::string name = n["name"];
+        // A phone casting straight to the Nest lists it under the same name: shown instead while it plays
+        const auto twin = std::find_if(out.begin(), out.end(), [&](const json& x) { return lower(x.value("name", "")) == lower(name); });
+        if (twin != out.end()) {
+            if (twin->value("is_active", false)) continue;
+            out.erase(twin);
+        }
+        json e = local;
+        e["id"] = n["id"];
+        e["name"] = name;
+        e["type"] = "Speaker";
+        e["is_active"] = local.value("is_active", false) && n["id"] == selected_nest_;
+        e["local_id"] = local["id"];
+        out.push_back(std::move(e));
+    }
+    return out;
 }
 
 Player::Device Player::device_of(const json& d) {
-    return {.id = d.value("id", ""), .name = d.value("name", ""), .active = d.value("is_active", false),
-            .volume = field(d, "volume_percent").is_number() ? field(d, "volume_percent").get<int>() : 50};
+    const bool nest = field(d, "local_id").is_string();
+    return {.id = nest ? d["local_id"].get<std::string>() : d.value("id", ""), .name = d.value("name", ""),
+            .active = d.value("is_active", false),
+            .volume = field(d, "volume_percent").is_number() ? field(d, "volume_percent").get<int>() : 50,
+            .output = nest ? d.value("id", "") : ""};
 }
 
 Player::Device Player::box(const json& list) const {

@@ -31,8 +31,11 @@ public:
     void end() override;
 
 private:
+    int open(const std::string& device, int sample_rate);  // ALSA error code, 0 = open
+
     std::string device_;
     snd_pcm_t* pcm_ = nullptr;
+    bool warned_ = false;  // fallback to "default" logged once
 };
 
 class WavSink : public AudioSink {

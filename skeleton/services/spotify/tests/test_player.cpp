@@ -318,6 +318,104 @@ TEST_F(PlayerTest, SnapshotFailureIsNullopt) {
     EXPECT_FALSE(player->snapshot());
 }
 
+// --- Nests (D20): Soloist "Buddy" plays, speakers sends it to a Nest ---
+
+namespace {
+const json kNests = {{"speakers", {{{"id", "bt:1"}, {"name", "Main speaker"}, {"connected", true}},
+                                   {{"id", "bt:2"}, {"name", "Bathroom speaker"}, {"connected", false}}}},
+                     {"selected", "bt:1"}};
+
+std::vector<std::string> names_of(const json& devices) {
+    std::vector<std::string> out;
+    for (const auto& d : devices) out.push_back(d["name"]);
+    return out;
+}
+} // namespace
+
+TEST_F(PlayerTest, NestsReplaceSoloist) {
+    player->set_speakers(kNests);
+    devices({device("solo", "Buddy", true, 60), device("px", "Pixel 8"), device("desk", "DESKTOP-1")});
+    now(device("solo", "Buddy", true, 60));
+    const auto s = player->snapshot();
+    ASSERT_TRUE(s);
+    EXPECT_EQ(names_of((*s)["devices"]), (std::vector<std::string>{"Pixel 8", "DESKTOP-1", "Main speaker", "Bathroom speaker"}));
+    EXPECT_EQ((*s)["devices"][2]["id"], "bt:1");
+    EXPECT_EQ((*s)["devices"][2]["active"], true);  // Soloist plays on the selected Nest
+    EXPECT_EQ((*s)["devices"][2]["volume"], 60);
+    EXPECT_EQ((*s)["devices"][3]["active"], false);
+    EXPECT_EQ((*s)["device"]["name"], "Main speaker");
+    EXPECT_EQ((*s)["device"]["id"], "bt:1");
+}
+
+TEST_F(PlayerTest, PlayOnANestTransfersToSoloistAndSetsTheOutput) {
+    player->set_speakers(kNests);
+    devices({device("solo", "Buddy"), device("px", "Pixel 8", true)});
+    http.on("PUT /me/player", 204);
+
+    const Result r = run({.action = "play", .device = "bathroom"});
+    EXPECT_TRUE(r.ok);
+    EXPECT_EQ(r.output, "bt:2");
+    EXPECT_EQ(r.say, "Moving the music to Bathroom speaker.");
+    EXPECT_EQ(json::parse(last_body("PUT /me/player"))["device_ids"][0], "solo");
+
+    const Result panel = run({.action = "play", .device_id = "bt:2"});  // panel: by id, no reply
+    EXPECT_EQ(panel.output, "bt:2");
+    EXPECT_EQ(panel.say, "");
+}
+
+TEST_F(PlayerTest, TheDefaultSpeakerIsANest) {
+    player->set_speakers(kNests);
+    devices({device("solo", "Buddy"), device("px", "Pixel 8", true)});
+    http.on("PUT /me/player", 204);
+    const Result r = run({.action = "play"});  // "play Spotify": resume on the box, which is the Main speaker Nest
+    EXPECT_EQ(r.output, "bt:1") << r.say;
+    EXPECT_EQ(r.say, "");
+    EXPECT_EQ(json::parse(last_body("PUT /me/player"))["device_ids"][0], "solo");
+}
+
+TEST_F(PlayerTest, ControlsOnANestGoToSoloistAndDontMoveTheMusic) {
+    player->set_speakers(kNests);
+    devices({device("solo", "Buddy", true)});
+    http.on("PUT /me/player/pause", 204);
+    const Result r = run({.action = "pause", .device = "bathroom"});
+    EXPECT_TRUE(r.ok);
+    EXPECT_EQ(r.output, "");
+    EXPECT_TRUE(has(last_url("PUT /me/player/pause"), "device_id=solo"));
+}
+
+TEST_F(PlayerTest, APhoneCastingToTheNestShowsItsOwnEntryOnlyWhileItPlays) {
+    player->set_speakers(kNests);
+    devices({device("solo", "Buddy"), device("cast", "Main speaker")});
+    now(device("cast", "Main speaker"), false);
+    auto s = player->snapshot();
+    ASSERT_TRUE(s);
+    EXPECT_EQ(names_of((*s)["devices"]), (std::vector<std::string>{"Main speaker", "Bathroom speaker"}));
+    EXPECT_EQ((*s)["devices"][0]["id"], "bt:1");
+
+    devices({device("solo", "Buddy"), device("cast", "Main speaker", true)});
+    now(device("cast", "Main speaker", true));
+    s = player->snapshot();
+    ASSERT_TRUE(s);
+    EXPECT_EQ(names_of((*s)["devices"]), (std::vector<std::string>{"Main speaker", "Bathroom speaker"}));
+    EXPECT_EQ((*s)["devices"][0]["id"], "cast");
+}
+
+TEST_F(PlayerTest, WithoutSoloistTheNestsArentPlayable) {
+    player->set_speakers(kNests);
+    devices({device("px", "Pixel 8", true)});
+    const Result r = run({.action = "play"});
+    EXPECT_FALSE(r.ok);
+    EXPECT_EQ(r.say, "Main speaker isn't available.");
+}
+
+TEST_F(PlayerTest, BeforeSpeakersReportsSoloistIsListedAsItself) {  // CLI runs, speakers offline
+    devices({device("solo", "Buddy"), device("px", "Pixel 8")});
+    now(device("px", "Pixel 8", true));
+    const auto s = player->snapshot();
+    ASSERT_TRUE(s);
+    EXPECT_EQ(names_of((*s)["devices"]), (std::vector<std::string>{"Buddy", "Pixel 8"}));
+}
+
 TEST(ProgressToPublish, KeptWhileItExtrapolates) {
     const json track = {{"name", "a"}};
     auto state = [&](bool playing, long ms, long at) {
