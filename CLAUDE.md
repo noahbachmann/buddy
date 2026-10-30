@@ -41,7 +41,7 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 | Phase | Step | Status |
 |---|---|---|
 | 1 – Voice | 1.1 – 1.12 Hardware, OS, audio, skeleton, wake word, STT, brain, Spotify, voice, background music, boot | ✅ |
-| 1 – Voice (extra) | 1.13 Hue lights, 1.14 web panel: bridge paired, panel working (2026-10-29); voice live test open (`01-cleanup.md` steps 12–13). 1.15 Nest speakers over Bluetooth (D20, #17): deployed 2026-10-30, first live test done; recheck after the speed fixes open | 🟨 |
+| 1 – Voice (extra) | 1.13 Hue lights, 1.14 web panel: bridge paired, panel working (2026-10-29); voice live test open (`01-cleanup.md` steps 12–13). 1.15 Nest speakers over Bluetooth (D20, #17): done 2026-10-30 (side issue: Deferred → Bathroom Bluetooth) | 🟨 |
 | 2 – Head | 2.1 printer: guide not written yet. 2.2 motion controller: Pi setup, firmware and flash done; wiring and servo test (guide steps 1–3, 9) open. 2.3 motion service + demo gesture ("cut off Andi's balls"): code and tests done, deployed 2026-10-29 (waits with `connected:false` while the Pico is unplugged); Verify open | 🟨 |
 | 3 – Hand | 3.1 – 3.4 | ⬜ |
 | 4 – Arm & vision | 4.1 – 4.3 | ⬜ |
@@ -60,8 +60,6 @@ What's left right now, in order. Update it with the progress table; GitHub issue
    ducking (3), your names in the corpus (4), recordings and training (5–7), wake word threshold (9), live test (10),
    Hue default room and fixed bridge IP (12), panel + voice light test (13). Then delete the file; Phase 1 extras → ✅.
 3. **Live check** for #12: "Hey Jarvis, play Spotify" ducks, plays, and Buddy answers without delay (idle loops changed).
-4. **Recheck #17** (1.15 "Done when"): switch Main ↔ Bathroom on the panel (time it), voice volume on a Nest, panel →
-   DESKTOP-1 puts the voice back on the Jabra. Then 1.15 → ✅.
 
 **Claude** (code and guides):
 
@@ -148,6 +146,10 @@ Speech-to-text training: `docs/voice-training.md`.
 - **Custom "Hey buddy"** (summary guide 1.6): train with box music in the negatives; the training could move into
   `tools/` like speech-to-text.
 - **LLM brain:** implement `IntentParser`; keep the rules as the fast path.
+- **Bathroom Bluetooth crackles** (seen 2026-10-30): with a phone between the Pi and the Nest Mini (−69 dBm through
+  walls) the music crackles at times. PipeWire already lowers SBC's bitrate on a struggling link; the levers are
+  hardware: a USB Bluetooth adapter with an external antenna placed higher (would also allow two Nests at once ⚠️), or
+  the Pi's antenna unshielded in the 2.6 body. Quick check first: the phone on 5 GHz Wi-Fi.
 - **Persistent journald** (`Storage=persistent`, `SystemMaxUse=50M`) for boot post-mortems.
 
 ## Phase 2 – Head & personality

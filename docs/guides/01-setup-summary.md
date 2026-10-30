@@ -519,3 +519,4 @@ panel → Bathroom speaker moves it, panel → DESKTOP-1 puts the voice back on 
 | `br-connection-profile-unavailable` | WirePlumber without its Bluetooth monitor: `buddy-bluetooth.conf` missing (`setup.sh audio`) |
 | A Nest became the default sink | `wpctl set-default <Jabra id>`; check `buddy-bluetooth.conf` is installed |
 | Voice too loud / quiet on a Nest | `BUDDY_SPEAKERS_VOICE_PERCENT` |
+| Crackling on the Nest Mini, e.g. with a phone in between | Weak 2.4 GHz link (−69 dBm through walls): phone on 5 GHz Wi-Fi; for good a USB Bluetooth adapter with an external antenna (CLAUDE.md → Deferred) |
