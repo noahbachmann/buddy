@@ -48,13 +48,13 @@ the price or stock wasn't visible when this was written.
 | 2 | USB-A → micro-USB B cable, 0.5 m, USB 2.0 (**data**, not charge-only) | 1 | 7 ⚠️ | Pi ↔ Pico | [Galaxus 14290277 (ACT)](https://www.galaxus.ch/de/s1/product/act-usb-20-a-male-micro-b-male-050-m-usb20-cable-am-microbm-050m-050-m-usb-20-usb-kabel-14290277) |
 | 3 | 5 V / 5 A power supply, 5.5 × 2.1 mm plug | 1 | 20 ⚠️ | Servo power only. 5 A covers head + hand (step 1) | [Digitec 36195725 (Purecrea)](https://www.digitec.ch/de/s1/product/purecrea-5v-dc-5000ma-stecknetzteil-acdc-adapter-55mm21mm-stecker-entwicklungsboard-kit-36195725) |
 | 4 | DC socket 5.5 × 2.1 mm with screw terminals | 1 | 9.90 | Supply → wires without soldering | [Galaxus 34239719 (Purecrea)](https://www.galaxus.ch/fr/s1/product/purecrea-connecteur-femelle-dc-barrel-jack-55mm-21mm-avec-bornes-a-vis-cable-prise-electronique-34239719) |
-| 5 | Breadboard 830 + ~140 pre-cut jumper wires | 1 | 15 ⚠️ | Prototype wiring | [Galaxus 5998042 (OEM combo)](https://www.galaxus.ch/en/s1/product/oem-breadboard-with-plug-in-cable-combo-breadboard-electronics-supplies-casing-5998042) |
+| 5 | Breadboard 830 + ~140 pre-cut jumper wires | 1 | 15 ⚠️ | Prototype wiring. Dev has a 400-hole one (30 columns): enough for 2 servos, step 3 is laid out for it | [Galaxus 5998042 (OEM combo)](https://www.galaxus.ch/en/s1/product/oem-breadboard-with-plug-in-cable-combo-breadboard-electronics-supplies-casing-5998042) |
 | 6 | Jumper wires M/M 30 cm, 22 AWG | 1 × 10 | 5 ⚠️ | Thicker wires for the 5 V / GND supply leads | [Digitec 5997881](https://www.digitec.ch/de/s1/product/oem-jumperkabel-10-stk-mm-30cm-22awg-elektronikkabel-stecker-5997881) |
 | 7 | Male pin header 1 × 40, 2.54 mm, straight | 1 pack | 4 ⚠️ | Break off 3-pin pieces: the servo plug pushes onto them in the breadboard | [Digitec 5997724](https://www.digitec.ch/de/s1/product/oem-stiftleiste-1-x-40-polig-rastermass-254mm-schwarz-elektronikkabel-stecker-5997724) |
 | 8 | Electrolytic capacitor 1000 µF, 25 V, radial | 2 | 2 × 2 ⚠️ | Buffers the servos' current spikes (step 1) | [Digitec 5848462 (Velleman)](https://www.digitec.ch/de/s1/product/velleman-elco-radial-1000f-25v-kondensator-5848462) |
 | 9 | Resistor assortment 1/4 W, 1 % (330 Ω used now) | 1 | 19 | One per servo signal line; the rest is for the display (2.4) and later | [Galaxus 25475139 (Purecrea 600 pcs)](https://www.galaxus.ch/de/s1/product/purecrea-widerstand-set-600-stk-assortiert-14w-1-genauigkeit-widerstand-25475139) |
 | 10 | MG90S metal-gear micro servo, 180° | 4 | 4 × 9 ⚠️ | 2 for this step and the 2.5 pan/tilt, 2 spares or hand tests | [Galaxus 24962704 (Waveshare)](https://www.galaxus.ch/en/s1/product/waveshare-micro-servo-mg90s-mit-metallgetriebe-motor-electronics-modules-24962704) |
-| 11 | Multimeter UNI-T UT33C+ | 1 | 20 | Measure the supply and the rail under load; you need it for every hardware step from here on | [Galaxus 25236531](https://www.galaxus.ch/de/s4/product/unit-multimeter-uni-t-ut33c-hand-multimeter-multimeter-25236531) |
+| 11 | Multimeter UNI-T UT33C+ | 1 | 20 | Measure the supply and the rail under load; you need it for every hardware step from here on. Dev has an XL830L instead: same job | [Galaxus 25236531](https://www.galaxus.ch/de/s4/product/unit-multimeter-uni-t-ut33c-hand-multimeter-multimeter-25236531) |
 | | **Total** | | **≈ 160** | | |
 
 Notes on the choices:
@@ -105,8 +105,10 @@ so 3.3 V works without a level shifter ⚠️ (true for the MG90S according to m
 
 ### 2. Check the supply with the multimeter
 
-The multimeter is new to you, so the setup is: black lead in **COM**, red lead in **VΩ** (never the **10A** socket for
-voltage), dial on **V⎓** (DC volts; on the UT33C+ the 20 V range).
+The multimeter is new to you, so the setup is: black lead in **COM**, red lead in **VΩmA** (never the **10A** socket
+for voltage), dial on **V⎓** (DC volts). The XL830L doesn't pick its range itself: turn the dial to **20** in the DC V
+section. 20 is the largest value it shows on that setting, so 5 V reads as `5.12`. On 200 the same 5 V reads `5.1`
+(less precise); on 2000m it shows `1` = over range.
 
 1. Screw two 22 AWG jumper wires into the DC socket: red into **+**, black into **−**. Keep the ends apart.
 2. Plug in the supply, plug its barrel into the socket.
@@ -131,21 +133,48 @@ Pinout (Pico 2 pin numbers are printed on the underside; pin 1 is next to the US
 | 39 (VSYS), 40 (VBUS) | — | **nothing** | Never connect servo 5 V here |
 | USB | power + data | Pi | The Pico's only power source |
 
-Hole-by-hole drawing: `docs/pico-setup.html`. Hole letters differ between brands; go by the Pico's pin numbers. Only
-the rails on the pin 1–20 side are used: that side has no power pins, VBUS/VSYS are on the other.
+Hole-by-hole drawing: `docs/pico-setup.html`. The layout is for a 400-hole half-size board: 30 columns, rows a–j,
+one pair of rails along each long edge. Hole letters and the rail order differ between brands: go by the Pico's pin
+numbers and the rails' printed colours (red line = +, blue line = −). Only the rails on the pin 1–20 side are used: that
+side has no power pins, VBUS/VSYS are on the other.
+
+The Pico takes columns 1–20, so everything else fits into columns 21–30 of the bottom half (rows f–j). Each column's
+f–j holes are one connection, so a part in f25 and a part in i25 are connected. Columns 23 and 24 stay free.
+
+| Column | f | h / i | j | Connects |
+|---|---|---|---|---|
+| 21 | | i21: 330 Ω (ch0) → i25 | jumper from j4 (GP2) | GP2 → resistor |
+| 22 | | h22: 330 Ω (ch1) → h28 | jumper from j5 (GP3) | GP3 → resistor |
+| 25 | ch0 header: signal | i25: resistor end | | resistor → servo 0 signal |
+| 26 | ch0 header: + | | jumper → + rail | servo 0 5 V |
+| 27 | ch0 header: − | | jumper → − rail | servo 0 GND |
+| 28 | ch1 header: signal | h28: resistor end | | resistor → servo 1 signal |
+| 29 | ch1 header: + | | jumper → + rail | servo 1 5 V |
+| 30 | ch1 header: − | | jumper → − rail | servo 1 GND |
 
 1. Pico 2H straddling the centre gap at the left end, USB pointing off the board: pins 1–20 in row h, 40–21 in row c,
-   columns 1–20.
+   columns 1–20. Pico pin N sits in column N on the bottom side; under the Pico only rows i and j stay free.
 2. Pico pin 3 (GND): jumper j3 → bottom − rail.
-3. Supply leads from the DC socket into the right end of the bottom rails: black → −, red → + (the servo rail). The top
-   rails stay empty.
-4. Capacitor across the bottom rails next to the servo headers (− leg col 31, + leg col 32). Stripe leg into −.
-5. For each servo: a 3-pin header piece in row g (ch0: g26–g28, ch1: g34–g36). Signal: jumper from the Pico pin
-   (GP2 j4 → j22, GP3 j5 → j30), then a 330 Ω resistor to the header's first column (i22 → i26, i30 → i34). Middle
-   column: jumper to + (j27, j35). Last column: jumper to − (j28, j36). The MG90S plug colours: **brown = GND,
-   red = 5 V, orange = signal**. Plug it on so brown sits on col 28 / 36.
-6. Before powering: multimeter on **Ω** (or the continuity beep), supply unplugged. Check that servo rail + and Pico
-   pin 39/40 show **no** connection, and that rail − and Pico pin 3 **do**.
+3. Signals: jumper j4 (GP2) → j21, jumper j5 (GP3) → j22.
+4. Resistors (330 Ω, either way round; 1 % colour code orange, orange, black, black, brown): i21 → i25 for ch0, h22 →
+   h28 for ch1. Bend the legs at 90° right at the body so they drop straight into the holes. The two bodies lie side by
+   side in neighbouring rows; their coating insulates them, so touching is harmless.
+5. Servo headers: break two 3-pin pieces off the 1 × 40 strip, short ends into f25–f27 (ch0) and f28–f30 (ch1). Row f
+   is next to the centre gap, so the plugs have room and don't press against the resistor legs.
+6. Servo power jumpers: j26 and j29 → bottom + rail, j27 and j30 → bottom − rail.
+7. Capacitor 1000 µF across the bottom rails, left of the servo columns (below columns ~21–22): stripe leg (−, the
+   shorter one) into the − rail, the other into the + rail.
+8. Supply leads from the DC socket into the bottom rails below columns ~23–24, between the capacitor and the servo
+   jumpers: black → − rail, red → + rail. The top rails stay empty.
+9. Servo plugs on the headers: **brown = GND, red = 5 V, orange = signal**. Orange on f25 (ch0, head pan) and f28
+   (ch1, head tilt), brown on f27 / f30.
+10. Before powering, supply unplugged: multimeter dial on the diode/continuity symbol (beeps on a connection ⚠️ some
+    XL830L batches have no buzzer: then the display shows ~0 for connected and `1` for open; or use Ω 200: < 1 Ω =
+    connected). Check:
+    - servo rail + ↔ Pico pin 39 and pin 40: **no** connection
+    - − rail ↔ Pico pin 3: connection, with one probe at the left end of the rail (next to j3's jumper) and one at the
+      right end. Some half-size boards split their rails in the middle; a split rail cuts the shared ground.
+    - + rail ↔ − rail: **no** connection (a short here shorts the supply)
 
 Power-up order (from now on, every time): Pico USB first, then the servo supply. Power-down: servo supply first.
 Reason: a servo with power but no signal sits still. A Pico whose pins see voltage before it has its own power is driven
@@ -311,7 +340,7 @@ fingers to load it.
 
 | Symptom | Cause / fix |
 |---|---|
-| Servo jitters or twitches at rest | Missing common ground (step 3.2/3.3), or the signal runs next to the supply leads; shorten wires |
+| Servo jitters or twitches at rest | Missing common ground (step 3.2/3.6), or the signal runs next to the supply leads; shorten wires |
 | Servo jitters only while the other moves, rail < 4.8 V | Supply too weak or leads too thin/long: use the 22 AWG leads, capacitor next to the servos |
 | `get_throttled` ≠ `0x0` during servo tests | Servo current reaches the Pi: check that nothing connects servo + to Pico pin 39/40. Unplug the servo supply first |
 | No `/dev/buddy-pico`, `lsusb` shows no `2e8a` | Charge-only cable (no data wires): use the listed cable. Or no firmware yet: BOOTSEL flash (step 7) |

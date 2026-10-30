@@ -109,7 +109,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     <h1>Pico 2 H servo controller</h1>
     <p class="lede">The Pi 5 sends text commands over USB to a Raspberry Pi Pico 2 H. The Pico drives the servos from its own hardware PWM, keeps every servo inside its limits, and lets go of all of them when the Pi goes quiet. The servos run from a separate 5 V supply.</p>
     <div class="chips">
-      <span class="chip warn">Planned: guide written, not built yet</span>
+      <span class="chip warn">Firmware flashed, wiring in progress</span>
       <span class="chip">Decision D17</span>
       <span class="chip">Protocol v1 · /dev/buddy-pico</span>
     </div>
@@ -117,13 +117,13 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
 
   <section aria-labelledby="breadboard">
     <h2 id="breadboard">Breadboard layout</h2>
-    <p>Top view of an 830-hole breadboard, columns 1–42 of 63. Only the bottom rails are used: that is the Pico's pin 1–20 side, which has no power pins. VBUS and VSYS sit on the other side, so servo 5 V never runs near them.</p>
+    <p>Top view of a 400-hole half-size breadboard, 30 columns. The Pico takes columns 1–20; resistors, servo headers and the capacitor fit into columns 21–30. Only the bottom rails are used: that is the Pico's pin 1–20 side, which has no power pins. VBUS and VSYS sit on the other side, so servo 5 V never runs near them.</p>
     <div class="figure">
-      <svg viewBox="0 0 900 400" role="img" aria-label="Breadboard top view: Pico 2 H in columns 1 to 20, pins 1 to 20 in row h; jumpers from GP2 and GP3 to columns 22 and 30; 330 ohm resistors to servo headers at g26 to g28 and g34 to g36; servo plus and ground jumpers to the bottom rails; capacitor across the bottom rails at columns 31 and 32; DC socket leads into the right end of the bottom rails.">
-        <rect x="30" y="20" width="760" height="330" rx="8" fill="var(--bb)" stroke="var(--line)"/>
-        <rect x="30" y="176" width="760" height="16" fill="var(--bb-gap)"/>
-        <path d="M60 30 H780" stroke="var(--w-pos)" stroke-width="2"/><path d="M60 67 H780" stroke="var(--rail-n)" stroke-width="2"/>
-        <path d="M60 301 H780" stroke="var(--rail-n)" stroke-width="2"/><path d="M60 338 H780" stroke="var(--w-pos)" stroke-width="2"/>
+      <svg viewBox="0 0 760 420" role="img" aria-label="Breadboard top view: Pico 2 H in columns 1 to 20, pins 1 to 20 in row h; jumpers from GP2 and GP3 to j21 and j22; 330 ohm resistors i21 to i25 and h22 to h28; servo headers f25 to f27 and f28 to f30; servo plus jumpers j26 and j29 to the plus rail, ground jumpers j27 and j30 to the minus rail; capacitor across the bottom rails below columns 21 and 22; DC socket leads into the bottom rails below columns 23 and 24.">
+        <rect x="30" y="20" width="570" height="330" rx="8" fill="var(--bb)" stroke="var(--line)"/>
+        <rect x="30" y="176" width="570" height="16" fill="var(--bb-gap)"/>
+        <path d="M60 30 H590" stroke="var(--w-pos)" stroke-width="2"/><path d="M60 67 H590" stroke="var(--rail-n)" stroke-width="2"/>
+        <path d="M60 301 H590" stroke="var(--rail-n)" stroke-width="2"/><path d="M60 338 H590" stroke="var(--w-pos)" stroke-width="2"/>
         <g id="bb-holes" fill="var(--hole)"></g>
         <g id="bb-axes"></g>
         <!-- Pico -->
@@ -139,76 +139,74 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
         <text class="pl" transform="translate(67 133) rotate(90)">40 VBUS</text>
         <text class="pl" transform="translate(84 133) rotate(90)">39 VSYS</text>
         <path class="w no" d="M66 86 l8 8 M74 86 l-8 8 M66 103 l8 8 M74 103 l-8 8 M83 86 l8 8 M91 86 l-8 8 M83 103 l8 8 M91 103 l-8 8"/>
-        <!-- signal jumpers -->
-        <path class="cas" d="M121 277 Q274 306 427 277"/><path class="jw sig" d="M121 277 Q274 306 427 277"/>
-        <path class="cas" d="M138 277 Q350 320 563 277"/><path class="jw sig" d="M138 277 Q350 320 563 277"/>
-        <!-- resistors i22–i26, i30–i34 -->
-        <path d="M427 260 H495 M563 260 H631" stroke="var(--muted)" stroke-width="1.5"/>
-        <rect x="445" y="254" width="32" height="12" rx="5" fill="var(--res)"/>
-        <rect x="581" y="254" width="32" height="12" rx="5" fill="var(--res)"/>
-        <g fill="#e07b1a"><rect x="450" y="254" width="3" height="12"/><rect x="456" y="254" width="3" height="12"/><rect x="586" y="254" width="3" height="12"/><rect x="592" y="254" width="3" height="12"/></g>
-        <g fill="#6b3f1f"><rect x="462" y="254" width="3" height="12"/><rect x="598" y="254" width="3" height="12"/></g>
-        <g fill="#c9a227"><rect x="470" y="254" width="3" height="12"/><rect x="606" y="254" width="3" height="12"/></g>
-        <text class="tag" x="461" y="214" text-anchor="middle">330 Ω</text>
-        <text class="tag" x="597" y="214" text-anchor="middle">330 Ω</text>
-        <!-- servo headers + plugs -->
-        <rect x="487" y="219" width="50" height="14" rx="2" fill="var(--fg)"/>
-        <rect x="623" y="219" width="50" height="14" rx="2" fill="var(--fg)"/>
-        <g fill="var(--pin)"><rect x="492" y="223" width="6" height="6"/><rect x="509" y="223" width="6" height="6"/><rect x="526" y="223" width="6" height="6"/>
-          <rect x="628" y="223" width="6" height="6"/><rect x="645" y="223" width="6" height="6"/><rect x="662" y="223" width="6" height="6"/></g>
-        <path class="jw sig" d="M495 218 V196 M631 218 V196"/><path class="jw pos" d="M512 218 V196 M648 218 V196"/><path class="jw gnd" d="M529 218 V196 M665 218 V196"/>
-        <text class="tag" x="512" y="172" text-anchor="middle" style="font-weight: 500">ch0 · pan plug</text>
-        <text class="tag" x="648" y="172" text-anchor="middle" style="font-weight: 500">ch1 · tilt plug</text>
+        <!-- signal jumpers j4 → j21, j5 → j22 -->
+        <path class="cas" d="M121 277 Q265 300 410 277"/><path class="jw sig" d="M121 277 Q265 300 410 277"/>
+        <path class="cas" d="M138 277 Q282 316 427 277"/><path class="jw sig" d="M138 277 Q282 316 427 277"/>
+        <!-- resistors i21–i25 (ch0), h22–h28 (ch1) -->
+        <path d="M410 260 H478 M427 243 H529" stroke="var(--muted)" stroke-width="1.5"/>
+        <rect x="428" y="254" width="32" height="12" rx="5" fill="var(--res)"/>
+        <rect x="462" y="237" width="32" height="12" rx="5" fill="var(--res)"/>
+        <g fill="#e07b1a"><rect x="433" y="254" width="3" height="12"/><rect x="439" y="254" width="3" height="12"/><rect x="467" y="237" width="3" height="12"/><rect x="473" y="237" width="3" height="12"/></g>
+        <g fill="#1b1b1b"><rect x="445" y="254" width="3" height="12"/><rect x="479" y="237" width="3" height="12"/></g>
+        <g fill="#6b3f1f"><rect x="453" y="254" width="3" height="12"/><rect x="487" y="237" width="3" height="12"/></g>
+        <!-- servo headers f25–f27, f28–f30 + plugs -->
+        <rect x="470" y="202" width="50" height="14" rx="2" fill="var(--fg)"/>
+        <rect x="521" y="202" width="50" height="14" rx="2" fill="var(--fg)"/>
+        <g fill="var(--pin)"><rect x="475" y="206" width="6" height="6"/><rect x="492" y="206" width="6" height="6"/><rect x="509" y="206" width="6" height="6"/>
+          <rect x="526" y="206" width="6" height="6"/><rect x="543" y="206" width="6" height="6"/><rect x="560" y="206" width="6" height="6"/></g>
+        <path class="jw sig" d="M478 201 V178 M529 201 V178"/><path class="jw pos" d="M495 201 V178 M546 201 V178"/><path class="jw gnd" d="M512 201 V178 M563 201 V178"/>
+        <text class="tag" x="495" y="168" text-anchor="middle" style="font-weight: 500">ch0 pan</text>
+        <text class="tag" x="546" y="168" text-anchor="middle" style="font-weight: 500">ch1 tilt</text>
         <!-- rail jumpers -->
         <path class="cas" d="M104 277 V311"/><path class="jw gnd" d="M104 277 V311"/>
-        <path class="cas" d="M512 277 V328"/><path class="jw pos" d="M512 277 V328"/>
-        <path class="cas" d="M529 277 V311"/><path class="jw gnd" d="M529 277 V311"/>
-        <path class="cas" d="M648 277 V328"/><path class="jw pos" d="M648 277 V328"/>
-        <path class="cas" d="M665 277 V311"/><path class="jw gnd" d="M665 277 V311"/>
-        <!-- capacitor: − leg col 31 (− rail), + leg col 32 (+ rail) -->
-        <path d="M580 311 L583 352 M597 328 L595 352" stroke="var(--muted)" stroke-width="1.5"/>
-        <circle cx="589" cy="364" r="13" fill="var(--fg)"/>
-        <rect x="577" y="356" width="7" height="16" fill="var(--muted)"/>
-        <text class="tag" x="608" y="368">1000 µF, stripe leg in −</text>
-        <!-- supply leads -->
-        <path class="cas" d="M750 311 Q785 298 812 304"/><path class="jw gnd" d="M750 311 Q785 298 812 304"/>
-        <path class="cas" d="M733 328 Q775 350 812 332"/><path class="jw pos" d="M733 328 Q775 350 812 332"/>
-        <rect class="box" x="812" y="290" width="80" height="56" rx="5"/>
-        <text class="lbl" x="820" y="310" style="font-size: 11px">DC socket</text>
-        <text class="sm" x="820" y="326">5 V / 5 A</text>
-        <text class="sm" x="820" y="340">black − · red +</text>
-        <text class="sm" x="785" y="392" text-anchor="end">columns 43–63 not shown</text>
+        <path class="cas" d="M495 277 V328"/><path class="jw pos" d="M495 277 V328"/>
+        <path class="cas" d="M512 277 V311"/><path class="jw gnd" d="M512 277 V311"/>
+        <path class="cas" d="M546 277 V328"/><path class="jw pos" d="M546 277 V328"/>
+        <path class="cas" d="M563 277 V311"/><path class="jw gnd" d="M563 277 V311"/>
+        <!-- capacitor: − leg − rail col 21, + leg + rail col 22 -->
+        <path d="M410 311 L413 352 M427 328 L425 352" stroke="var(--muted)" stroke-width="1.5"/>
+        <circle cx="419" cy="364" r="13" fill="var(--fg)"/>
+        <rect x="407" y="356" width="7" height="16" fill="var(--muted)"/>
+        <text class="tag" x="398" y="368" text-anchor="end">1000 µF, stripe leg in −</text>
+        <!-- supply leads: − rail col 23, + rail col 24 -->
+        <path class="cas" d="M444 311 Q452 372 615 368"/><path class="jw gnd" d="M444 311 Q452 372 615 368"/>
+        <path class="cas" d="M461 328 Q470 396 615 392"/><path class="jw pos" d="M461 328 Q470 396 615 392"/>
+        <rect class="box" x="615" y="352" width="125" height="56" rx="5"/>
+        <text class="lbl" x="623" y="372" style="font-size: 11px">DC socket</text>
+        <text class="sm" x="623" y="388">5 V / 5 A</text>
+        <text class="sm" x="623" y="402">black − · red +</text>
       </svg>
       <div class="legend">
         <span style="--c: var(--pin)">Pico pin / header pin</span>
         <span style="--c: var(--w-sig)">signal jumper</span>
         <span style="--c: var(--w-pos)">5 V jumper / red lead</span>
         <span style="--c: var(--w-gnd)">GND jumper / black lead</span>
+        <span style="--c: var(--res)">330 Ω resistor</span>
         <span style="--c: var(--warn)">✕ leave empty (VBUS, VSYS)</span>
       </div>
     </div>
-    <p>Row letters and the rail order differ between brands. Go by the Pico's pin numbers: pin 1 is next to the USB connector, and pins 1–20 face the rails you use.</p>
+    <p>Row letters and the rail order differ between brands. Go by the Pico's pin numbers (pin 1 is next to the USB connector, pins 1–20 face the rails you use) and the rails' printed colours. Each column's holes f–j are one connection, so the resistor end in i25 reaches the header pin in f25. Rail holes don't line up exactly with the columns on every board: "below column 23" means roughly there.</p>
     <div class="table-wrap">
       <table>
         <thead><tr><th>Part</th><th>From</th><th>To</th><th>Note</th></tr></thead>
         <tbody>
           <tr><td>Pico 2 H</td><td class="mono">h1–h20 (pins 1–20)</td><td class="mono">c1–c20 (pins 40–21)</td><td>Straddles the gap, USB pointing off the left end</td></tr>
           <tr><td>Jumper, black</td><td class="mono">j3 (pin 3 GND)</td><td>bottom − rail</td><td>Shared ground</td></tr>
-          <tr><td>Jumper, orange</td><td class="mono">j4 (pin 4 GP2)</td><td class="mono">j22</td><td>ch0 signal</td></tr>
-          <tr><td>Resistor 330 Ω</td><td class="mono">i22</td><td class="mono">i26</td><td>1 %: orange, orange, black, black, brown (5 %: orange, orange, brown). Either way round</td></tr>
-          <tr><td>Jumper, orange</td><td class="mono">j5 (pin 5 GP3)</td><td class="mono">j30</td><td>ch1 signal</td></tr>
-          <tr><td>Resistor 330 Ω</td><td class="mono">i30</td><td class="mono">i34</td><td></td></tr>
-          <tr><td>3-pin header</td><td class="mono">g26–g28</td><td class="mono">g34–g36</td><td>One piece each, broken off the 1 × 40 strip</td></tr>
-          <tr><td>Jumper, red</td><td class="mono">j27 · j35</td><td>bottom + rail</td><td>Servo 5 V</td></tr>
-          <tr><td>Jumper, black</td><td class="mono">j28 · j36</td><td>bottom − rail</td><td>Servo GND</td></tr>
-          <tr><td>Capacitor 1000 µF</td><td>− leg (stripe): − rail, col 31</td><td>+ leg: + rail, col 32</td><td>Reversed it heats up and can burst</td></tr>
-          <tr><td>DC socket leads (22 AWG)</td><td>black: − rail, col 41</td><td>red: + rail, col 40</td><td>Supply unplugged while wiring</td></tr>
-          <tr><td>Servo plugs</td><td>ch0 (pan) on g26–g28</td><td>ch1 (tilt) on g34–g36</td><td>Orange on col 26/34, brown on col 28/36</td></tr>
+          <tr><td>Jumper, orange</td><td class="mono">j4 (pin 4 GP2)</td><td class="mono">j21</td><td>ch0 signal</td></tr>
+          <tr><td>Jumper, orange</td><td class="mono">j5 (pin 5 GP3)</td><td class="mono">j22</td><td>ch1 signal</td></tr>
+          <tr><td>Resistor 330 Ω</td><td class="mono">i21</td><td class="mono">i25</td><td>ch0. 1 %: orange, orange, black, black, brown (5 %: orange, orange, brown). Either way round</td></tr>
+          <tr><td>Resistor 330 Ω</td><td class="mono">h22</td><td class="mono">h28</td><td>ch1. Lies next to the ch0 resistor; touching is harmless</td></tr>
+          <tr><td>3-pin header</td><td class="mono">f25–f27</td><td class="mono">f28–f30</td><td>One piece each, broken off the 1 × 40 strip</td></tr>
+          <tr><td>Jumper, red</td><td class="mono">j26 · j29</td><td>bottom + rail</td><td>Servo 5 V</td></tr>
+          <tr><td>Jumper, black</td><td class="mono">j27 · j30</td><td>bottom − rail</td><td>Servo GND</td></tr>
+          <tr><td>Capacitor 1000 µF</td><td>− leg (stripe): − rail, below col 21</td><td>+ leg: + rail, below col 22</td><td>Reversed it heats up and can burst</td></tr>
+          <tr><td>DC socket leads (22 AWG)</td><td>black: − rail, below col 23</td><td>red: + rail, below col 24</td><td>Supply unplugged while wiring</td></tr>
+          <tr><td>Servo plugs</td><td>ch0 (pan) on f25–f27</td><td>ch1 (tilt) on f28–f30</td><td>Orange on col 25/28, brown on col 27/30</td></tr>
           <tr class="never"><td>Top rails, a1/b1, a2/b2</td><td colspan="3">Stay empty. Nothing connects to VBUS (pin 40) or VSYS (pin 39).</td></tr>
         </tbody>
       </table>
     </div>
-    <p>Before the first power-up, with the supply unplugged: continuity between the bottom − rail and Pico pin 3, and <em>no</em> continuity between the bottom + rail and Pico pins 39/40.</p>
+    <p>Before the first power-up, with the supply unplugged: continuity between the − rail (both ends: some half-size boards split their rails in the middle) and Pico pin 3; <em>no</em> continuity between the + rail and Pico pins 39/40, nor between the + and − rails.</p>
   </section>
 
   <section aria-labelledby="wiring">
@@ -330,7 +328,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
 
   <section aria-labelledby="firmware">
     <h2 id="firmware">Firmware behaviour</h2>
-    <p>C++ on Pico SDK 2.3.1 in <code>skeleton/firmware/pico/</code>, a separate CMake project built on the Pi. The protocol header <code>shared/include/buddy/motion_protocol.hpp</code> is shared with the motion service.</p>
+    <p>C++ on Pico SDK 2.3.1 in <code>skeleton/firmware/pico-motion/</code>, a separate CMake project built on the Pi. The protocol header <code>shared/include/buddy/motion_protocol.hpp</code> is shared with the motion service.</p>
     <div class="table-wrap">
       <table>
         <thead><tr><th>Topic</th><th>Behaviour</th></tr></thead>
@@ -408,7 +406,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     const sq = (cx, cy) => `<rect x="${cx - 3}" y="${cy - 3}" width="6" height="6" rx="1"/>`;
     const rows = [90, 107, 124, 141, 158, 209, 226, 243, 260, 277], rails = [40, 57, 311, 328];
     let holes = "", pins = "", axes = "";
-    for (let c = 1; c <= 42; c++) {
+    for (let c = 1; c <= 30; c++) {
       for (const y of [...rails, ...rows]) holes += sq(x(c), y);
       if (c <= 20) pins += sq(x(c), 124) + sq(x(c), 243);
       if (c === 1 || c % 5 === 0) axes += `<text class="ax" x="${x(c)}" y="80" text-anchor="middle">${c}</text>`;
