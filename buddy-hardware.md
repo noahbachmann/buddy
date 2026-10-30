@@ -34,7 +34,7 @@ Current hardware and software used for the Buddy desk robot. Roadmap, architectu
 
 | Item | Details |
 |---|---|
-| Hue Bridge | Philips Hue Bridge v2 (square, model BSB002), LAN 192.168.1.219 ⚠️ give it a fixed IP in the router. Buddy talks to it locally (D18) |
+| Hue Bridge | Philips Hue Bridge v2 (square, model BSB002), fixed LAN IP 192.168.1.219 (router). Buddy talks to it locally (D18) |
 | Hue lights | 5 (`deploy/run.sh hue --cmd list`, 2026-10-30): colour "Bedroom Ceiling"; white "Kitchen Ceiling", "Living Room Corner"; colour "Hue color lamp 2" and "3" (in no room). Room "Home" (the three ceiling/corner lights), zones "Bedroom" and "Living Room", each with scenes |
 
 ## Motion (Phase 2, guide 2.2)
