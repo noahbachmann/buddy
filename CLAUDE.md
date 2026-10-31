@@ -49,7 +49,7 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 | 2 – Head | 2.1 printer: guide not written yet. 2.2 motion controller: Pi setup, firmware and flash done; wiring and servo test (guide steps 1–3, 9) open. 2.3 motion service + demo gesture ("cut off Andi's balls"): code and tests done, deployed 2026-10-29 (waits with `connected:false` while the Pico is unplugged); Verify open. 2.4 eyes: postponed (Dev, 2026-10-30). 2.5 head pan/tilt and 2.6 head & body: plans in `docs/plans/` | 🟨 |
 | 3 – Hand | 3.1 – 3.4 | ⬜ |
 | 4 – Arm & vision | 4.1 – 4.3 | ⬜ |
-| 5 – Riftbound | plan in `docs/plans/05-riftbound.md` (#18); 5.1 – 5.6 software against a simulated table now, 5.7+ hardware after Phase 4. 5.1 card data & decks: code done 2026-10-31 (#19), Dev checks both lists against the boxes. 5.2 rules engine (#20): design, state, setup and mulligan done 2026-10-31 (#21); turns, runes, costs, Burn Out and random games done 2026-10-31 (#22); playing cards, chain, priority and cleanups done 2026-10-31 (#23); abilities, targeting, costs and layers done 2026-10-31 (#24); movement, showdowns, combat and scoring done 2026-10-31 (#25) | 🟨 |
+| 5 – Riftbound | plan in `docs/plans/05-riftbound.md` (#18); 5.1 – 5.6 software against a simulated table now, 5.7+ hardware after Phase 4. 5.1 card data & decks: code done 2026-10-31 (#19), Dev checks both lists against the boxes. 5.2 rules engine (#20): design, state, setup and mulligan done 2026-10-31 (#21); turns, runes, costs, Burn Out and random games done 2026-10-31 (#22); playing cards, chain, priority and cleanups done 2026-10-31 (#23); abilities, targeting, costs and layers done 2026-10-31 (#24); movement, showdowns, combat and scoring done 2026-10-31 (#25); game actions and the decks' keywords done 2026-11-01 (#26) | 🟨 |
 
 Legend: ⬜ not started · 🟨 in progress · ✅ done
 
@@ -65,7 +65,8 @@ What's left right now, in order. Update it with the progress table; GitHub issue
 3. **Decisions** in `docs/plans/02-05-head-pan-tilt.md` and `02-06-head-body.md` (end of each), then fill in
    `docs/plans/02-06-cad-prompt.md` (measurements after 2.1 and the parts order).
 4. **Riftbound decklists** (5.1): check `services/game/decks/*.txt` against the two boxes with
-   `deploy/run.sh game --check` (`docs/plans/05-riftbound.md` → Open for Dev).
+   `deploy/run.sh game --check`; also read the Might Bonus off Serrated Dirk and Hextech Gauntlets
+   (`docs/plans/05-riftbound.md` → Open for Dev).
 
 **Claude** (code and guides):
 
@@ -75,7 +76,7 @@ What's left right now, in order. Update it with the progress table; GitHub issue
    `behaviour` service; then body CAD (stage 2). 2.4 eyes later (decide: Pico or Pi drives the display, 2.2 → Notes
    for later phases).
 4. Phase 5 (#18) per `docs/plans/05-riftbound.md`, runs in parallel with the hardware steps: 5.2 rules engine
-   (#20) continues with #26 game actions and the decks' keywords.
+   (#20) continues with #27 hidden information, replay and the 1000-game gate.
 
 Phase 1 → Deferred lists what waits for a reason (wake word CPU, next voice session, custom "Hey buddy", LLM brain).
 

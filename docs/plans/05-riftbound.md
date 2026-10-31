@@ -330,6 +330,32 @@ struct CardRules {
   scoring, 17 turns on average (11–27; burning out takes 70+), 14 moves, 7 showdowns, 3.6 combats per game; VM Release
   0.58 ms per game. Zed wins 68 % (the mirror is 47/53: deck strength in vanilla, not the seat).
 
+**As built (#26, game actions and the decks' keywords).** Decisions:
+
+- **Vanilla mode stays stats-only.** Keywords come from `CardRules::keywords()` alone; parsing `[Assault 2]` out of the
+  text would be a second source and gets dependent keywords wrong (Shadow Fiend's `[Empowered][>] I have [Assault 3]`).
+- Keywords that need nothing but the keyword work from `keywords()`: Accelerate (an optional cost the engine adds,
+  [1] + Power of the unit's domain), Ambush (Reaction timing and the extra locations), Deflect, Vision (an engine
+  trigger, `ability_vision`, that predicts). Keyword abilities with a card-specific cost are an `AbilitySpec` with
+  `builtin` (Empower, Equip): the card gives the cost, the engine resolves. Repeat and Flow are `CardRules` hooks
+  (`repeat_costs()`, `flow_cost()`).
+- Choices follow 355's order now: optional costs, location, targets. A cost can depend on targets (Deflect, Hextech
+  Gauntlets), so `completable()` checks that the remaining targets can be chosen and the total paid before offering a
+  play, an activation, an optional cost or a target (355.16); one look-ahead per slot, cheap for the decks' single-
+  target cards.
+- `Cost::any_power` = [A] (Deflect, Flow, Equip, Gold); payment takes domain Power first, then [A] from any rune. The
+  Recycle choice stays one pick per domain.
+- Tokens are engine cards (`tokens.cpp`: Bird, Shadow Clone, Gold), not cards.json entries (Riftcodex has only some
+  tokens and the effect defines them, 187). Played tokens go through finalization like any card (location choice,
+  Played event); one leaving the board becomes `Removed` for good (186.1), so the object list only grows.
+- Attachment is `Object::attached`; `move_to` carries attached gear along and detaches it when its unit leaves the
+  board, so every way a unit moves is covered. An attached card's rules are inactive (`active_rules`). The Might Bonus
+  (137) is `CardRules::might_bonus()`: Riftcodex doesn't have it.
+- Not built (no deck card needs it): reveal, counter, Equipment effect text, Equipped events, spending buffs.
+- Measurements: vi vs zed vanilla, 1000 seeded games, 0 failures under ASan/UBSan, same game statistics as #25; VM
+  Release 0.63 ms per game (#25: 0.58). Random games over the keyword and cost test decks (40 each) and the ability
+  deck pass every invariant.
+
 ## Hardware notes for Phase 4 (decide there, not now)
 
 - **Scanning:** the code is ~1.5 mm text. The head camera (4.2) won't read that at table distance, so it needs a fixed
@@ -348,4 +374,6 @@ struct CardRules {
   Check them against the boxes: `deploy/run.sh game --check` lists every card with its codes, and
   `deploy/run.sh game --code "<code from the card>"` names one card. Also: which Vi the box marks as the chosen
   champion (the list says Vi, Hotheaded).
+- **Equipment Might Bonus** (for 5.3): Riftcodex has no Might Bonus. Read it off Serrated Dirk and Hextech Gauntlets
+  (lower right corner, "+N").
 - **When to slot Phase 5** relative to 2.x and 3: the software can run in parallel; the hardware waits for 4.1 and 4.2.
