@@ -20,6 +20,8 @@ inline constexpr int player_count = 2;   // Duel only (487.1)
 inline constexpr int victory_score = 8;  // 487.3
 inline constexpr int opening_hand = 4;   // 116
 inline constexpr int max_mulligan = 2;   // 117.1
+inline constexpr int channel_per_turn = 2;  // 315.3
+inline constexpr int domain_count = 6;      // bit order of riftbound::domain
 
 inline PlayerId opponent(PlayerId p) { return static_cast<PlayerId>(1 - p); }
 
@@ -64,11 +66,23 @@ struct Object {
     bool operator==(const Object&) const = default;
 };
 
+// Energy and Power waiting to be spent (165). Empties at the start of each Main Phase and the end of each turn (167).
+struct Pool {
+    std::int16_t energy = 0;
+    std::array<std::int8_t, domain_count> power{};  // by domain index (domain_index())
+    std::int8_t universal = 0;                      // pays any domain (163.2.b)
+    bool operator==(const Pool&) const = default;
+};
+
+// 0 for Fury … 5 for Order; `d` has exactly one domain bit.
+int domain_index(Domains d);
+
 // Zones are id lists. Decks: back = top. Hand, trash, banishment are unordered by rule (108); their order here is
 // just deterministic. Champion and legend zone hold at most one card.
 struct Player {
     std::vector<ObjId> main_deck, rune_deck, hand, trash, banishment, champion, legend;
     std::vector<ObjId> base;  // permanents and runes in this player's base (107.1.c)
+    Pool pool;
     int points = 0;
     std::uint8_t scored = 0;  // battlefields scored this turn, bit per GameState::battlefields index (469)
 
@@ -84,7 +98,8 @@ struct Battlefield {
     bool operator==(const Battlefield&) const = default;
 };
 
-// A card or ability being played (327). #23 adds targets, costs and the resolution step.
+// A card or ability being played (327). Until #23 only permanents, which leave the chain as soon as they're paid
+// (359.2). #23 adds targets, costs and the resolution step.
 struct ChainItem {
     ObjId card = no_obj;  // no_obj: an ability
     ObjRef source;
@@ -98,7 +113,12 @@ std::string_view to_string(Phase phase);
 
 // Rules procedures waiting to run (333). A task that needs a choice opens a Decision and the engine stops; the
 // answer continues it, so no procedure ever waits on the C++ stack.
-enum class TaskKind : std::uint8_t { Mulligan };
+enum class TaskKind : std::uint8_t {
+    Mulligan,
+    Awaken, Beginning, Channel, Draw, Main,  // start of turn 315, main phase 316
+    Priority,                                // open the turn player's priority in the main phase
+    Ending,                                  // 317, then the next player's turn
+};
 struct Task {
     TaskKind kind;
     PlayerId player = 0;
@@ -108,8 +128,10 @@ struct Task {
 // What the engine waits for. Exactly one player decides at a time (303.2). Picking several things is a sequence of
 // Pick actions and Done; picks go in zone order, so each set has one path (no permutations for search).
 enum class DecisionKind : std::uint8_t {
-    None,      // nothing to decide: game over, or the engine ran out of rules (until #22: after setup)
+    None,      // nothing to decide: game over
     Mulligan,  // 117: pick up to 2 hand cards to set aside, then Done
+    Priority,  // 312: until #23 only the turn player's Neutral Open main phase: Play a card or EndTurn (316.9)
+    Recycle,   // paying Power (357): pick the rune to recycle when runes of several domains could (see pay.hpp)
 };
 std::string_view to_string(DecisionKind kind);
 
@@ -120,7 +142,7 @@ struct Decision {
     bool operator==(const Decision&) const = default;
 };
 
-enum class ActionKind : std::uint8_t { Pick, Done };
+enum class ActionKind : std::uint8_t { Pick, Done, Play, EndTurn };
 struct Action {
     ActionKind kind = ActionKind::Done;
     ObjId obj = no_obj;
@@ -137,6 +159,7 @@ struct GameState {
     PlayerId turn_player = 0;
     Phase phase = Phase::Setup;
     std::optional<PlayerId> winner;
+    bool cleanup_due = false;  // 319: the engine runs a Cleanup before its next task
     std::vector<Task> tasks;  // stack: back runs next
     Decision decision;
     Rng rng;
@@ -158,13 +181,19 @@ enum class Pos { Top, Bottom };
 // Moves a card. Into or out of a non-board zone it becomes a new object (124): gen + 1, damage, buffs, statuses and
 // designation cleared, controller back to the owner.
 void move_to(GameState& s, ObjId id, Zone zone, PlayerId controller, std::uint8_t where = 0, Pos pos = Pos::Top);
-// Top of the main deck into the hand. Burn Out (432) when the deck is empty comes with #22; until then it throws.
+// Top of the main deck into the hand. An empty deck burns out (432) first: as often as it takes, so with an empty
+// trash too the opponent ends up winning (432.3.c).
 void draw(GameState& s, PlayerId p, int n);
+// 432.2: trash into the main deck, the opponent gains 1. `in_sequence` counts this action's burn outs: from the 2nd
+// on, reaching the Victory Score wins at once (432.3.c); the first waits for a cleanup (323.1).
+void burn_out(GameState& s, PlayerId p, int in_sequence);
+// 431: top of the rune deck into the base, ready; fewer if the deck runs out.
+void channel(GameState& s, PlayerId p, int n);
 // 417: to the bottom of the owner's main or rune deck; two or more in random order (417.5).
 void recycle(GameState& s, std::vector<ObjId> ids);
 
-// Every object in exactly one zone list, matching its zone/owner/controller/where; occupancy of single-card zones;
-// a sane decision. Empty = fine. The random games (#22) check it after every action.
+// Every object in exactly one zone list (or chain item), matching its zone/owner/controller/where; occupancy of
+// single-card zones; pools ≥ 0; a sane decision. Empty = fine. The random games check it after every action.
 std::vector<std::string> check_invariants(const GameState& s);
 
 } // namespace buddy::riftbound

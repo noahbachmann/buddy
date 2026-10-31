@@ -1,11 +1,16 @@
-// game: Riftbound against Dev (Phase 5, D21). So far the card data and decks (5.1); rules, AI and MQTT follow.
+// game: Riftbound against Dev (Phase 5, D21). So far the card data, decks (5.1) and the rules engine as it grows
+// (5.2); AI and MQTT follow.
 //
 //   buddy-game --deck <name|file> --check   list a deck card by card, check it against the deck rules
 //   buddy-game --check                      the same for every deck in BUDDY_GAME_DECKS
 //   buddy-game --code <code>…               what a printed code is ("OGN-007a/298", "VEN • R01 • EN")
+//   buddy-game --random [--games N] [--seed S] [--deck A --deck B]
+//                                           random-vs-random games in vanilla mode (default: the first two decks),
+//                                           seeds S … S+N-1, invariants checked after every action
 //
 // Config (env, see deploy/config/buddy.env.example): BUDDY_GAME_CARDS, BUDDY_GAME_DECKS
 #include <algorithm>
+#include <chrono>
 #include <filesystem>
 #include <format>
 #include <iostream>
@@ -15,6 +20,7 @@
 #include "buddy/config.hpp"
 #include "riftbound/card_db.hpp"
 #include "riftbound/deck.hpp"
+#include "riftbound/random_game.hpp"
 
 namespace {
 
@@ -95,8 +101,43 @@ int codes(const CardDb& db, int argc, char** argv, int first) {
     return failed == 0 ? 0 : 1;
 }
 
+int random_games(const CardDb& db, const std::vector<fs::path>& paths, int games, std::uint64_t seed) {
+    if (paths.size() < 2) throw std::runtime_error("--random needs two decks");
+    const Deck a = load_deck(db, paths[0]), b = load_deck(db, paths[1]);
+    std::cout << std::format("random games, vanilla: seat 0 {} vs seat 1 {}, seeds {}–{}\n",
+                             paths[0].stem().string(), paths[1].stem().string(), seed, seed + games - 1);
+    std::array<int, player_count> wins{};
+    int failed = 0, min_turns = 0, max_turns = 0;
+    long turns = 0, actions = 0;
+    const auto start = std::chrono::steady_clock::now();
+    for (int i = 0; i < games; ++i) {
+        const RandomGame g = play_random(a, b, seed + i);
+        if (!g.problem.empty()) {
+            std::cerr << std::format("✗ seed {}: {}\n", seed + i, g.problem);
+            ++failed;
+            continue;
+        }
+        ++wins[*g.winner];
+        turns += g.turns;
+        actions += g.actions;
+        min_turns = min_turns == 0 ? g.turns : std::min(min_turns, g.turns);
+        max_turns = std::max(max_turns, g.turns);
+    }
+    const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+    const int ok = games - failed;
+    std::cout << std::format("  wins: seat 0 {}, seat 1 {}; failed {}\n", wins[0], wins[1], failed);
+    if (ok > 0) {
+        std::cout << std::format("  turns: avg {:.1f}, min {}, max {}; actions avg {:.1f}\n",
+                                 static_cast<double>(turns) / ok, min_turns, max_turns,
+                                 static_cast<double>(actions) / ok);
+    }
+    std::cout << std::format("  time: {:.2f} ms per game ({:.0f} ms total)\n", ms / games, ms);
+    return failed == 0 ? 0 : 1;
+}
+
 int usage(const char* argv0) {
-    std::cerr << "usage: " << argv0 << " --deck <name|file> --check | --check | --code <code>…\n"
+    std::cerr << "usage: " << argv0 << " --deck <name|file> --check | --check | --code <code>… |\n"
+              << "       --random [--games N] [--seed S] [--deck A --deck B]\n"
               << "(the game service itself comes in step 5.6)\n";
     return 2;
 }
@@ -105,16 +146,25 @@ int usage(const char* argv0) {
 
 int main(int argc, char** argv) {
     const std::vector<std::string> args(argv + 1, argv + argc);
-    std::string deck;
-    bool check = false;
-    int code_index = 0;
-    for (std::size_t i = 0; i < args.size() && code_index == 0; ++i) {
-        if (args[i] == "--deck" && i + 1 < args.size()) deck = args[++i];
-        else if (args[i] == "--check") check = true;
-        else if (args[i] == "--code" && i + 1 < args.size()) code_index = static_cast<int>(i) + 2;
-        else return usage(argv[0]);
+    std::vector<std::string> deck_args;
+    bool check = false, random = false;
+    int code_index = 0, games = 100;
+    std::uint64_t seed = 1;
+    try {
+        for (std::size_t i = 0; i < args.size() && code_index == 0; ++i) {
+            const bool value = i + 1 < args.size();
+            if (args[i] == "--deck" && value) deck_args.push_back(args[++i]);
+            else if (args[i] == "--check") check = true;
+            else if (args[i] == "--random") random = true;
+            else if (args[i] == "--games" && value) games = std::stoi(args[++i]);
+            else if (args[i] == "--seed" && value) seed = std::stoull(args[++i]);
+            else if (args[i] == "--code" && value) code_index = static_cast<int>(i) + 2;
+            else return usage(argv[0]);
+        }
+    } catch (const std::logic_error&) {  // stoi/stoull
+        return usage(argv[0]);
     }
-    if (code_index == 0 && !check) return usage(argv[0]);
+    if ((code_index != 0) + check + random != 1 || games < 1) return usage(argv[0]);
 
     try {
         const std::string home = env_string("HOME", ".");
@@ -127,8 +177,13 @@ int main(int argc, char** argv) {
         for (const auto& w : db.warnings()) std::cerr << "  ⚠ " << w << "\n";
         if (code_index != 0) return codes(db, argc, argv, code_index);
 
+        std::vector<fs::path> paths;
+        for (const auto& d : deck_args) paths.push_back(deck_path(d, decks));
+        if (paths.empty()) paths = all_decks(decks);
+        if (random) return random_games(db, paths, games, seed);
+
         bool ok = true;
-        for (const auto& path : deck.empty() ? all_decks(decks) : std::vector{deck_path(deck, decks)}) {
+        for (const auto& path : paths) {
             ok = check_deck(db, path) && ok;
         }
         return ok ? 0 : 1;

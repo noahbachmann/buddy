@@ -17,6 +17,12 @@ GameState game() {
     return new_game(a, b, {.seed = 3, .vanilla = true});
 }
 
+// Zone checks after hand-made moves: those arm a cleanup (319.6) that only the engine's loop would run.
+bool zones_ok(GameState s) {
+    s.cleanup_due = false;
+    return check_invariants(s).empty();
+}
+
 bool contains(const std::vector<ObjId>& list, ObjId id) {
     return std::find(list.begin(), list.end(), id) != list.end();
 }
@@ -37,7 +43,7 @@ TEST(RiftboundState, BoardMovesKeepTheObject) {  // 124: only non-board zone cha
     EXPECT_EQ(s.obj(id).damage, 2);
     EXPECT_TRUE(contains(s.battlefields[1].here, id));
     EXPECT_FALSE(contains(s.player(0).base, id));
-    EXPECT_TRUE(check_invariants(s).empty());
+    EXPECT_TRUE(zones_ok(s));
 
     move_to(s, id, Zone::Trash, 0);
     EXPECT_FALSE(s.alive(ref));
@@ -45,7 +51,23 @@ TEST(RiftboundState, BoardMovesKeepTheObject) {  // 124: only non-board zone cha
     EXPECT_EQ(s.obj(id).buffs, 0);
     EXPECT_FALSE(s.obj(id).exhausted);
     EXPECT_TRUE(contains(s.player(0).trash, id));
-    EXPECT_TRUE(check_invariants(s).empty());
+    EXPECT_TRUE(zones_ok(s));
+}
+
+TEST(RiftboundState, BoardEnterAndLeaveArmACleanup) {  // 319.6
+    GameState s = game();
+    EXPECT_FALSE(s.cleanup_due);
+    const ObjId id = s.player(0).hand.front();
+    move_to(s, id, Zone::Trash, 0);
+    EXPECT_FALSE(s.cleanup_due);
+    move_to(s, id, Zone::Base, 0);
+    EXPECT_TRUE(s.cleanup_due);
+    EXPECT_FALSE(check_invariants(s).empty());  // a decision is open: the engine must clean up first
+    s.cleanup_due = false;
+    move_to(s, id, Zone::Battlefield, 0, 1);
+    EXPECT_FALSE(s.cleanup_due);  // moves on the board: 319.8 comes with movement (#25)
+    move_to(s, id, Zone::Hand, 0);
+    EXPECT_TRUE(s.cleanup_due);
 }
 
 TEST(RiftboundState, NonBoardZonesAreTheOwners) {  // 056, 107.1.c
@@ -57,7 +79,7 @@ TEST(RiftboundState, NonBoardZonesAreTheOwners) {  // 056, 107.1.c
     move_to(s, id, Zone::Hand, 1);  // "to its controller's hand" still lands in the owner's
     EXPECT_TRUE(contains(s.player(0).hand, id));
     EXPECT_EQ(s.obj(id).controller, 0);
-    EXPECT_TRUE(check_invariants(s).empty());
+    EXPECT_TRUE(zones_ok(s));
 }
 
 TEST(RiftboundState, RecycleRunesToTheRuneDeck) {  // 417.1.b
@@ -69,7 +91,7 @@ TEST(RiftboundState, RecycleRunesToTheRuneDeck) {  // 417.1.b
     recycle(s, {rune, card});
     EXPECT_EQ(s.player(1).rune_deck.front(), rune);
     EXPECT_EQ(s.player(1).main_deck.front(), card);
-    EXPECT_TRUE(check_invariants(s).empty());
+    EXPECT_TRUE(zones_ok(s));
 }
 
 TEST(RiftboundState, InvariantsCatchBrokenZones) {

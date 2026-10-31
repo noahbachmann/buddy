@@ -167,14 +167,14 @@ TEST(RiftboundMulligan, KeepOrSetAsideUpToTwo) {  // 117
     EXPECT_EQ(s.obj(hand[1]).gen, 3);  // hand → set aside → deck; drawing made it 1
     EXPECT_TRUE(check_invariants(s).empty());
 
-    // then the other player (117: in turn order), then setup is over: turns follow with #22
+    // then the other player (117: in turn order), then turn 1 starts
     EXPECT_EQ(s.decision.kind, DecisionKind::Mulligan);
     EXPECT_EQ(s.decision.player, opponent(first));
     const auto other = s.player(opponent(first)).hand;
     keep(s);
     EXPECT_EQ(s.player(opponent(first)).hand, other);
-    EXPECT_EQ(s.decision.kind, DecisionKind::None);
-    EXPECT_TRUE(legal_actions(s).empty());
+    EXPECT_EQ(s.decision.kind, DecisionKind::Priority);
+    EXPECT_EQ(s.turn, 1);
     EXPECT_THROW(keep(s), IllegalAction);
 }
 
@@ -197,7 +197,7 @@ TEST(RiftboundMulligan, RandomChoicesKeepInvariants) {
     for (std::uint64_t seed = 0; seed < 200; ++seed) {
         GameState s = seed % 2 ? real_game(seed) : simple_game(seed);
         Rng pick(seed);
-        for (int steps = 0; s.decision.kind != DecisionKind::None; ++steps) {
+        for (int steps = 0; s.decision.kind == DecisionKind::Mulligan; ++steps) {
             ASSERT_LT(steps, 20);
             const auto actions = legal_actions(s);
             ASSERT_FALSE(actions.empty());
@@ -205,9 +205,10 @@ TEST(RiftboundMulligan, RandomChoicesKeepInvariants) {
             const auto problems = check_invariants(s);
             ASSERT_TRUE(problems.empty()) << seed << ": " << problems.front();
         }
-        for (PlayerId p = 0; p < player_count; ++p) {
-            EXPECT_EQ(s.player(p).hand.size(), 4u);
-            EXPECT_EQ(s.player(p).main_deck.size(), 35u);
-        }
+        const PlayerId first = s.first_player, second = opponent(first);
+        EXPECT_EQ(s.player(first).hand.size(), 5u);  // + turn 1's draw
+        EXPECT_EQ(s.player(first).main_deck.size(), 34u);
+        EXPECT_EQ(s.player(second).hand.size(), 4u);
+        EXPECT_EQ(s.player(second).main_deck.size(), 35u);
     }
 }

@@ -31,7 +31,7 @@ public:
 
 // Setup 110–117 with Duel's 487.5 for seats 0 and 1: legends and chosen champions in their zones, one random
 // battlefield each (the other two removed), decks shuffled, random first player, everyone draws 4, then stops at the
-// first player's mulligan. Throws std::runtime_error naming every unimplemented card (not with options.vanilla).
+// first player's mulligan. After both mulligans turn 1 starts (315). Throws std::runtime_error naming every unimplemented card (not with options.vanilla).
 GameState new_game(const Deck& seat0, const Deck& seat1, const GameOptions& options);
 
 // Everything decision.player may do now, in a fixed order; empty when nothing is to be decided.
@@ -39,7 +39,13 @@ std::vector<Action> legal_actions(const GameState& s);
 // Answers the decision and runs the engine to the next one. Throws IllegalAction (state unchanged).
 void apply(GameState& s, const Action& action);
 
-// "set aside Blade Twirler", "done": for logs, tests and the panel.
+// 649–651: any player, any time (not an Action: it doesn't wait for a decision). The other player wins.
+void concede(GameState& s, PlayerId p);
+
+// Cards `p` could play from hand at this moment: until #23 units and gear (permanents, 359.2), when payable.
+bool playable(const GameState& s, PlayerId p, ObjId id);
+
+// "set aside Blade Twirler", "play Blade Twirler", "end turn": for logs, tests and the panel.
 std::string describe(const GameState& s, const Action& action);
 
 } // namespace buddy::riftbound

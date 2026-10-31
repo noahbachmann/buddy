@@ -5,6 +5,8 @@ add_library(riftbound STATIC
     riftbound/code.cpp
     riftbound/deck.cpp
     riftbound/engine.cpp
+    riftbound/pay.cpp
+    riftbound/random_game.cpp
     riftbound/state.cpp
 )
 target_include_directories(riftbound PUBLIC .)
@@ -16,5 +18,6 @@ install(TARGETS buddy-game RUNTIME DESTINATION bin COMPONENT game)
 install(DIRECTORY decks/ DESTINATION share/game/decks COMPONENT game)
 
 buddy_add_tests(game
-    tests/test_card_db.cpp tests/test_code.cpp tests/test_deck.cpp tests/test_setup.cpp tests/test_state.cpp
+    tests/test_card_db.cpp tests/test_code.cpp tests/test_deck.cpp tests/test_pay.cpp tests/test_random.cpp
+    tests/test_setup.cpp tests/test_state.cpp tests/test_turn.cpp
     LIBS riftbound)
