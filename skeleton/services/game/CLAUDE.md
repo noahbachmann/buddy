@@ -32,6 +32,11 @@ Priority actions: `Play` (hand cards `playable()`: type, timing by `turn_state()
 
 ## Where #24 plugs in (grep `#24` in `riftbound/`)
 
+Scope: every ability *kind* of the rules (363–398, durations, layers 475–482 in full order, targeting, cost
+modifiers, 750), generic and with test cards in code, whatever the decks use. The decks' full text is a checklist
+that no shape they need is missing (costs like "Disempower me", Tactical Retreat's replacement), not a limit.
+Not here: keywords neither deck uses and the copy layer's contents (D21; #26 does the decks' keywords).
+
 - Phase-step effects: `run_task` Beginning, Main, Ending; "this turn" expiry in `cleanup(s, true)`; 317.2.f
   (repeat Expiration while items went through FEPR) in the Expiration task.
 - Death triggers: `cleanup()` 323.4 kills via `move_to(Trash)`. Deathknell-style triggers need an event there.
