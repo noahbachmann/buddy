@@ -13,13 +13,6 @@
 
 namespace buddy::riftbound {
 
-// Power is owed in `domains`; 0 = any domain ("rainbow").
-struct Cost {
-    int energy = 0;
-    int power = 0;
-    Domains domains = 0;
-    bool operator==(const Cost&) const = default;
-};
 
 // 131 as printed. ⚠️ cards.json has only the number of Power symbols: they count as the card's domains (any domain
 // for a colorless card). A card whose symbols say otherwise sets its cost in its rules (5.3).

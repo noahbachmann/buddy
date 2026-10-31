@@ -6,12 +6,23 @@
 #include <string>
 
 #include "riftbound/deck.hpp"
+#include "riftbound/rules.hpp"
 
 namespace buddy::riftbound::test {
 
 inline const Card* card(Card c) {
     static std::deque<Card> cards;
     return &cards.emplace_back(std::move(c));
+}
+
+// Rules of a card without text: it runs outside vanilla mode and does nothing.
+inline const CardRules plain_rules{};
+
+// A copy of `c` that runs `rules`.
+inline const Card* with_rules(const Card* c, const CardRules& rules) {
+    Card copy = *c;
+    copy.rules = &rules;
+    return card(std::move(copy));
 }
 
 inline const Card* card(std::string name, CardType type, Domains domains = domain::fury) {
@@ -63,6 +74,18 @@ inline Deck spell_deck(const std::string& prefix) {
     d.main[1] = {spell(prefix + " Spell", 1), 3};
     d.main[2] = {spell(prefix + " Action", 2, Timing::Action), 3};
     d.main[3] = {spell(prefix + " Reaction", 1, Timing::Reaction), 3};
+    return d;
+}
+
+// `d` with plain_rules on every card that has none (basic runes are built in): playable outside vanilla mode.
+inline Deck ruled(Deck d) {
+    const auto fix = [](const Card*& c) {
+        if (c->rules == nullptr && c->type != CardType::Rune) c = with_rules(c, plain_rules);
+    };
+    fix(d.legend);
+    fix(d.champion);
+    for (auto& e : d.main) fix(e.card);
+    for (auto& b : d.battlefields) fix(b);
     return d;
 }
 

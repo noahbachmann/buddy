@@ -20,7 +20,7 @@ struct GameOptions {
     bool vanilla = false;
 };
 
-// Card has rules the engine can run: until 5.3 only the basic runes (164).
+// Card has rules the engine can run: the basic runes (164) and every card with Card::rules (5.3 registers them).
 bool is_implemented(const Card& card);
 
 // A move that legal_actions() doesn't offer right now.
@@ -43,10 +43,10 @@ void apply(GameState& s, const Action& action);
 void concede(GameState& s, PlayerId p);
 
 // Cards `p` could play from hand at this moment: units, gear and spells the turn's state allows (Action 806,
-// Reaction 813), when payable.
+// Reaction 813), the card's own restrictions allow, with enough targets (355.8) and payable without optional costs.
 bool playable(const GameState& s, PlayerId p, ObjId id);
 
-// "set aside Blade Twirler", "play Blade Twirler", "end turn": for logs, tests and the panel.
+// "set aside Blade Twirler", "play Blade Twirler", "choose Vi, Hotheaded", "end turn": for logs, tests and the panel.
 std::string describe(const GameState& s, const Action& action);
 
 } // namespace buddy::riftbound

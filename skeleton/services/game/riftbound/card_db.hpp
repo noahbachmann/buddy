@@ -21,6 +21,8 @@
 
 namespace buddy::riftbound {
 
+class CardRules;  // rules.hpp
+
 enum class CardType { Legend, Unit, Spell, Gear, Rune, Battlefield };
 std::string_view to_string(CardType type);
 
@@ -58,6 +60,7 @@ struct Card {
     std::string text;                 // rules text of the home printing, Riftcodex markup (":rb_might:", "[Shield 2]")
     std::vector<Printing> printings;  // home printing first
     std::string conflict;             // non-empty: printings disagree on type/domains/stats (what differs)
+    const CardRules* rules = nullptr; // what the engine runs; nullptr = not implemented (D21). Static, never freed
 
     const Printing& home() const { return printings.front(); }
     bool has_tag(std::string_view tag) const;

@@ -59,11 +59,6 @@ PlayerId chain_priority(const GameState& s) {
     return static_cast<PlayerId>((s.chain.back().controller + s.passes) % player_count);
 }
 
-int might(const GameState& s, ObjId id) {
-    const Object& o = s.obj(id);
-    return o.card->might.value_or(0) + o.buffs;
-}
-
 bool lethal_damage(const GameState& s, ObjId id) {
     const Object& o = s.obj(id);
     return o.damage > 0 && o.damage >= might(s, id);
@@ -75,8 +70,73 @@ std::string_view to_string(DecisionKind kind) {
         case DecisionKind::Mulligan: return "mulligan";
         case DecisionKind::Priority: return "priority";
         case DecisionKind::Recycle: return "recycle";
+        case DecisionKind::Choose: return "choose";
     }
     return "?";
+}
+
+std::string_view to_string(Purpose purpose) {
+    switch (purpose) {
+        case Purpose::None: return "none";
+        case Purpose::Target: return "target";
+        case Purpose::May: return "may";
+        case Purpose::OptionalCost: return "optional cost";
+        case Purpose::Discard: return "discard";
+        case Purpose::RecycleTrash: return "recycle from trash";
+        case Purpose::TriggerOrder: return "trigger order";
+        case Purpose::Effect: return "effect";
+    }
+    return "?";
+}
+
+std::string_view to_string(Keyword k) {
+    switch (k) {
+        case Keyword::Accelerate: return "Accelerate";
+        case Keyword::Ambush: return "Ambush";
+        case Keyword::Assault: return "Assault";
+        case Keyword::Deathknell: return "Deathknell";
+        case Keyword::Deflect: return "Deflect";
+        case Keyword::Ganking: return "Ganking";
+        case Keyword::Hidden: return "Hidden";
+        case Keyword::Shield: return "Shield";
+        case Keyword::Tank: return "Tank";
+        case Keyword::Temporary: return "Temporary";
+        case Keyword::Vision: return "Vision";
+    }
+    return "?";
+}
+
+void Keywords::grant(Keyword k, int n) {
+    auto& v = value[static_cast<int>(k)];
+    const bool sums = k == Keyword::Assault || k == Keyword::Shield;  // 807.2, 814
+    v = static_cast<std::uint8_t>(std::clamp(sums ? v + n : std::max<int>(v, 1), 0, 255));
+}
+
+std::string_view to_string(EventKind kind) {
+    switch (kind) {
+        case EventKind::Played: return "played";
+        case EventKind::Activated: return "activated";
+        case EventKind::Die: return "die";
+        case EventKind::Died: return "died";
+        case EventKind::Damage: return "damage";
+        case EventKind::Discarded: return "discarded";
+        case EventKind::Empowered: return "empowered";
+        case EventKind::Targeted: return "targeted";
+        case EventKind::PhaseStart: return "phase start";
+    }
+    return "?";
+}
+
+Cost operator+(Cost a, const Cost& b) {
+    if (a.power == 0 && b.power > 0) a.domains = b.domains;
+    a.energy += b.energy;
+    a.power += b.power;
+    a.discard = static_cast<std::uint8_t>(a.discard + b.discard);
+    a.recycle_trash = static_cast<std::uint8_t>(a.recycle_trash + b.recycle_trash);
+    a.exhaust_self = a.exhaust_self || b.exhaust_self;
+    a.kill_self = a.kill_self || b.kill_self;
+    a.disempower_self = a.disempower_self || b.disempower_self;
+    return a;
 }
 
 int domain_index(Domains d) {
@@ -121,7 +181,7 @@ void move_to(GameState& s, ObjId id, Zone zone, PlayerId controller, std::uint8_
         ++o.gen;
         o.damage = 0;
         o.buffs = 0;
-        o.exhausted = o.stunned = o.facedown = false;
+        o.exhausted = o.stunned = o.facedown = o.empowered = false;
         o.designation = Designation::None;
         controller = on_board(zone) ? controller : o.owner;
     }
@@ -263,7 +323,25 @@ std::vector<std::string> check_invariants(const GameState& s) {
             problems.push_back("pending chain item below a finalized one (337.1.b)");
         }
     }
+    if (std::count_if(s.chain.begin(), s.chain.end(), [](const ChainItem& c) { return c.resolving; }) > 1) {
+        problems.push_back("two chain items resolving at once");
+    }
+    for (const ChainItem& item : s.chain) {
+        if (item.resolving && !item.finalized) problems.push_back("pending chain item resolving");
+    }
+    if (d.kind == DecisionKind::Choose) {
+        if (d.min > d.max || d.max > d.options.size() || d.chosen.size() > d.max) {
+            problems.push_back("choose decision out of bounds");
+        }
+        for (std::size_t i = 1; i < d.chosen.size(); ++i) {
+            if (d.chosen[i] <= d.chosen[i - 1]) problems.push_back("choose picks out of order");
+        }
+    }
     if (d.kind == DecisionKind::Priority) {
+        if (!s.triggered.empty()) problems.push_back("priority with triggers not on the chain (383.3)");
+        if (std::any_of(s.chain.begin(), s.chain.end(), [](const ChainItem& c) { return c.resolving; })) {
+            problems.push_back("priority while an item resolves");
+        }
         if (s.chain.empty() && d.player != s.turn_player) problems.push_back("open-state priority off turn (316.5.b)");
         if (!s.chain.empty() && d.player != chain_priority(s)) problems.push_back("priority with the wrong player");
         if (std::any_of(s.chain.begin(), s.chain.end(), [](const ChainItem& c) { return !c.finalized; })) {
@@ -271,7 +349,10 @@ std::vector<std::string> check_invariants(const GameState& s) {
         }
         if (s.passes >= player_count) problems.push_back("priority after everyone passed (339.1)");
     }
-    if (d.kind != DecisionKind::None && s.cleanup_due) problems.push_back("decision open before a due cleanup");
+    const bool resolving = std::any_of(s.chain.begin(), s.chain.end(), [](const ChainItem& c) { return c.resolving; });
+    if (d.kind != DecisionKind::None && s.cleanup_due && !resolving) {  // 321: none inside a resolution
+        problems.push_back("decision open before a due cleanup");
+    }
     if (!s.winner && d.kind == DecisionKind::None) problems.push_back("nothing to decide in a running game");
     return problems;
 }
