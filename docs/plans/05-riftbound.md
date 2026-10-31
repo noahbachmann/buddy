@@ -189,6 +189,22 @@ number.
 - Hidden information: the state is the referee's full truth. Per-player views and the AI's determinization come with
   #27.
 
+**Payment** (`pay.hpp`, 357, 445): the player picks *what* to play; the engine pays, so costs don't multiply the
+action list. `Play` is offered only when the cost is payable (pool + runes). Then, fixed:
+
+1. The pool first (it empties anyway, 167): Energy; Power of a matching domain, then universal.
+2. Power still owed: recycle runes of a matching domain (164.2.b), exhausted before ready ones (a ready rune can still
+   give [1] this turn).
+3. Energy still owed: exhaust ready runes (164.2.a), the ones about to be recycled first (one rune gives [1], then its
+   Power), then base order.
+
+The one real choice is the domain when runes of more than one matching domain could pay (dual-domain cards like
+Death Mark, any-domain costs): a `Recycle` decision, one `Pick` per candidate domain (the rune step 2 would take),
+domains in non-decreasing order and only picks that keep the rest payable, so each set of runes has one path. One
+candidate = no decision. Which ready runes get exhausted never matters to the rules, so it's never asked. ⚠️
+`cards.json` gives only the number of Power symbols: they count as the card's domains (any domain for a colorless
+card); a card printed otherwise sets its cost in its rules (5.3). Add abilities on other cards (gear) join with #24.
+
 **Tasks: HOT FEPR (334)**
 
 - `tasks` is a stack (back runs next; a sequence is pushed in reverse). The loop: run tasks until a decision opens,
@@ -244,8 +260,21 @@ struct CardRules {
 
 **Built in #21:** state, `move_to`/`draw`/`recycle`, setup 110–116 with Duel's 487.5 (one random battlefield per
 player, the other two `Removed`), random first player, mulligan 117 (set aside, draw, recycle in random order) as one
-decision per player in turn order. After both mulligans the engine stops with no decision on turn 0: turns follow
-with #22.
+decision per player in turn order.
+
+**Built in #22:** turns as tasks: Awaken (ready the turn player's board), Beginning (hold scoring waits for #25),
+Channel 2 (+1 on turn 2, 487.7; fewer when the rune deck runs out), Draw 1, Main (pools empty, then `Priority`:
+`Play` a unit or gear from hand, or `EndTurn`), Ending (heal units, pools empty, next player). Units enter the base
+exhausted, gear ready (359.2), straight off the chain once paid; spells wait for #23. Burn Out (432) inside `draw()`:
+trash recycled, the opponent +1, repeated while the deck stays empty; from the second burn out in a row the Victory
+Score wins at once (432.3.c). `cleanup_due` is set by phase changes, board enter/leave and exhausting; the loop runs a
+cleanup before the next task, so far only the win check (323.1: ≥ 8 and more than the opponent). `concede(s, p)`
+works any time and is not an `Action`. `play_random()` (`random_game.hpp`) plays both seats uniformly at random,
+checks `check_invariants()` (now also pools ≥ 0, chain items, no decision before a due cleanup), a constant object
+count, and at each turn's first priority that Awaken readied everything and the pools are empty.
+`buddy-game --random --games N --seed S [--deck A --deck B]`: vi vs zed, 1000 games 0.5 ms each on the Pi, the same
+results as on the VM. Every vanilla game lasts 71 turns: without scoring, the deck runs out and the empty trash burns
+out to 8 (decided by who goes first).
 
 ## Hardware notes for Phase 4 (decide there, not now)
 
