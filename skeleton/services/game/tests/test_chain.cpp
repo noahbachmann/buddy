@@ -218,7 +218,7 @@ TEST(RiftboundChain, ShowdownTiming) {  // 308.1.a, 310, 806.1.c.1
     const ObjId unit = to_hand(s, p, kGear);
     EXPECT_TRUE(playable(s, p, plain));
     EXPECT_TRUE(playable(s, p, unit));
-    s.showdown = true;  // set by hand until #25 starts showdowns
+    s.showdown = Showdown{};
     EXPECT_EQ(turn_state(s), TurnState::ShowdownOpen);
     EXPECT_FALSE(playable(s, p, plain));
     EXPECT_FALSE(playable(s, p, unit));

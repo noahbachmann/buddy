@@ -39,6 +39,8 @@ Traits apply_layers(const Object& o, const Keywords& printed, const std::vector<
         if (k == ModKind::Lose) t.keywords.lose(kw);
     });
     t.might += o.buffs;  // layer 4 (479.4.e): increases, then "increased to", then decreases
+    if (o.designation == Designation::Attacker) t.might += t.keywords.get(Keyword::Assault);  // 807.1.c
+    if (o.designation == Designation::Defender) t.might += t.keywords.get(Keyword::Shield);   // 814.1.c
     each([&](ModKind k, Keyword, int v) {
         if (k == ModKind::Might && v > 0) t.might += v;
     });
@@ -285,6 +287,41 @@ void recall(GameState& s, ObjId id) {
     if (!on_board(o.zone) || o.zone == Zone::Base) return;
     move_to(s, id, Zone::Base, o.controller);
     s.cleanup_due = true;
+}
+
+void move(GameState& s, const std::vector<ObjId>& ids, std::uint8_t where, const Cause& cause) {
+    std::vector<Event> moved;
+    for (const ObjId id : ids) {
+        const Object& o = s.obj(id);
+        if (!on_board(o.zone)) continue;
+        Event e = make_event(EventKind::Moved, o.ref(id), o.controller, cause.source);
+        e.place = place_of(s, id);
+        moved.push_back(e);
+        if (where == to_base) {
+            move_to(s, id, Zone::Base, o.controller);
+        } else {
+            move_to(s, id, Zone::Battlefield, o.controller, where);
+        }
+    }
+    s.cleanup_due = true;  // 455
+    if (where != to_base) {
+        for (const Event& e : moved) contest(s, where, e.player);
+    }
+    for (const Event& e : moved) emit(s, e);
+}
+
+void contest(GameState& s, std::uint8_t b, PlayerId p) {
+    Battlefield& bf = s.battlefields.at(b);
+    if (bf.contested || bf.controller == p) return;
+    bf.contested = p;
+    s.cleanup_due = true;
+}
+
+bool has_units_at(const GameState& s, std::uint8_t b, PlayerId p) {
+    const auto& here = s.battlefields.at(b).here;
+    return std::any_of(here.begin(), here.end(), [&](ObjId id) {
+        return s.obj(id).controller == p && s.obj(id).card->type == CardType::Unit;
+    });
 }
 
 void stun(GameState& s, ObjId id) {

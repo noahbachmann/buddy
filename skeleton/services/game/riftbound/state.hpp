@@ -22,6 +22,7 @@ inline constexpr int opening_hand = 4;   // 116
 inline constexpr int max_mulligan = 2;   // 117.1
 inline constexpr int channel_per_turn = 2;  // 315.3
 inline constexpr int domain_count = 6;      // bit order of riftbound::domain
+inline constexpr std::uint8_t to_base = 0xff;  // a location's battlefield index meaning "the base" (moves, 355.2)
 
 inline PlayerId opponent(PlayerId p) { return static_cast<PlayerId>(1 - p); }
 
@@ -49,7 +50,8 @@ bool on_board(Zone zone);
 enum class Designation : std::uint8_t { None, Attacker, Defender };  // during combat (461)
 
 // Keywords as characteristics (801–803). Assault and Shield carry a value that adds up when granted again (807.2);
-// the others are present or not. Their rules come with #25/#26; here they are only granted, lost and checked.
+// the others are present or not. Assault, Shield (layers), Tank (combat damage) and Ganking (Standard Move) work
+// since #25; the rest come with #26.
 enum class Keyword : std::uint8_t {
     Accelerate, Ambush, Assault, Deathknell, Deflect, Ganking, Hidden, Shield, Tank, Temporary, Vision,
 };
@@ -118,6 +120,7 @@ struct Player {
 struct Battlefield {
     ObjId card = no_obj;
     std::optional<PlayerId> controller;  // 190
+    std::optional<PlayerId> contested;   // who applied Contested (190.3.a); staging follows from it (323.7–323.9)
     std::vector<ObjId> here;             // units and gear at this battlefield, every player's
     std::vector<ObjId> facedown;         // 107.3: at most one card
 
@@ -148,7 +151,7 @@ struct Place {
 };
 
 // A game action or change of state that abilities react to (370.1.a). Game actions emit them (actions.hpp); rules
-// read them in triggers() and replace(). #25 adds Moved, Conquer, Hold, Attack, Defend.
+// read them in triggers() and replace().
 enum class EventKind : std::uint8_t {
     Played,      // a card was played: a permanent entered (383.4.a), a spell was finalized
     Activated,   // an activated ability resolved (377.2.a)
@@ -159,6 +162,12 @@ enum class EventKind : std::uint8_t {
     Empowered,   // 827.2.a, 828.1.d
     Targeted,    // `subject` was chosen by the item of `source` (383.4.b)
     PhaseStart,  // `amount` = Phase: Beginning (315.2.a), Main (316), Ending (317.1.a: "at end of turn")
+    Moved,       // `subject` moved (421, 447); `place` = its origin. Not on recalls (458.1)
+    Conquer,     // `player` conquered battlefield `subject` (471.1); `amount` = excess combat damage they assigned
+    Hold,        // `player` held battlefield `subject` (471.2)
+    CombatStart, // combat starts at battlefield `subject` (466.2.b); `player` = the attacker
+    Attack,      // `subject` became an attacker as combat started (466.2.c.3)
+    Defend,      // `subject` became a defender as combat started
 };
 std::string_view to_string(EventKind kind);
 
@@ -167,7 +176,7 @@ struct Event {
     ObjRef subject;        // the object the event is about (the card played, the unit dying, …)
     ObjRef source;         // what caused it: the spell or ability's source, the card that targeted
     PlayerId player = 0;   // who did it: the player playing, discarding; the controller of the dying unit
-    Place place;           // where `subject` was (Die, Died)
+    Place place;           // where `subject` was (Die, Died, Moved: origin) or entered (Played)
     std::int16_t amount = 0;
     bool alone = false;    // Die/Died: no other friendly unit at its place (Loyal Poro, 808)
     bool cancelled = false;  // a replacement replaced it (370.1.a.1): it didn't happen
@@ -208,6 +217,7 @@ struct ChainItem {
     std::uint8_t step = 0;   // finalize (pending) or resolve (finalized) progress
     std::uint8_t sub = 0;    // slot / optional cost being decided; free for resolution helpers
     std::uint8_t paid = 0;   // optional costs paid, bit per CardRules::optional_costs() (355.1.a)
+    std::uint8_t to = to_base;  // a unit's location (355.2): battlefield index or to_base
     Cost cost;               // total cost (356), fixed once determined
     std::vector<Target> targets;
     std::array<std::int16_t, 4> vars{};  // linked instructions' memory during resolution (359.3.e.14)
@@ -227,7 +237,7 @@ struct Trigger {
 
 enum class Duration : std::uint8_t {
     Turn,         // "this turn": expires in the Expiration Step (317.2.c)
-    Combat,       // "this combat" (#25 ends them)
+    Combat,       // "this combat": expires as combat ends (468.7.c)
     WhileSource,  // "as long as …": while the source is the same object on the board
     Zone,         // no duration given (801.3.a.3): while the subject stays the same object
 };
@@ -283,14 +293,45 @@ std::string_view to_string(Phase phase);
 // answer continues it, so no procedure ever waits on the C++ stack.
 enum class TaskKind : std::uint8_t {
     Mulligan,
-    Awaken, Beginning, Channel, Draw, Main,  // start of turn 315, main phase 316
-    Ending,                                  // 317.1 ending step
-    Expiration,                              // 317.2: Ending Special Cleanup, then the next player's turn (317.3)
+    Awaken, Beginning, Hold, Channel, Draw, Main,  // start of turn 315 (Hold = 315.2.b scoring step), main phase 316
+    Ending,                                        // 317.1 ending step
+    Expiration,     // 317.2: Ending Special Cleanup, then the next player's turn (317.3)
+    StandardMove,   // 144: `player` moves units to `where` (a battlefield or to_base); asks which
+    Stage,          // 323.11–323.12: the turn player picks where a staged showdown or combat begins
+    ShowdownEnd,    // 348.2: a non-combat showdown closed
+    CombatDamage,   // 467 + 468.1: assign and deal combat damage, Combat Special Cleanup
+    CombatResult,   // 468.3–468.5: result, establish control
+    CombatEnd,      // 468.7
 };
 struct Task {
     TaskKind kind;
     PlayerId player = 0;
+    std::uint8_t where = 0;  // StandardMove: destination
     bool operator==(const Task&) const = default;
+};
+
+// Combat damage one player assigned to one unit (467.2.c), dealt once both have assigned.
+struct Assigned {
+    ObjId unit = no_obj;
+    std::int16_t amount = 0;
+    bool operator==(const Assigned&) const = default;
+};
+
+// The showdown or combat in progress (341–348, 461–468); a combat is a showdown with `combat` set. While `window` is
+// open the player with focus acts (Play, Activate, Pass); once all passed, the closing steps run as tasks.
+struct Showdown {
+    std::uint8_t where = 0;     // index into GameState::battlefields
+    bool combat = false;
+    bool window = true;
+    PlayerId focus = 0;         // 345, 466.2.c.1.a
+    std::uint8_t passes = 0;    // focus passes in a row (347.2.a)
+    bool pass_focus = false;    // the chain was opened by a play or activation: focus passes when it closes (346.1)
+    PlayerId attacker = 0;      // 466.2.c.1
+    std::int16_t left = -1;     // damage the current assigner still has to assign; -1 = not started
+    std::uint8_t assigners = 0;  // players done assigning, attacker first
+    std::array<std::int16_t, player_count> excess{};  // assigned beyond lethal (Vi's legend, Yeti Brawler)
+    std::vector<Assigned> assigned;
+    bool operator==(const Showdown&) const = default;
 };
 
 // What the engine waits for. Exactly one player decides at a time (303.2). Picking several things is a sequence of
@@ -298,7 +339,8 @@ struct Task {
 enum class DecisionKind : std::uint8_t {
     None,      // nothing to decide: game over
     Mulligan,  // 117: pick up to 2 hand cards to set aside, then Done
-    Priority,  // 312: Play a card, Activate an ability, then EndTurn (Neutral Open, 316.9) or Pass (Closed, 338.1.b)
+    Priority,  // 312: Play, Activate, Move (Neutral Open: Standard Move, 144), then EndTurn (Neutral Open, 316.9) or
+               // Pass (Closed: 338.1.b; Showdown Open: pass focus, 347.2)
     Recycle,   // paying Power (357): pick the rune to recycle when runes of several domains could (see pay.hpp)
     Choose,    // pick min..max of `options` (in their order), then Done; `purpose` says what for
 };
@@ -314,11 +356,16 @@ enum class Purpose : std::uint8_t {
     RecycleTrash,  // a cost: which trash cards to recycle
     TriggerOrder,  // 383.3.d: which of your triggers goes on the chain next
     Effect,        // a choice while resolving (355.18)
+    Location,      // 355.2: where a unit enters (Pick obj = battlefield card, n = index; base: no_obj, to_base)
+    Move,          // 144.3: which units make the Standard Move (one or more)
+    Stage,         // 323.11–323.12: the battlefield where a showdown or combat begins
+    Assign,        // 467.2.c: the unit that gets combat damage next
 };
 std::string_view to_string(Purpose purpose);
 
-enum class ActionKind : std::uint8_t { Pick, Done, Play, EndTurn, Pass, Activate };
-// `n`: Activate = ability index; Pick of a player = the player (obj = no_obj); free for other options.
+enum class ActionKind : std::uint8_t { Pick, Done, Play, EndTurn, Pass, Activate, Move };
+// `n`: Activate = ability index; Pick of a player = the player (obj = no_obj); Move = destination battlefield index
+// (obj = its card) or to_base (obj = no_obj); free for other options.
 struct Action {
     ActionKind kind = ActionKind::Done;
     ObjId obj = no_obj;
@@ -352,7 +399,7 @@ struct GameState {
     // Priority passes in a row on the chain (339): reset when an item is added or leaves. The holder is the newest
     // item's controller (337.4, 340.4) plus this many steps in turn order, so it needs no field of its own.
     std::uint8_t passes = 0;
-    bool showdown = false;  // 308.1: showdown or combat in progress. Only timing reads it until #25 runs them
+    std::optional<Showdown> showdown;  // 308.1, 343: a showdown or combat in progress
     int turn = 0;  // 1 = the first player's first turn
     PlayerId first_player = 0;
     PlayerId turn_player = 0;

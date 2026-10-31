@@ -108,7 +108,7 @@ int random_games(const CardDb& db, const std::vector<fs::path>& paths, int games
                              paths[0].stem().string(), paths[1].stem().string(), seed, seed + games - 1);
     std::array<int, player_count> wins{};
     int failed = 0, min_turns = 0, max_turns = 0;
-    long turns = 0, actions = 0, spells = 0, reactions = 0;
+    long turns = 0, actions = 0, spells = 0, reactions = 0, moves = 0, showdowns = 0, combats = 0, scorings = 0;
     const auto start = std::chrono::steady_clock::now();
     for (int i = 0; i < games; ++i) {
         const RandomGame g = play_random(a, b, seed + i);
@@ -122,6 +122,10 @@ int random_games(const CardDb& db, const std::vector<fs::path>& paths, int games
         actions += g.actions;
         spells += g.spells;
         reactions += g.reactions;
+        moves += g.moves;
+        showdowns += g.showdowns;
+        combats += g.combats;
+        scorings += g.scorings;
         min_turns = min_turns == 0 ? g.turns : std::min(min_turns, g.turns);
         max_turns = std::max(max_turns, g.turns);
     }
@@ -134,6 +138,9 @@ int random_games(const CardDb& db, const std::vector<fs::path>& paths, int games
                                  static_cast<double>(actions) / ok);
         std::cout << std::format("  per game: {:.1f} spells, {:.1f} cards played on a chain\n",
                                  static_cast<double>(spells) / ok, static_cast<double>(reactions) / ok);
+        std::cout << std::format("  per game: {:.1f} moves, {:.1f} showdowns ({:.1f} combats), {:.1f} scorings\n",
+                                 static_cast<double>(moves) / ok, static_cast<double>(showdowns) / ok,
+                                 static_cast<double>(combats) / ok, static_cast<double>(scorings) / ok);
     }
     std::cout << std::format("  time: {:.2f} ms per game ({:.0f} ms total)\n", ms / games, ms);
     return failed == 0 ? 0 : 1;

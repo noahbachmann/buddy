@@ -1,6 +1,7 @@
 #include "random_game.hpp"
 
 #include <algorithm>
+#include <bit>
 #include <exception>
 
 #include "engine.hpp"
@@ -20,6 +21,12 @@ std::string check_turn_start(const GameState& s) {
         if (pl.pool != Pool{}) return "rune pool not empty in the main phase";
     }
     return {};
+}
+
+int scored_count(const GameState& s) {
+    int n = 0;
+    for (const Player& pl : s.players) n += std::popcount(pl.scored);
+    return n;
 }
 
 int triggered_on_chain(const GameState& s) {
@@ -56,9 +63,17 @@ RandomGame play_random(const Deck& seat0, const Deck& seat1, std::uint64_t seed,
             }
             result.activations += a.kind == ActionKind::Activate;
             result.choices += s.decision.kind == DecisionKind::Choose;
+            result.moves += a.kind == ActionKind::Move;
             const int before = triggered_on_chain(s);
+            const int scored = scored_count(s);
+            const bool showdown = s.showdown.has_value(), combat = showdown && s.showdown->combat;
             apply(s, a);
             result.triggers += std::max(0, triggered_on_chain(s) - before);
+            // lower bounds: an EndTurn resets the masks before the next Hold, a showdown that ends and the next
+            // one that begins within one apply count once
+            result.scorings += std::max(0, scored_count(s) - scored);
+            result.showdowns += !showdown && s.showdown.has_value();
+            result.combats += !combat && s.showdown && s.showdown->combat;
             ++result.actions;
             result.turns = s.turn;
         }

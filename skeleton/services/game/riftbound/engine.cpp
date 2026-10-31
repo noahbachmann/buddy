@@ -86,8 +86,8 @@ void push_tasks(GameState& s, std::initializer_list<Task> in_order) {
 
 void start_turn(GameState& s) {
     const PlayerId p = s.turn_player;
-    push_tasks(s, {{TaskKind::Awaken, p}, {TaskKind::Beginning, p}, {TaskKind::Channel, p}, {TaskKind::Draw, p},
-                   {TaskKind::Main, p}});
+    push_tasks(s, {{TaskKind::Awaken, p}, {TaskKind::Beginning, p}, {TaskKind::Hold, p}, {TaskKind::Channel, p},
+                   {TaskKind::Draw, p}, {TaskKind::Main, p}});
 }
 
 void enter_phase(GameState& s, Phase phase) {
@@ -99,10 +99,275 @@ void empty_pools(GameState& s) {  // 167
     for (Player& pl : s.players) pl.pool = {};
 }
 
-// A cleanup (323), in the rule's order. Steps for showdowns and combat (323.2, 323.7–323.13) get their logic with
-// #25. `ending` = the Ending Special Cleanup (317.2). Whatever changes re-arms cleanup_due (322; move_to does so for
-// cards leaving the board), so the engine repeats cleanups until one changes nothing.
-void cleanup(GameState& s, bool ending = false) {
+void ask(GameState& s, PlayerId player, Purpose purpose, std::vector<Action> options, int min, int max) {
+    s.decision = {};
+    s.decision.kind = DecisionKind::Choose;
+    s.decision.player = player;
+    s.decision.purpose = purpose;
+    s.decision.options = std::move(options);
+    s.decision.min = static_cast<std::uint8_t>(min);
+    s.decision.max = static_cast<std::uint8_t>(max);
+}
+
+std::vector<Action> take_answer(GameState& s) {
+    auto a = std::move(*s.answer);
+    s.answer.reset();
+    return a;
+}
+
+// ---- Showdowns and combat (341–348, 461–468) ----
+
+bool showdown_at(const GameState& s, std::size_t b) { return s.showdown && s.showdown->where == b; }
+
+// 323.7: a showdown is staged where Contested was applied and the contester still has units; derived, not stored.
+bool showdown_staged(const GameState& s, std::uint8_t b) {
+    const auto& by = s.battlefields[b].contested;
+    return by && !showdown_at(s, b) && has_units_at(s, b, *by);
+}
+
+// 323.8–323.9: a combat is staged where Contested was applied and both players have units.
+bool combat_staged(const GameState& s, std::uint8_t b) {
+    if (!s.battlefields[b].contested || (showdown_at(s, b) && s.showdown->combat)) return false;
+    return has_units_at(s, b, 0) && has_units_at(s, b, 1);
+}
+
+// 323.11–323.12: where the turn player may begin one: staged showdowns without a combat, else staged combats.
+std::vector<std::uint8_t> stage_options(const GameState& s) {
+    std::vector<std::uint8_t> showdowns, combats;
+    for (std::size_t i = 0; i < s.battlefields.size(); ++i) {
+        const auto b = static_cast<std::uint8_t>(i);
+        if (combat_staged(s, b)) combats.push_back(b);
+        else if (showdown_staged(s, b)) showdowns.push_back(b);
+    }
+    return showdowns.empty() ? combats : showdowns;
+}
+
+std::vector<Action> battlefield_options(const GameState& s, const std::vector<std::uint8_t>& where) {
+    std::vector<Action> out;
+    for (const std::uint8_t b : where) out.push_back({ActionKind::Pick, s.battlefields[b].card, b});
+    return out;
+}
+
+// 344–345 and 466: a showdown at `b`, focus to the contester; with `combat` a combat showdown (or the running
+// showdown becomes one, focus kept: 466.2.c.1.b), attacker and defender designated, start-of-combat events.
+void begin(GameState& s, std::uint8_t b, bool combat) {
+    const PlayerId contester = *s.battlefields[b].contested;
+    if (!s.showdown) {
+        s.showdown = Showdown{};
+        s.showdown->where = b;
+        s.showdown->focus = contester;
+    }
+    s.cleanup_due = true;
+    if (!combat) return;
+    Showdown& sd = *s.showdown;
+    sd.combat = true;
+    sd.attacker = contester;
+    Event start = make_event(EventKind::CombatStart, s.obj(s.battlefields[b].card).ref(s.battlefields[b].card), contester);
+    std::vector<Event> events{start};
+    for (const ObjId id : s.battlefields[b].here) {
+        Object& o = s.obj(id);
+        if (o.card->type != CardType::Unit) continue;
+        const bool attacks = o.controller == contester;
+        o.designation = attacks ? Designation::Attacker : Designation::Defender;
+        events.push_back(make_event(attacks ? EventKind::Attack : EventKind::Defend, o.ref(id), o.controller));
+    }
+    for (const Event& e : events) emit(s, e);
+}
+
+// 473: `p` scores battlefield `b` once per turn (472). The final point by Conquer needs every battlefield scored this
+// turn, else a card instead (473.1.b); Hold isn't restricted (473.1.a.1).
+void score(GameState& s, PlayerId p, std::uint8_t b, EventKind how, int excess = 0) {
+    Player& pl = s.player(p);
+    const auto bit = static_cast<std::uint8_t>(1u << b);
+    if (pl.scored & bit) return;
+    pl.scored = static_cast<std::uint8_t>(pl.scored | bit);
+    const auto all = static_cast<std::uint8_t>((1u << s.battlefields.size()) - 1);
+    if (how == EventKind::Conquer && pl.points >= victory_score - 1 && (pl.scored & all) != all) {
+        draw(s, p, 1);
+    } else {
+        ++pl.points;
+    }
+    s.cleanup_due = true;
+    const ObjId card = s.battlefields[b].card;
+    Event e = make_event(how, s.obj(card).ref(card), p);
+    e.amount = static_cast<std::int16_t>(excess);
+    emit(s, e);
+}
+
+// 188, 348.2.a, 468.5: `p` establishes control of `b`; gaining it conquers (471.1).
+void establish_control(GameState& s, std::uint8_t b, PlayerId p, int excess) {
+    Battlefield& bf = s.battlefields[b];
+    bf.contested.reset();
+    s.cleanup_due = true;
+    if (bf.controller == p) return;
+    bf.controller = p;
+    score(s, p, b, EventKind::Conquer, excess);
+}
+
+// The players with units at `b`, in id order.
+std::vector<PlayerId> present(const GameState& s, std::uint8_t b) {
+    std::vector<PlayerId> out;
+    for (PlayerId p = 0; p < player_count; ++p) {
+        if (has_units_at(s, b, p)) out.push_back(p);
+    }
+    return out;
+}
+
+// 347.2: the player with focus passes. Everyone in sequence: the showdown closes and its end runs as tasks (348).
+void pass_focus(GameState& s) {
+    Showdown& sd = *s.showdown;
+    if (++sd.passes < player_count) {
+        sd.focus = opponent(sd.focus);
+        return;
+    }
+    sd.window = false;
+    const PlayerId p = s.turn_player;
+    if (sd.combat) {
+        push_tasks(s, {{TaskKind::CombatDamage, p}, {TaskKind::CombatResult, p}, {TaskKind::CombatEnd, p}});
+    } else {
+        s.tasks.push_back({TaskKind::ShowdownEnd, p});
+    }
+}
+
+// A play or activation in a showdown's window: the passes in sequence start over, and a chain it opens passes focus
+// once it closes (346, 347.1.b). Add abilities don't (346.1).
+void note_play(GameState& s, bool add) {
+    if (!s.showdown || !s.showdown->window) return;
+    s.showdown->passes = 0;
+    if (s.chain.empty() && !add) s.showdown->pass_focus = true;
+}
+
+// ---- Combat damage (467.2) ----
+
+bool designated(const GameState& s, ObjId id, Designation d) {
+    const Object& o = s.obj(id);
+    return o.card->type == CardType::Unit && o.designation == d;
+}
+
+std::vector<ObjId> combatants(const GameState& s, Designation d) {
+    std::vector<ObjId> out;
+    for (const ObjId id : s.battlefields[s.showdown->where].here) {
+        if (designated(s, id, d)) out.push_back(id);
+    }
+    return out;
+}
+
+Designation side(const Showdown& sd, PlayerId p) {
+    return p == sd.attacker ? Designation::Attacker : Designation::Defender;
+}
+
+// 467.2.a–b: a player's damage: their designated units' Might (negative counts as 0, 143.2.c); stunned units add
+// nothing (424.1.b).
+int combat_damage(const GameState& s, PlayerId p) {
+    int total = 0;
+    for (const ObjId id : combatants(s, side(*s.showdown, p))) {
+        if (!s.obj(id).stunned) total += std::max(0, might(s, id));
+    }
+    return total;
+}
+
+// What makes the damage marked on `id` lethal (142.4.b): non-zero, at least its Might.
+int lethal_need(const GameState& s, ObjId id) { return std::max(1, std::max(0, might(s, id)) - s.obj(id).damage); }
+
+// Assignment order: Tank units first (815.1.c.2), then by id.
+int assign_key(const GameState& s, ObjId id) { return (has(s, id, Keyword::Tank) ? 0 : 0x10000) + id; }
+
+struct Candidate {
+    ObjId id;
+    int need;
+    int key;
+    bool tank;
+};
+
+// Can `rem` damage still be assigned to `rest` under the canonical order below without getting stuck?
+bool assignable(int rem, int last, const std::vector<Candidate>& rest) {
+    if (rem == 0 || rest.empty()) return true;
+    const bool tanks = std::any_of(rest.begin(), rest.end(), [](const Candidate& c) { return c.tank; });
+    for (std::size_t i = 0; i < rest.size(); ++i) {
+        const Candidate& c = rest[i];
+        if (tanks && !c.tank) continue;
+        if (c.need > rem) return true;  // takes the rest, not lethal
+        if (c.key > last) {
+            std::vector<Candidate> after = rest;
+            after.erase(after.begin() + static_cast<std::ptrdiff_t>(i));
+            if (assignable(rem - c.need, c.key, after)) return true;
+        }
+    }
+    return false;
+}
+
+// The units `p` may assign damage to next (467.2.c.3–4, 815). Every unit gets lethal damage in full before the next
+// one, the last gets what's left. Only the set of lethal units and the one left short change the outcome, so picks
+// of lethal units go in ascending assign_key order (one path per outcome), and only picks that never get stuck.
+std::vector<Action> assign_options(const GameState& s, PlayerId p) {
+    const Showdown& sd = *s.showdown;
+    int last = -1;
+    std::vector<ObjId> done;
+    for (const Assigned& a : sd.assigned) {
+        if (s.obj(a.unit).controller == p) continue;  // the other player's assignment
+        done.push_back(a.unit);
+        last = assign_key(s, a.unit);
+    }
+    std::vector<Candidate> rest;
+    for (const ObjId id : combatants(s, side(sd, opponent(p)))) {
+        if (std::find(done.begin(), done.end(), id) == done.end()) {
+            rest.push_back({id, lethal_need(s, id), assign_key(s, id), has(s, id, Keyword::Tank)});
+        }
+    }
+    const bool tanks = std::any_of(rest.begin(), rest.end(), [](const Candidate& c) { return c.tank; });
+    std::vector<Action> out;
+    for (std::size_t i = 0; i < rest.size(); ++i) {
+        const Candidate& c = rest[i];
+        if (tanks && !c.tank) continue;
+        bool ok = c.need > sd.left;
+        if (!ok && c.key > last) {
+            std::vector<Candidate> after = rest;
+            after.erase(after.begin() + static_cast<std::ptrdiff_t>(i));
+            ok = assignable(sd.left - c.need, c.key, after);
+        }
+        if (ok) out.push_back({ActionKind::Pick, c.id});
+    }
+    std::sort(out.begin(), out.end(), [](const Action& a, const Action& b) { return a.obj < b.obj; });
+    return out;
+}
+
+void assign_to(GameState& s, ObjId id) {
+    Showdown& sd = *s.showdown;
+    const int amount = std::min<int>(lethal_need(s, id), sd.left);
+    sd.assigned.push_back({id, static_cast<std::int16_t>(amount)});
+    sd.left = static_cast<std::int16_t>(sd.left - amount);
+}
+
+// ---- Movement (144) ----
+
+// `id` can make a Standard Move to `where` for `p` (144.4): ready, base → battlefield, battlefield → base, and with
+// Ganking battlefield → battlefield (810).
+bool can_move(const GameState& s, PlayerId p, ObjId id, std::uint8_t where) {
+    const Object& o = s.obj(id);
+    if (o.card->type != CardType::Unit || !on_board(o.zone) || o.controller != p || o.exhausted) return false;
+    if (o.zone == Zone::Base) return where != to_base;
+    if (o.zone != Zone::Battlefield) return false;
+    return where == to_base || (where != o.where && has(s, id, Keyword::Ganking));
+}
+
+std::vector<Action> movers(const GameState& s, PlayerId p, std::uint8_t where) {
+    std::vector<Action> out;
+    for (ObjId id = 0; id < s.objects.size(); ++id) {
+        if (can_move(s, p, id, where)) out.push_back({ActionKind::Pick, id});
+    }
+    return out;
+}
+
+enum class CleanupKind : std::uint8_t {
+    Normal,
+    Ending,  // 317.2: + heal, "this turn" expiry, stuns, pools
+    Combat,  // 468.1.a: + heal, recall the attackers if defenders remain
+};
+
+// A cleanup (323), in the rule's order, with the Ending and Combat Special Cleanups' steps (317.2, 468.1). Whatever
+// changes re-arms cleanup_due (322; move_to does so for cards leaving the board), so the engine repeats cleanups
+// until one changes nothing.
+void cleanup(GameState& s, CleanupKind kind = CleanupKind::Normal) {
     s.cleanup_due = false;
     for (PlayerId p = 0; p < player_count; ++p) {  // 323.1
         const int points = s.player(p).points;
@@ -111,7 +376,19 @@ void cleanup(GameState& s, bool ending = false) {
             return;
         }
     }
-    // 323.2: combat designations (#25)
+    if (s.showdown && s.showdown->combat) {  // 323.2: designations follow who is at the combat's battlefield
+        const Showdown& sd = *s.showdown;
+        for (ObjId id = 0; id < s.objects.size(); ++id) {
+            Object& o = s.obj(id);
+            if (o.card->type != CardType::Unit || !on_board(o.zone)) continue;
+            const bool here = o.zone == Zone::Battlefield && o.where == sd.where;
+            const Designation want = here ? side(sd, o.controller) : Designation::None;
+            if (o.designation != want) {
+                o.designation = want;
+                s.cleanup_due = true;
+            }
+        }
+    }
 
     // 323.4 (3a): lethal damage kills (429.1.a.2), simultaneously; death triggers queue
     std::vector<ObjId> dead;
@@ -120,20 +397,30 @@ void cleanup(GameState& s, bool ending = false) {
         if (on_board(o.zone) && o.card->type == CardType::Unit && lethal_damage(s, id)) dead.push_back(id);
     }
     if (!dead.empty()) kill_all(s, dead, {});
-    if (ending) {
+    if (kind != CleanupKind::Normal) {
         for (Object& o : s.objects) {
-            if (on_board(o.zone)) o.damage = 0;  // 317.2.b (3c): heal all units
+            if (on_board(o.zone)) o.damage = 0;  // 317.2.b, 468.1.a.1 (3c): heal all units
         }
+    }
+    if (kind == CleanupKind::Ending) {
         expire(s, Duration::Turn);  // 317.2.c (3d)
+        for (Object& o : s.objects) o.stunned = false;  // 424.1.a.2
         for (Player& pl : s.players) pl.scored = 0;
         empty_pools(s);  // 317.2.d (3e)
+    }
+    if (kind == CleanupKind::Combat) {  // 468.1.a.2 (3d): attackers go home if defenders held
+        const auto attackers = combatants(s, Designation::Attacker);
+        if (!combatants(s, Designation::Defender).empty()) {
+            for (const ObjId id : attackers) recall(s, id);
+        }
     }
     prune(s);  // effects and delayed abilities whose objects are gone
 
     // 323.5 (4): a controlled battlefield without its controller's units, in an open state without a showdown there
-    if (!closed(s) && !s.showdown) {
-        for (Battlefield& bf : s.battlefields) {
-            if (!bf.controller) continue;
+    if (!closed(s)) {
+        for (std::size_t b = 0; b < s.battlefields.size(); ++b) {
+            Battlefield& bf = s.battlefields[b];
+            if (!bf.controller || showdown_at(s, b)) continue;
             const bool held = std::any_of(bf.here.begin(), bf.here.end(), [&](ObjId id) {
                 return s.obj(id).controller == *bf.controller && s.obj(id).card->type == CardType::Unit;
             });
@@ -159,7 +446,33 @@ void cleanup(GameState& s, bool ending = false) {
             if (s.battlefields[b].controller != s.obj(id).controller) move_to(s, id, Zone::Trash, s.obj(id).owner);
         }
     }
-    // 323.7–323.13 (6–10): staging showdowns and combats, Contested, the turn player's pick (#25)
+    // 323.10 (8): Contested ends without the contester's units and without a showdown there; 323.10.a: units at a
+    // battlefield their controller doesn't control contest it (turn player first). Staging (323.7–323.9) follows
+    // from Contested: showdown_staged, combat_staged.
+    for (std::size_t i = 0; i < s.battlefields.size(); ++i) {
+        const auto b = static_cast<std::uint8_t>(i);
+        Battlefield& bf = s.battlefields[b];
+        if (showdown_at(s, b)) continue;
+        if (bf.contested && !has_units_at(s, b, *bf.contested)) {
+            bf.contested.reset();
+            s.cleanup_due = true;
+        }
+        for (int k = 0; k < player_count && !bf.contested; ++k) {
+            const auto p = static_cast<PlayerId>((s.turn_player + k) % player_count);
+            if (has_units_at(s, b, p)) contest(s, b, p);
+        }
+    }
+    if (closed(s)) return;
+    if (!s.showdown) {  // 323.11–323.12 (9–10): Neutral Open
+        const auto where = stage_options(s);
+        if (where.size() == 1) {
+            begin(s, where.front(), combat_staged(s, where.front()));
+        } else if (where.size() > 1 && (s.tasks.empty() || s.tasks.back().kind != TaskKind::Stage)) {
+            s.tasks.push_back({TaskKind::Stage, s.turn_player});
+        }
+    } else if (!s.showdown->combat && s.showdown->window && combat_staged(s, s.showdown->where)) {
+        begin(s, s.showdown->where, true);  // 323.13 (10a)
+    }
 }
 
 void phase_start(GameState& s, Phase phase) {  // "at the start of …" (315.2.a, 316) and "at end of turn" (317.1.a)
@@ -185,9 +498,14 @@ void run_task(GameState& s, const Task& task) {
                 }
             }
             return;
-        case TaskKind::Beginning:  // 315.2.a; scoring step: Hold (469) comes with #25
+        case TaskKind::Beginning:  // 315.2.a
             enter_phase(s, Phase::Beginning);
             phase_start(s, Phase::Beginning);
+            return;
+        case TaskKind::Hold:  // 315.2.b: after the beginning step's triggers resolved
+            for (std::size_t b = 0; b < s.battlefields.size(); ++b) {
+                if (s.battlefields[b].controller == p) score(s, p, static_cast<std::uint8_t>(b), EventKind::Hold);
+            }
             return;
         case TaskKind::Channel:  // 315.3, 487.7: the second player's first turn channels one more
             enter_phase(s, Phase::Channel);
@@ -208,7 +526,7 @@ void run_task(GameState& s, const Task& task) {
             s.tasks.push_back({TaskKind::Expiration, p});
             return;
         case TaskKind::Expiration:  // 317.2
-            cleanup(s, true);
+            cleanup(s, CleanupKind::Ending);
             if (s.winner) return;
             if (!s.triggered.empty() || !s.chain.empty()) {  // 317.2.f: after the chain, start the step over
                 s.tasks.push_back({TaskKind::Expiration, p});
@@ -216,6 +534,104 @@ void run_task(GameState& s, const Task& task) {
             }
             s.turn_player = opponent(p);  // 317.3
             start_turn(s);
+            return;
+        case TaskKind::StandardMove: {  // 144
+            std::vector<Action> picks;
+            if (s.answer) {
+                picks = take_answer(s);
+            } else {
+                picks = movers(s, p, task.where);
+                if (picks.size() > 1) {
+                    const int n = static_cast<int>(picks.size());
+                    ask(s, p, Purpose::Move, std::move(picks), 1, n);
+                    s.tasks.push_back(task);
+                    return;
+                }
+            }
+            std::vector<ObjId> ids;
+            for (const Action& a : picks) {
+                ids.push_back(a.obj);
+                exhaust(s, a.obj);  // 144.2, paid simultaneously (144.3.c)
+            }
+            move(s, ids, task.where, {{}, p});
+            return;
+        }
+        case TaskKind::Stage: {  // 323.11–323.12, if still Neutral Open
+            if (closed(s) || s.showdown) return;
+            std::uint8_t b = 0;
+            if (s.answer) {
+                b = take_answer(s).front().n;
+            } else {
+                const auto where = stage_options(s);
+                if (where.empty()) return;
+                if (where.size() > 1) {
+                    ask(s, p, Purpose::Stage, battlefield_options(s, where), 1, 1);
+                    s.tasks.push_back(task);
+                    return;
+                }
+                b = where.front();
+            }
+            begin(s, b, combat_staged(s, b));
+            return;
+        }
+        case TaskKind::ShowdownEnd: {  // 348.2.a: the only player here establishes control (190.3.b: Contested ends)
+            const std::uint8_t b = s.showdown->where;
+            s.showdown.reset();
+            s.cleanup_due = true;
+            const auto here = present(s, b);
+            if (here.size() == 1) establish_control(s, b, here.front(), 0);
+            if (here.empty()) s.battlefields[b].contested.reset();
+            return;
+        }
+        case TaskKind::CombatDamage: {  // 467
+            Showdown& sd = *s.showdown;
+            const bool fight = !combatants(s, Designation::Attacker).empty() &&
+                               !combatants(s, Designation::Defender).empty();
+            while (fight && sd.assigners < player_count) {  // 467.2.c: the attacker first
+                const PlayerId by = sd.assigners == 0 ? sd.attacker : opponent(sd.attacker);
+                if (sd.left < 0) sd.left = static_cast<std::int16_t>(combat_damage(s, by));
+                if (s.answer) assign_to(s, take_answer(s).front().obj);
+                while (sd.left > 0) {
+                    auto options = assign_options(s, by);
+                    if (options.empty()) {  // everyone has lethal damage: the rest is excess (467.2.c.4)
+                        sd.excess[by] = sd.left;
+                        break;
+                    }
+                    if (options.size() > 1) {
+                        ask(s, by, Purpose::Assign, std::move(options), 1, 1);
+                        s.tasks.push_back(task);
+                        return;
+                    }
+                    assign_to(s, options.front().obj);
+                }
+                ++sd.assigners;
+                sd.left = -1;
+            }
+            const std::vector<Assigned> assigned = sd.assigned;
+            for (const Assigned& a : assigned) {  // 467.2.d: dealt simultaneously
+                deal(s, a.unit, a.amount, {{}, opponent(s.obj(a.unit).controller)});
+            }
+            cleanup(s, CleanupKind::Combat);  // 467.3, 468.1: no FEPR in between
+            return;
+        }
+        case TaskKind::CombatResult: {  // 468.3–468.5
+            Showdown& sd = *s.showdown;
+            // both still here: "No Result", Contested stays, so a showdown and combat are staged again once this
+            // one ends (468.3.d.1)
+            const auto here = present(s, sd.where);
+            if (here.size() == 1) establish_control(s, sd.where, here.front(), sd.excess[here.front()]);
+            if (here.empty()) {  // 468.5.b
+                s.battlefields[sd.where].controller.reset();
+                s.battlefields[sd.where].contested.reset();
+                s.cleanup_due = true;
+            }
+            return;
+        }
+        case TaskKind::CombatEnd:  // 468.7
+            for (Object& o : s.objects) o.designation = Designation::None;
+            expire(s, Duration::Combat);
+            s.showdown.reset();
+            s.cleanup_due = true;
             return;
     }
 }
@@ -230,22 +646,6 @@ std::size_t resolving_index(const GameState& s) {
     return static_cast<std::size_t>(it - s.chain.begin());
 }
 
-void ask(GameState& s, PlayerId player, Purpose purpose, std::vector<Action> options, int min, int max) {
-    s.decision = {};
-    s.decision.kind = DecisionKind::Choose;
-    s.decision.player = player;
-    s.decision.purpose = purpose;
-    s.decision.options = std::move(options);
-    s.decision.min = static_cast<std::uint8_t>(min);
-    s.decision.max = static_cast<std::uint8_t>(max);
-}
-
-std::vector<Action> take_answer(GameState& s) {
-    auto a = std::move(*s.answer);
-    s.answer.reset();
-    return a;
-}
-
 // Takes item i off the chain without it ever being finalized (383.3.a.2, 403.4, 405.2): not countered.
 void remove_item(GameState& s, std::size_t i) {
     s.chain.erase(s.chain.begin() + static_cast<std::ptrdiff_t>(i));
@@ -253,7 +653,9 @@ void remove_item(GameState& s, std::size_t i) {
 }
 
 // Finalize steps of a pending item (355–359, 402–406), in ChainItem::step.
-enum FinStep : std::uint8_t { FinMay, FinTargets, FinOptional, FinCost, FinDiscard, FinRecycleTrash, FinRunes };
+enum FinStep : std::uint8_t {
+    FinMay, FinLocation, FinTargets, FinOptional, FinCost, FinDiscard, FinRecycleTrash, FinRunes
+};
 
 // 359: finished. Targeting effects trigger, permanents enter the board, spells and abilities wait for the passes.
 void finished(GameState& s, std::size_t i) {
@@ -277,14 +679,22 @@ void finished(GameState& s, std::size_t i) {
         emit(s, played);
         return;
     }
-    // 337.2, 359.2: a permanent resolves at once. Units enter exhausted unless they enter ready (369.3), gear ready;
-    // both in the base until #25 (355.2 locations)
+    // 337.2, 359.2: a permanent resolves at once, a unit at its chosen location (355.2), gear in the base. Units
+    // enter exhausted unless they enter ready (369.3), gear ready.
+    const bool unit = card.card->type == CardType::Unit;
     s.chain.erase(s.chain.begin() + static_cast<std::ptrdiff_t>(i));
-    move_to(s, done.card, Zone::Base, done.controller);
+    if (unit && done.to != to_base) {
+        move_to(s, done.card, Zone::Battlefield, done.controller, done.to);
+    } else {
+        move_to(s, done.card, Zone::Base, done.controller);
+    }
     const CardRules* rules = rules_of(s, done.card);
     const bool ready = rules != nullptr && rules->enters_ready(s, done.card, done);
-    s.obj(done.card).exhausted = s.obj(done.card).card->type == CardType::Unit && !ready;
-    emit(s, make_event(EventKind::Played, s.obj(done.card).ref(done.card), done.controller));
+    s.obj(done.card).exhausted = unit && !ready;
+    Event e = make_event(EventKind::Played, s.obj(done.card).ref(done.card), done.controller);
+    e.place = place_of(s, done.card);
+    emit(s, e);
+    if (unit && done.to != to_base) contest(s, done.to, done.controller);  // 190.3.a.1
 }
 
 // 337.1, 355–359 for the pending item at `i`: "may", targets, optional costs, total cost, non-standard costs,
@@ -304,6 +714,25 @@ void finalize(GameState& s, std::size_t i) {
                     if (take_answer(s).empty()) {
                         if (spec->per_turn > 0) use(s, item.source, item.ability, -1);  // 386.2.b: not performed
                         remove_item(s, i);
+                        return;
+                    }
+                }
+                item.step = FinLocation;
+                continue;
+            }
+            case FinLocation: {  // 355.2.a: the base or a battlefield the controller controls
+                const bool unit = item.kind == ItemKind::Card && s.obj(item.card).card->type == CardType::Unit;
+                if (unit && s.answer) {
+                    item.to = take_answer(s).front().n;
+                } else if (unit) {
+                    std::vector<std::uint8_t> mine;
+                    for (std::size_t b = 0; b < s.battlefields.size(); ++b) {
+                        if (s.battlefields[b].controller == p) mine.push_back(static_cast<std::uint8_t>(b));
+                    }
+                    if (!mine.empty()) {
+                        auto options = battlefield_options(s, mine);
+                        options.push_back({ActionKind::Pick, no_obj, to_base});
+                        ask(s, p, Purpose::Location, std::move(options), 1, 1);
                         return;
                     }
                 }
@@ -534,6 +963,15 @@ void run(GameState& s) {
             s.decision = decide(DecisionKind::Priority, chain_priority(s));  // 337.4, 339.2, 340.4
             break;
         }
+        if (s.showdown && s.showdown->window) {  // 346, 347: the player with focus
+            Showdown& sd = *s.showdown;
+            if (sd.pass_focus) {
+                sd.pass_focus = false;
+                sd.focus = opponent(sd.focus);
+            }
+            s.decision = decide(DecisionKind::Priority, sd.focus);
+            break;
+        }
         if (!s.tasks.empty()) {
             const Task task = s.tasks.back();
             s.tasks.pop_back();
@@ -541,7 +979,7 @@ void run(GameState& s) {
             continue;
         }
         if (s.phase == Phase::Main && !s.showdown) s.decision = decide(DecisionKind::Priority, s.turn_player);
-        break;  // showdowns' focus (335.1) with #25
+        break;
     }
     if (s.winner) {
         s.decision = {};
@@ -553,6 +991,7 @@ void run(GameState& s) {
 void play(GameState& s, ObjId id) {
     const PlayerId p = s.decision.player;
     s.decision = {};
+    note_play(s, false);
     move_to(s, id, Zone::Chain, p);
     ChainItem item;
     item.card = id;
@@ -567,6 +1006,7 @@ void play(GameState& s, ObjId id) {
 void activate(GameState& s, ObjId source, std::uint8_t ability) {
     const PlayerId p = s.decision.player;
     s.decision = {};
+    note_play(s, rules_of(s, source)->abilities()[ability].add);
     ChainItem item;
     item.source = s.obj(source).ref(source);
     item.controller = p;
@@ -692,7 +1132,16 @@ std::vector<Action> legal_actions(const GameState& s) {
                     if (activatable(s, d.player, id, ab)) actions.push_back({ActionKind::Activate, id, ab});
                 }
             }
-            actions.push_back({closed(s) ? ActionKind::Pass : ActionKind::EndTurn});
+            if (turn_state(s) == TurnState::NeutralOpen && s.phase == Phase::Main) {  // 144.1
+                for (std::size_t b = 0; b <= s.battlefields.size(); ++b) {
+                    const bool base = b == s.battlefields.size();
+                    const auto where = base ? to_base : static_cast<std::uint8_t>(b);
+                    if (!movers(s, d.player, where).empty()) {
+                        actions.push_back({ActionKind::Move, base ? no_obj : s.battlefields[b].card, where});
+                    }
+                }
+            }
+            actions.push_back({closed(s) || s.showdown ? ActionKind::Pass : ActionKind::EndTurn});
             break;
         case DecisionKind::Recycle: {
             const Cost& cost = s.chain.at(pending_index(s)).cost;
@@ -728,9 +1177,16 @@ void apply(GameState& s, const Action& action) {
                 play(s, action.obj);
             } else if (action.kind == ActionKind::Activate) {
                 activate(s, action.obj, action.n);
+            } else if (action.kind == ActionKind::Move) {
+                s.tasks.push_back({TaskKind::StandardMove, s.decision.player, action.n});
+                s.decision = {};
             } else if (action.kind == ActionKind::Pass) {
                 s.decision = {};
-                ++s.passes;  // 338.1.b
+                if (closed(s)) {
+                    ++s.passes;  // 338.1.b
+                } else {
+                    pass_focus(s);
+                }
             } else {
                 s.decision = {};
                 s.tasks.push_back({TaskKind::Ending, s.turn_player});  // 316.9
@@ -783,6 +1239,7 @@ std::string describe(const GameState& s, const Action& action) {
         case ActionKind::Pick:
             if (s.decision.kind == DecisionKind::Mulligan) return "set aside " + name;
             if (s.decision.kind == DecisionKind::Recycle) return "recycle " + name;
+            if (s.decision.purpose == Purpose::Location) return action.obj == no_obj ? "to base" : "to " + name;
             if (action.obj == no_obj) return "pick player " + std::to_string(action.n);
             switch (s.decision.purpose) {
                 case Purpose::May: return "use " + name + "'s ability";
@@ -791,10 +1248,14 @@ std::string describe(const GameState& s, const Action& action) {
                 case Purpose::RecycleTrash: return "recycle " + name;
                 case Purpose::TriggerOrder: return "next on the chain: " + name + "'s ability";
                 case Purpose::Target: return "choose " + name;
+                case Purpose::Move: return "move " + name;
+                case Purpose::Stage: return "begin at " + name;
+                case Purpose::Assign: return "assign damage to " + name;
                 default: return "pick " + name;
             }
         case ActionKind::Play: return "play " + name;
         case ActionKind::Activate: return "use " + name + "'s ability " + std::to_string(action.n);
+        case ActionKind::Move: return "move to " + (action.n == to_base ? std::string("base") : name);
         case ActionKind::EndTurn: return "end turn";
         case ActionKind::Pass: return "pass";
         case ActionKind::Done:

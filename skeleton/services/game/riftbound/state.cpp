@@ -85,6 +85,10 @@ std::string_view to_string(Purpose purpose) {
         case Purpose::RecycleTrash: return "recycle from trash";
         case Purpose::TriggerOrder: return "trigger order";
         case Purpose::Effect: return "effect";
+        case Purpose::Location: return "location";
+        case Purpose::Move: return "move";
+        case Purpose::Stage: return "stage";
+        case Purpose::Assign: return "assign damage";
     }
     return "?";
 }
@@ -123,6 +127,12 @@ std::string_view to_string(EventKind kind) {
         case EventKind::Empowered: return "empowered";
         case EventKind::Targeted: return "targeted";
         case EventKind::PhaseStart: return "phase start";
+        case EventKind::Moved: return "moved";
+        case EventKind::Conquer: return "conquer";
+        case EventKind::Hold: return "hold";
+        case EventKind::CombatStart: return "combat start";
+        case EventKind::Attack: return "attack";
+        case EventKind::Defend: return "defend";
     }
     return "?";
 }
@@ -342,7 +352,11 @@ std::vector<std::string> check_invariants(const GameState& s) {
         if (std::any_of(s.chain.begin(), s.chain.end(), [](const ChainItem& c) { return c.resolving; })) {
             problems.push_back("priority while an item resolves");
         }
-        if (s.chain.empty() && d.player != s.turn_player) problems.push_back("open-state priority off turn (316.5.b)");
+        if (s.chain.empty()) {
+            if (!s.showdown && d.player != s.turn_player) problems.push_back("open-state priority off turn (316.5.b)");
+            if (s.showdown && !s.showdown->window) problems.push_back("open-state priority after the showdown closed");
+            if (s.showdown && d.player != s.showdown->focus) problems.push_back("open-state priority without focus (347)");
+        }
         if (!s.chain.empty() && d.player != chain_priority(s)) problems.push_back("priority with the wrong player");
         if (std::any_of(s.chain.begin(), s.chain.end(), [](const ChainItem& c) { return !c.finalized; })) {
             problems.push_back("priority while a chain item is pending (337.1)");
@@ -354,6 +368,35 @@ std::vector<std::string> check_invariants(const GameState& s) {
         problems.push_back("decision open before a due cleanup");
     }
     if (!s.winner && d.kind == DecisionKind::None) problems.push_back("nothing to decide in a running game");
+    // showdowns and combat (341–348, 461–468); designations are fixed by the next cleanup (323.2)
+    if (s.showdown) {
+        const Showdown& sd = *s.showdown;
+        if (sd.where >= s.battlefields.size()) {
+            problems.push_back("showdown at no battlefield");
+        } else if (sd.combat && !s.cleanup_due) {
+            for (std::size_t id = 0; id < s.objects.size(); ++id) {
+                const Object& o = s.objects[id];
+                if (!on_board(o.zone) || o.card->type != CardType::Unit) continue;
+                const bool here = o.zone == Zone::Battlefield && o.where == sd.where;
+                const Designation want = !here                        ? Designation::None
+                                         : o.controller == sd.attacker ? Designation::Attacker
+                                                                       : Designation::Defender;
+                if (o.designation != want) problems.push_back(o.card->name + " has the wrong combat designation");
+            }
+        }
+    } else {
+        for (const Object& o : s.objects) {
+            if (o.designation != Designation::None) problems.push_back(o.card->name + " designated outside combat");
+        }
+    }
+    for (std::size_t b = 0; b < s.battlefields.size(); ++b) {  // 323.5: lost in the next open cleanup
+        const Battlefield& bf = s.battlefields[b];
+        if (!bf.controller || s.cleanup_due || closed(s) || (s.showdown && s.showdown->where == b)) continue;
+        const bool held = std::any_of(bf.here.begin(), bf.here.end(), [&](ObjId id) {
+            return s.objects[id].controller == *bf.controller && s.objects[id].card->type == CardType::Unit;
+        });
+        if (!held) problems.push_back("battlefield " + std::to_string(b) + " controlled without units (323.5)");
+    }
     return problems;
 }
 

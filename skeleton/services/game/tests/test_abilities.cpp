@@ -1100,7 +1100,7 @@ TEST(RiftboundCosts, AccelerateOnlyWhenPayable) {  // 805, 355.16
 
 TEST(RiftboundRandom, AbilityDecks) {  // invariants after every action, outside vanilla mode
     int activated = 0, triggered = 0, choices = 0;
-    for (std::uint64_t seed = 0; seed < 20; ++seed) {  // ~0.7 s each under ASan
+    for (std::uint64_t seed = 0; seed < 60; ++seed) {  // ~50 ms each under ASan: games end by scoring (#25)
         const RandomGame g = play_random(ability_deck(), ability_deck(), seed, 100000, false);
         ASSERT_TRUE(g.problem.empty()) << "seed " << seed << ": " << g.problem;
         EXPECT_TRUE(g.winner.has_value());
@@ -1108,8 +1108,8 @@ TEST(RiftboundRandom, AbilityDecks) {  // invariants after every action, outside
         triggered += g.triggers;
         choices += g.choices;
     }
-    std::cout << "20 games: " << activated << " activations, " << triggered << " triggers, " << choices << " choices\n";
-    EXPECT_GT(activated, 1000);
-    EXPECT_GT(triggered, 1000);
+    std::cout << "60 games: " << activated << " activations, " << triggered << " triggers, " << choices << " choices\n";
+    EXPECT_GT(activated, 200);
+    EXPECT_GT(triggered, 200);
     EXPECT_GT(choices, 1000);
 }

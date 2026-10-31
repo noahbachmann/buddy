@@ -24,6 +24,10 @@ struct RandomGame {
     int activations = 0;  // activated abilities used
     int triggers = 0;     // triggered abilities that went on the chain
     int choices = 0;      // Choose decisions answered (targets, may, costs, order, effects)
+    int moves = 0;        // Standard Moves
+    int showdowns = 0;    // showdowns begun, combats included (lower bound, see play_random)
+    int combats = 0;
+    int scorings = 0;     // battlefields conquered or held (469; lower bound)
     std::string problem;  // first failed check: "turn 12, action 87 (play Blade Twirler): …"; empty = fine
 };
 

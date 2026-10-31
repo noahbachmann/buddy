@@ -18,8 +18,8 @@ struct Cause {
 
 // ---- Layers (475–482) ----
 // Printed might and keywords, then until nothing new applies (478): layer 2 base might, layer 3 keyword grants and
-// losses (timestamp order: passives by source, then continuous effects), layer 4 increases (buffs, +N), "increased
-// to N" (depends on the increases, 481), decreases. Objects a passive reads are evaluated first (478.1.a); a loop
+// losses (timestamp order: passives by source, then continuous effects), layer 4 increases (buffs, +N, Assault while
+// an attacker 807.1.c, Shield while a defender 814.1.c), "increased to N" (depends on the increases, 481), decreases. Objects a passive reads are evaluated first (478.1.a); a loop
 // deeper than a few objects falls back to printed values ⚠️ (478.1.c: no deck has one).
 Traits traits(const GameState& s, ObjId id);
 bool has(const GameState& s, ObjId id, Keyword k);
@@ -50,6 +50,13 @@ void heal(GameState& s, ObjId id);     // 419: all damage
 void exhaust(GameState& s, ObjId id);  // 415
 void ready(GameState& s, ObjId id);    // 416
 void recall(GameState& s, ObjId id);   // 457: to its controller's base, not a move
+// 421, 447–455: moves units (simultaneously, 144.3) to `where` (a battlefield index or to_base), one Moved event each,
+// then contests the destination (452). Callers check the destination is valid (144.4, 451).
+void move(GameState& s, const std::vector<ObjId>& ids, std::uint8_t where, const Cause& cause);
+// 190.3.a.1: `p`'s units became present at battlefield `b`: Contested, unless it already is or `p` controls it.
+void contest(GameState& s, std::uint8_t b, PlayerId p);
+// Units `p` controls at battlefield `b`.
+bool has_units_at(const GameState& s, std::uint8_t b, PlayerId p);
 void stun(GameState& s, ObjId id);     // 424
 bool buff(GameState& s, ObjId id);     // 427: +1 buff if it has none; false if it had one
 void discard(GameState& s, ObjId id, const Cause& cause);  // 423: hand → trash
@@ -64,7 +71,7 @@ void give_might(GameState& s, ObjId subject, int delta, ObjRef source, Duration 
                 std::optional<int> minimum = std::nullopt);
 // "Double its Might": +its current Might, at least 0 (479.4.c).
 void double_might(GameState& s, ObjId subject, ObjRef source, Duration duration);
-// Ends every effect and delayed window of `d` (Turn: 317.2.c; Combat: #25).
+// Ends every effect and delayed window of `d` (Turn: 317.2.c; Combat: 468.7.c).
 void expire(GameState& s, Duration d);
 // Drops effects whose subject changed objects or whose WhileSource source left the board, and delayed abilities
 // watching a subject that's gone. Run by every cleanup.
