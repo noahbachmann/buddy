@@ -278,6 +278,34 @@ struct CardRules {
   turns (spells refill the trash, so each burn out recycles cards and scores only 1), 128 spells and 3 cards played
   onto a chain per game.
 
+**As built (#24, abilities and layers).** The card hooks as sketched above, with these decisions:
+
+- `CardRules` is reached through `Card::rules` (static object, nullptr = not implemented); vanilla mode makes
+  `rules_of()` return nullptr everywhere. Abilities are an indexed `AbilitySpec` table per card (activated, triggered,
+  replacement); chain items, delayed abilities, effects and use counts refer to them by source `ObjRef` + index.
+- One generic `Choose` decision for every choice the rules add (targets, "may", optional costs, cards to discard or
+  recycle as a cost, trigger order, choices while resolving): options in a fixed order, picks ascending. Trigger order
+  is the one place where order matters, so it's one pick per placement.
+- Finalizing and resolving are step machines in `ChainItem` (`step`, `sub`, `vars`); a resolving item stays on the
+  chain (`resolving`) until it's done, cleanups wait for it (321), queued triggers too (402.2).
+- The chain now runs before tasks, so phase triggers (Beginning, Main, Ending) resolve inside their phase; Expiration
+  repeats after a chain (317.2.f).
+- Game actions with events and replacements live in `actions.hpp`; `move_to` stays the raw zone change. Simultaneous
+  kills: all replacements, then every `Die` (own Deathknell, still on the board, "alone" noted), then the moves, then
+  `Died` for everyone else (383.2.c).
+- Layers: each `traits()` call starts from printed values and re-applies until no passive adds anything new (478.2–
+  478.3, each mod once per evaluation). Order: base might, keyword grants/losses (passives, then effects by
+  timestamp), increases, "increased to" (481's dependency), decreases. Non-passive limits are snapshotted at creation
+  (`give_might`). Nothing is cached: 5.4 measures first.
+- Cost: base → `SetBase` mods → additional and optional costs → increases → floored discounts, then the rest (the
+  order a player would pick, 356.4.e) → ≥ 0. Optional costs are offered only when the total stays payable (355.16).
+- Fixed choices where the rules give one to a player, ⚠️ until a card needs them: the order of several replacement
+  effects on one event (372) and "may" replacements (371.2). Gaps that no deck card hits are listed in
+  `services/game/CLAUDE.md`.
+- Measurements, VM Release: vi vs zed vanilla 3.0 ms per game (#23: 2.4); 20 games of the ability test deck (every
+  test card twice, both seats) 25 ms per game, ~150 activations, ~300 triggers and ~480 choices per game, all
+  invariants after every action.
+
 ## Hardware notes for Phase 4 (decide there, not now)
 
 - **Scanning:** the code is ~1.5 mm text. The head camera (4.2) won't read that at table distance, so it needs a fixed
