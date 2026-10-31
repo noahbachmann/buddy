@@ -22,7 +22,7 @@ simulated table with injected scan errors, which Buddy detects and corrects. Bud
 | Prior art | alpharune (github.com/chorlick/alpharune, C++20, OpenSpiel) is a full Riftbound engine but has **no license**. It's reading material only, and none of its code or tests get copied. |
 | Card scope | **Two fixed decks:** the Vi Champion Deck (Unleashed, Fury/Order) and the Zed deck from the Vendetta Showdown Decks (Zed vs Shen). Each is 56 cards: legend, 40-card main deck, 12 runes and 3 battlefields. That's ~50–70 unique cards in total. A card that isn't implemented is a hard error at deck load, never a silent stub. More decks get added one at a time later. |
 | Default seats | Buddy plays Zed and Dev plays Vi; `new` takes both decks, so seats can swap. |
-| Rules version | Core Rules 1.4 ("Vendetta"), from the official Rules Hub (playriftbound.com/en-us/rules-hub). The PDF stays out of Git, and tests cite rule numbers. |
+| Rules version | Core Rules dated **2026-10-09** (with the Radiance patch, effective 2026-10-16), from the official Rules Hub (playriftbound.com/en-us/rules-hub), which only serves the current document. Radiance changes nothing either deck uses. The PDF stays out of Git (file name keeps the date), and tests cite its rule numbers. A new document: diff it, then update. |
 | Card data | Riftcodex REST API (`api.riftcodex.com`, no key; 1451 printings in 8 sets: OGN, OGS, SFD, UNL, VEN, promos). Fetched on the Pi like models, not committed. Signature and alt-art printings (`*`) map to the same game card. |
 
 ## The physical workflow (Dev's design)
@@ -85,8 +85,8 @@ believes in (a misread at draw), table reports the corrected hand; game fixes it
   times per decision.
 - **Partial information:** Dev's hand and deck order are unknown to Buddy. The engine is a referee that only learns
   Dev's cards when they're played or revealed. The AI samples the unknown cards from Dev's decklist (determinization).
-- `legalActions(state, player)` and `apply(state, action)`. Mid-resolution choices ("choose a unit") are actions too,
-  so the AI, the panel and the tests share one loop.
+- `legal_actions(state)` and `apply(state, action)`. Mid-resolution choices ("choose a unit") are actions too,
+  so the AI, the panel and the tests share one loop ("5.2 design" below).
 - Cards: one C++ class per card (`cards/<set>/<num>_<slug>.cpp`) on a small library of effect primitives (deal damage,
   draw, move, buff, ready/exhaust, grant keyword…).
 - Deterministic RNG seeded per game. Seed + action log replays a game exactly, and that's the bug-report format.
@@ -149,6 +149,103 @@ moves ("pass", "I attack the left battlefield") comes after that.
   `deploy.sh game` installs the binary and decks without a unit until 5.6.
 - **Tests:** `services/game/tests/data/cards.json` = every printing of the two decks' cards (text removed); edge
   cases (conflicts, bad entries) inline in `test_card_db.cpp`.
+
+### 5.2 design (#21)
+
+The engine in `services/game/riftbound/`, Core Rules 2026-10-09. Three goals: one loop for the AI, the panel and the
+tests; a state that's cheap to copy (search clones it thousands of times per decision); every rule testable by its
+number.
+
+**State as a value** (`state.hpp`)
+
+- `GameState` = both players' zones, all objects, battlefields, chain, task stack, open decision, turn/phase, winner
+  and the RNG. Copying it copies the game; `operator==` is defaulted, so determinism tests compare whole states.
+- **Objects by index.** `ObjId` indexes `objects` and stays with the physical card for the whole game (table tracks
+  cards by it). `gen` counts the rules objects the card becomes (124: a new object on every move to or from a
+  non-board zone). Targets, effects and delayed abilities hold an `ObjRef {id, gen}`, so "it" stops matching after a
+  zone change for free (`alive()`).
+- **Zones are id lists**, decks with back = top. Non-board zones are the owner's (056), a base is the controller's,
+  a battlefield card sits in `Battlefield::card`, not in a list. `move_to()` is the only way a card changes zones and
+  does 124's reset (damage, buffs, statuses, controller). `check_invariants()`: every card in exactly one list that
+  matches its zone, occupancy of the one-card zones.
+- **The only pointers** go to immutable data: `const Card*` into the `CardDb`, later `const CardRules*` into the card
+  registry. No `std::function`, no `shared_ptr`. Zones are `std::vector` for now: ~110 objects, ~20 small
+  allocations per copy. 5.4 measures before anything smarter (fixed-capacity vectors).
+- **Temporary modifications** ("+2 might this turn", granted keywords) aren't object fields. They're continuous
+  effects in a list on the state, applied through the layers (479, #24), as plain data: source `ObjRef`, rules +
+  ability index, subject `ObjRef`, duration.
+
+**Decisions** (`engine.hpp`)
+
+- `new_game()` runs the engine until someone has to choose and stops at `GameState::decision` (kind, player, picks so
+  far). `legal_actions(s)` lists the options in a fixed order; `apply(s, a)` answers and runs to the next decision.
+  `apply` accepts only what `legal_actions` offers (one source of legality) and throws `IllegalAction` with the state
+  untouched.
+- Every choice is a decision: priority (play, activate, move, pass), targets, modes, payment (which runes), damage
+  assignment, trigger order, mulligan, "may", and the turn player's pick of a battlefield in a cleanup (323.11).
+  One player decides at a time (303.2).
+- `Action` = kind + object (+ a small number later). Choosing several things is Pick … Pick, Done, **in zone order**,
+  so each set has exactly one path: search never explores permutations (mulligan: at most 11 sets).
+- Hidden information: the state is the referee's full truth. Per-player views and the AI's determinization come with
+  #27.
+
+**Tasks: HOT FEPR (334)**
+
+- `tasks` is a stack (back runs next; a sequence is pushed in reverse). The loop: run tasks until a decision opens,
+  the game ends or none are left; then Finalize/Execute/Pass/Resolve on the chain; then priority or the next phase
+  (335).
+- A task that needs a choice opens a decision and returns. The answer continues it from data in the state (the
+  decision, the task's or chain item's step counter), so the engine stops anywhere mid-resolution and resumes. No
+  C++ call stack spans a decision, no coroutines.
+- **Cleanups** (318–323): game actions set a `cleanup_due` flag; the loop runs a Cleanup before the next task. A
+  chain item's resolution is one task, so no cleanup happens inside it (321). A cleanup that changed something
+  re-arms the flag (322).
+
+**Card hooks** (5.3 fills them, #24 dispatches)
+
+One `CardRules` subclass per card, registered by name (`cards/<set>/<num>_<slug>.cpp`). The engine asks it; it holds
+no game state. Shape (exact signatures come with #23/#24):
+
+```cpp
+struct CardRules {
+    virtual void triggers(const Event&, Ctx&, ObjRef self) const;        // triggered (382): queue matching abilities
+    virtual std::span<const Activated> activated() const;                // activated (376): cost, timing, effect
+    virtual void passive(LayerCtx&, ObjRef self) const;                  // passive (363): effects per layer (479)
+    virtual bool replace(Event&, Ctx&, ObjRef self) const;               // replacement (367): rewrite or cancel
+    virtual void modify_cost(Cost&, const PlayCtx&, ObjRef self) const;  // cost modifiers, own and others' (366.2)
+    virtual bool forbids(const Act&, const GameState&, ObjRef self) const;  // "can't" (054: beats "can")
+    virtual bool enters_ready(const GameState&, ObjRef self) const;      // 369.3
+    virtual std::span<const TargetSpec> targets() const;                 // chosen while playing (353)
+    virtual void resolve(Resolution&) const;                             // the effect, as a step machine
+};
+```
+
+- A choice inside an effect: `resolve` asks for a decision and returns; the engine calls it again with the next step
+  and the answer.
+- **Delayed abilities** (390) don't live on a card: a list on the state, plain data (creator, rules + ability index,
+  subject `ObjRef`, window).
+- **Events:** each game action emits typed events (moved, played, damage dealt, conquered, …); triggers are
+  collected and ordered by turn order (303.2.a).
+
+**RNG and replay**
+
+- `Rng` (xoshiro256\*\*, splitmix64 seeding, 32 bytes) is part of the state: shuffles, the battlefields, the first
+  player and random recycle order all draw from it. Own `below()` and Fisher–Yates: std's distributions and
+  `std::shuffle` differ between standard libraries. A test pins the stream.
+- Seed + action list = replay, the bug-report format (#27). The list lives outside the state, so copies stay small.
+
+**Vanilla mode and test cards**
+
+- `GameOptions::vanilla`: stats only, card text ignored. For tests and the random games until 5.3. Otherwise
+  `new_game()` refuses every card without an implementation, all named in one error (D21). Basic runes are built
+  in (164).
+- `tests/test_cards.hpp`: cards defined in code with exactly the stats a test needs, no `cards.json`;
+  `simple_deck("A")` is a legal 56-card deck.
+
+**Built in #21:** state, `move_to`/`draw`/`recycle`, setup 110–116 with Duel's 487.5 (one random battlefield per
+player, the other two `Removed`), random first player, mulligan 117 (set aside, draw, recycle in random order) as one
+decision per player in turn order. After both mulligans the engine stops with no decision on turn 0: turns follow
+with #22.
 
 ## Hardware notes for Phase 4 (decide there, not now)
 

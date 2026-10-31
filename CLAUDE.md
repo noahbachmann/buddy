@@ -48,7 +48,7 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 | 2 – Head | 2.1 printer: guide not written yet. 2.2 motion controller: Pi setup, firmware and flash done; wiring and servo test (guide steps 1–3, 9) open. 2.3 motion service + demo gesture ("cut off Andi's balls"): code and tests done, deployed 2026-10-29 (waits with `connected:false` while the Pico is unplugged); Verify open. 2.4 eyes: postponed (Dev, 2026-10-30). 2.5 head pan/tilt and 2.6 head & body: plans in `docs/plans/` | 🟨 |
 | 3 – Hand | 3.1 – 3.4 | ⬜ |
 | 4 – Arm & vision | 4.1 – 4.3 | ⬜ |
-| 5 – Riftbound | plan in `docs/plans/05-riftbound.md` (#18); 5.1 – 5.6 software against a simulated table now, 5.7+ hardware after Phase 4. 5.1 card data & decks: code done 2026-10-31 (#19), Dev checks both lists against the boxes | 🟨 |
+| 5 – Riftbound | plan in `docs/plans/05-riftbound.md` (#18); 5.1 – 5.6 software against a simulated table now, 5.7+ hardware after Phase 4. 5.1 card data & decks: code done 2026-10-31 (#19), Dev checks both lists against the boxes. 5.2 rules engine (#20): design, state, setup and mulligan done 2026-10-31 (#21) | 🟨 |
 
 Legend: ⬜ not started · 🟨 in progress · ✅ done
 
@@ -73,8 +73,8 @@ What's left right now, in order. Update it with the progress table; GitHub issue
 3. 2.5 / 2.6 per `docs/plans/` once Dev has made their decisions: neck module CAD (prompt stage 1), joint table,
    `behaviour` service; then body CAD (stage 2). 2.4 eyes later (decide: Pico or Pi drives the display, 2.2 → Notes
    for later phases).
-4. Phase 5 (#18) per `docs/plans/05-riftbound.md`, runs in parallel with the hardware steps: 5.2 rules engine core
-   next (5.1 done).
+4. Phase 5 (#18) per `docs/plans/05-riftbound.md`, runs in parallel with the hardware steps: 5.2 rules engine
+   (#20) continues with #22 turn structure, runes and costs, random-game harness.
 
 Phase 1 → Deferred lists what waits for a reason (wake word CPU, next voice session, custom "Hey buddy", LLM brain).
 
@@ -105,7 +105,7 @@ Phase 1 → Deferred lists what waits for a reason (wake word CPU, next voice se
 | D18 | Lights | Philips Hue via the Hue Bridge's local CLIP v2 API (no cloud, no Hue account): service `hue`. TLS verified against Hue's `root-bridge` CA (compiled in) with the bridge id as host name (`CURLOPT_RESOLVE` → bridge IP). Application key from `buddy-hue --pair` (link button) in `~/buddy/config/hue.json`. Live state from the bridge's eventstream → retained `buddy/hue/state`. Hue Bridge Pro would need its newer CA ⚠️. | ✅ |
 | D20 | Nest speakers | The two Nests play over **Bluetooth A2DP** (SBC) from the Pi: Spotify Soloist ("Buddy", hidden; sandboxed, weekly build update) → PipeWire sink `buddy_music` → the selected Nest; Buddy's voice → `buddy_voice` → that Nest while music plays there (60 %), else the Jabra. Service `speakers` (C++, `pactl`/`pw-link`/`bluetoothctl`, event-driven): connects on demand, one Nest at a time (the Pi refuses a second A2DP link), disconnects after 10 min without music, ducks `buddy_music` locally. spotify lists the Nests (`bt:<mac>`) in Soloist's place. Not Cast: Buddy can't start Spotify on an idle Nest (403 without Spotify's own desktop login), Soloist can't cast, Cast streaming lags ≥ 3.9 s (#16). | ✅ |
 | D19 | Web panel | Service `web` (C++, cpp-httplib pinned via FetchContent): static page + HTTP⇄MQTT bridge, no skill logic. Retained `buddy/+/state` and `/status` → browser (server-sent events); `POST /api/cmd/<svc>` → `buddy/<svc>/cmd` (non-planned command topics only). `http://buddy.local:8080`, LAN only, **no login**: Host allowlist (IP, `*.local`, `BUDDY_WEB_HOSTS`) against DNS rebinding, JSON-only same-origin POSTs against other sites in the same browser. Add auth before anything that moves (motion) goes on the page: `"web": false` in topics.json keeps `buddy/motion/cmd` off it. | ✅ |
-| D21 | Card game | Riftbound (Phase 5): **own C++ rules engine, no LLM**: code is the referee, search (heuristic, then ISMCTS over Dev's hidden cards) picks the plays. alpharune is reading material only (no license). Cards scoped to two precons (Vi, Unleashed; Zed, Vendetta); an unimplemented card is a hard error. Rules: Core Rules 1.4. Card data from the Riftcodex API, fetched on the Pi. Services `game` (rules, AI, which cards are in hand) and `table` (physical piles, hand order, scan/recover; sim backend now, hardware later). | ✅ |
+| D21 | Card game | Riftbound (Phase 5): **own C++ rules engine, no LLM**: code is the referee, search (heuristic, then ISMCTS over Dev's hidden cards) picks the plays. alpharune is reading material only (no license). Cards scoped to two precons (Vi, Unleashed; Zed, Vendetta); an unimplemented card is a hard error. Rules: Core Rules 2026-10-09 (the Rules Hub serves only the current document). Card data from the Riftcodex API, fetched on the Pi. Services `game` (rules, AI, which cards are in hand) and `table` (physical piles, hand order, scan/recover; sim backend now, hardware later). | ✅ |
 
 Update this table when a decision is made or changed.
 
@@ -196,7 +196,7 @@ Buddy plays Riftbound against Dev with real cards. Plan, decisions and architect
 | Step | Summary |
 |---|---|
 | 5.1 Card data & decks | Riftcodex → `~/buddy/data/riftbound/cards.json`, printing code parser, the two decklists |
-| 5.2 Rules engine | Core Rules 1.4: turns, runes, units, battlefields, showdowns, combat, chain, scoring; partial information |
+| 5.2 Rules engine | Core Rules 2026-10-09: turns, runes, units, battlefields, showdowns, combat, chain, scoring; partial information |
 | 5.3 Cards | Every card of both decks, one test each |
 | 5.4 AI | Heuristic, then ISMCTS with a time budget on the Pi |
 | 5.5 `table` + sim | Hand pile model (draw on top, play from the bottom), scan/verify/recover, simulated table with faults |
