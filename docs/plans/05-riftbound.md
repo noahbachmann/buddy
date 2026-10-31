@@ -220,7 +220,7 @@ card); a card printed otherwise sets its cost in its rules (5.3). Add abilities 
 **Card hooks** (5.3 fills them, #24 dispatches)
 
 One `CardRules` subclass per card, registered by name (`cards/<set>/<num>_<slug>.cpp`). The engine asks it; it holds
-no game state. Shape (exact signatures come with #23/#24):
+no game state. Shape (exact signatures come with #24):
 
 ```cpp
 struct CardRules {
@@ -275,6 +275,27 @@ count, and at each turn's first priority that Awaken readied everything and the 
 `buddy-game --random --games N --seed S [--deck A --deck B]`: vi vs zed, 1000 games 0.5 ms each on the Pi, the same
 results as on the VM. Every vanilla game lasts 71 turns: without scoring, the deck runs out and the empty trash burns
 out to 8 (decided by who goes first).
+
+**Built in #23:** playing cards 353–359 as a pending chain item: choices (hooks with #24), cost, payment (`Recycle`
+decision), legality (always holds: `legal_actions` offers only legal plays, so 358.5 never undoes), finalized. Units
+and gear leave the chain at once (337.2), spells wait. HOT FEPR in `run()`: cleanup, tasks, Finalize the oldest
+pending item, then priority (`Play` or `Pass`), both passed → the newest item resolves (into the owner's trash; vanilla
+spells do nothing and still resolve, 055.1). No priority field: `GameState::passes` counts passes in a row, the holder
+is the newest item's controller plus that many in turn order (337.4, 340.4: `chain_priority()`). With no chain, the
+turn player's main-phase priority follows from 335 (no Priority task). `turn_state()` (310) and timing: Neutral Open
+anything, Showdown Open Action/Reaction, Closed only Reaction; `GameState::showdown` is only read so far (#25 starts
+showdowns, focus 312.2.b/346 comes with them). `Card::timing` is the card's leading `[Action]`/`[Reaction]` keyword
+(`printed_timing()`, read in vanilla mode too; the fixture keeps just that keyword of the text); granted timing
+(Quick-Draw) comes from card rules (5.3). Cleanup 323 in the rule's order: win check, lethal damage kills (142.4.b,
+Might = printed + buffs until the layers), battlefields without their controller's units lose control (open state),
+gear and runes at battlefields recalled, hidden cards at someone else's battlefield trashed; combat and showdown steps
+(323.2, 323.7–323.13) are named placeholders for #25. A cleanup that changed something re-arms `cleanup_due` (322). The
+Ending phase is two tasks: ending step, then the Ending Special Cleanup (317.2: kill, heal, pools, "this turn") and the
+next turn, so a unit with lethal damage dies before it heals. Random games: `spell_deck()` (Normal, Action, Reaction
+spells) and the real decks (Tactical Retreat, Ruthless Strike …) play spells and reactions; `RandomGame` counts both.
+vi vs zed, 1000 games: 0 failures under ASan/UBSan, 3.1 ms each on the Pi (same results as the VM), 128 spells and 3
+cards played on a chain per game. Games now last ~182 turns: spells refill the trash, so each burn out recycles cards
+and only scores 1.
 
 ## Hardware notes for Phase 4 (decide there, not now)
 
