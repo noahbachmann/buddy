@@ -199,7 +199,8 @@ TEST(RiftboundMove, StandardMoveDestinations) {  // 144.1, 144.4, 810
 TEST(RiftboundMove, SeveralUnitsMoveAsOne) {  // 144.3, 452, 455
     GameState s = started();
     const PlayerId p = s.first_player;
-    const ObjId a = put(s, p, kTwo, Zone::Base), b = put(s, p, kThree, Zone::Base);
+    const ObjId x = put(s, p, kTwo, Zone::Base), y = put(s, p, kThree, Zone::Base);
+    const ObjId a = std::min(x, y), b = std::max(x, y);  // options in id order
     apply(s, move_action(s, 1));
     ASSERT_EQ(s.decision.purpose, Purpose::Move);
     EXPECT_EQ(s.decision.options, picks({a, b}));

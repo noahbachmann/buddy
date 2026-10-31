@@ -26,6 +26,13 @@ std::string_view to_string(Zone zone) {
 
 bool on_board(Zone zone) { return zone == Zone::Base || zone == Zone::Battlefield || zone == Zone::Facedown; }
 
+bool is_public(Zone zone) {
+    switch (zone) {
+        case Zone::MainDeck: case Zone::RuneDeck: case Zone::Hand: case Zone::Facedown: case Zone::Removed: return false;
+        default: return true;
+    }
+}
+
 std::string_view to_string(Phase phase) {
     switch (phase) {
         case Phase::Setup: return "setup";
@@ -206,6 +213,9 @@ void move_to(GameState& s, ObjId id, Zone zone, PlayerId controller, std::uint8_
     o.zone = zone;
     o.controller = controller;
     o.where = where;
+    if (is_public(zone)) o.known = everyone;
+    else if (zone == Zone::Hand) o.known |= 1u << o.owner;
+    else if (zone == Zone::Facedown) o.known |= 1u << controller;
     if (auto* to = zone_list(s, zone, list_player(o), where)) {
         if (pos == Pos::Top) to->push_back(id);
         else to->insert(to->begin(), id);
@@ -232,6 +242,7 @@ ObjId create(GameState& s, const Card* card, PlayerId owner, Zone zone, std::uin
     o.owner = o.controller = owner;
     o.zone = zone;
     o.where = where;
+    o.known = is_public(zone) || card->type == CardType::Battlefield ? everyone : 0;  // 487.5's unused ones: no secret
     if (card->type == CardType::Battlefield) return id;  // its place is Battlefield::card (or Removed), no list
     if (auto* list = zone_list(s, zone, owner, where)) list->push_back(id);
     return id;
@@ -276,9 +287,10 @@ void channel(GameState& s, PlayerId p, int n) {
 void recycle(GameState& s, std::vector<ObjId> ids) {
     s.rng.shuffle(ids);
     for (const ObjId id : ids) {
-        const Object& o = s.obj(id);
+        Object& o = s.obj(id);
         const Zone deck = o.card->type == CardType::Rune ? Zone::RuneDeck : Zone::MainDeck;
         move_to(s, id, deck, o.owner, 0, Pos::Bottom);
+        if (ids.size() > 1) o.known = 0;
     }
 }
 
@@ -300,6 +312,9 @@ std::vector<std::string> check_invariants(const GameState& s) {
                                    std::string(to_string(o.zone)));
             }
             if (!board && o.controller != o.owner) problems.push_back(name + ": " + o.card->name + " controlled");
+            if ((is_public(zone) && o.known != everyone) || (zone == Zone::Hand && !(o.known & 1u << o.owner))) {
+                problems.push_back(name + ": " + o.card->name + " not known to who sees it (128)");
+            }
         }
     };
     for (PlayerId p = 0; p < player_count; ++p) {

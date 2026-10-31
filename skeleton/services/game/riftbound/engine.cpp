@@ -46,14 +46,14 @@ void setup_player(GameState& s, PlayerId p, const Deck& deck) {
     }
     create(s, deck.legend, p, Zone::LegendZone);       // 111
     create(s, deck.champion, p, Zone::ChampionZone);   // 112
-    for (const auto& e : deck.main) {
-        for (int i = 0; i < e.count; ++i) create(s, e.card, p, Zone::MainDeck);
+    // 114: shuffled before the objects exist, so ids follow deck order and an id tells nothing about its card (128)
+    for (const auto* entries : {&deck.main, &deck.runes}) {
+        std::vector<const Card*> cards;
+        for (const auto& e : *entries) cards.insert(cards.end(), e.count, e.card);
+        s.rng.shuffle(cards);
+        const Zone zone = entries == &deck.main ? Zone::MainDeck : Zone::RuneDeck;
+        for (const Card* c : cards) create(s, c, p, zone);
     }
-    for (const auto& e : deck.runes) {
-        for (int i = 0; i < e.count; ++i) create(s, e.card, p, Zone::RuneDeck);
-    }
-    s.rng.shuffle(s.player(p).main_deck);  // 114
-    s.rng.shuffle(s.player(p).rune_deck);
 
     // 113 + 487.5: one battlefield at random, the others leave the game
     const auto chosen = s.rng.below(deck.battlefields.size());

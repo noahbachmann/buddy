@@ -8,6 +8,7 @@
 #include <array>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "deck.hpp"
 #include "state.hpp"
@@ -29,6 +30,19 @@ struct RandomGame {
     int combats = 0;
     int scorings = 0;     // battlefields conquered or held (469; lower bound)
     std::string problem;  // first failed check: "turn 12, action 87 (play Blade Twirler): …"; empty = fine
+    std::vector<Action> log;  // every action tried, the failing one included: a Replay's actions
+};
+
+// What play_random() checks after every action, also run by run_replay(): check_invariants(), a constant card count
+// (tokens come and go, 186.1), and at each turn's first open Main-phase priority a readied board and empty pools.
+class GameChecks {
+public:
+    explicit GameChecks(const GameState& start);
+    std::string check(const GameState& s);  // the first problem; empty = fine
+
+private:
+    long cards_;
+    int checked_turn_ = 0;
 };
 
 RandomGame play_random(const Deck& seat0, const Deck& seat1, std::uint64_t seed, int max_actions = 100000,

@@ -30,19 +30,20 @@ if(BUDDY_TESTS)
     add_custom_target(buddy-tests)  # all test executables; deploy/test.sh builds only this (no ML libraries)
 endif()
 
-# buddy_add_tests(<name> <sources…> LIBS <targets…>) → buddy-<name>-tests; every TEST shows up in ctest and CLion.
+# buddy_add_tests(<name> <sources…> LIBS <targets…> [LABELS <labels…>]) → buddy-<name>-tests; every TEST shows up in
+# ctest and CLion, with the ctest labels given (deploy/test.sh skips the label riftbound unless --riftbound).
 # Tests read data files via BUDDY_SOURCE_DIR and shared JSON cases via cases.hpp (shared/tests/).
 function(buddy_add_tests name)
     if(NOT BUDDY_TESTS)
         return()
     endif()
-    cmake_parse_arguments(arg "" "" "LIBS" ${ARGN})
+    cmake_parse_arguments(arg "" "" "LIBS;LABELS" ${ARGN})
     set(exe buddy-${name}-tests)
     add_executable(${exe} ${arg_UNPARSED_ARGUMENTS})
     target_link_libraries(${exe} PRIVATE ${arg_LIBS} nlohmann_json::nlohmann_json GTest::gtest_main)
     target_include_directories(${exe} PRIVATE ${PROJECT_SOURCE_DIR}/shared/tests)
     target_compile_definitions(${exe} PRIVATE BUDDY_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
-    gtest_discover_tests(${exe} DISCOVERY_MODE PRE_TEST)
+    gtest_discover_tests(${exe} DISCOVERY_MODE PRE_TEST PROPERTIES LABELS "${arg_LABELS}")
     add_dependencies(buddy-tests ${exe})
 endfunction()
 

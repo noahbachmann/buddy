@@ -46,6 +46,10 @@ enum class Zone : std::uint8_t {
 };
 std::string_view to_string(Zone zone);
 bool on_board(Zone zone);
+// Everyone may look at the cards in it (128.5): not the decks (108.4.e, 108.5.d), hands (108.7.c), facedown cards
+// (107.3.f) or cards set aside.
+bool is_public(Zone zone);
+inline constexpr std::uint8_t everyone = (1u << player_count) - 1;  // Object::known
 
 enum class Designation : std::uint8_t { None, Attacker, Defender };  // during combat (461)
 
@@ -90,6 +94,9 @@ struct Object {
     bool empowered = false;    // 442, 828
     Designation designation = Designation::None;
     ObjId attached = no_obj;   // the top-most card this gear is attached to (716–719); same place as it
+    // Bit per player who knows which card this is (128): everyone in a public zone; the owner in their hand, the
+    // controller facedown, the predicting player (817); kept into a deck until it's shuffled. view() hides the rest.
+    std::uint8_t known = 0;
 
     ObjRef ref(ObjId id) const { return {id, gen}; }
     bool operator==(const Object&) const = default;
@@ -479,7 +486,8 @@ void burn_out(GameState& s, PlayerId p, int in_sequence);
 void burn(GameState& s, PlayerId p, int n);
 // 431: top of the rune deck into the base, ready; fewer if the deck runs out.
 void channel(GameState& s, PlayerId p, int n);
-// 417: to the bottom of the owner's main or rune deck; two or more in random order (417.5).
+// 417: to the bottom of the owner's main or rune deck; two or more in random order (417.5), so nobody knows which
+// is which any more (Object::known cleared).
 void recycle(GameState& s, std::vector<ObjId> ids);
 
 // Every object in exactly one zone list (or chain item), matching its zone/owner/controller/where; occupancy of

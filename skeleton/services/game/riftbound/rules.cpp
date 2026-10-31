@@ -264,6 +264,7 @@ bool completable(const GameState& s, const ChainItem& item, std::size_t slot) {
 bool predict(Resolution& r, PlayerId p) {
     const auto& deck = r.s.player(p).main_deck;
     if (deck.empty()) return false;
+    r.s.obj(deck.back()).known |= 1u << p;  // 817.1.b: looks at it
     r.ask(p, {{ActionKind::Pick, deck.back()}}, 0, 1);  // Pick = recycle it
     return true;
 }

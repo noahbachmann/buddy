@@ -110,12 +110,14 @@ TEST(RiftboundSetup, SameSeedSameGame) {
 TEST(RiftboundSetup, SeedDecidesOrderBattlefieldsAndFirstPlayer) {  // 114, 115, 487.5
     std::set<int> first;
     std::set<std::string> fields;
-    std::set<std::vector<ObjId>> decks;
+    std::set<std::vector<const Card*>> decks;
     for (std::uint64_t seed = 0; seed < 32; ++seed) {
         const GameState s = real_game(seed);
         first.insert(s.first_player);
         fields.insert(s.obj(s.battlefields[0].card).card->name);
-        decks.insert(s.player(0).main_deck);
+        std::vector<const Card*> order;
+        for (const ObjId id : s.player(0).main_deck) order.push_back(s.obj(id).card);
+        decks.insert(order);
     }
     EXPECT_EQ(first.size(), 2u);
     EXPECT_EQ(fields.size(), 3u);

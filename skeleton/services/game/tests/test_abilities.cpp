@@ -10,6 +10,7 @@
 #include "riftbound/random_game.hpp"
 #include "riftbound/rules.hpp"
 #include "test_cards.hpp"
+#include "test_hidden.hpp"
 
 using namespace buddy::riftbound;
 
@@ -1113,4 +1114,10 @@ TEST(RiftboundRandom, AbilityDecks) {  // invariants after every action, outside
     EXPECT_GT(activated, 200);
     EXPECT_GT(triggered, 200);
     EXPECT_GT(choices, 1000);
+}
+
+TEST(RiftboundHidden, ViewsAlongAbilityGames) {  // Vision (817), returns to hand, discards, tokens
+    for (std::uint64_t seed = 0; seed < 6; ++seed) {
+        EXPECT_EQ(test::views_along_a_game(ability_deck(), ability_deck(), seed, false), "");
+    }
 }

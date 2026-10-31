@@ -6,21 +6,27 @@
 //   buddy-game --code <code>…               what a printed code is ("OGN-007a/298", "VEN • R01 • EN")
 //   buddy-game --random [--games N] [--seed S] [--deck A --deck B]
 //                                           random-vs-random games in vanilla mode (default: the first two decks),
-//                                           seeds S … S+N-1, invariants checked after every action
+//                                           seeds S … S+N-1, invariants checked after every action; a failing game
+//                                           writes replay-<seed>.txt; then sizeof(GameState) and its copy time
+//   buddy-game --replay <file>              play a replay action by action with the same checks
 //
 // Config (env, see deploy/config/buddy.env.example): BUDDY_GAME_CARDS, BUDDY_GAME_DECKS
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
 #include <format>
+#include <fstream>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
 
 #include "buddy/config.hpp"
 #include "riftbound/card_db.hpp"
 #include "riftbound/deck.hpp"
+#include "riftbound/engine.hpp"
 #include "riftbound/random_game.hpp"
+#include "riftbound/replay.hpp"
 
 namespace {
 
@@ -101,6 +107,35 @@ int codes(const CardDb& db, int argc, char** argv, int first) {
     return failed == 0 ? 0 : 1;
 }
 
+std::string read_file(const fs::path& path) {
+    std::ifstream in(path);
+    if (!in) throw std::runtime_error("can't read " + path.string());
+    std::stringstream text;
+    text << in.rdbuf();
+    return text.str();
+}
+
+// What 5.4's search pays per node: the size of a state and the time to copy one, over every state of one game.
+void measure_copies(const Deck& a, const Deck& b, std::uint64_t seed, const std::vector<Action>& log) {
+    GameState s = new_game(a, b, {.seed = seed, .vanilla = true});
+    constexpr int repeats = 20;
+    std::size_t objects = 0;
+    double ns = 0;
+    for (const Action& action : log) {
+        const auto start = std::chrono::steady_clock::now();
+        for (int i = 0; i < repeats; ++i) {
+            const GameState copy = s;
+            objects += copy.objects.size();  // keeps the copy alive
+        }
+        ns += std::chrono::duration<double, std::nano>(std::chrono::steady_clock::now() - start).count();
+        apply(s, action);
+    }
+    const double copies = static_cast<double>(log.size()) * repeats;
+    std::cout << std::format("  state: sizeof(GameState) {} B, {:.0f} objects, copy {:.2f} µs (avg over {} states)\n",
+                             sizeof(GameState), static_cast<double>(objects) / copies, ns / copies / 1000,
+                             log.size());
+}
+
 int random_games(const CardDb& db, const std::vector<fs::path>& paths, int games, std::uint64_t seed) {
     if (paths.size() < 2) throw std::runtime_error("--random needs two decks");
     const Deck a = load_deck(db, paths[0]), b = load_deck(db, paths[1]);
@@ -109,11 +144,15 @@ int random_games(const CardDb& db, const std::vector<fs::path>& paths, int games
     std::array<int, player_count> wins{};
     int failed = 0, min_turns = 0, max_turns = 0;
     long turns = 0, actions = 0, spells = 0, reactions = 0, moves = 0, showdowns = 0, combats = 0, scorings = 0;
+    std::optional<RandomGame> sample;
     const auto start = std::chrono::steady_clock::now();
     for (int i = 0; i < games; ++i) {
-        const RandomGame g = play_random(a, b, seed + i);
+        RandomGame g = play_random(a, b, seed + i);
         if (!g.problem.empty()) {
-            std::cerr << std::format("✗ seed {}: {}\n", seed + i, g.problem);
+            const fs::path file = fs::absolute(std::format("replay-{}.txt", seed + i));
+            const Replay replay{seed + i, true, {read_file(paths[0]), read_file(paths[1])}, g.log};
+            std::ofstream(file) << to_text(replay, db);
+            std::cerr << std::format("✗ seed {}: {}\n  replay: {}\n", seed + i, g.problem, file.string());
             ++failed;
             continue;
         }
@@ -128,6 +167,7 @@ int random_games(const CardDb& db, const std::vector<fs::path>& paths, int games
         scorings += g.scorings;
         min_turns = min_turns == 0 ? g.turns : std::min(min_turns, g.turns);
         max_turns = std::max(max_turns, g.turns);
+        if (!sample) sample = std::move(g);
     }
     const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
     const int ok = games - failed;
@@ -142,13 +182,37 @@ int random_games(const CardDb& db, const std::vector<fs::path>& paths, int games
                                  static_cast<double>(moves) / ok, static_cast<double>(showdowns) / ok,
                                  static_cast<double>(combats) / ok, static_cast<double>(scorings) / ok);
     }
-    std::cout << std::format("  time: {:.2f} ms per game ({:.0f} ms total)\n", ms / games, ms);
+    std::cout << std::format("  time: {:.2f} ms per game, {:.0f} games/s, {:.0f} actions/s\n", ms / games,
+                             games / ms * 1000, static_cast<double>(actions) / ms * 1000);
+    if (sample) measure_copies(a, b, seed, sample->log);
     return failed == 0 ? 0 : 1;
+}
+
+int replay_file(const CardDb& db, const fs::path& path) {
+    const Replay replay = parse_replay(read_file(path));
+    std::cout << std::format("replay {}: seed {}{}, {} actions\n", path.string(), replay.seed,
+                             replay.vanilla ? ", vanilla" : "", replay.actions.size());
+    const ReplayResult r = run_replay(replay, db, [](const GameState& s, const Action& a) {
+        std::cout << std::format("  turn {:>2}  player {}  {}\n", s.turn, s.decision.player, describe(s, a));
+    });
+    if (!r.problem.empty()) {
+        std::cerr << "✗ " << r.problem << "\n";
+        return 1;
+    }
+    const GameState& s = r.state;
+    if (s.winner) {
+        std::cout << std::format("✓ player {} wins {}–{} on turn {}\n", *s.winner, s.player(*s.winner).points,
+                                 s.player(opponent(*s.winner)).points, s.turn);
+    } else {
+        std::cout << std::format("✓ all {} actions, no winner yet (turn {}, {} for player {})\n", r.applied, s.turn,
+                                 to_string(s.decision.kind), s.decision.player);
+    }
+    return 0;
 }
 
 int usage(const char* argv0) {
     std::cerr << "usage: " << argv0 << " --deck <name|file> --check | --check | --code <code>… |\n"
-              << "       --random [--games N] [--seed S] [--deck A --deck B]\n"
+              << "       --random [--games N] [--seed S] [--deck A --deck B] | --replay <file>\n"
               << "(the game service itself comes in step 5.6)\n";
     return 2;
 }
@@ -159,6 +223,7 @@ int main(int argc, char** argv) {
     const std::vector<std::string> args(argv + 1, argv + argc);
     std::vector<std::string> deck_args;
     bool check = false, random = false;
+    std::string replay;
     int code_index = 0, games = 100;
     std::uint64_t seed = 1;
     try {
@@ -167,6 +232,7 @@ int main(int argc, char** argv) {
             if (args[i] == "--deck" && value) deck_args.push_back(args[++i]);
             else if (args[i] == "--check") check = true;
             else if (args[i] == "--random") random = true;
+            else if (args[i] == "--replay" && value) replay = args[++i];
             else if (args[i] == "--games" && value) games = std::stoi(args[++i]);
             else if (args[i] == "--seed" && value) seed = std::stoull(args[++i]);
             else if (args[i] == "--code" && value) code_index = static_cast<int>(i) + 2;
@@ -175,7 +241,7 @@ int main(int argc, char** argv) {
     } catch (const std::logic_error&) {  // stoi/stoull
         return usage(argv[0]);
     }
-    if ((code_index != 0) + check + random != 1 || games < 1) return usage(argv[0]);
+    if ((code_index != 0) + check + random + !replay.empty() != 1 || games < 1) return usage(argv[0]);
 
     try {
         const std::string home = env_string("HOME", ".");
@@ -187,6 +253,7 @@ int main(int argc, char** argv) {
                                  db.printing_count(), db.fetched());
         for (const auto& w : db.warnings()) std::cerr << "  ⚠ " << w << "\n";
         if (code_index != 0) return codes(db, argc, argv, code_index);
+        if (!replay.empty()) return replay_file(db, replay);
 
         std::vector<fs::path> paths;
         for (const auto& d : deck_args) paths.push_back(deck_path(d, decks));

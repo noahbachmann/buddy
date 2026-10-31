@@ -34,7 +34,26 @@ int triggered_on_chain(const GameState& s) {
         std::count_if(s.chain.begin(), s.chain.end(), [](const ChainItem& c) { return c.kind == ItemKind::Triggered; }));
 }
 
+
+long card_count(const GameState& s) {
+    return std::count_if(s.objects.begin(), s.objects.end(), [](const Object& o) { return !o.card->token; });
+}
+
 } // namespace
+
+GameChecks::GameChecks(const GameState& start)
+    : cards_(card_count(start)), checked_turn_(start.phase >= Phase::Main ? start.turn : 0) {}  // mid-turn: done
+
+std::string GameChecks::check(const GameState& s) {
+    auto problems = check_invariants(s);
+    if (card_count(s) != cards_) problems.push_back("card count changed");
+    if (s.decision.kind == DecisionKind::Priority && s.phase == Phase::Main && s.chain.empty() &&
+        s.turn != checked_turn_) {
+        checked_turn_ = s.turn;
+        if (auto p = check_turn_start(s); !p.empty()) problems.push_back(p);
+    }
+    return problems.empty() ? std::string{} : problems.front();
+}
 
 RandomGame play_random(const Deck& seat0, const Deck& seat1, std::uint64_t seed, int max_actions, bool vanilla) {
     RandomGame result;
@@ -42,24 +61,14 @@ RandomGame play_random(const Deck& seat0, const Deck& seat1, std::uint64_t seed,
     try {
         GameState s = new_game(seat0, seat1, {.seed = seed, .vanilla = vanilla});
         Rng pick(seed ^ 0x5eedc0ffee);  // the players' own stream, apart from the game's
-        const auto cards = [](const GameState& g) {  // tokens come and go (186.1), cards don't
-            return std::count_if(g.objects.begin(), g.objects.end(), [](const Object& o) { return !o.card->token; });
-        };
-        const auto card_count = cards(s);
-        int checked_turn = 0;
+        GameChecks checks(s);
+        if (auto p = checks.check(s); !p.empty()) throw std::logic_error(p);
         while (!s.winner) {
-            auto problems = check_invariants(s);
-            if (cards(s) != card_count) problems.push_back("card count changed");
-            if (s.decision.kind == DecisionKind::Priority && s.phase == Phase::Main && s.chain.empty() &&
-                s.turn != checked_turn) {
-                checked_turn = s.turn;
-                if (auto p = check_turn_start(s); !p.empty()) problems.push_back(p);
-            }
-            if (!problems.empty()) throw std::logic_error(problems.front());
             if (result.actions == max_actions) throw std::logic_error("no winner yet");
             const auto actions = legal_actions(s);
             const Action a = actions.at(pick.below(actions.size()));
             last = describe(s, a);
+            result.log.push_back(a);
             if (a.kind == ActionKind::Play) {
                 result.spells += s.obj(a.obj).card->type == CardType::Spell;
                 result.reactions += closed(s);
@@ -79,6 +88,7 @@ RandomGame play_random(const Deck& seat0, const Deck& seat1, std::uint64_t seed,
             result.combats += !combat && s.showdown && s.showdown->combat;
             ++result.actions;
             result.turns = s.turn;
+            if (auto p = checks.check(s); !p.empty()) throw std::logic_error(p);
         }
         result.winner = s.winner;
         for (PlayerId p = 0; p < player_count; ++p) result.points[p] = s.player(p).points;
