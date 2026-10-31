@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <stdexcept>
 
+#include "pay.hpp"
 #include "rules.hpp"
 
 namespace buddy::riftbound {
@@ -22,7 +23,7 @@ struct Applied {
 thread_local int layer_depth = 0;
 constexpr int max_layer_depth = 4;
 
-Traits apply_layers(const Object& o, const Keywords& printed, const std::vector<Applied>& passives,
+Traits apply_layers(const Object& o, const Keywords& printed, int bonus, const std::vector<Applied>& passives,
                     const std::vector<const Effect*>& effects) {
     Traits t;
     t.might = o.card->might.value_or(0);
@@ -38,7 +39,7 @@ Traits apply_layers(const Object& o, const Keywords& printed, const std::vector<
         if (k == ModKind::Grant) t.keywords.grant(kw, v);
         if (k == ModKind::Lose) t.keywords.lose(kw);
     });
-    t.might += o.buffs;  // layer 4 (479.4.e): increases, then "increased to", then decreases
+    t.might += o.buffs + bonus;  // layer 4 (479.4.e): increases, then "increased to", then decreases
     if (o.designation == Designation::Attacker) t.might += t.keywords.get(Keyword::Assault);  // 807.1.c
     if (o.designation == Designation::Defender) t.might += t.keywords.get(Keyword::Shield);   // 814.1.c
     each([&](ModKind k, Keyword, int v) {
@@ -71,13 +72,6 @@ bool alone(const GameState& s, ObjId id) {
     return true;
 }
 
-const AbilitySpec* spec_at(const CardRules* rules, std::uint8_t ability) {
-    if (rules == nullptr) return nullptr;
-    const auto all = rules->abilities();
-    if (ability >= all.size()) throw std::logic_error("ability index out of range");
-    return &all[ability];
-}
-
 void queue(GameState& s, ObjRef source, std::uint8_t ability, PlayerId controller, const Event& e,
            const AbilitySpec& spec) {
     if (spec.per_turn > 0) {  // 383.3.e
@@ -97,8 +91,15 @@ Traits traits(const GameState& s, ObjId id) {
     for (const Effect& e : s.effects) {
         if (e.subject == o.ref(id)) effects.push_back(&e);
     }
+    int bonus = 0;  // 137.3
+    if (!s.vanilla && on_board(o.zone)) {
+        for (ObjId g = 0; g < s.objects.size(); ++g) {
+            const CardRules* rules = s.obj(g).attached == id ? rules_of(s, g) : nullptr;
+            if (rules != nullptr) bonus += rules->might_bonus();
+        }
+    }
     std::vector<Applied> applied;
-    Traits t = apply_layers(o, printed, applied, effects);
+    Traits t = apply_layers(o, printed, bonus, applied, effects);
     if (s.vanilla || layer_depth >= max_layer_depth) return t;
 
     ++layer_depth;
@@ -109,8 +110,8 @@ Traits traits(const GameState& s, ObjId id) {
     for (int round = 0; round < 8; ++round) {  // 478.3: again until nothing new applies
         bool added = false;
         for (ObjId src = 0; src < s.objects.size(); ++src) {
-            const CardRules* rules = rules_of(s, src);
-            if (rules == nullptr || !rules->active_in(s.obj(src).zone)) continue;
+            const CardRules* rules = active_rules(s, src);
+            if (rules == nullptr) continue;
             out.clear();
             rules->passive(s, src, id, t, out);
             for (std::size_t k = 0; k < out.size(); ++k) {
@@ -122,7 +123,7 @@ Traits traits(const GameState& s, ObjId id) {
             }
         }
         if (!added) break;
-        t = apply_layers(o, printed, applied, effects);
+        t = apply_layers(o, printed, bonus, applied, effects);
     }
     return t;
 }
@@ -131,7 +132,10 @@ int might(const GameState& s, ObjId id) { return traits(s, id).might; }
 
 bool has(const GameState& s, ObjId id, Keyword k) { return traits(s, id).keywords.has(k); }
 
-bool mighty(const GameState& s, ObjId id) { return might(s, id) >= 5; }
+bool mighty(const GameState& s, ObjId id) {
+    const Object& o = s.obj(id);
+    return (on_board(o.zone) ? might(s, id) : o.card->might.value_or(0)) >= 5;
+}
 
 Place place_of(const GameState& s, ObjId id) {
     const Object& o = s.obj(id);
@@ -147,18 +151,21 @@ void emit(GameState& s, const Event& e) {
     if (s.vanilla) return;
     std::vector<std::uint8_t> out;
     for (ObjId id = 0; id < s.objects.size(); ++id) {
-        const CardRules* rules = rules_of(s, id);
-        if (rules == nullptr) continue;
-        if (e.kind == EventKind::Die ? id != e.subject.id : !rules->active_in(s.obj(id).zone)) continue;
+        const CardRules* rules = e.kind == EventKind::Die ? rules_of(s, id) : active_rules(s, id);
+        if (rules == nullptr || (e.kind == EventKind::Die && id != e.subject.id)) continue;
         out.clear();
         rules->triggers(s, e, id, out);
+        if (e.kind == EventKind::Played && e.subject.id == id && on_board(s.obj(id).zone) &&
+            has(s, id, Keyword::Vision)) {
+            out.push_back(ability_vision);  // 817.1.c
+        }
         const ObjRef self = e.kind == EventKind::Die ? e.subject : s.obj(id).ref(id);
-        for (const std::uint8_t a : out) queue(s, self, a, controller_of(s, id), e, *spec_at(rules, a));
+        for (const std::uint8_t a : out) queue(s, self, a, controller_of(s, id), e, *ability_spec(s, id, a));
     }
     for (std::size_t i = 0; i < s.delayed.size();) {
         const Delayed d = s.delayed[i];
         const CardRules* rules = s.obj(d.source.id).card->rules;
-        const AbilitySpec* spec = spec_at(rules, d.ability);
+        const AbilitySpec* spec = ability_spec(s, d.source.id, d.ability);
         if (spec != nullptr && spec->kind == AbilityKind::Triggered && rules->delayed_trigger(s, e, d)) {
             queue(s, d.source, d.ability, d.controller, e, *spec);
             if (d.once) {
@@ -188,7 +195,7 @@ bool replaced(GameState& s, Event& e) {
         for (std::size_t i = s.delayed.size(); i-- > 0 && !applied;) {
             const Delayed d = s.delayed[i];
             const CardRules* rules = s.obj(d.source.id).card->rules;
-            const AbilitySpec* spec = spec_at(rules, d.ability);
+            const AbilitySpec* spec = ability_spec(s, d.source.id, d.ability);
             const Key key{d.source, d.ability, true};
             if (spec == nullptr || spec->kind != AbilityKind::Replacement || !fresh(key, *spec)) continue;
             if (!rules->replace(s, e, d.source.id, d.ability, &d)) continue;
@@ -201,8 +208,8 @@ bool replaced(GameState& s, Event& e) {
             applied = true;
         }
         for (ObjId id = 0; id < s.objects.size() && !applied; ++id) {
-            const CardRules* rules = rules_of(s, id);
-            if (rules == nullptr || !rules->active_in(s.obj(id).zone)) continue;
+            const CardRules* rules = active_rules(s, id);
+            if (rules == nullptr) continue;
             const auto all = rules->abilities();
             for (std::size_t a = 0; a < all.size() && !applied; ++a) {
                 const Key key{s.obj(id).ref(id), static_cast<std::uint8_t>(a), false};
@@ -356,6 +363,58 @@ void empower(GameState& s, ObjId id) {
 void disempower(GameState& s, ObjId id) {
     s.obj(id).empowered = false;
     s.cleanup_due = true;
+}
+
+void banish(GameState& s, ObjId id, const Cause& cause) {
+    Event e = make_event(EventKind::Banished, {}, cause.player, cause.source);
+    e.place = place_of(s, id);
+    move_to(s, id, Zone::Banishment, s.obj(id).owner);
+    e.subject = s.obj(id).ref(id);
+    emit(s, e);
+}
+
+void return_to_hand(GameState& s, ObjId id) { move_to(s, id, Zone::Hand, s.obj(id).owner); }
+
+void add(GameState& s, PlayerId p, int energy, int universal) {
+    Pool& pool = s.player(p).pool;
+    pool.energy = static_cast<std::int16_t>(pool.energy + energy);
+    pool.universal = static_cast<std::int8_t>(pool.universal + universal);
+}
+
+bool pay_energy(GameState& s, PlayerId p, int energy) {
+    Cost c;
+    c.energy = energy;
+    if (!can_pay(s, p, c)) return false;
+    pay(s, p, c, {});
+    return true;
+}
+
+void attach(GameState& s, ObjId gear, ObjId unit) {
+    const Object& u = s.obj(unit);
+    if (u.card->type != CardType::Unit || !on_board(u.zone) || s.obj(gear).attached == unit) return;  // 435.1.g–h
+    const Object& g = s.obj(gear);
+    if (g.zone != u.zone || g.where != u.where) move_to(s, gear, u.zone, g.controller, u.where);
+    s.obj(gear).attached = unit;
+    s.cleanup_due = true;
+}
+
+void detach(GameState& s, ObjId gear) {
+    if (s.obj(gear).attached == no_obj) return;  // 436.1.a.1
+    s.obj(gear).attached = no_obj;
+    s.cleanup_due = true;  // at a battlefield: recalled in the next cleanup (436.4.a)
+}
+
+ObjId play_token(GameState& s, const Card& token, PlayerId p, std::uint8_t flags) {
+    const ObjId id = create(s, &token, p, Zone::Chain);
+    ChainItem item;
+    item.card = id;
+    item.source = s.obj(id).ref(id);
+    item.controller = p;
+    item.play = flags;
+    s.chain.push_back(item);
+    s.cleanup_due = true;
+    s.passes = 0;
+    return id;
 }
 
 void give(GameState& s, const Effect& e) {

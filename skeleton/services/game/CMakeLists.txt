@@ -10,6 +10,7 @@ add_library(riftbound STATIC
     riftbound/random_game.cpp
     riftbound/rules.cpp
     riftbound/state.cpp
+    riftbound/tokens.cpp
 )
 target_include_directories(riftbound PUBLIC .)
 target_link_libraries(riftbound PUBLIC nlohmann_json::nlohmann_json PRIVATE buddy_names)
@@ -20,6 +21,6 @@ install(TARGETS buddy-game RUNTIME DESTINATION bin COMPONENT game)
 install(DIRECTORY decks/ DESTINATION share/game/decks COMPONENT game)
 
 buddy_add_tests(game
-    tests/test_abilities.cpp tests/test_card_db.cpp tests/test_chain.cpp tests/test_code.cpp tests/test_combat.cpp tests/test_deck.cpp tests/test_pay.cpp tests/test_random.cpp
-    tests/test_setup.cpp tests/test_state.cpp tests/test_turn.cpp
+    tests/test_abilities.cpp tests/test_actions.cpp tests/test_card_db.cpp tests/test_chain.cpp tests/test_code.cpp tests/test_combat.cpp tests/test_deck.cpp tests/test_pay.cpp tests/test_random.cpp
+    tests/test_keywords.cpp tests/test_setup.cpp tests/test_state.cpp tests/test_turn.cpp
     LIBS riftbound)

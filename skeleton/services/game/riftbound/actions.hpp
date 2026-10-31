@@ -18,12 +18,14 @@ struct Cause {
 
 // ---- Layers (475–482) ----
 // Printed might and keywords, then until nothing new applies (478): layer 2 base might, layer 3 keyword grants and
-// losses (timestamp order: passives by source, then continuous effects), layer 4 increases (buffs, +N, Assault while
-// an attacker 807.1.c, Shield while a defender 814.1.c), "increased to N" (depends on the increases, 481), decreases. Objects a passive reads are evaluated first (478.1.a); a loop
-// deeper than a few objects falls back to printed values ⚠️ (478.1.c: no deck has one).
+// losses (timestamp order: passives by source, then continuous effects), layer 4 increases (buffs, attached
+// Equipment's Might Bonus 137.3, +N, Assault while an attacker 807.1.c, Shield while a defender 814.1.c), "increased
+// to N" (depends on the increases, 481), decreases. Objects a passive reads are evaluated first (478.1.a); a loop
+// deeper than a few objects falls back to printed values ⚠️ (478.1.c: no deck has one). Attached gear's rules text
+// is inactive (718.2): no passives from it.
 Traits traits(const GameState& s, ObjId id);
 bool has(const GameState& s, ObjId id, Keyword k);
-bool mighty(const GameState& s, ObjId id);  // 708
+bool mighty(const GameState& s, ObjId id);  // 708; off the board by printed Might (711)
 
 Place place_of(const GameState& s, ObjId id);
 // Controller on the board, owner elsewhere: who controls the object's abilities (374, 378).
@@ -32,7 +34,8 @@ PlayerId controller_of(const GameState& s, ObjId id);
 // ---- Events ----
 // Queues the triggered abilities `e` meets (GameState::triggered): active cards in turn-independent id order and
 // delayed triggers. A Die event reaches only its subject (its own leave-the-board triggers, 383.2.c.3); everything
-// else hears Died afterwards. Nothing in vanilla mode.
+// else hears Died afterwards. A permanent with Vision that was played gets its Vision trigger (817). Nothing in
+// vanilla mode.
 void emit(GameState& s, const Event& e);
 // Applies replacement effects to `e` (delayed ones first, newest first, then static ones in id order ⚠️: 372's
 // choice of order is not a decision yet; no deck has two for one event). Returns true if `e` no longer happens.
@@ -62,6 +65,19 @@ bool buff(GameState& s, ObjId id);     // 427: +1 buff if it has none; false if 
 void discard(GameState& s, ObjId id, const Cause& cause);  // 423: hand → trash
 void empower(GameState& s, ObjId id);  // 442: Empowered event if it wasn't
 void disempower(GameState& s, ObjId id);
+// 428: from any zone into its owner's banishment (a token stops existing), Banished event.
+void banish(GameState& s, ObjId id, const Cause& cause);
+void return_to_hand(GameState& s, ObjId id);  // "return it to its owner's hand"
+void add(GameState& s, PlayerId p, int energy, int universal = 0);  // 430: into the rune pool
+// 445 as an instruction ("you may pay [1] to …"): Energy from the pool, then ready runes. False if `p` can't.
+bool pay_energy(GameState& s, PlayerId p, int energy);
+// 435: attaches gear to a unit (not a move: it goes to the unit's location, 435.4), detaching it from any other
+// first (435.1.f). Nothing for a non-unit (435.1.h).
+void attach(GameState& s, ObjId gear, ObjId unit);
+void detach(GameState& s, ObjId gear);  // 436: it stays where it is (436.4)
+// 185.2.a, 440.2.c: "play a token": a new token of `p` onto the chain as a pending card, finalized after the
+// current resolution (location choice as for any unit unless played::to_base; played::exhausted). Returns its id.
+ObjId play_token(GameState& s, const Card& token, PlayerId p, std::uint8_t flags = 0);
 
 // ---- Continuous effects (479) and durations ----
 void give(GameState& s, const Effect& e);

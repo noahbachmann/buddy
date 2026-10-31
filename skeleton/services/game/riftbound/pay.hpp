@@ -23,12 +23,12 @@ std::vector<ObjId> runes_of(const GameState& s, PlayerId p);
 
 bool can_pay(const GameState& s, PlayerId p, const Cost& cost);
 
-// Power the pool can't cover: how many runes get recycled.
+// Power the pool can't cover: how many runes get recycled (domain Power and [A]).
 int runes_to_recycle(const GameState& s, PlayerId p, const Cost& cost);
 
 // What `p` may recycle next, given `picked`: one rune per domain (the one the engine would take: exhausted first, then
-// base order), domains in non-decreasing order (one path per set), only picks that leave the rest payable. Empty
-// once enough are picked.
+// base order), domains in non-decreasing order (one path per set), only picks that leave the rest payable (enough
+// runes of the cost's domains for its domain Power; [A] takes any rune). Empty once enough are picked.
 std::vector<ObjId> recycle_options(const GameState& s, PlayerId p, const Cost& cost, const std::vector<ObjId>& picked);
 
 // Pays `cost`: pool, then exhausts ready runes, then recycles `recycle` (a complete set from recycle_options).

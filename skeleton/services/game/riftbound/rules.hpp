@@ -32,6 +32,14 @@ enum class AbilityKind : std::uint8_t {
     Replacement,  // 367: CardRules::replace() is asked on every replaceable event
 };
 
+// Keyword abilities whose effect the engine knows: the card gives the cost (and may narrow the target), the engine
+// adds the restriction and resolves it without CardRules::resolve.
+enum class Builtin : std::uint8_t {
+    None,
+    Empower,  // 827: "[Cost]: Empower this. Use only if not Empowered."
+    Equip,    // 818: "[Cost]: Attach this to a unit you control." (target: a friendly unit unless `targets` says)
+};
+
 // One ability of a card. Static data: a CardRules keeps them in a constexpr array.
 struct AbilitySpec {
     AbilityKind kind = AbilityKind::Activated;
@@ -42,6 +50,7 @@ struct AbilitySpec {
     bool add = false;                      // activated [Add]: resolves as soon as it's finalized (401.2)
     std::uint8_t per_turn = 0;             // "once each turn" / "the first time … each turn" (386); 0 = no limit
     bool (*usable)(const GameState& s, ObjId self) = nullptr;  // "use only while …" (377.2.b)
+    Builtin builtin = Builtin::None;
 };
 
 // Cost changes (356). SetBase replaces the base cost ("for [cost]", "ignoring its cost", 356.1), Increase and
@@ -70,8 +79,11 @@ class CardRules {
 public:
     virtual ~CardRules() = default;
 
-    // Printed keywords (layer base, 479). Their behaviour comes with #25/#26.
+    // Printed keywords (layer base, 479). Accelerate, Ambush, Deflect, Vision and the combat keywords work from here
+    // alone; Deathknell is a Die trigger the card writes, the keyword only marks it (808.3).
     virtual Keywords keywords() const { return {}; }
+    // 137: an Equipment's Might Bonus, added to the unit it's attached to (layer 4). Riftcodex doesn't have it.
+    virtual int might_bonus() const { return 0; }
     // Every ability with an index into this span: activated, triggered (incl. reflexive and delayed), replacement.
     virtual std::span<const AbilitySpec> abilities() const { return {}; }
 
@@ -79,6 +91,10 @@ public:
     virtual std::span<const TargetSpec> targets() const { return {}; }      // 355.5–355.13
     virtual std::span<const Cost> optional_costs() const { return {}; }     // "you may … as an additional cost"
     virtual Cost additional_cost() const { return {}; }                     // mandatory (356.2.a)
+    // 820: "[Repeat] [Cost]", one entry per instance. Each one paid runs the effect once more, with its own targets.
+    virtual std::span<const Cost> repeat_costs() const { return {}; }
+    // 829: "[Flow] [Cost]": may be played from the trash for this cost (replaces the base cost), then banished.
+    virtual std::optional<Cost> flow_cost() const { return std::nullopt; }
     // Restrictions on playing it at all ("play me only …", 366.1); the engine checks type, timing, targets, cost.
     virtual bool can_play(const GameState&, ObjId /*self*/, PlayerId) const { return true; }
     // 369.3: "I enter ready", "If …, I enter ready", Accelerate (the item says which optional costs were paid).
@@ -122,11 +138,31 @@ public:
 
 // A card's rules, nullptr in vanilla mode or for a card without rules.
 const CardRules* rules_of(const GameState& s, ObjId id);
+// Its rules if they work where it is now (CardRules::active_in) and it isn't attached (718.2: rules text inactive).
+const CardRules* active_rules(const GameState& s, ObjId id);
 // The rules behind a chain item: its card's, or its source's for an ability.
 const CardRules* rules_of(const GameState& s, const ChainItem& item);
-// The ability a chain item stands for; nullptr for a card.
+// The ability a chain item stands for (ability_vision included); nullptr for a card.
 const AbilitySpec* ability_of(const GameState& s, const ChainItem& item);
-std::span<const TargetSpec> target_specs(const GameState& s, const ChainItem& item);
+// Spec of ability `ability` of `source`'s card (ability_vision included); nullptr without rules.
+const AbilitySpec* ability_spec(const GameState& s, ObjId source, std::uint8_t ability);
+// A chain item the engine resolves itself (Builtin, Vision).
+bool builtin(const GameState& s, const ChainItem& item);
+
+// Target slots: the card's or ability's TargetSpecs, once per execution (820.2: a paid Repeat chooses its own).
+std::size_t target_slots(const GameState& s, const ChainItem& item);
+const TargetSpec& target_spec(const GameState& s, const ChainItem& item, std::size_t slot);
+
+// Optional additional costs offered while playing a card (355.1.a), in this order: the card's own, Accelerate (805:
+// [1] + Power of the unit's domain), each Repeat (820). ChainItem::paid has a bit per entry.
+struct OptionalCost {
+    enum Kind : std::uint8_t { Card, Accelerate, Repeat };
+    Cost cost;
+    Kind kind = Card;
+};
+std::vector<OptionalCost> optional_costs(const GameState& s, const ChainItem& item);
+bool accelerated(const GameState& s, const ChainItem& item);  // paid Accelerate: enters ready (805.6)
+int repeats(const GameState& s, const ChainItem& item);       // paid Repeats
 
 // Valid choices now for slot `slot` of `item`: Pick actions (obj = object, or no_obj + n = player), ascending.
 std::vector<Action> candidates(const GameState& s, const ChainItem& item, std::size_t slot);
@@ -136,10 +172,22 @@ bool still_valid(const GameState& s, const ChainItem& item, const Target& t);
 // 383.4.b: a Targeted event for every chosen (not picked) object of `item`.
 void emit_targeted(GameState& s, const ChainItem& item);
 
-// 356: base cost, optional costs paid, cost modifiers of the card itself and of everything active.
+// 356: base cost (Flow's when played for it), optional costs paid, Deflect of chosen targets (809), cost modifiers of
+// the card itself and of everything active.
 Cost total_cost(const GameState& s, const ChainItem& item);
 // Runes and pool for Energy/Power, plus the non-standard parts (hand, trash, the source's state).
 bool payable(const GameState& s, const ChainItem& item, const Cost& cost);
+// 355.16: `item`'s target slots from `slot` on can still be filled (each with its minimum) so that the total cost is
+// payable. Targets change the cost (Deflect, a cost reduced by the chosen unit's Might), so play, activation, optional
+// costs and each target pick are offered only when this holds. ⚠️ "Up to N" slots are counted at their minimum.
+bool completable(const GameState& s, const ChainItem& item, std::size_t slot = 0);
+
+// 437 in two steps of a resolution: `p` looks at the top card of their main deck and is asked whether to recycle it
+// (false: an empty deck, nothing to look at, 437.4.a), then predicted() recycles it if they picked it.
+bool predict(Resolution& r, PlayerId p);
+void predicted(Resolution& r);
+// The engine's resolution of a builtin() item.
+Status resolve_builtin(Resolution& r);
 
 // The context a CardRules::resolve() works in: the resolving chain item, its targets as they are now, choices and
 // the ability helpers. The item stays on the chain while it resolves (359.3.e.15).
@@ -157,7 +205,8 @@ public:
     int step() const { return item().step; }
     Status wait(int next_step);
 
-    // Targets of `slot` that are still legal (359.3.e.5: the others are unaffected).
+    // Targets of `slot` that are still legal (359.3.e.5: the others are unaffected). Slots are the card's own: while
+    // a Repeat runs (item().rep) they map to that execution's slots.
     std::vector<ObjId> targets(std::size_t slot = 0) const;
     // The first one, or no_obj when it mistargeted (its instructions are ignored).
     ObjId target(std::size_t slot = 0) const;
@@ -180,6 +229,8 @@ public:
     void give(ObjId subject, ModKind kind, int value, Duration duration = Duration::Turn,
               Keyword keyword = Keyword::Assault);
     std::int16_t& var(std::size_t i) { return item().vars.at(i); }
+    // The slot of the execution that's running (820.2).
+    std::size_t slot_of(std::size_t slot) const;
 
     // 750: the controller makes new choices for the finalized chain item of card `card` (all targets again, legal
     // ones only, costs ignored, Targeted events again). Returns Wait while choosing; `negated` when no legal set of

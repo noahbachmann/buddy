@@ -112,7 +112,7 @@ std::string_view to_string(Keyword k) {
 
 void Keywords::grant(Keyword k, int n) {
     auto& v = value[static_cast<int>(k)];
-    const bool sums = k == Keyword::Assault || k == Keyword::Shield;  // 807.2, 814
+    const bool sums = k == Keyword::Assault || k == Keyword::Shield || k == Keyword::Deflect;  // 807.2, 809.2, 814
     v = static_cast<std::uint8_t>(std::clamp(sums ? v + n : std::max<int>(v, 1), 0, 255));
 }
 
@@ -133,6 +133,7 @@ std::string_view to_string(EventKind kind) {
         case EventKind::CombatStart: return "combat start";
         case EventKind::Attack: return "attack";
         case EventKind::Defend: return "defend";
+        case EventKind::Banished: return "banished";
     }
     return "?";
 }
@@ -146,6 +147,10 @@ Cost operator+(Cost a, const Cost& b) {
     a.exhaust_self = a.exhaust_self || b.exhaust_self;
     a.kill_self = a.kill_self || b.kill_self;
     a.disempower_self = a.disempower_self || b.disempower_self;
+    a.any_power += b.any_power;
+    a.burn = static_cast<std::uint8_t>(a.burn + b.burn);
+    a.discard_spell = a.discard_spell || b.discard_spell;
+    a.banish_self = a.banish_self || b.banish_self;
     return a;
 }
 
@@ -181,18 +186,21 @@ PlayerId list_player(const Object& o) { return on_board(o.zone) ? o.controller :
 
 void move_to(GameState& s, ObjId id, Zone zone, PlayerId controller, std::uint8_t where, Pos pos) {
     Object& o = s.obj(id);
+    const bool was_on_board = on_board(o.zone);
     if (auto* from = zone_list(s, o.zone, list_player(o), o.where)) {
         const auto it = std::find(from->begin(), from->end(), id);
         if (it == from->end()) throw std::logic_error("move_to: object not in its zone list");
         from->erase(it);
     }
-    if (on_board(o.zone) != on_board(zone)) s.cleanup_due = true;  // 319.6
-    if (!on_board(o.zone) || !on_board(zone)) {
+    if (o.card->token && !on_board(zone) && zone != Zone::Chain) zone = Zone::Removed;  // 186.1
+    if (was_on_board != on_board(zone)) s.cleanup_due = true;  // 319.6
+    if (!was_on_board || !on_board(zone)) {
         ++o.gen;
         o.damage = 0;
         o.buffs = 0;
         o.exhausted = o.stunned = o.facedown = o.empowered = false;
         o.designation = Designation::None;
+        o.attached = no_obj;
         controller = on_board(zone) ? controller : o.owner;
     }
     o.zone = zone;
@@ -202,6 +210,31 @@ void move_to(GameState& s, ObjId id, Zone zone, PlayerId controller, std::uint8_
         if (pos == Pos::Top) to->push_back(id);
         else to->insert(to->begin(), id);
     }
+    if (!was_on_board) return;
+    for (ObjId g = 0; g < s.objects.size(); ++g) {  // 719.3.a, 719.5
+        Object& gear = s.obj(g);
+        if (gear.attached != id) continue;
+        if (!on_board(zone)) {
+            gear.attached = no_obj;  // stays where it was (436.4.b); a cleanup recalls it from a battlefield
+            s.cleanup_due = true;
+        } else if (gear.zone != zone || gear.where != where) {
+            move_to(s, g, zone, gear.controller, where);
+            gear.attached = id;  // a board-to-board move keeps the object
+        }
+    }
+}
+
+ObjId create(GameState& s, const Card* card, PlayerId owner, Zone zone, std::uint8_t where) {
+    const auto id = static_cast<ObjId>(s.objects.size());
+    if (id == no_obj) throw std::logic_error("too many objects");
+    Object& o = s.objects.emplace_back();
+    o.card = card;
+    o.owner = o.controller = owner;
+    o.zone = zone;
+    o.where = where;
+    if (card->type == CardType::Battlefield) return id;  // its place is Battlefield::card (or Removed), no list
+    if (auto* list = zone_list(s, zone, owner, where)) list->push_back(id);
+    return id;
 }
 
 void draw(GameState& s, PlayerId p, int n) {
@@ -213,6 +246,18 @@ void draw(GameState& s, PlayerId p, int n) {
             burn_out(s, p, ++burns);
         }
         move_to(s, deck.back(), Zone::Hand, p);
+    }
+}
+
+void burn(GameState& s, PlayerId p, int n) {
+    auto& deck = s.player(p).main_deck;
+    int burns = 0;
+    for (int i = 0; i < n; ++i) {
+        while (deck.empty()) {
+            if (s.winner) return;
+            burn_out(s, p, ++burns);
+        }
+        move_to(s, deck.back(), Zone::Trash, p);
     }
 }
 
@@ -319,6 +364,14 @@ std::vector<std::string> check_invariants(const GameState& s) {
         if (seen[id] != want) {
             problems.push_back(o.card->name + " (" + std::string(to_string(o.zone)) + ") is in " +
                                std::to_string(seen[id]) + " zone lists");
+        }
+    }
+    for (const Object& o : s.objects) {  // 719.3: attached gear sits with its top-most unit
+        if (o.attached == no_obj) continue;
+        const Object* top = o.attached < s.objects.size() ? &s.objects[o.attached] : nullptr;
+        if (top == nullptr || top->card->type != CardType::Unit || !on_board(top->zone) || !on_board(o.zone) ||
+            top->zone != o.zone || top->where != o.where || o.card->type == CardType::Unit) {
+            problems.push_back(o.card->name + " attached out of place");
         }
     }
     const Decision& d = s.decision;

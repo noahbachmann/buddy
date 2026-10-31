@@ -42,11 +42,14 @@ RandomGame play_random(const Deck& seat0, const Deck& seat1, std::uint64_t seed,
     try {
         GameState s = new_game(seat0, seat1, {.seed = seed, .vanilla = vanilla});
         Rng pick(seed ^ 0x5eedc0ffee);  // the players' own stream, apart from the game's
-        const std::size_t object_count = s.objects.size();
+        const auto cards = [](const GameState& g) {  // tokens come and go (186.1), cards don't
+            return std::count_if(g.objects.begin(), g.objects.end(), [](const Object& o) { return !o.card->token; });
+        };
+        const auto card_count = cards(s);
         int checked_turn = 0;
         while (!s.winner) {
             auto problems = check_invariants(s);
-            if (s.objects.size() != object_count) problems.push_back("object count changed");
+            if (cards(s) != card_count) problems.push_back("card count changed");
             if (s.decision.kind == DecisionKind::Priority && s.phase == Phase::Main && s.chain.empty() &&
                 s.turn != checked_turn) {
                 checked_turn = s.turn;

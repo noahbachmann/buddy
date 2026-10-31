@@ -208,11 +208,13 @@ struct Strike : CardRules {
     }
 } const strike;
 
-// Sharkling: "[Accelerate] (You may pay [1][Fury] as an additional cost to have me enter ready.)" — [1] here.
+// Sharkling: "[Accelerate] (You may pay [1][Fury] as an additional cost to have me enter ready.)"
 struct Sharkling : CardRules {
-    static constexpr Cost kOptional[] = {{1}};
-    std::span<const Cost> optional_costs() const override { return kOptional; }
-    bool enters_ready(const GameState&, ObjId, const ChainItem& played) const override { return played.paid & 1; }
+    Keywords keywords() const override {
+        Keywords k;
+        k.grant(Keyword::Accelerate);
+        return k;
+    }
 } const sharkling;
 
 // "When you play a spell, you may give me +1 Might this turn. Do this only once each turn." (383.3.a, 386)
@@ -389,7 +391,7 @@ struct Empowerer : CardRules {
     static constexpr AbilitySpec kAbilities[] = {[] {
         AbilitySpec a;
         a.cost.energy = 1;
-        a.usable = [](const GameState& s, ObjId self) { return !s.obj(self).empowered; };
+        a.builtin = Builtin::Empower;
         return a;
     }(), {AbilityKind::Triggered}};
     std::span<const AbilitySpec> abilities() const override { return kAbilities; }
@@ -399,9 +401,8 @@ struct Empowerer : CardRules {
     void triggers(const GameState&, const Event& e, ObjId self, std::vector<std::uint8_t>& out) const override {
         if (e.kind == EventKind::Empowered && e.subject.id == self) out.push_back(1);
     }
-    Status resolve(Resolution& r) const override {
-        if (r.ability() == 0 && r.self() != no_obj) empower(r.s, r.self());
-        if (r.ability() == 1) draw(r.s, r.controller(), 1);
+    Status resolve(Resolution& r) const override {  // ability 0 is the engine's (Builtin::Empower)
+        draw(r.s, r.controller(), 1);
         return Status::Done;
     }
 } const empowerer;
@@ -1080,9 +1081,9 @@ TEST(RiftboundCosts, OptionalCostDeclined) {
     EXPECT_EQ(s.obj(g).damage, 3);
 }
 
-TEST(RiftboundCosts, AccelerateOnlyWhenPayable) {  // 805, 355.16
+TEST(RiftboundCosts, AccelerateOnlyWhenPayable) {  // 805.1.b, 805.6, 355.16
     GameState s = started();
-    const PlayerId p = s.first_player;  // 2 runes: [1] + [1] fits
+    const PlayerId p = s.first_player;  // 2 runes: [1] + [1][Fury] fits (one rune exhausted, then recycled)
     const ObjId a = put(s, p, kSharkling, Zone::Hand);
     play(s, a);
     ASSERT_EQ(s.decision.purpose, Purpose::OptionalCost);

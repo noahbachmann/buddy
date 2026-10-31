@@ -49,9 +49,9 @@ bool on_board(Zone zone);
 
 enum class Designation : std::uint8_t { None, Attacker, Defender };  // during combat (461)
 
-// Keywords as characteristics (801–803). Assault and Shield carry a value that adds up when granted again (807.2);
-// the others are present or not. Assault, Shield (layers), Tank (combat damage) and Ganking (Standard Move) work
-// since #25; the rest come with #26.
+// Keywords as characteristics (801–803). Assault, Shield and Deflect carry a value that adds up when granted again
+// (807.2, 809.2); the others are present or not. Hidden and Temporary have no behaviour yet (no deck card has them).
+// Keyword abilities that are no characteristic the decks check (Empower, Equip, Flow, Repeat) live in CardRules.
 enum class Keyword : std::uint8_t {
     Accelerate, Ambush, Assault, Deathknell, Deflect, Ganking, Hidden, Shield, Tank, Temporary, Vision,
 };
@@ -89,6 +89,7 @@ struct Object {
     bool facedown = false;
     bool empowered = false;    // 442, 828
     Designation designation = Designation::None;
+    ObjId attached = no_obj;   // the top-most card this gear is attached to (716–719); same place as it
 
     ObjRef ref(ObjId id) const { return {id, gen}; }
     bool operator==(const Object&) const = default;
@@ -127,8 +128,9 @@ struct Battlefield {
     bool operator==(const Battlefield&) const = default;
 };
 
-// A cost (131, 356.7): Energy, Power owed in `domains` (0 = any domain), and the non-standard costs the decks' cards
-// and abilities use. "self" is the card being played or the ability's source.
+// A cost (131, 356.7): Energy, Power owed in `domains` (0 = any domain) plus Power of any domain ([A]: Deflect 809,
+// Flow and Equip costs), and the non-standard costs the decks' cards and abilities use. "self" is the card being
+// played or the ability's source.
 struct Cost {
     int energy = 0;
     int power = 0;
@@ -138,6 +140,10 @@ struct Cost {
     bool exhaust_self = false;       // [E]
     bool kill_self = false;          // "Kill this"
     bool disempower_self = false;    // "Disempower me"
+    int any_power = 0;               // [A]
+    std::uint8_t burn = 0;           // "[Burn N]" (441.3.a)
+    bool discard_spell = false;      // the discarded cards must be spells ("Discard a spell")
+    bool banish_self = false;        // "banish me"
     bool operator==(const Cost&) const = default;
 };
 Cost operator+(Cost a, const Cost& b);  // additional costs (356.2); Power domains: a's unless a owes none
@@ -168,6 +174,7 @@ enum class EventKind : std::uint8_t {
     CombatStart, // combat starts at battlefield `subject` (466.2.b); `player` = the attacker
     Attack,      // `subject` became an attacker as combat started (466.2.c.3)
     Defend,      // `subject` became a defender as combat started
+    Banished,    // `player` banished `subject` (428); `place` = its origin
 };
 std::string_view to_string(EventKind kind);
 
@@ -201,6 +208,16 @@ struct Target {
 
 enum class ItemKind : std::uint8_t { Card, Activated, Triggered };  // a reflexive trigger is Triggered too (389)
 inline constexpr std::uint8_t card_effect = 0xff;  // ChainItem::ability of a card: its own effect
+// Keyword abilities the engine runs itself, past every card's own ability indexes (rules.hpp ability_of).
+inline constexpr std::uint8_t ability_vision = 0xf0;  // 817: "When this is played, predict."
+
+// How a card was played (ChainItem::play), bits.
+namespace played {
+inline constexpr std::uint8_t flow = 1;       // from the trash for its Flow cost: banished, not trashed (829)
+inline constexpr std::uint8_t ambush = 2;     // only Ambush made it playable now: its battlefields only (822)
+inline constexpr std::uint8_t to_base = 4;    // an effect played it "to your base"
+inline constexpr std::uint8_t exhausted = 8;  // an effect played it "exhausted" (184.1)
+}
 
 // A card or ability on the chain (327): pending until finalized (329: choices, cost, payment), then finalized.
 // Permanents leave as soon as they're finalized (337.2, 359.2); spells and abilities wait for both players to pass
@@ -218,6 +235,8 @@ struct ChainItem {
     std::uint8_t sub = 0;    // slot / optional cost being decided; free for resolution helpers
     std::uint8_t paid = 0;   // optional costs paid, bit per CardRules::optional_costs() (355.1.a)
     std::uint8_t to = to_base;  // a unit's location (355.2): battlefield index or to_base
+    std::uint8_t play = 0;   // played:: bits
+    std::uint8_t rep = 0;    // which execution is resolving: 0, then one more per paid Repeat (820)
     Cost cost;               // total cost (356), fixed once determined
     std::vector<Target> targets;
     std::array<std::int16_t, 4> vars{};  // linked instructions' memory during resolution (359.3.e.14)
@@ -445,13 +464,19 @@ std::vector<ObjId>* zone_list(GameState& s, Zone zone, PlayerId player, std::uin
 enum class Pos { Top, Bottom };
 // Moves a card. Into or out of a non-board zone it becomes a new object (124): gen + 1, damage, buffs, statuses and
 // designation cleared, controller back to the owner. No events, no replacements: game actions (actions.hpp) do that.
+// Attached gear goes along on the board (719.3.a) and detaches where it is when its top-most card leaves the board
+// (719.5, 436.4.b). A token put into a non-board zone other than the chain stops existing: Removed (186.1).
 void move_to(GameState& s, ObjId id, Zone zone, PlayerId controller, std::uint8_t where = 0, Pos pos = Pos::Top);
+// A new object (a token, 440) in `zone`, owned and controlled by `owner`.
+ObjId create(GameState& s, const Card* card, PlayerId owner, Zone zone, std::uint8_t where = 0);
 // Top of the main deck into the hand. An empty deck burns out (432) first: as often as it takes, so with an empty
 // trash too the opponent ends up winning (432.3.c).
 void draw(GameState& s, PlayerId p, int n);
 // 432.2: trash into the main deck, the opponent gains 1. `in_sequence` counts this action's burn outs: from the 2nd
 // on, reaching the Victory Score wins at once (432.3.c); the first waits for a cleanup (323.1).
 void burn_out(GameState& s, PlayerId p, int in_sequence);
+// 441: top of the main deck into the trash; an empty deck burns out and the rest follows (441.4).
+void burn(GameState& s, PlayerId p, int n);
 // 431: top of the rune deck into the base, ready; fewer if the deck runs out.
 void channel(GameState& s, PlayerId p, int n);
 // 417: to the bottom of the owner's main or rune deck; two or more in random order (417.5).

@@ -18,19 +18,6 @@ bool is_basic_rune(const Card& card) {
     return false;
 }
 
-ObjId add_object(GameState& s, const Card* card, PlayerId owner, Zone zone, std::uint8_t where = 0) {
-    const auto id = static_cast<ObjId>(s.objects.size());
-    if (id == no_obj) throw std::logic_error("too many objects");
-    Object& o = s.objects.emplace_back();
-    o.card = card;
-    o.owner = o.controller = owner;
-    o.zone = zone;
-    o.where = where;
-    if (card->type == CardType::Battlefield) return id;  // its place is Battlefield::card (or Removed), no list
-    if (auto* list = zone_list(s, zone, owner, where)) list->push_back(id);
-    return id;
-}
-
 void check_implemented(const Deck& seat0, const Deck& seat1) {
     std::vector<std::string> missing;
     const auto need = [&](const Card* c) {
@@ -57,13 +44,13 @@ void setup_player(GameState& s, PlayerId p, const Deck& deck) {
     if (deck.legend == nullptr || deck.champion == nullptr || deck.battlefields.empty()) {
         throw std::invalid_argument("deck without legend, chosen champion or battlefields");
     }
-    add_object(s, deck.legend, p, Zone::LegendZone);       // 111
-    add_object(s, deck.champion, p, Zone::ChampionZone);   // 112
+    create(s, deck.legend, p, Zone::LegendZone);       // 111
+    create(s, deck.champion, p, Zone::ChampionZone);   // 112
     for (const auto& e : deck.main) {
-        for (int i = 0; i < e.count; ++i) add_object(s, e.card, p, Zone::MainDeck);
+        for (int i = 0; i < e.count; ++i) create(s, e.card, p, Zone::MainDeck);
     }
     for (const auto& e : deck.runes) {
-        for (int i = 0; i < e.count; ++i) add_object(s, e.card, p, Zone::RuneDeck);
+        for (int i = 0; i < e.count; ++i) create(s, e.card, p, Zone::RuneDeck);
     }
     s.rng.shuffle(s.player(p).main_deck);  // 114
     s.rng.shuffle(s.player(p).rune_deck);
@@ -72,11 +59,11 @@ void setup_player(GameState& s, PlayerId p, const Deck& deck) {
     const auto chosen = s.rng.below(deck.battlefields.size());
     for (std::size_t i = 0; i < deck.battlefields.size(); ++i) {
         if (i != chosen) {
-            add_object(s, deck.battlefields[i], p, Zone::Removed);
+            create(s, deck.battlefields[i], p, Zone::Removed);
             continue;
         }
         const auto where = static_cast<std::uint8_t>(s.battlefields.size());
-        s.battlefields.emplace_back().card = add_object(s, deck.battlefields[i], p, Zone::Battlefield, where);
+        s.battlefields.emplace_back().card = create(s, deck.battlefields[i], p, Zone::Battlefield, where);
     }
 }
 
@@ -430,13 +417,13 @@ void cleanup(GameState& s, CleanupKind kind = CleanupKind::Normal) {
             }
         }
     }
-    // 323.6 (5): recall gear and runes at battlefields (attached gear stays: #26). A card in another player's base
+    // 323.6 (5): recall gear and runes at battlefields, not attached gear (719.3). A card in another player's base
     // can't happen here: a base list is its controller's.
     for (std::size_t b = 0; b < s.battlefields.size(); ++b) {
         const std::vector<ObjId> here = s.battlefields[b].here;
         for (const ObjId id : here) {
             const Object& o = s.obj(id);
-            if (o.card->type == CardType::Unit) continue;
+            if (o.card->type == CardType::Unit || o.attached != no_obj) continue;
             move_to(s, id, Zone::Base, o.controller);
             s.cleanup_due = true;  // 319.8
         }
@@ -652,10 +639,29 @@ void remove_item(GameState& s, std::size_t i) {
     s.cleanup_due = true;
 }
 
-// Finalize steps of a pending item (355–359, 402–406), in ChainItem::step.
+// Finalize steps of a pending item (355–359, 402–406), in ChainItem::step: 355's order, optional costs (355.1.a)
+// before the location (355.2) and targets (355.5).
 enum FinStep : std::uint8_t {
-    FinMay, FinLocation, FinTargets, FinOptional, FinCost, FinDiscard, FinRecycleTrash, FinRunes
+    FinMay, FinOptional, FinLocation, FinTargets, FinCost, FinDiscard, FinRecycleTrash, FinRunes
 };
+
+// 355.2: where a unit may enter: the base and battlefields its controller controls, plus with Ambush battlefields
+// where they have units (822.1.b); played only by Ambush's permission, just those (822.1.b: the Reaction is tied
+// to them).
+std::vector<Action> locations(const GameState& s, const ChainItem& item) {
+    const PlayerId p = item.controller;
+    const bool ambush = has(s, item.card, Keyword::Ambush);
+    const bool only_ambush = (item.play & played::ambush) != 0;
+    std::vector<std::uint8_t> where;
+    for (std::size_t i = 0; i < s.battlefields.size(); ++i) {
+        const auto b = static_cast<std::uint8_t>(i);
+        const bool normal = !only_ambush && s.battlefields[b].controller == p;
+        if (normal || (ambush && has_units_at(s, b, p))) where.push_back(b);
+    }
+    auto options = battlefield_options(s, where);
+    if (!only_ambush) options.push_back({ActionKind::Pick, no_obj, to_base});
+    return options;
+}
 
 // 359: finished. Targeting effects trigger, permanents enter the board, spells and abilities wait for the passes.
 void finished(GameState& s, std::size_t i) {
@@ -689,8 +695,8 @@ void finished(GameState& s, std::size_t i) {
         move_to(s, done.card, Zone::Base, done.controller);
     }
     const CardRules* rules = rules_of(s, done.card);
-    const bool ready = rules != nullptr && rules->enters_ready(s, done.card, done);
-    s.obj(done.card).exhausted = unit && !ready;
+    const bool ready = rules != nullptr && (rules->enters_ready(s, done.card, done) || accelerated(s, done));
+    s.obj(done.card).exhausted = unit ? !ready : (done.play & played::exhausted) != 0;  // 184.1
     Event e = make_event(EventKind::Played, s.obj(done.card).ref(done.card), done.controller);
     e.place = place_of(s, done.card);
     emit(s, e);
@@ -717,34 +723,50 @@ void finalize(GameState& s, std::size_t i) {
                         return;
                     }
                 }
-                item.step = FinLocation;
+                item.step = FinOptional;
+                item.sub = 0;
                 continue;
             }
-            case FinLocation: {  // 355.2.a: the base or a battlefield the controller controls
+            case FinOptional: {  // 355.1.a: only ones the play can still be completed and paid with (355.16)
+                const auto optional = optional_costs(s, item);
+                if (item.sub >= optional.size()) {
+                    item.step = FinLocation;
+                    item.sub = 0;
+                    continue;
+                }
+                if (s.answer) {
+                    if (!take_answer(s).empty()) item.paid = static_cast<std::uint8_t>(item.paid | (1u << item.sub));
+                    ++item.sub;
+                    continue;
+                }
+                ChainItem with = item;
+                with.paid = static_cast<std::uint8_t>(with.paid | (1u << item.sub));
+                if (!completable(s, with)) {
+                    ++item.sub;
+                    continue;
+                }
+                ask(s, p, Purpose::OptionalCost, {{ActionKind::Pick, item.card, item.sub}}, 0, 1);
+                return;
+            }
+            case FinLocation: {  // 355.2
                 const bool unit = item.kind == ItemKind::Card && s.obj(item.card).card->type == CardType::Unit;
                 if (unit && s.answer) {
                     item.to = take_answer(s).front().n;
-                } else if (unit) {
-                    std::vector<std::uint8_t> mine;
-                    for (std::size_t b = 0; b < s.battlefields.size(); ++b) {
-                        if (s.battlefields[b].controller == p) mine.push_back(static_cast<std::uint8_t>(b));
-                    }
-                    if (!mine.empty()) {
-                        auto options = battlefield_options(s, mine);
-                        options.push_back({ActionKind::Pick, no_obj, to_base});
+                } else if (unit && !(item.play & played::to_base)) {
+                    auto options = locations(s, item);
+                    if (options.size() > 1) {
                         ask(s, p, Purpose::Location, std::move(options), 1, 1);
                         return;
                     }
+                    item.to = options.front().n;
                 }
                 item.step = FinTargets;
                 item.sub = 0;
                 continue;
             }
-            case FinTargets: {  // 355.5–355.13, 403.2
-                const auto specs = target_specs(s, item);
-                if (item.sub >= specs.size()) {
-                    item.step = FinOptional;
-                    item.sub = 0;
+            case FinTargets: {  // 355.5–355.13, 403.2; only picks the play can still be completed and paid with
+                if (item.sub >= target_slots(s, item)) {
+                    item.step = FinCost;
                     continue;
                 }
                 if (s.answer) {
@@ -756,8 +778,14 @@ void finalize(GameState& s, std::size_t i) {
                     ++item.sub;
                     continue;
                 }
-                auto options = candidates(s, item, item.sub);
-                const TargetSpec& spec = specs[item.sub];
+                const TargetSpec& spec = target_spec(s, item, item.sub);
+                std::vector<Action> options;
+                for (const Action& a : candidates(s, item, item.sub)) {
+                    ChainItem with = item;
+                    with.targets.push_back(a.obj == no_obj ? Target{{}, a.n, item.sub}
+                                                           : Target{s.obj(a.obj).ref(a.obj), 0, item.sub});
+                    if (completable(s, with, item.sub + 1u)) options.push_back(a);
+                }
                 if (options.size() < spec.min) {
                     // 403.4: a trigger without legal choices leaves; a play or activation was offered only with them
                     if (item.kind != ItemKind::Triggered) throw std::logic_error("finalize: no legal targets");
@@ -770,27 +798,6 @@ void finalize(GameState& s, std::size_t i) {
                     continue;
                 }
                 ask(s, p, Purpose::Target, std::move(options), spec.min, max);
-                return;
-            }
-            case FinOptional: {  // 355.1.a: only ones that keep the total payable (355.16)
-                const CardRules* rules = item.kind == ItemKind::Card ? rules_of(s, item) : nullptr;
-                const auto optional = rules ? rules->optional_costs() : std::span<const Cost>{};
-                if (item.sub >= optional.size()) {
-                    item.step = FinCost;
-                    continue;
-                }
-                if (s.answer) {
-                    if (!take_answer(s).empty()) item.paid = static_cast<std::uint8_t>(item.paid | (1u << item.sub));
-                    ++item.sub;
-                    continue;
-                }
-                ChainItem with = item;
-                with.paid = static_cast<std::uint8_t>(with.paid | (1u << item.sub));
-                if (!payable(s, with, total_cost(s, with))) {
-                    ++item.sub;
-                    continue;
-                }
-                ask(s, p, Purpose::OptionalCost, {{ActionKind::Pick, item.card, item.sub}}, 0, 1);
                 return;
             }
             case FinCost:  // 356, 404
@@ -817,7 +824,10 @@ void finalize(GameState& s, std::size_t i) {
                 } else {
                     std::vector<Action> options;
                     for (const ObjId id : disc ? s.player(p).hand : s.player(p).trash) {
-                        if (id != item.card) options.push_back({ActionKind::Pick, id});
+                        const bool spell_only = disc && item.cost.discard_spell;
+                        if (id != item.card && (!spell_only || s.obj(id).card->type == CardType::Spell)) {
+                            options.push_back({ActionKind::Pick, id});
+                        }
                     }
                     std::sort(options.begin(), options.end(), [](const Action& a, const Action& b) { return a.obj < b.obj; });
                     if (static_cast<int>(options.size()) > n) {
@@ -851,6 +861,8 @@ void finalize(GameState& s, std::size_t i) {
                 const ObjRef src = item.source;
                 if (cost.exhaust_self) exhaust(s, src.id);
                 if (cost.disempower_self) disempower(s, src.id);
+                if (cost.burn > 0) burn(s, p, cost.burn);  // 441.3.a
+                if (cost.banish_self && s.alive(src)) banish(s, src.id, {src, p});
                 if (cost.kill_self) kill(s, src.id, {src, p});  // paid even if replaced (357.2.a)
                 // 358: legal_actions only offers legal plays, so the check holds and nothing is ever undone (358.5)
                 finished(s, i);
@@ -867,25 +879,41 @@ void start_resolving(GameState& s) {
     s.passes = 0;
 }
 
-// 359.3.d, 402–406: one step of the resolving item's effect. Done → it leaves the chain (a spell to its owner's trash),
-// unless the effect already took it off (359.3.e.15). A spell with nothing it can do still resolves (055.1).
+// 359.3.d, 402–406: one step of the resolving item's effect. Done → once more per paid Repeat (820.1.d), then it
+// leaves the chain (a spell to its owner's trash, banished if played for Flow: 829.1.b.1), unless the effect already
+// took it off (359.3.e.15). A spell with nothing it can do still resolves (055.1).
 void resolve_step(GameState& s) {
     const ChainItem& item = s.chain[resolving_index(s)];
     const CardRules* rules = rules_of(s, item);
     Resolution r(s);
-    if (rules != nullptr && rules->resolve(r) == Status::Wait) {
+    Status status = Status::Done;
+    if (builtin(s, item)) {
+        status = resolve_builtin(r);
+    } else if (rules != nullptr) {
+        status = rules->resolve(r);
+    }
+    if (status == Status::Wait) {
         if (s.decision.kind == DecisionKind::None) throw std::logic_error("resolve: waits without a decision");
         return;
     }
     if (s.answer) throw std::logic_error("resolve: answer left over");
+    const std::size_t i = resolving_index(s);
+    if (i < s.chain.size() && s.chain[i].rep < repeats(s, s.chain[i])) {
+        ++s.chain[i].rep;
+        s.chain[i].step = 0;
+        return;
+    }
     s.cleanup_due = true;  // 319.5
     s.passes = 0;          // 340.4: the newest item's controller next
-    const std::size_t i = resolving_index(s);
     if (i == s.chain.size()) return;
     const ChainItem done = s.chain[i];
     s.chain.erase(s.chain.begin() + static_cast<std::ptrdiff_t>(i));
     if (done.card != no_obj && s.obj(done.card).zone == Zone::Chain) {
-        move_to(s, done.card, Zone::Trash, s.obj(done.card).owner);
+        if (done.play & played::flow) {
+            banish(s, done.card, {done.source, done.controller});
+        } else {
+            move_to(s, done.card, Zone::Trash, s.obj(done.card).owner);
+        }
     }
     if (done.kind == ItemKind::Activated) {  // 377.2.a
         Event e = make_event(EventKind::Activated, done.source, done.controller);
@@ -987,16 +1015,20 @@ void run(GameState& s) {
     }
 }
 
-// 354: a card from hand to the chain as a pending item; run() finalizes it.
+bool timing_allows(const GameState& s, Timing timing);
+
+// 354: a card from hand (or the trash, for its Flow cost) to the chain as a pending item; run() finalizes it.
 void play(GameState& s, ObjId id) {
     const PlayerId p = s.decision.player;
     s.decision = {};
     note_play(s, false);
-    move_to(s, id, Zone::Chain, p);
     ChainItem item;
     item.card = id;
-    item.source = s.obj(id).ref(id);
     item.controller = p;
+    if (s.obj(id).zone == Zone::Trash) item.play |= played::flow;
+    if (!timing_allows(s, s.obj(id).card->timing)) item.play |= played::ambush;
+    move_to(s, id, Zone::Chain, p);
+    item.source = s.obj(id).ref(id);
     s.chain.push_back(item);
     s.cleanup_due = true;  // 319.3
     s.passes = 0;          // 339.1: an item was added
@@ -1029,15 +1061,6 @@ bool timing_allows(const GameState& s, Timing timing) {
     return false;
 }
 
-// Every target slot has enough valid choices (355.8, 403.3).
-bool targets_available(const GameState& s, const ChainItem& item) {
-    const auto specs = target_specs(s, item);
-    for (std::size_t k = 0; k < specs.size(); ++k) {
-        if (candidates(s, item, k).size() < specs[k].min) return false;
-    }
-    return true;
-}
-
 // 376–381: `p` may activate ability `a` of `source` now.
 bool activatable(const GameState& s, PlayerId p, ObjId source, std::uint8_t a) {
     const CardRules* rules = rules_of(s, source);
@@ -1045,6 +1068,7 @@ bool activatable(const GameState& s, PlayerId p, ObjId source, std::uint8_t a) {
     if (spec.kind != AbilityKind::Activated || controller_of(s, source) != p) return false;
     if (!timing_allows(s, spec.timing)) return false;
     if (spec.usable != nullptr && !spec.usable(s, source)) return false;  // 377.2.b
+    if (spec.builtin == Builtin::Empower && s.obj(source).empowered) return false;  // 827.1.c.1
     const ObjRef ref = s.obj(source).ref(source);
     if (spec.per_turn > 0 && uses(s, ref, a) >= spec.per_turn) return false;
     ChainItem item;
@@ -1052,7 +1076,7 @@ bool activatable(const GameState& s, PlayerId p, ObjId source, std::uint8_t a) {
     item.controller = p;
     item.kind = ItemKind::Activated;
     item.ability = a;
-    return targets_available(s, item) && payable(s, item, total_cost(s, item));
+    return completable(s, item);
 }
 
 std::size_t hand_index(const GameState& s, PlayerId p, ObjId id) {
@@ -1123,10 +1147,13 @@ std::vector<Action> legal_actions(const GameState& s) {
             for (const ObjId id : s.player(d.player).hand) {
                 if (playable(s, d.player, id)) actions.push_back({ActionKind::Play, id});
             }
-            for (ObjId id = 0; id < s.objects.size(); ++id) {  // 380: on the board, and legends
+            for (const ObjId id : s.player(d.player).trash) {  // 829: Flow
+                if (playable(s, d.player, id)) actions.push_back({ActionKind::Play, id});
+            }
+            for (ObjId id = 0; id < s.objects.size(); ++id) {  // 380: on the board, and legends; not attached (721.2)
                 const Zone z = s.obj(id).zone;
                 const CardRules* rules = rules_of(s, id);
-                if (rules == nullptr || !(on_board(z) || z == Zone::LegendZone)) continue;
+                if (rules == nullptr || !(on_board(z) || z == Zone::LegendZone) || s.obj(id).attached != no_obj) continue;
                 for (std::size_t a = 0; a < rules->abilities().size(); ++a) {
                     const auto ab = static_cast<std::uint8_t>(a);
                     if (activatable(s, d.player, id, ab)) actions.push_back({ActionKind::Activate, id, ab});
@@ -1221,16 +1248,30 @@ void concede(GameState& s, PlayerId p) {
 }
 
 bool playable(const GameState& s, PlayerId p, ObjId id) {
-    const Card& card = *s.obj(id).card;
+    const Object& o = s.obj(id);
+    const Card& card = *o.card;
     const bool kind = card.type == CardType::Unit || card.type == CardType::Gear || card.type == CardType::Spell;
-    if (!kind || !timing_allows(s, card.timing)) return false;
+    if (!kind || o.owner != p) return false;
     const CardRules* rules = rules_of(s, id);
-    if (rules != nullptr && !rules->can_play(s, id, p)) return false;
     ChainItem item;  // as it would be on the chain, no optional costs yet
     item.card = id;
-    item.source = s.obj(id).ref(id);
+    item.source = o.ref(id);
     item.controller = p;
-    return targets_available(s, item) && payable(s, item, total_cost(s, item));
+    if (o.zone == Zone::Trash) {  // 829.1.b
+        if (rules == nullptr || !rules->flow_cost()) return false;
+        item.play |= played::flow;
+    } else if (o.zone != Zone::Hand) {
+        return false;
+    }
+    if (!timing_allows(s, card.timing)) {  // 822.1.b: Ambush is a Reaction to a battlefield where p has units
+        if (card.type != CardType::Unit || !has(s, id, Keyword::Ambush) || !timing_allows(s, Timing::Reaction)) {
+            return false;
+        }
+        item.play |= played::ambush;
+        if (locations(s, item).empty()) return false;
+    }
+    if (rules != nullptr && !rules->can_play(s, id, p)) return false;
+    return completable(s, item);
 }
 
 std::string describe(const GameState& s, const Action& action) {
