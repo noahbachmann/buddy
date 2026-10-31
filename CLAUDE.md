@@ -19,6 +19,7 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 | `docs/voice-training.md` | Recurring workflow: record, train, score and install speech-to-text on Dev's voice |
 | `skeleton/CLAUDE.md` | Code quick reference: service pattern (C++ and Python), shared helpers, deploy scripts, tests |
 | `skeleton/services/web/CLAUDE.md` | Web panel internals: server, state stream, `www/` page structure |
+| `skeleton/services/game/CLAUDE.md` | Riftbound engine as it is now: the loop, hook points for the next sub-issue, invariants, test helpers, gotchas |
 
 - Read this file and `buddy-hardware.md` before answering about setup, parts or next steps.
 - The progress table is the current status.

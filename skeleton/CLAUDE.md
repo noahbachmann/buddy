@@ -2,7 +2,7 @@
 
 Project root for CMake (C++) and the uv workspace (Python). One executable per service, `buddy@<name>` on the Pi.
 Roadmap, decisions and conventions: `../CLAUDE.md`. Everyday commands for Dev: `../README.md`. Deeper per-directory
-notes: `services/web/CLAUDE.md`.
+notes: `services/web/CLAUDE.md`, `services/game/CLAUDE.md` (Riftbound engine).
 
 ## Service pattern (C++: `services/<name>/main.cpp`; Python: same steps with `buddy_shared`)
 

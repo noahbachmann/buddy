@@ -258,44 +258,25 @@ struct CardRules {
 - `tests/test_cards.hpp`: cards defined in code with exactly the stats a test needs, no `cards.json`;
   `simple_deck("A")` is a legal 56-card deck.
 
-**Built in #21:** state, `move_to`/`draw`/`recycle`, setup 110–116 with Duel's 487.5 (one random battlefield per
-player, the other two `Removed`), random first player, mulligan 117 (set aside, draw, recycle in random order) as one
-decision per player in turn order.
+**As built (#21–#23).** How the engine works now: `skeleton/services/game/CLAUDE.md`. Decisions made on the way:
 
-**Built in #22:** turns as tasks: Awaken (ready the turn player's board), Beginning (hold scoring waits for #25),
-Channel 2 (+1 on turn 2, 487.7; fewer when the rune deck runs out), Draw 1, Main (pools empty, then `Priority`:
-`Play` a unit or gear from hand, or `EndTurn`), Ending (heal units, pools empty, next player). Units enter the base
-exhausted, gear ready (359.2), straight off the chain once paid; spells wait for #23. Burn Out (432) inside `draw()`:
-trash recycled, the opponent +1, repeated while the deck stays empty; from the second burn out in a row the Victory
-Score wins at once (432.3.c). `cleanup_due` is set by phase changes, board enter/leave and exhausting; the loop runs a
-cleanup before the next task, so far only the win check (323.1: ≥ 8 and more than the opponent). `concede(s, p)`
-works any time and is not an `Action`. `play_random()` (`random_game.hpp`) plays both seats uniformly at random,
-checks `check_invariants()` (now also pools ≥ 0, chain items, no decision before a due cleanup), a constant object
-count, and at each turn's first priority that Awaken readied everything and the pools are empty.
-`buddy-game --random --games N --seed S [--deck A --deck B]`: vi vs zed, 1000 games 0.5 ms each on the Pi, the same
-results as on the VM. Every vanilla game lasts 71 turns: without scoring, the deck runs out and the empty trash burns
-out to 8 (decided by who goes first).
-
-**Built in #23:** playing cards 353–359 as a pending chain item: choices (hooks with #24), cost, payment (`Recycle`
-decision), legality (always holds: `legal_actions` offers only legal plays, so 358.5 never undoes), finalized. Units
-and gear leave the chain at once (337.2), spells wait. HOT FEPR in `run()`: cleanup, tasks, Finalize the oldest
-pending item, then priority (`Play` or `Pass`), both passed → the newest item resolves (into the owner's trash; vanilla
-spells do nothing and still resolve, 055.1). No priority field: `GameState::passes` counts passes in a row, the holder
-is the newest item's controller plus that many in turn order (337.4, 340.4: `chain_priority()`). With no chain, the
-turn player's main-phase priority follows from 335 (no Priority task). `turn_state()` (310) and timing: Neutral Open
-anything, Showdown Open Action/Reaction, Closed only Reaction; `GameState::showdown` is only read so far (#25 starts
-showdowns, focus 312.2.b/346 comes with them). `Card::timing` is the card's leading `[Action]`/`[Reaction]` keyword
-(`printed_timing()`, read in vanilla mode too; the fixture keeps just that keyword of the text); granted timing
-(Quick-Draw) comes from card rules (5.3). Cleanup 323 in the rule's order: win check, lethal damage kills (142.4.b,
-Might = printed + buffs until the layers), battlefields without their controller's units lose control (open state),
-gear and runes at battlefields recalled, hidden cards at someone else's battlefield trashed; combat and showdown steps
-(323.2, 323.7–323.13) are named placeholders for #25. A cleanup that changed something re-arms `cleanup_due` (322). The
-Ending phase is two tasks: ending step, then the Ending Special Cleanup (317.2: kill, heal, pools, "this turn") and the
-next turn, so a unit with lethal damage dies before it heals. Random games: `spell_deck()` (Normal, Action, Reaction
-spells) and the real decks (Tactical Retreat, Ruthless Strike …) play spells and reactions; `RandomGame` counts both.
-vi vs zed, 1000 games: 0 failures under ASan/UBSan, 3.1 ms each on the Pi (same results as the VM), 128 spells and 3
-cards played on a chain per game. Games now last ~182 turns: spells refill the trash, so each burn out recycles cards
-and only scores 1.
+- Mulligan 117: one decision per player in turn order; set-aside cards are `Removed` for a moment, then recycled in
+  random order. `concede(s, p)` works any time and is not an `Action`.
+- Burn Out 432 lives inside `draw()`: trash recycled, the opponent +1, repeated while the deck stays empty; from the
+  second burn out in a row the Victory Score wins at once (432.3.c), the first waits for a cleanup (323.1).
+- Priority has no field: `passes` counts passes in a row, the holder is the newest item's controller plus that many
+  in turn order (337.4, 340.4). With no chain, 335 gives the turn player priority (no Priority task).
+- Legality (358) is checked up front: `legal_actions` offers only legal plays, so 358.5's undo never happens.
+- Timing = the card's leading `[Action]`/`[Reaction]` keyword (`Card::timing`), read in vanilla mode too; the
+  fixture keeps just that keyword. Granted timing (Quick-Draw) comes from card rules (5.3).
+- Cleanup 323 runs in the rule's order with the combat/showdown steps as named placeholders for #25. The Ending phase
+  is two tasks (ending step; Expiration = Ending Special Cleanup + next turn), so lethal damage kills before units
+  heal.
+- `GameState::showdown` exists for timing only; showdowns, focus (312.2.b, 346) and their priority come with #25.
+- Measurements, vi vs zed, 1000 seeded games, 0 failures under ASan/UBSan, same results on the VM and the Pi: #22
+  0.5 ms per game, always 71 turns (no scoring: the deck runs out, the empty trash burns out to 8); #23 3.1 ms, ~182
+  turns (spells refill the trash, so each burn out recycles cards and scores only 1), 128 spells and 3 cards played
+  onto a chain per game.
 
 ## Hardware notes for Phase 4 (decide there, not now)
 
