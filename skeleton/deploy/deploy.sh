@@ -10,7 +10,7 @@
 set -euo pipefail
 
 HOST="${BUDDY_HOST:-buddy}"
-SERVICES=(ears brain spotify hue web voice motion speakers)
+SERVICES=(ears brain spotify hue web voice motion speakers game)
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"   # project root = parent of deploy/
 
 setup=false
@@ -59,7 +59,7 @@ py=()
 units=()
 for s in "$@"; do
     if [[ -f "src/services/$s/pyproject.toml" ]]; then py+=("$s"); else cpp+=("$s"); fi
-    units+=("buddy@$s")
+    [[ "$s" == game ]] || units+=("buddy@$s")  # game: command line only (deploy/run.sh game …) until step 5.6
 done
 if [[ ${#cpp[@]} -gt 0 ]]; then
     cmake -S src -B build-release -G Ninja \
@@ -71,7 +71,7 @@ fi
 
 # Stop before install: overwriting a running binary fails ("Text file busy"). Install only the services
 # being deployed, so other services keep running their current version.
-systemctl --user stop "${units[@]}" 2>/dev/null || true
+[[ ${#units[@]} -eq 0 ]] || systemctl --user stop "${units[@]}" 2>/dev/null || true
 for s in "${cpp[@]}"; do cmake --install build-release --component "$s" > /dev/null; done
 for s in "${py[@]}"; do
     # --inexact: keep the other Python services' packages in the shared venv. System Python (Debian), no downloads.
@@ -79,6 +79,7 @@ for s in "${py[@]}"; do
         ~/.local/bin/uv sync --project src --frozen --no-dev --inexact --package "buddy-$s" --quiet
     ln -sfn ~/buddy/venv/bin/"buddy-$s" ~/buddy/bin/"buddy-$s"
 done
+[[ ${#units[@]} -gt 0 ]] || exit 0
 install -m 644 src/deploy/config/systemd/buddy@.service ~/.config/systemd/user/
 systemctl --user daemon-reload
 systemctl --user enable --quiet "${units[@]}"

@@ -14,6 +14,7 @@
 #   config       ~/buddy folders, buddy.env from the example
 #   soloist      Spotify Connect device "Buddy" (Spotify Soloist, sandboxed), weekly update timer (D20)
 #   models       deploy/pi/fetch-models.sh: what buddy.env names
+#   cards        deploy/pi/fetch-cards.sh: Riftbound card data for game (D21); re-run for new sets
 #   check        warns about keys in buddy.env that no service reads (typos, removed settings)
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -210,6 +211,10 @@ step_models() {
     bash ./fetch-models.sh
 }
 
+step_cards() {
+    bash ./fetch-cards.sh
+}
+
 step_check() {
     local key known
     known="$(grep -oE '\bBUDDY_[A-Z0-9_]+' "$CONFIG/buddy.env.example" | sort -u)"
@@ -224,7 +229,7 @@ step_check() {
     echo "  ✓ checked"
 }
 
-ALL=(packages onnxruntime libpiper uv pico audio mosquitto session config soloist models check)
+ALL=(packages onnxruntime libpiper uv pico audio mosquitto session config soloist models cards check)
 steps=("$@")
 [[ ${#steps[@]} -gt 0 ]] || steps=("${ALL[@]}")
 for s in "${steps[@]}"; do

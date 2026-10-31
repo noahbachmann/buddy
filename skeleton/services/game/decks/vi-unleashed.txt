@@ -1,0 +1,39 @@
+Legend:
+1 Vi, Piltover Enforcer
+
+Champion:
+1 Vi, Hotheaded
+
+MainDeck:
+1 Vi, Destructive
+2 Vi, Peacekeeper
+1 Rengar, Unseen
+1 Xerath, Freed
+3 Inferna
+2 Vault Breaker
+2 Loyal Poro
+2 Crimson Pigeons
+2 Sharkling
+2 Towering Pairofant
+2 Yeti Brawler
+2 Carrion Dredger
+2 Lord Broadmane
+2 Mageseeker Investigator
+1 Arena Kingpin
+2 Square Up
+2 Right of Conquest
+1 Tactical Retreat
+1 Upstage Comedy
+1 Soul Harvest
+2 Divining Shells
+2 Serrated Dirk
+1 Hextech Gauntlets
+
+Battlefields:
+1 Trapping Grounds
+1 Star Spring
+1 Valley of Idols
+
+Runes:
+6 Fury Rune
+6 Order Rune
