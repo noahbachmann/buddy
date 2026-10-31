@@ -18,6 +18,6 @@ install(TARGETS buddy-game RUNTIME DESTINATION bin COMPONENT game)
 install(DIRECTORY decks/ DESTINATION share/game/decks COMPONENT game)
 
 buddy_add_tests(game
-    tests/test_card_db.cpp tests/test_code.cpp tests/test_deck.cpp tests/test_pay.cpp tests/test_random.cpp
+    tests/test_card_db.cpp tests/test_chain.cpp tests/test_code.cpp tests/test_deck.cpp tests/test_pay.cpp tests/test_random.cpp
     tests/test_setup.cpp tests/test_state.cpp tests/test_turn.cpp
     LIBS riftbound)

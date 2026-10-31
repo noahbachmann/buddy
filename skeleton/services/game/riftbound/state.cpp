@@ -39,6 +39,36 @@ std::string_view to_string(Phase phase) {
     return "?";
 }
 
+std::string_view to_string(TurnState state) {
+    switch (state) {
+        case TurnState::NeutralOpen: return "neutral open";
+        case TurnState::NeutralClosed: return "neutral closed";
+        case TurnState::ShowdownOpen: return "showdown open";
+        case TurnState::ShowdownClosed: return "showdown closed";
+    }
+    return "?";
+}
+
+TurnState turn_state(const GameState& s) {
+    if (s.showdown) return closed(s) ? TurnState::ShowdownClosed : TurnState::ShowdownOpen;
+    return closed(s) ? TurnState::NeutralClosed : TurnState::NeutralOpen;
+}
+
+PlayerId chain_priority(const GameState& s) {
+    if (s.chain.empty()) throw std::logic_error("chain_priority: no chain");
+    return static_cast<PlayerId>((s.chain.back().controller + s.passes) % player_count);
+}
+
+int might(const GameState& s, ObjId id) {
+    const Object& o = s.obj(id);
+    return o.card->might.value_or(0) + o.buffs;
+}
+
+bool lethal_damage(const GameState& s, ObjId id) {
+    const Object& o = s.obj(id);
+    return o.damage > 0 && o.damage >= might(s, id);
+}
+
 std::string_view to_string(DecisionKind kind) {
     switch (kind) {
         case DecisionKind::None: return "none";
@@ -224,7 +254,23 @@ std::vector<std::string> check_invariants(const GameState& s) {
     const Decision& d = s.decision;
     if (d.kind != DecisionKind::None && s.winner) problems.push_back("decision open after the game ended");
     if (d.player >= player_count) problems.push_back("decision for player " + std::to_string(d.player));
-    if (d.kind == DecisionKind::Priority && d.player != s.turn_player) problems.push_back("priority off turn");
+    for (std::size_t i = 0; i < s.chain.size(); ++i) {
+        const ChainItem& item = s.chain[i];
+        if (item.card < s.objects.size() && item.finalized && s.objects[item.card].card->type != CardType::Spell) {
+            problems.push_back("finalized permanent still on the chain (337.2)");
+        }
+        if (!item.finalized && i + 1 < s.chain.size() && s.chain[i + 1].finalized) {
+            problems.push_back("pending chain item below a finalized one (337.1.b)");
+        }
+    }
+    if (d.kind == DecisionKind::Priority) {
+        if (s.chain.empty() && d.player != s.turn_player) problems.push_back("open-state priority off turn (316.5.b)");
+        if (!s.chain.empty() && d.player != chain_priority(s)) problems.push_back("priority with the wrong player");
+        if (std::any_of(s.chain.begin(), s.chain.end(), [](const ChainItem& c) { return !c.finalized; })) {
+            problems.push_back("priority while a chain item is pending (337.1)");
+        }
+        if (s.passes >= player_count) problems.push_back("priority after everyone passed (339.1)");
+    }
     if (d.kind != DecisionKind::None && s.cleanup_due) problems.push_back("decision open before a due cleanup");
     if (!s.winner && d.kind == DecisionKind::None) problems.push_back("nothing to decide in a running game");
     return problems;

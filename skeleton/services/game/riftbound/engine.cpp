@@ -97,13 +97,66 @@ void empty_pools(GameState& s) {  // 167
     for (Player& pl : s.players) pl.pool = {};
 }
 
-// 323. Until #23: the win check (323.1); the board steps come with combat and the chain.
-void cleanup(GameState& s) {
+// A cleanup (323), in the rule's order. Steps for showdowns and combat (323.2, 323.7–323.13) get their logic with
+// #25. `ending` = the Ending Special Cleanup (317.2). Whatever changes re-arms cleanup_due (322; move_to does so for
+// cards leaving the board), so the engine repeats cleanups until one changes nothing.
+void cleanup(GameState& s, bool ending = false) {
     s.cleanup_due = false;
-    for (PlayerId p = 0; p < player_count; ++p) {
+    for (PlayerId p = 0; p < player_count; ++p) {  // 323.1
         const int points = s.player(p).points;
-        if (points >= victory_score && points > s.player(opponent(p)).points) s.winner = p;  // 194.2
+        if (points >= victory_score && points > s.player(opponent(p)).points) {  // 194.2
+            s.winner = p;
+            return;
+        }
     }
+    // 323.2: combat designations (#25)
+
+    // 323.4 (3a): lethal damage kills (429: to the owner's trash; death triggers with #24)
+    std::vector<ObjId> dead;
+    for (ObjId id = 0; id < s.objects.size(); ++id) {
+        const Object& o = s.obj(id);
+        if (on_board(o.zone) && o.card->type == CardType::Unit && lethal_damage(s, id)) dead.push_back(id);
+    }
+    for (const ObjId id : dead) move_to(s, id, Zone::Trash, s.obj(id).owner);
+    if (ending) {
+        for (Object& o : s.objects) {
+            if (on_board(o.zone)) o.damage = 0;  // 317.2.b (3c): heal all units
+        }
+        // 317.2.c (3d): "this turn" effects expire (#24)
+        for (Player& pl : s.players) pl.scored = 0;
+        empty_pools(s);  // 317.2.d (3e)
+    }
+
+    // 323.5 (4): a controlled battlefield without its controller's units, in an open state without a showdown there
+    if (!closed(s) && !s.showdown) {
+        for (Battlefield& bf : s.battlefields) {
+            if (!bf.controller) continue;
+            const bool held = std::any_of(bf.here.begin(), bf.here.end(), [&](ObjId id) {
+                return s.obj(id).controller == *bf.controller && s.obj(id).card->type == CardType::Unit;
+            });
+            if (!held) {
+                bf.controller.reset();
+                s.cleanup_due = true;  // 319.7
+            }
+        }
+    }
+    // 323.6 (5): recall gear and runes at battlefields (attached gear stays: #26). A card in another player's base
+    // can't happen here: a base list is its controller's.
+    for (std::size_t b = 0; b < s.battlefields.size(); ++b) {
+        const std::vector<ObjId> here = s.battlefields[b].here;
+        for (const ObjId id : here) {
+            const Object& o = s.obj(id);
+            if (o.card->type == CardType::Unit) continue;
+            move_to(s, id, Zone::Base, o.controller);
+            s.cleanup_due = true;  // 319.8
+        }
+        // 323.6.a: hidden cards at a battlefield their controller doesn't control
+        const std::vector<ObjId> facedown = s.battlefields[b].facedown;
+        for (const ObjId id : facedown) {
+            if (s.battlefields[b].controller != s.obj(id).controller) move_to(s, id, Zone::Trash, s.obj(id).owner);
+        }
+    }
+    // 323.7–323.13 (6–10): staging showdowns and combats, Contested, the turn player's pick (#25)
 }
 
 void run_task(GameState& s, const Task& task) {
@@ -132,62 +185,37 @@ void run_task(GameState& s, const Task& task) {
             enter_phase(s, Phase::Draw);
             draw(s, p, 1);
             return;
-        case TaskKind::Main:  // 316.3; start-of-main effects (#24)
+        case TaskKind::Main:  // 316.3; start-of-main effects (#24). Priority follows from 335 in run()
             enter_phase(s, Phase::Main);
             empty_pools(s);
-            s.tasks.push_back({TaskKind::Priority, p});
             return;
-        case TaskKind::Priority:
-            s.decision = {DecisionKind::Priority, p, {}};
-            return;
-        case TaskKind::Ending:  // 317: ending step effects (#24), then the Ending Special Cleanup
+        case TaskKind::Ending:  // 317.1: ending step effects (#24)
             enter_phase(s, Phase::Ending);
-            for (Object& o : s.objects) {
-                if (on_board(o.zone)) o.damage = 0;  // 317.2.b: heal all units
-            }
-            // 317.2.c: "this turn" effects expire with #24
-            empty_pools(s);  // 317.2.d
-            for (Player& pl : s.players) pl.scored = 0;
+            s.tasks.push_back({TaskKind::Expiration, p});
+            return;
+        case TaskKind::Expiration:  // 317.2; 317.2.f (repeat after FEPR) once triggers exist (#24)
+            cleanup(s, true);
+            if (s.winner) return;
             s.turn_player = opponent(p);  // 317.3
             start_turn(s);
             return;
     }
 }
 
-// Runs a due cleanup before every task (319), tasks until a decision is open, the game is over or none are left.
-void run(GameState& s) {
-    while (!s.winner) {
-        if (s.cleanup_due) {
-            cleanup(s);
-            continue;
-        }
-        if (s.decision.kind != DecisionKind::None || s.tasks.empty()) break;
-        const Task task = s.tasks.back();
-        s.tasks.pop_back();
-        run_task(s, task);
-    }
-    if (s.winner) {
-        s.decision = {};
-        s.tasks.clear();
-    }
+std::size_t pending_index(const GameState& s) {
+    const auto it = std::find_if(s.chain.begin(), s.chain.end(), [](const ChainItem& c) { return !c.finalized; });
+    return static_cast<std::size_t>(it - s.chain.begin());
 }
 
-// 359.2: paid, the permanent leaves the chain. Units enter exhausted, gear ready, both in the base until #25.
-void finish_permanent(GameState& s) {
-    const ChainItem item = s.chain.back();
-    s.chain.pop_back();
-    move_to(s, item.card, Zone::Base, item.controller);
-    s.obj(item.card).exhausted = s.obj(item.card).card->type == CardType::Unit;
-    s.tasks.push_back({TaskKind::Priority, item.controller});
-}
-
-// 357 for the card on top of the chain: picks the forced runes, stops at a Recycle decision while the domain is a
-// choice, pays once the set is complete.
-void continue_payment(GameState& s) {
-    const ChainItem& item = s.chain.back();
-    const Cost cost = printed_cost(*s.obj(item.card).card);
+// 337.1, 355–359 for the pending item at `i`: choices, cost, payment, legality, then finished. Stops at a Recycle
+// decision while the domain is a choice; the answer calls it again.
+void finalize(GameState& s, std::size_t i) {
+    const ChainItem item = s.chain.at(i);
+    // 355: targets and modes (#24), a unit's location (#25)
+    const Cost cost = printed_cost(*s.obj(item.card).card);  // 356: modifiers with #24
+    if (s.decision.kind != DecisionKind::Recycle) s.decision = {DecisionKind::Recycle, item.controller, {}};
     auto& picked = s.decision.picked;
-    for (;;) {
+    for (;;) {  // 357
         const auto options = recycle_options(s, item.controller, cost, picked);
         if (options.empty()) break;
         if (options.size() > 1) return;
@@ -196,16 +224,84 @@ void continue_payment(GameState& s) {
     const std::vector<ObjId> recycled = picked;
     s.decision = {};
     pay(s, item.controller, cost, recycled);
-    finish_permanent(s);
+    // 358: legal_actions only offers legal plays, so the check holds and nothing is ever undone (358.5)
+    s.chain[i].finalized = true;  // 359.1
+    s.cleanup_due = true;         // 319.4
+    s.passes = 0;
+    if (s.obj(item.card).card->type == CardType::Spell) return;  // 359.3: waits on the chain
+    // 337.2, 359.2: a permanent resolves at once. Units enter exhausted, gear ready, both in the base until #25
+    s.chain.erase(s.chain.begin() + static_cast<std::ptrdiff_t>(i));
+    move_to(s, item.card, Zone::Base, item.controller);
+    s.obj(item.card).exhausted = s.obj(item.card).card->type == CardType::Unit;
 }
 
-// 353–359 for a permanent from hand: to the chain, cost, pay.
+// 340.1, 359.3.d: the newest item resolves, then the spell goes to its owner's trash. Its effects come with 5.3; a
+// spell with nothing it can do still resolves (055.1), like every vanilla spell.
+void resolve(GameState& s) {
+    const ChainItem item = s.chain.back();
+    s.chain.pop_back();
+    move_to(s, item.card, Zone::Trash, s.obj(item.card).owner);
+    s.cleanup_due = true;  // 319.5
+    s.passes = 0;          // 340.4: the newest item's controller next
+}
+
+// HOT FEPR (334): a due cleanup before anything else (319), then tasks, then Finalize the oldest pending item,
+// Execute (priority), Pass, Resolve; with no chain, the turn player's main-phase priority (335). Stops at a decision,
+// the game's end or when nothing is left.
+void run(GameState& s) {
+    while (!s.winner) {
+        if (s.cleanup_due) {
+            cleanup(s);
+            continue;
+        }
+        if (s.decision.kind != DecisionKind::None) break;
+        if (!s.tasks.empty()) {
+            const Task task = s.tasks.back();
+            s.tasks.pop_back();
+            run_task(s, task);
+            continue;
+        }
+        if (const auto i = pending_index(s); i < s.chain.size()) {
+            finalize(s, i);
+            continue;
+        }
+        if (!s.chain.empty()) {
+            if (s.passes >= player_count) {  // 339.1
+                resolve(s);
+                continue;
+            }
+            s.decision = {DecisionKind::Priority, chain_priority(s), {}};  // 337.4, 339.2, 340.4
+            break;
+        }
+        if (s.phase == Phase::Main && !s.showdown) s.decision = {DecisionKind::Priority, s.turn_player, {}};
+        break;  // showdowns' focus (335.1) with #25
+    }
+    if (s.winner) {
+        s.decision = {};
+        s.tasks.clear();
+    }
+}
+
+// 354: a card from hand to the chain as a pending item; run() finalizes it.
 void play(GameState& s, ObjId id) {
     const PlayerId p = s.decision.player;
-    move_to(s, id, Zone::Chain, p);  // 354
+    s.decision = {};
+    move_to(s, id, Zone::Chain, p);
     s.chain.push_back({id, s.obj(id).ref(id), p, false});
-    s.decision = {DecisionKind::Recycle, p, {}};
-    continue_payment(s);
+    s.cleanup_due = true;  // 319.3
+    s.passes = 0;          // 339.1: an item was added
+}
+
+// 308.1.a, 309.1.a, 310.1.a: what the turn's state lets a card be played with. Neutral Open only reaches here with
+// the turn player's main-phase priority.
+bool timing_allows(const GameState& s, Timing timing) {
+    switch (turn_state(s)) {
+        case TurnState::NeutralOpen: return true;
+        case TurnState::ShowdownOpen: return timing != Timing::Normal;
+        case TurnState::NeutralClosed:
+        case TurnState::ShowdownClosed: return timing == Timing::Reaction;
+    }
+    return false;
 }
 
 std::size_t hand_index(const GameState& s, PlayerId p, ObjId id) {
@@ -261,10 +357,10 @@ std::vector<Action> legal_actions(const GameState& s) {
             for (const ObjId id : s.player(d.player).hand) {
                 if (playable(s, d.player, id)) actions.push_back({ActionKind::Play, id});
             }
-            actions.push_back({ActionKind::EndTurn});
+            actions.push_back({closed(s) ? ActionKind::Pass : ActionKind::EndTurn});
             break;
         case DecisionKind::Recycle: {
-            const Cost cost = printed_cost(*s.obj(s.chain.back().card).card);
+            const Cost cost = printed_cost(*s.obj(s.chain.at(pending_index(s)).card).card);
             for (const ObjId id : recycle_options(s, d.player, cost, d.picked)) {
                 actions.push_back({ActionKind::Pick, id});
             }
@@ -292,6 +388,9 @@ void apply(GameState& s, const Action& action) {
         case DecisionKind::Priority:
             if (action.kind == ActionKind::Play) {
                 play(s, action.obj);
+            } else if (action.kind == ActionKind::Pass) {
+                s.decision = {};
+                ++s.passes;  // 338.1.b
             } else {
                 s.decision = {};
                 s.tasks.push_back({TaskKind::Ending, s.turn_player});  // 316.9
@@ -299,7 +398,7 @@ void apply(GameState& s, const Action& action) {
             break;
         case DecisionKind::Recycle:
             s.decision.picked.push_back(action.obj);
-            continue_payment(s);
+            finalize(s, pending_index(s));
             break;
     }
     run(s);
@@ -314,7 +413,8 @@ void concede(GameState& s, PlayerId p) {
 
 bool playable(const GameState& s, PlayerId p, ObjId id) {
     const Card& card = *s.obj(id).card;
-    return (card.type == CardType::Unit || card.type == CardType::Gear) && can_pay(s, p, printed_cost(card));
+    const bool kind = card.type == CardType::Unit || card.type == CardType::Gear || card.type == CardType::Spell;
+    return kind && timing_allows(s, card.timing) && can_pay(s, p, printed_cost(card));
 }
 
 std::string describe(const GameState& s, const Action& action) {
@@ -326,6 +426,7 @@ std::string describe(const GameState& s, const Action& action) {
             return "pick " + name;
         case ActionKind::Play: return "play " + name;
         case ActionKind::EndTurn: return "end turn";
+        case ActionKind::Pass: return "pass";
         case ActionKind::Done:
             return s.decision.kind == DecisionKind::Mulligan && s.decision.picked.empty() ? "keep" : "done";
     }

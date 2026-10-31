@@ -9,7 +9,7 @@ namespace buddy::riftbound {
 namespace {
 
 // Checks beyond check_invariants() at the turn player's first priority of a turn: Awaken readied everything
-// (315.1), the pools emptied (316.3).
+// (315.1), the pools emptied (316.3), no chain left over.
 std::string check_turn_start(const GameState& s) {
     const PlayerId p = s.turn_player;
     for (const Object& o : s.objects) {
@@ -18,6 +18,7 @@ std::string check_turn_start(const GameState& s) {
     for (const Player& pl : s.players) {
         if (pl.pool != Pool{}) return "rune pool not empty in the main phase";
     }
+    if (!s.chain.empty()) return "chain left over from the last turn";
     return {};
 }
 
@@ -43,6 +44,10 @@ RandomGame play_random(const Deck& seat0, const Deck& seat1, std::uint64_t seed,
             const auto actions = legal_actions(s);
             const Action a = actions.at(pick.below(actions.size()));
             last = describe(s, a);
+            if (a.kind == ActionKind::Play) {
+                result.spells += s.obj(a.obj).card->type == CardType::Spell;
+                result.reactions += closed(s);
+            }
             apply(s, a);
             ++result.actions;
             result.turns = s.turn;

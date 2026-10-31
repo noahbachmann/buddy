@@ -105,6 +105,26 @@ std::string domains_string(Domains d) {
     return s.empty() ? "Colorless" : s;
 }
 
+std::string_view to_string(Timing timing) {
+    switch (timing) {
+    case Timing::Normal: return "Normal";
+    case Timing::Action: return "Action";
+    case Timing::Reaction: return "Reaction";
+    }
+    return "?";
+}
+
+Timing printed_timing(std::string_view text) {
+    for (const auto& [keyword, timing] : {std::pair{std::string_view{"[Action]"}, Timing::Action},
+                                         std::pair{std::string_view{"[Reaction]"}, Timing::Reaction}}) {
+        if (!text.starts_with(keyword)) continue;
+        const auto rest = text.substr(keyword.size());
+        if (rest.starts_with("[>]") || rest.starts_with("[&gt;]")) return Timing::Normal;  // ability (Riftcodex escapes >)
+        return timing;
+    }
+    return Timing::Normal;
+}
+
 bool Card::has_tag(std::string_view tag) const {
     return std::find(tags.begin(), tags.end(), tag) != tags.end();
 }
@@ -181,6 +201,7 @@ CardDb CardDb::parse(const json& doc) {
             }
         }
         c.text = str(p, "text");
+        c.timing = printed_timing(c.text);
         const auto set = sets.find(code->set);
         c.printings.push_back({.code = *code, .label = {}, .set_name = set != sets.end() ? set->second.name : code->set,
                                 .full_name = full_name});

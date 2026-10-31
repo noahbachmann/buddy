@@ -115,13 +115,6 @@ TEST(RiftboundPay, OfferedOnlyWhenPayable) {
     EXPECT_EQ(legal_actions(s).back(), Action{ActionKind::EndTurn});
 }
 
-TEST(RiftboundPay, SpellsWaitForTheChain) {  // #23
-    GameState s = started();
-    const PlayerId p = s.first_player;
-    const ObjId spell = to_hand(s, p, kSpell);
-    EXPECT_FALSE(offered(s, {ActionKind::Play, spell}));
-}
-
 TEST(RiftboundPay, UnitEntersExhaustedRunesPaid) {  // 359.2.c, 164.2
     GameState s = started();
     const PlayerId p = s.first_player;

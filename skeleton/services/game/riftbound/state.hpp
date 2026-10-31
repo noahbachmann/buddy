@@ -98,8 +98,9 @@ struct Battlefield {
     bool operator==(const Battlefield&) const = default;
 };
 
-// A card or ability being played (327). Until #23 only permanents, which leave the chain as soon as they're paid
-// (359.2). #23 adds targets, costs and the resolution step.
+// A card or ability on the chain (327): pending until paid (329), then finalized. Permanents leave as soon as they're
+// finalized (337.2, 359.2); spells wait for both players to pass (340). Targets and the resolution step counter come
+// with the card hooks (#24).
 struct ChainItem {
     ObjId card = no_obj;  // no_obj: an ability
     ObjRef source;
@@ -107,6 +108,10 @@ struct ChainItem {
     bool finalized = false;
     bool operator==(const ChainItem&) const = default;
 };
+
+// 310: Neutral/Showdown × Open/Closed.
+enum class TurnState : std::uint8_t { NeutralOpen, NeutralClosed, ShowdownOpen, ShowdownClosed };
+std::string_view to_string(TurnState state);
 
 enum class Phase : std::uint8_t { Setup, Awaken, Beginning, Channel, Draw, Main, Ending };
 std::string_view to_string(Phase phase);
@@ -116,8 +121,8 @@ std::string_view to_string(Phase phase);
 enum class TaskKind : std::uint8_t {
     Mulligan,
     Awaken, Beginning, Channel, Draw, Main,  // start of turn 315, main phase 316
-    Priority,                                // open the turn player's priority in the main phase
-    Ending,                                  // 317, then the next player's turn
+    Ending,                                  // 317.1 ending step
+    Expiration,                              // 317.2: Ending Special Cleanup, then the next player's turn (317.3)
 };
 struct Task {
     TaskKind kind;
@@ -130,7 +135,7 @@ struct Task {
 enum class DecisionKind : std::uint8_t {
     None,      // nothing to decide: game over
     Mulligan,  // 117: pick up to 2 hand cards to set aside, then Done
-    Priority,  // 312: until #23 only the turn player's Neutral Open main phase: Play a card or EndTurn (316.9)
+    Priority,  // 312: Play a card, then EndTurn (Neutral Open, 316.9) or Pass (Closed, 338.1.b)
     Recycle,   // paying Power (357): pick the rune to recycle when runes of several domains could (see pay.hpp)
 };
 std::string_view to_string(DecisionKind kind);
@@ -142,7 +147,7 @@ struct Decision {
     bool operator==(const Decision&) const = default;
 };
 
-enum class ActionKind : std::uint8_t { Pick, Done, Play, EndTurn };
+enum class ActionKind : std::uint8_t { Pick, Done, Play, EndTurn, Pass };
 struct Action {
     ActionKind kind = ActionKind::Done;
     ObjId obj = no_obj;
@@ -153,7 +158,11 @@ struct GameState {
     std::array<Player, player_count> players;
     std::vector<Object> objects;
     std::vector<Battlefield> battlefields;
-    std::vector<ChainItem> chain;
+    std::vector<ChainItem> chain;  // back = newest
+    // Priority passes in a row on the chain (339): reset when an item is added or leaves. The holder is the newest
+    // item's controller (337.4, 340.4) plus this many steps in turn order, so it needs no field of its own.
+    std::uint8_t passes = 0;
+    bool showdown = false;  // 308.1: showdown or combat in progress. Only timing reads it until #25 runs them
     int turn = 0;  // 1 = the first player's first turn
     PlayerId first_player = 0;
     PlayerId turn_player = 0;
@@ -172,6 +181,15 @@ struct GameState {
 
     bool operator==(const GameState&) const = default;
 };
+
+TurnState turn_state(const GameState& s);
+inline bool closed(const GameState& s) { return !s.chain.empty(); }  // 309.1
+// Who holds priority while the chain is finalized and nothing is pending (312.2.c–d).
+PlayerId chain_priority(const GameState& s);
+// Might now: printed + buffs (701); continuous effects join with the layers (#24).
+int might(const GameState& s, ObjId id);
+// 142.4.b: a non-zero amount ≥ Might.
+bool lethal_damage(const GameState& s, ObjId id);
 
 // The id list a card in `zone` sits in. Non-board zones are the owner's (056), Base the controller's,
 // Battlefield/Facedown the battlefield's `where`. Chain and Removed have none.

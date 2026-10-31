@@ -102,14 +102,26 @@ TEST(RiftboundTurn, PoolsEmpty) {  // 167: start of each main phase and end of e
     EXPECT_EQ(s.player(second).pool, Pool{});
 }
 
-TEST(RiftboundTurn, EndingHealsUnits) {  // 317.2.b
+TEST(RiftboundTurn, EndingKillsThenHeals) {  // 317.2: lethal damage kills (323.4) before units heal (3c)
     GameState s = started();
     const PlayerId first = s.first_player;
-    const ObjId unit = s.player(first).hand.front();
-    move_to(s, unit, Zone::Base, first);
-    s.obj(unit).damage = 2;
+    std::vector<ObjId> units;
+    for (const ObjId id : s.player(first).main_deck) {
+        if (s.obj(id).card->type == CardType::Unit && s.obj(id).card->might.value_or(0) >= 2) units.push_back(id);
+        if (units.size() == 2) break;
+    }
+    ASSERT_EQ(units.size(), 2u);
+    const ObjId hurt = units[0], doomed = units[1];
+    move_to(s, hurt, Zone::Base, first);
+    move_to(s, doomed, Zone::Base, first);
+    s.cleanup_due = false;
+    s.obj(hurt).damage = static_cast<std::int16_t>(might(s, hurt) - 1);
+    s.obj(doomed).damage = static_cast<std::int16_t>(might(s, doomed));
     end_turn(s);
-    EXPECT_EQ(s.obj(unit).damage, 0);
+    EXPECT_EQ(s.obj(hurt).damage, 0);
+    EXPECT_EQ(s.obj(hurt).zone, Zone::Base);
+    EXPECT_EQ(s.obj(doomed).zone, Zone::Trash);
+    expect_ok(s);
 }
 
 TEST(RiftboundBurnOut, RecyclesTrashOpponentScoresThenDraws) {  // 432.2

@@ -15,7 +15,7 @@ namespace buddy::riftbound {
 
 struct GameOptions {
     std::uint64_t seed = 0;
-    // Stats only, card text ignored: random games over the real decks before their cards exist (5.2). Tests only;
+    // Stats and the timing keyword only, card text ignored: random games over the real decks before their cards exist (5.2). Tests only;
     // without it every card needs its implementation (D21).
     bool vanilla = false;
 };
@@ -42,7 +42,8 @@ void apply(GameState& s, const Action& action);
 // 649–651: any player, any time (not an Action: it doesn't wait for a decision). The other player wins.
 void concede(GameState& s, PlayerId p);
 
-// Cards `p` could play from hand at this moment: until #23 units and gear (permanents, 359.2), when payable.
+// Cards `p` could play from hand at this moment: units, gear and spells the turn's state allows (Action 806,
+// Reaction 813), when payable.
 bool playable(const GameState& s, PlayerId p, ObjId id);
 
 // "set aside Blade Twirler", "play Blade Twirler", "end turn": for logs, tests and the panel.

@@ -32,6 +32,17 @@ inline const Card* unit(std::string name, int energy, int might, bool champion =
     return card(std::move(c));
 }
 
+inline const Card* spell(std::string name, int energy, Timing timing = Timing::Normal) {
+    Card c;
+    c.name = std::move(name);
+    c.type = CardType::Spell;
+    c.domains = domain::fury;
+    c.energy = energy;
+    c.power = 0;
+    c.timing = timing;
+    return card(std::move(c));
+}
+
 // Legal by 103: legend, chosen champion, 13 × 3 units, 12 runes, 3 battlefields. Names start with `prefix`, so the
 // two seats' cards tell apart: "A Unit 7", "B Field 2".
 inline Deck simple_deck(const std::string& prefix) {
@@ -43,6 +54,15 @@ inline Deck simple_deck(const std::string& prefix) {
     for (int i = 1; i <= 3; ++i) {
         d.battlefields.push_back(card(prefix + " Field " + std::to_string(i), CardType::Battlefield, 0));
     }
+    return d;
+}
+
+// simple_deck with three unit lines swapped for spells: a Normal, an Action and a Reaction one, 3 copies each.
+inline Deck spell_deck(const std::string& prefix) {
+    Deck d = simple_deck(prefix);
+    d.main[1] = {spell(prefix + " Spell", 1), 3};
+    d.main[2] = {spell(prefix + " Action", 2, Timing::Action), 3};
+    d.main[3] = {spell(prefix + " Reaction", 1, Timing::Reaction), 3};
     return d;
 }
 

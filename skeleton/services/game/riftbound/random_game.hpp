@@ -18,6 +18,8 @@ struct RandomGame {
     int turns = 0;
     int actions = 0;
     std::array<int, player_count> points{};
+    int spells = 0;     // spells played
+    int reactions = 0;  // cards played while a chain existed (closed state)
     std::string problem;  // first failed check: "turn 12, action 87 (play Blade Twirler): …"; empty = fine
 };
 

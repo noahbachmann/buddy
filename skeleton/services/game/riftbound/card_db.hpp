@@ -31,6 +31,13 @@ inline constexpr Domains fury = 1, calm = 2, mind = 4, body = 8, chaos = 16, ord
 }
 std::string domains_string(Domains d);  // "Fury+Order", "Colorless"
 
+// When a card may be played beyond its own Neutral Open main phase: Action 806 (showdowns too), Reaction 813 (closed
+// states too). Printed as the card's leading keyword; granted ones ("Quick-Draw") come from its rules (5.3).
+enum class Timing : std::uint8_t { Normal, Action, Reaction };
+std::string_view to_string(Timing timing);
+// "[Reaction] (Play any time …)…" → Reaction. A keyword followed by "[>]" belongs to an ability, not the card.
+Timing printed_timing(std::string_view text);
+
 struct Printing {
     Code code;               // total = the "/298" printed on it, if Riftcodex has one
     std::string label;       // code.str(), plus "/total" where promos share it: "OPP-009/221" (Serrated Dirk)
@@ -46,6 +53,7 @@ struct Card {
     bool token = false;               // never in a deck
     Domains domains = 0;
     std::optional<int> energy, might, power;  // cost: energy + power (runes of the card's domain); might = strength
+    Timing timing = Timing::Normal;   // from text
     std::vector<std::string> tags;    // all printings' tags: champion tag ("Vi"), regions, kinds
     std::string text;                 // rules text of the home printing, Riftcodex markup (":rb_might:", "[Shield 2]")
     std::vector<Printing> printings;  // home printing first

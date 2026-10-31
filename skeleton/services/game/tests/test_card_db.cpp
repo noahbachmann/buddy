@@ -146,3 +146,16 @@ TEST(RiftboundCardDb, NotACardFile) {
     EXPECT_THROW(CardDb::parse(json::object()), std::runtime_error);
     EXPECT_THROW(CardDb::load("/nonexistent/cards.json"), std::runtime_error);
 }
+
+TEST(RiftboundCardDb, PrintedTiming) {  // 806, 813: the card's leading keyword; "[>]" makes it an ability's
+    EXPECT_EQ(printed_timing("[Reaction] (Play any time, even before spells and abilities resolve.)Choose …"),
+              Timing::Reaction);
+    EXPECT_EQ(printed_timing("[Action] (Play on your turn or in showdowns.)Deal 3 …"), Timing::Action);
+    EXPECT_EQ(printed_timing("[Action][&gt;] Exhaust a unit you control …"), Timing::Normal);
+    EXPECT_EQ(printed_timing("This enters exhausted.[Reaction][&gt;] …"), Timing::Normal);
+    EXPECT_EQ(printed_timing(""), Timing::Normal);
+    const auto& db = fixture();
+    EXPECT_EQ(db.find_name("Tactical Retreat")->timing, Timing::Reaction);
+    EXPECT_EQ(db.find_name("Ruthless Strike")->timing, Timing::Action);
+    EXPECT_EQ(db.find_name("Soul Harvest")->timing, Timing::Normal);
+}
