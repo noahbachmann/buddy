@@ -306,6 +306,30 @@ struct CardRules {
   test card twice, both seats) 25 ms per game, ~150 activations, ~300 triggers and ~480 choices per game, all
   invariants after every action.
 
+**As built (#25, movement, showdowns, combat, scoring).** Decisions:
+
+- The Standard Move is a priority action per destination (`Move`, a battlefield or the base); which units go is a
+  `Choose` (one or more, ascending), so several units move as one action (144.3) and stage one showdown. Units are
+  played to the base or a battlefield their controller controls: a `Location` choice while finalizing (355.2).
+- Contested is stored per battlefield (who applied it); staged showdowns and combats are derived from it every
+  cleanup (323.7–323.10), not stored. One staged → it begins in the cleanup; several → a `Stage` task for the turn
+  player's pick (323.11–323.12).
+- `GameState::showdown` holds the showdown or combat in progress: focus, passes in sequence, attacker, the damage
+  assignment. While its window is open the player with focus gets priority; a chain opened by a play or activation
+  passes focus when it closes, one opened by triggers or an Add ability doesn't (346.1). All passed → the rest runs
+  as tasks after each chain (ShowdownEnd; CombatDamage + Combat Special Cleanup, CombatResult, CombatEnd), which is
+  how 468's "resolve the chain before the next step" falls out of the loop.
+- Combat damage is a sequence of `Assign` picks, one unit each: lethal in full before the next, the last one gets
+  what's left (467.2.c.3–4), Tank first (815). Only the set of lethal units and the one left short change the
+  outcome, so lethal picks go in ascending order (Tank units first) and only picks that can't get stuck are offered:
+  one path per outcome, as for every other set choice. Unassignable damage is the player's excess (Vi's legend,
+  Yeti Brawler, Trapping Grounds read it from the `Conquer` event).
+- Assault and Shield are layer-4 increases while the unit holds the designation (807.1.c, 814.1.c), so every Might
+  check during a combat sees them; Ganking widens the Standard Move. Stunned units add no combat damage (424.1.b).
+- Measurements, vi vs zed vanilla, 1000 seeded games, 0 failures under ASan/UBSan: every game ends on points by
+  scoring, 17 turns on average (11–27; burning out takes 70+), 14 moves, 7 showdowns, 3.6 combats per game; VM Release
+  0.58 ms per game. Zed wins 68 % (the mirror is 47/53: deck strength in vanilla, not the seat).
+
 ## Hardware notes for Phase 4 (decide there, not now)
 
 - **Scanning:** the code is ~1.5 mm text. The head camera (4.2) won't read that at table distance, so it needs a fixed
