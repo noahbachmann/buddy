@@ -1,6 +1,6 @@
 # services/game – Riftbound engine quick reference
 
-What the engine does **now** (state after #26) and where the next work plugs in. Why it is built this way:
+What the engine does **now** (state after #27: 5.2 done) and where the next work plugs in. Why it is built this way:
 `docs/plans/05-riftbound.md` → "5.2 design". Sub-issues of 5.2: #20. Rules text: `~/buddy/data/riftbound/core-rules-2026-10-09.txt`
 on the VM (grep the rule number); full card text: `~/buddy/data/riftbound/cards.json` (VM and Pi, not in Git).
 
@@ -15,7 +15,9 @@ on the VM (grep the rule number); full card text: `~/buddy/data/riftbound/cards.
 | `tokens` | The decks' tokens with their rules: `bird()` (Deflect), `shadow_clone()` (attack trigger), `gold()` (Add [A]) |
 | `pay` | Rune payment of Energy, domain Power, then any-domain Power ([A]); which rune to recycle is the only choice (`Recycle` decision, one pick per domain) |
 | `engine` | `new_game`, `legal_actions`, `apply`, `concede`, `playable`, `describe`; the loop `run()`, `cleanup()`, `run_task()`, `finalize()`, `resolve_step()`, `place_triggers()`; showdowns and combat (`begin`, `pass_focus`, `score`, `establish_control`, damage assignment `assign_options`), Standard Move (`can_move`) |
-| `random_game` | `play_random()`: uniform random seats, all checks after every action; vanilla or with rules; counts spells, chain plays, activations, triggers, choices, moves, showdowns, combats, scorings |
+| `random_game` | `play_random()`: uniform random seats, `GameChecks` after every action (invariants, card count, turn start); vanilla or with rules; counts spells, chain plays, activations, triggers, choices, moves, showdowns, combats, scorings; `log` = the actions (failing one included) |
+| `hidden` | `view(s, p)`: objects p doesn't know (`Object::known` bit, set by `move_to`/`recycle`/`predict`) get `hidden_card()`, RNG reset; not playable. `determinize(view, seat0, seat1, rng)`: per owner the decklist minus visible cards, shuffled onto the hidden objects (rune deck: runes), RNG reseeded |
+| `replay` | `Replay` (seed, vanilla, both decklists' text, actions) ⇄ text (`parse_replay`, `to_text`: annotated by replaying), `run_replay` (GameChecks after every action; `buddy-game --replay`) |
 | `rng` | xoshiro256\*\*, own `below`/`shuffle` (portable replays) |
 
 ## The loop (`engine.cpp` → `run()`), in this order every iteration
@@ -31,6 +33,15 @@ on the VM (grep the rule number); full card text: `~/buddy/data/riftbound/cards.
 9. No chain, Main phase, no showdown → Priority for the turn player (335). Otherwise stop.
 
 Priority actions: `Play` (hand cards, and trash cards with Flow, `playable()`: type, timing or Ambush (a Reaction to a battlefield where the player has units), `can_play`, `completable`), `Activate` (obj = source on the board or legend zone, not attached, n = ability: controller, timing, `usable`, `per_turn`, Empower only if not Empowered, `completable`), `Move` (Neutral Open main phase only: one per destination with a unit that can go, n = battlefield or `to_base`; the units are a `Move` choice), then `EndTurn` (Neutral Open) or `Pass` (closed: chain priority; Showdown Open: pass focus). `Choose` decisions: `options` in a fixed order, picks ascending, auto-finished at `max`, `Done` from `min`; the answer goes to `GameState::answer` for whoever asked. `apply` accepts only what `legal_actions` offers and throws `IllegalAction` with the state untouched.
+
+## Hidden information (128)
+
+`Object::known`: who knows which card it is. Public zone → everyone; into a hand → + owner; facedown → + controller;
+into a deck or set aside → unchanged (a card seen going to the bottom stays known); `recycle` of 2+ → nobody (random
+order); `predict` → + predictor. Setup creates deck objects after shuffling, so ids say nothing about cards. A card
+rule that looks at or reveals a hidden card (5.3) must set `known` too; `check_invariants` checks public and hand
+cards. `test_hidden.hpp`'s `views_along_a_game` checks after every action that a determinization is valid, has the
+same view and gives the deciding player the same legal actions: run it on any new deck.
 
 ## Writing a card (5.3)
 
@@ -77,15 +88,17 @@ on moving several units needs a hook on the Standard Move; Star Spring's "non-to
 
 ## Invariants (`check_invariants`, run after every random-game action)
 
-Every object in exactly one zone list matching its zone/owner/controller/where; single-card zones; pools ≥ 0; no
+Every object in exactly one zone list matching its zone/owner/controller/where; public cards known to everyone, hand
+cards to their owner; single-card zones; pools ≥ 0; no
 finalized permanent on the chain; pending items never below finalized ones; at most one item resolving, never a pending
 one; Choose picks in bounds and ascending; Priority only for the turn player (open) or `chain_priority()` (closed),
 never with a pending or resolving item, queued triggers, or after both passed; in a showdown's open state only for
 the player with focus and only while its window is open; no decision before a due cleanup (except inside a
 resolution); something to decide while the game runs; combat designations exactly the combat's units (after a
 cleanup), none outside combat; no controlled battlefield without its controller's units in an open state (323.5);
-attached gear with its unit on the board. `play_random` also checks a constant card count (tokens come and go) and,
-at each turn's first open Main-phase priority, readied board and empty pools.
+attached gear with its unit on the board. `GameChecks` (play_random, run_replay) also checks a constant card count
+(tokens come and go) and, at each turn's first open Main-phase priority, readied board and empty pools (a mid-turn
+start, e.g. a determinization, skips its own turn).
 
 ## Tests (`tests/`, one file per rules area)
 
@@ -104,11 +117,16 @@ at each turn's first open Main-phase priority, readied board and empty pools.
   triggers), `test_actions` (408–446, 701–711, Burn / discard-a-spell / banish-me costs), `test_keywords` (Deflect,
   Vision, Repeat, Ambush, Empower, Flow, Equip and attachment, tokens; 40 random games each for both files' decks),
   `test_random` (50 games each: spell decks and the real decks vanilla, most must end by scoring; 60
-  ability-deck games in `test_abilities`).
+  ability-deck games in `test_abilities`), `test_hidden` (knowledge, view, determinize; views along random games, the
+  ability deck's in `test_abilities`), `test_replay`, `test_gate` (5.2's 1000 games, writes the replay of a failure).
+- Every game test has the ctest label `riftbound`: `deploy/test.sh --riftbound [--pi]` (skipped without).
 - `buddy-game --random --games 1000 --seed 0 --deck decks/vi-unleashed.txt --deck decks/zed-vendetta.txt` on the
   ASan build (`build-test/services/game/buddy-game`); `deploy/run.sh game --random …` on the Pi (Release).
   After #26 on the VM (Release): vanilla 0.63 ms per game (#25: 0.58), 17 turns (scoring ends games; before #25 they ran ~180
-  turns to burn out); ability decks ~7 activations, ~9 triggers, ~36 choices per game.
+  turns to burn out); ability decks ~7 activations, ~9 triggers, ~36 choices per game. #27 on the Pi (Release):
+  0.72 ms per game, `sizeof(GameState)` 896 B, a copy 0.83 µs (printed after every `--random` run).
+- A failing random game: `replay-<seed>.txt` in the current directory → `buddy-game --replay <file>` (or by hand:
+  the action lines are `<kind> [<obj>|-] [<n>]`, cut it down to find the action).
 
 ## Gotchas
 
@@ -132,5 +150,7 @@ at each turn's first open Main-phase priority, readied board and empty pools.
   `Removed` forever (its id is never reused).
 - Vanilla mode reads stats and `Card::timing`, nothing else of the text (no keywords: they come from `CardRules`): `rules_of()` is nullptr for every card;
   without vanilla every card needs rules (D21), `test::ruled()` gives test decks empty ones.
+- Ids follow the shuffled deck order (#27): tests that compare option lists sort the ids they `put` (options come in
+  id order), and a deck's order is compared by card, not by id.
 - Battlefields are not in any zone list (`Battlefield::card`); a base list is its controller's base, so "in another
   player's base" (323.6) can't be represented.

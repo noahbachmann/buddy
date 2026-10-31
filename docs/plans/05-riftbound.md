@@ -186,8 +186,8 @@ number.
   One player decides at a time (303.2).
 - `Action` = kind + object (+ a small number later). Choosing several things is Pick … Pick, Done, **in zone order**,
   so each set has exactly one path: search never explores permutations (mulligan: at most 11 sets).
-- Hidden information: the state is the referee's full truth. Per-player views and the AI's determinization come with
-  #27.
+- Hidden information: the state is the referee's full truth; `view()` and `determinize()` (#27) give a player's
+  knowledge and states consistent with it.
 
 **Payment** (`pay.hpp`, 357, 445): the player picks *what* to play; the engine pays, so costs don't multiply the
 action list. `Play` is offered only when the cost is payable (pool + runes). Then, fixed:
@@ -355,6 +355,30 @@ struct CardRules {
 - Measurements: vi vs zed vanilla, 1000 seeded games, 0 failures under ASan/UBSan, same game statistics as #25; VM
   Release 0.63 ms per game (#25: 0.58). Random games over the keyword and cost test decks (40 each) and the ability
   deck pass every invariant.
+
+**As built (#27, hidden information, replay, the gate).** 5.2 is done. Decisions:
+
+- **Knowledge per object**, not per zone: `Object::known` = a bit per player who knows which card it is (128).
+  `move_to` sets it (public zone: everyone; hand: + owner; facedown: + controller; decks and set aside: unchanged),
+  predicting adds the predictor (817), recycling two or more clears it (417.5: random order). So a card returned to
+  Dev's hand stays known to Buddy, and one recycled alone stays known at the bottom of the deck.
+- `view(s, p)`: every card p doesn't know becomes `hidden_card()`, the RNG is reset. Ids carry no information:
+  setup shuffles the cards before it creates the deck objects, so an id is a deck position, not a card (the
+  `table` service still tracks physical cards by id). A view isn't playable; search plays on `determinize(view, seat0,
+  seat1, rng)`: per owner the deck's cards no visible object holds, at random (rune deck: runes), RNG reseeded.
+  Tests check along random games (real decks vanilla, spell decks, ability deck) that a determinization passes every
+  invariant, has the same view, gives the deciding player the **same legal actions** (nothing they can do depends
+  on hidden cards) and plays on.
+- Replay = seed + both decklists' text + the action list, as text (`replay.hpp`, one action per line, annotated
+  with turn, player and `describe()`); `buddy-game --replay <file>` plays it with the random games' checks
+  (`GameChecks`). A failing game in `buddy-game --random` or the gate writes its replay. Self-contained on purpose: a
+  fixed decklist file doesn't change old replays.
+- Gate: `RiftboundGate.ThousandRandomGames` (vi vs zed vanilla, seeds 0–999). All game tests carry the ctest label
+  `riftbound`; `deploy/test.sh` skips them, `--riftbound` runs them (also `--pi`).
+- Measurements: gate under ASan/UBSan 26 s on the VM, 32 s on the Pi, 0 failures. Pi Release, 1000 games: 0.72 ms
+  per game (1390 games/s, 146k actions/s), 17 turns, 105 actions; `sizeof(GameState)` 896 B, ~112 objects, a copy
+  0.83 µs (average over one game's states). The baseline for 5.4: ~1.2 M state copies per second per core before any
+  fixed-capacity containers.
 
 ## Hardware notes for Phase 4 (decide there, not now)
 
