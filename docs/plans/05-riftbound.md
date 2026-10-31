@@ -125,6 +125,31 @@ moves ("pass", "I attack the left battlefield") comes after that.
 | 5.6 `game` service + panel page | MQTT wiring, Riftbound page, voice lines via `buddy/voice/say`, `buddy-game --sim` | the phase's "Done when" above |
 | 5.7+ Hardware | card scanner, hand tray mechanism, card placement, reading Dev's cards | separate plan after Phase 4 |
 
+### 5.1 as built (2026-10-31, #19)
+
+- **Data:** `setup.sh cards` (= `deploy/pi/fetch-cards.sh`, curl + stdlib python3; the Pi has no jq) → 1304 printings,
+  930 cards, 8 sets; one entry per line, re-run for new sets. `BUDDY_GAME_CARDS` moves the file.
+- **Riftcodex quirks** the loader handles: 147 printing ids listed twice (VEN as an old and a new import, the old one
+  sometimes misnamed: "Master of Shadows"; OPP regular and Metal) → newest entry wins. Legends are named
+  `Vi - Piltover Enforcer`, variants carry ` (Alternate Art)` / ` (Signature)` / ` (Metal)` / ` (Overnumbered)`.
+  Printings of one card disagree on region tags (`Ionia` missing on some) and reminder text → tags merged, text from
+  the home printing (plain, main set over promo, oldest set, lowest number). Type, domains and stats must agree; a card
+  where they don't is refused by decks (none today).
+- **Codes:** printed `UNL • 229*/219`, `OGN • 007a/298`, runes `VEN • R01 • EN`; Riftcodex `unl-229*-219`. Every
+  spelling parses to one canonical code (`UNL-229*`). OPP promos reuse numbers per base set (`OPP-009/219` Upstage
+  Comedy, `OPP-009/221` Serrated Dirk): there the `/total` decides, without it the lookup says "ambiguous". A total
+  that doesn't fit the number is reported as a probable misread: the scanner gets that check for free.
+- **Decks:** Piltover Archive text (`Legend:`, `Champion:`, `MainDeck:`, `Battlefields:`, `Runes:`; `Sideboard:`
+  ignored), a name or a code per line; checked against Core Rules 103 (counts, ≤ 3 copies incl. the champion, domain
+  identity, champion tag, signatures, 12 runes, 3 battlefields), every problem at once with line numbers and "did you
+  mean". Sources: Vi = Riot's [Vi & Vex Champion Decks](https://playriftbound.com/en-us/news/announcements/vi--vex-champion-decks/)
+  article (it misspells "Carion Dredger"), chosen champion Vi, Hotheaded per Magical Meta ⚠️; Zed =
+  [Piltover Archive](https://piltoverarchive.com/decks/view/f1d209f6-d427-491e-a958-90291b357198) and Magical Meta, identical.
+- **Commands:** `deploy/run.sh game --check` (all decks), `--deck zed-vendetta --check`, `--code "OGN • 007a/298"`.
+  `deploy.sh game` installs the binary and decks without a unit until 5.6.
+- **Tests:** `services/game/tests/data/cards.json` = every printing of the two decks' cards (text removed); edge
+  cases (conflicts, bad entries) inline in `test_card_db.cpp`.
+
 ## Hardware notes for Phase 4 (decide there, not now)
 
 - **Scanning:** the code is ~1.5 mm text. The head camera (4.2) won't read that at table distance, so it needs a fixed
@@ -139,7 +164,8 @@ moves ("pass", "I attack the left battlefield") comes after that.
 
 ## Open for Dev
 
-- **Decklists:** neither precon list is published as text yet (the official site says "coming soon" for the Showdown
-  Decks; riftbound.gg has the Vi list only as an image). In 5.1 Claude drafts both lists, and Dev checks them against
-  the cards in the boxes. The set codes on the cards make that quick.
+- **Decklists:** `skeleton/services/game/decks/vi-unleashed.txt` and `zed-vendetta.txt` (sources in "5.1 as built").
+  Check them against the boxes: `deploy/run.sh game --check` lists every card with its codes, and
+  `deploy/run.sh game --code "<code from the card>"` names one card. Also: which Vi the box marks as the chosen
+  champion (the list says Vi, Hotheaded).
 - **When to slot Phase 5** relative to 2.x and 3: the software can run in parallel; the hardware waits for 4.1 and 4.2.

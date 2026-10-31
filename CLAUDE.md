@@ -48,7 +48,7 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 | 2 – Head | 2.1 printer: guide not written yet. 2.2 motion controller: Pi setup, firmware and flash done; wiring and servo test (guide steps 1–3, 9) open. 2.3 motion service + demo gesture ("cut off Andi's balls"): code and tests done, deployed 2026-10-29 (waits with `connected:false` while the Pico is unplugged); Verify open. 2.4 eyes: postponed (Dev, 2026-10-30). 2.5 head pan/tilt and 2.6 head & body: plans in `docs/plans/` | 🟨 |
 | 3 – Hand | 3.1 – 3.4 | ⬜ |
 | 4 – Arm & vision | 4.1 – 4.3 | ⬜ |
-| 5 – Riftbound | plan in `docs/plans/05-riftbound.md` (#18); 5.1 – 5.6 software against a simulated table now, 5.7+ hardware after Phase 4 | ⬜ |
+| 5 – Riftbound | plan in `docs/plans/05-riftbound.md` (#18); 5.1 – 5.6 software against a simulated table now, 5.7+ hardware after Phase 4. 5.1 card data & decks: code done 2026-10-31 (#19), Dev checks both lists against the boxes | 🟨 |
 
 Legend: ⬜ not started · 🟨 in progress · ✅ done
 
@@ -63,6 +63,8 @@ What's left right now, in order. Update it with the progress table; GitHub issue
 2. **Live check** for #12: "Hey Jarvis, play Spotify" ducks, plays, and Buddy answers without delay (idle loops changed).
 3. **Decisions** in `docs/plans/02-05-head-pan-tilt.md` and `02-06-head-body.md` (end of each), then fill in
    `docs/plans/02-06-cad-prompt.md` (measurements after 2.1 and the parts order).
+4. **Riftbound decklists** (5.1): check `services/game/decks/*.txt` against the two boxes with
+   `deploy/run.sh game --check` (`docs/plans/05-riftbound.md` → Open for Dev).
 
 **Claude** (code and guides):
 
@@ -71,8 +73,8 @@ What's left right now, in order. Update it with the progress table; GitHub issue
 3. 2.5 / 2.6 per `docs/plans/` once Dev has made their decisions: neck module CAD (prompt stage 1), joint table,
    `behaviour` service; then body CAD (stage 2). 2.4 eyes later (decide: Pico or Pi drives the display, 2.2 → Notes
    for later phases).
-4. Phase 5 (#18) per `docs/plans/05-riftbound.md`, runs in parallel with the hardware steps: 5.1 card data and the two
-   decklists first (Dev checks the lists against the boxes).
+4. Phase 5 (#18) per `docs/plans/05-riftbound.md`, runs in parallel with the hardware steps: 5.2 rules engine core
+   next (5.1 done).
 
 Phase 1 → Deferred lists what waits for a reason (wake word CPU, next voice session, custom "Hey buddy", LLM brain).
 
@@ -225,7 +227,8 @@ buddy/
 │   │   ├── hue/             ← Hue lights skill (Hue Bridge, local API)
 │   │   ├── web/             ← web panel: HTTP ⇄ MQTT bridge + www/ page
 │   │   ├── speakers/        ← Nests over Bluetooth: music and voice routing, ducking (D20)
-│   │   └── motion/          ← joints → Pico serial protocol, gestures
+│   │   ├── motion/          ← joints → Pico serial protocol, gestures
+│   │   └── game/            ← Riftbound: riftbound/ lib (cards, decks; later rules, AI), decks/ (Phase 5)
 │   ├── tools/voice/         ← commands.tsv (corpus) + buddy_voice (record/train/eval, runs on the PC)
 │   ├── firmware/pico-motion/ ← Pico 2 firmware: all servos (separate CMake project, D17)
 │   └── deploy/              ← PC scripts; pi/ = scripts that run on the Pi; config/ = units, env example, PipeWire

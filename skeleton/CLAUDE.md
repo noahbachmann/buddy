@@ -43,6 +43,7 @@ notes: `services/web/CLAUDE.md`.
 | web | `state` (`StateStore`: last payload per topic, SSE frames shared by all streams, JSON Patch deltas), `access` (Host allowlist, same-origin JSON-only POSTs), `server` (cpp-httplib routes) = `web_core`; `www/` vanilla HTML/CSS/JS, no build step. Details: `services/web/CLAUDE.md` | – (tests run a real server on a free port) |
 | voice | `tts` (libpiper, sentence streaming), `audio_sink` (ALSA per utterance into `pipewire:NODE=buddy_voice`, falls back to `default` / WAV) | `--say "…" [--wav out.wav]` |
 | speakers | `parse` (`pactl -f json` sinks/streams, `bluetoothctl devices/info`), `router` (World + ears/voice state → Actions: connect, release, link music, move voice, volumes; timers via `deadline()`; no I/O) = `speakers_core`; main: runs `pactl`/`pw-link`/`bluetoothctl` with `posix_spawn`, `PulseWatch` thread on `pactl subscribe` → queue, one PipeWire read per burst, background full disconnect after a profile release | `--cmd list\|connect <name>\|disconnect`, `--pair [alias]` |
+| game | `riftbound/` lib (pure, no MQTT): `code` (printed codes in every spelling → `Code`, canonical `OGN-007a`), `card_db` (`cards.json` printings grouped into cards by name via `card_name()`: home printing, tags merged, stat conflicts flagged; `find_code` checks the `/total`, OPP promos share numbers), `deck` (Piltover Archive text → `Deck`, Core Rules 103 checks, all problems at once). `decks/*.txt` installed to `~/buddy/share/game/decks`. No unit until 5.6: `deploy.sh game` only installs | `--check`, `--deck <name\|file> --check`, `--code <code>…` |
 | motion | `joints` (table: name → channel/µs, `plan_move()` clamps + speed cap; `demo` on ch0 until 2.5), `gestures` (steps + spoken reply, `GesturePlayer` timing), `command` (cmd JSON), `serial_link` (termios + flock, reader thread, id-matched replies 500 ms, `* …` events queue, handshake HELLO → LIMITs, lost after I/O error / 3 timeouts) = `motion_core`; main: reconnect 1 → 10 s, PING 500 ms, unexpected `* BOOT` = re-handshake, `RELAX *` on stop | `--cmd move\|center\|relax\|gesture …`, `--raw "<id> <line>"` |
 
 ## firmware/pico-motion (Pico 2, own CMake project, `deploy.sh --firmware`)
@@ -79,6 +80,7 @@ No unit tests on the Pico: the logic that can break (protocol) lives in the shar
 | `record.sh`, `train.sh` | voice sessions on the Pi / training pipeline on the PC (`tools/voice`, `docs/voice-training.md`) |
 | `pi/setup.sh [step…\|check]` | Pi provisioning, pinned versions + hashes at the top; `check` warns about unknown `buddy.env` keys |
 | `pi/fetch-models.sh` | models `buddy.env` names → `~/buddy/models` |
+| `pi/fetch-cards.sh` | Riftcodex → `~/buddy/data/riftbound/cards.json` (newest entry per printing, pruned, one per line; python3 stdlib: no jq on the Pi); `setup.sh cards` |
 | `pi/soloist-update.sh` | fetches the current Soloist build (expires after 90 days); `buddy-soloist-update.timer` weekly |
 | `config/` | `buddy.env.example` (every `BUDDY_*` key, defaults commented out), `soloist.env.example`, `systemd/buddy@.service` + `buddy-soloist*` (sandboxed Soloist, update timer), `pipewire/buddy-audio.conf` (sinks `buddy_music`/`buddy_voice`), `wireplumber/buddy-bluetooth.conf`, `udev/60-buddy-pico.rules` |
 
@@ -128,4 +130,6 @@ built), pytest, shellcheck. `deploy/test.sh --pi`: the C++ tests on the Pi (`~/b
   after connecting (set ours 3 s later); a full disconnect takes 2.5–3 s, `bluetoothctl disconnect <mac> <A2DP uuid>` 15 ms.
 - Config defaults live in the config struct (`RouterConfig`, `PlayerConfig`); `main.cpp` reads env with the struct's
   value as fallback, never a second literal.
+- game fixture `services/game/tests/data/cards.json`: every printing of the two decks' cards, text removed. A deck
+  change → regenerate it from a fresh `cards.json` (keep the printings whose `card_name()` is in a decklist).
 - `BUDDY_STT_AUDIO_CTX=auto` breaks stock whisper models (hallucination loops); only models trained with `--ctx auto`.

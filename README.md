@@ -57,6 +57,7 @@ the hardware is real: lights switch, music plays, servos move.
 | speakers | `--cmd list` (the Nests, connected?), `--cmd connect "bathroom speaker"`, `--cmd disconnect`, `--pair "Bathroom speaker"` (say "Hey Google, pair Bluetooth" to the Nest first). The running service disconnects a Nest without music: stop `buddy@speakers` to keep one connected |
 | ears | `--transcribe a.wav b.wav`, `--wav a.wav` (whole pipeline on a file on the Pi) |
 | motion | `--cmd move demo=30 --ms 400`, `--cmd gesture shake`, `--cmd relax`, `--raw "1 PING"`. Stop `buddy@motion` first: it owns the Pico's port |
+| game | `--check` (every Riftbound deck, card by card), `--deck zed-vendetta --check`, `--code "OGN • 007a/298"` (what a printed code is). Card data: `ssh buddy bash ~/buddy/src/deploy/pi/setup.sh cards` |
 
 ## Rules that protect the hardware
 
