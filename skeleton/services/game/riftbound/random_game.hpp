@@ -34,7 +34,8 @@ struct RandomGame {
 };
 
 // What play_random() checks after every action, also run by run_replay(): check_invariants(), a constant card count
-// (tokens come and go, 186.1), and at each turn's first open Main-phase priority a readied board and empty pools.
+// (tokens come and go, 186.1), a readied board and legend at each turn's first state, empty pools at its first open
+// Main-phase priority.
 class GameChecks {
 public:
     explicit GameChecks(const GameState& start);
@@ -43,6 +44,7 @@ public:
 private:
     long cards_;
     int checked_turn_ = 0;
+    int awakened_turn_ = 0;
 };
 
 RandomGame play_random(const Deck& seat0, const Deck& seat1, std::uint64_t seed, int max_actions = 100000,

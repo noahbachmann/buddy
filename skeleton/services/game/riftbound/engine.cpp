@@ -474,15 +474,15 @@ void run_task(GameState& s, const Task& task) {
         case TaskKind::Mulligan:  // 117
             s.decision = decide(DecisionKind::Mulligan, p);
             return;
-        case TaskKind::Awaken:  // 315.1: ready everything p controls on the board (416.3.a)
+        case TaskKind::Awaken:  // 315.1.b: ready every object p controls (416.3.a), the legend too (191.1)
             ++s.turn;
             s.uses.clear();  // "each turn" counts (386)
             s.deaths_this_turn = 0;
             enter_phase(s, Phase::Awaken);
             for (Object& o : s.objects) {
-                if (on_board(o.zone) && o.controller == p && o.card->type != CardType::Battlefield) {
-                    o.exhausted = false;
-                }
+                const bool mine =
+                    (on_board(o.zone) && o.controller == p) || (o.zone == Zone::LegendZone && o.owner == p);
+                if (mine && o.card->type != CardType::Battlefield) o.exhausted = false;
             }
             return;
         case TaskKind::Beginning:  // 315.2.a

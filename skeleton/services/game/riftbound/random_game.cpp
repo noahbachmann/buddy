@@ -10,13 +10,22 @@ namespace buddy::riftbound {
 
 namespace {
 
-// Checks beyond check_invariants() at the turn player's first open priority of a turn's Main phase (Beginning-phase
-// triggers may have used a chain before): Awaken readied everything (315.1), the pools emptied (316.3).
-std::string check_turn_start(const GameState& s) {
+// The first state of a turn, before any decision of it: Awaken readied everything the turn player controls, the
+// legend too (315.1.b). Later, Beginning-phase chains may already have played Reactions (Ambush units enter
+// exhausted).
+std::string check_awakened(const GameState& s) {
     const PlayerId p = s.turn_player;
     for (const Object& o : s.objects) {
-        if (on_board(o.zone) && o.controller == p && o.exhausted) return o.card->name + " still exhausted after Awaken";
+        const bool mine = (on_board(o.zone) && o.controller == p) || (o.zone == Zone::LegendZone && o.owner == p);
+        if (mine && o.exhausted && o.card->type != CardType::Battlefield) {
+            return o.card->name + " still exhausted after Awaken";
+        }
     }
+    return {};
+}
+
+// The turn player's first open priority of a turn's Main phase: the pools emptied (316.3).
+std::string check_main_start(const GameState& s) {
     for (const Player& pl : s.players) {
         if (pl.pool != Pool{}) return "rune pool not empty in the main phase";
     }
@@ -42,15 +51,21 @@ long card_count(const GameState& s) {
 } // namespace
 
 GameChecks::GameChecks(const GameState& start)
-    : cards_(card_count(start)), checked_turn_(start.phase >= Phase::Main ? start.turn : 0) {}  // mid-turn: done
+    : cards_(card_count(start)),
+      checked_turn_(start.phase >= Phase::Main ? start.turn : 0),  // mid-turn: done
+      awakened_turn_(start.turn) {}
 
 std::string GameChecks::check(const GameState& s) {
     auto problems = check_invariants(s);
     if (card_count(s) != cards_) problems.push_back("card count changed");
+    if (s.turn != awakened_turn_) {
+        awakened_turn_ = s.turn;
+        if (auto p = check_awakened(s); !p.empty()) problems.push_back(p);
+    }
     if (s.decision.kind == DecisionKind::Priority && s.phase == Phase::Main && s.chain.empty() &&
         s.turn != checked_turn_) {
         checked_turn_ = s.turn;
-        if (auto p = check_turn_start(s); !p.empty()) problems.push_back(p);
+        if (auto p = check_main_start(s); !p.empty()) problems.push_back(p);
     }
     return problems.empty() ? std::string{} : problems.front();
 }

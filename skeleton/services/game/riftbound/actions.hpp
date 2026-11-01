@@ -28,7 +28,8 @@ bool has(const GameState& s, ObjId id, Keyword k);
 bool mighty(const GameState& s, ObjId id);  // 708; off the board by printed Might (711)
 
 Place place_of(const GameState& s, ObjId id);
-// Controller on the board, owner elsewhere: who controls the object's abilities (374, 378).
+// Controller on the board, owner elsewhere, a battlefield's controller (else the turn player, 190.6.b): who
+// controls the object's abilities (374, 378).
 PlayerId controller_of(const GameState& s, ObjId id);
 
 // ---- Events ----

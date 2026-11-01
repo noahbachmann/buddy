@@ -50,6 +50,8 @@ struct AbilitySpec {
     bool add = false;                      // activated [Add]: resolves as soon as it's finalized (401.2)
     std::uint8_t per_turn = 0;             // "once each turn" / "the first time … each turn" (386); 0 = no limit
     bool (*usable)(const GameState& s, ObjId self) = nullptr;  // "use only while …" (377.2.b)
+    // triggered: controlled by the event's player (190.6.c: a battlefield's "they may …", "when you conquer here")
+    bool event_player = false;
     Builtin builtin = Builtin::None;
 };
 

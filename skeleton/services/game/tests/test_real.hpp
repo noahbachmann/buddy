@@ -133,6 +133,22 @@ inline void close_showdown(GameState& s) {
     }
 }
 
+// Battlefield b becomes `card` (the test frame's battlefields have no text).
+inline void set_field(GameState& s, std::uint8_t b, const Card* card) { s.obj(s.battlefields[b].card).card = card; }
+
+// Ends the turn and plays on with first options, ending every turn, until p's next Main-phase priority.
+inline void next_turn_of(GameState& s, PlayerId p) {
+    apply(s, {ActionKind::EndTurn});
+    while (!(s.turn_player == p && s.phase == Phase::Main && s.decision.kind == DecisionKind::Priority &&
+             s.chain.empty() && !s.showdown)) {
+        if (s.decision.kind == DecisionKind::Priority) {
+            apply(s, offered(s, {ActionKind::EndTurn}) ? Action{ActionKind::EndTurn} : Action{ActionKind::Pass});
+        } else {
+            apply(s, legal_actions(s).front());
+        }
+    }
+}
+
 inline int count_on_board(const GameState& s, PlayerId p, std::string_view name) {
     int n = 0;
     for (const Object& o : s.objects) n += on_board(o.zone) && o.controller == p && o.card->name == name;

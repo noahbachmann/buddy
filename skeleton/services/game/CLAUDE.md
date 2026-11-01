@@ -63,6 +63,9 @@ same view and gives the deciding player the same legal actions: run it on any ne
   as an `r.ask` choice.
   Cost kinds: `Cost` fields (`any_power` = [A], `burn`, `banish_self`, …).
 - Tokens: `play_token(s, tokens::bird(), p, played::to_base)` from a resolution; it finalizes after it.
+- Battlefields (190.6): `controller_of` = the battlefield's controller, else the turn player; an ability that names
+  the acting player ("they may pay", "when you conquer here") sets `AbilitySpec::event_player`: the event's player
+  controls it. Legends ready in Awaken like the board (315.1.b).
 - Triggers: `triggers()` pushes ability indexes for an `Event`; a card's own death arrives as `Die` while it's still
   on the board (Deathknell), others see `Died` afterwards. Delayed: `r.delay(ability, subject, window)` and
   `delayed_trigger()` / `replace(…, delayed)`. Reflexive: `r.reflexive(ability)`.
@@ -86,9 +89,7 @@ but `playable` doesn't count them), abilities on the chain as targets, dependenc
 limit); `completable` fills "up to N" slots at their minimum and multi-target slots with the first candidates;
 Ambush's location isn't re-checked if the units leave before finalizing (822.3); Equipment effect text beyond
 keywords (`effect_keywords()`, 718.3), reveal (425), counter (426), Equipped events (818.2.a); `pay_energy` pays
-Energy only. For 5.3: a battlefield's triggers ("when you conquer here") are controlled by its owner
-(`controller_of`), not by the player who conquered (Valley of Idols: "they may pay"); Star Spring's "non-token" =
-`Card::token`. The Standard Move's tax (`CardRules::move_tax`, Mageseeker) caps the Move pick count at what's payable
+Energy only. The Standard Move's tax (`CardRules::move_tax`, Mageseeker) caps the Move pick count at what's payable
 and recycles the runes in pay.hpp's order: no Recycle decision outside the chain ⚠️.
 
 ## Invariants (`check_invariants`, run after every random-game action)
@@ -127,7 +128,8 @@ start, e.g. a determinization, skips its own turn).
 - `test_real.hpp` + `test_cards_vi.cpp` / `test_cards_zed.cpp` (5.3): real cards from the fixture with their rules
   (`real(name)`), `real_deck` (test frame, Zap, the deck's runes), `fund` (pool energy/power), `zap_kill`; one
   `TEST(RiftboundVi|Zed, <Card>)` per card, and 40 random games of everything a deck file registers
-  (`registered_deck`). `put()` may take a copy from the trash: `in_hand()` instead. Combat: `at_field` (a unit
+  (`registered_deck`). Text for the frame's legend and battlefields: `s.obj(id).card = real(…)` / `set_field`;
+  `next_turn_of(s, p)` plays on to p's next Main phase. `put()` may take a copy from the trash: `in_hand()` instead. Combat: `at_field` (a unit
   holding a battlefield) + `ready_in_base` + `move_units`, then `both_pass`/`settle`; `close_showdown`.
 - Every game test has the ctest label `riftbound`: `deploy/test.sh --riftbound [--pi]` (skipped without).
 - `buddy-game --random --games 1000 --seed 0 --deck decks/vi-unleashed.txt --deck decks/zed-vendetta.txt` on the

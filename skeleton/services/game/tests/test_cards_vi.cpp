@@ -421,6 +421,82 @@ TEST(RiftboundVi, MageseekerInvestigator) {
     EXPECT_EQ(t.decision.max, 2);
 }
 
+// Legend: "When you conquer, if you assigned 3 or more excess damage, you may exhaust me to ready a unit."
+TEST(RiftboundVi, ViPiltoverEnforcer) {
+    GameState s = vi_game();
+    const PlayerId p = s.first_player, o = opponent(p);
+    const ObjId legend = s.player(p).legend.front();
+    s.obj(legend).card = real("Vi, Piltover Enforcer");  // the frame's legend has no text
+    at_field(s, o, real("Arena Kingpin"), 0);
+    const ObjId yeti = ready_in_base(s, p, real("Yeti Brawler"));
+    move_units(s, 0, {yeti});
+    both_pass(s);
+    settle(s);  // yes, and Yeti is the only unit: it readies
+    EXPECT_TRUE(s.obj(legend).exhausted);
+    EXPECT_FALSE(s.obj(yeti).exhausted);
+    expect_ok(s);
+}
+
+// "When you conquer here, if you assigned 3 or more excess damage, play a 1 Might Bird unit token with [Deflect]."
+TEST(RiftboundVi, TrappingGrounds) {
+    for (const bool mine : {false, true}) {  // whoever owns it: the conqueror controls it
+        GameState s = vi_game();
+        const PlayerId p = s.first_player, o = opponent(p);
+        const std::uint8_t b = s.obj(s.battlefields[0].card).owner == p ? (mine ? 0 : 1) : (mine ? 1 : 0);
+        set_field(s, b, real("Trapping Grounds"));
+        at_field(s, o, real("Arena Kingpin"), b);
+        move_units(s, b, {ready_in_base(s, p, real("Yeti Brawler"))});
+        both_pass(s);
+        settle(s);
+        EXPECT_EQ(count_on_board(s, p, "Bird"), 1) << mine;
+        EXPECT_EQ(count_on_board(s, o, "Bird"), 0);
+        expect_ok(s);
+    }
+}
+
+// "The first time a player plays a non-token unit here each turn, they may move another unit they control here to
+// its base."
+TEST(RiftboundVi, StarSpring) {
+    GameState s = vi_game();
+    const PlayerId p = s.first_player;
+    set_field(s, 0, real("Star Spring"));
+    const ObjId there = at_field(s, p, real("Inferna"), 0);
+    fund(s, p, 6);
+    const auto play_here = [&](const Card* card) {
+        play(s, in_hand(s, p, card));
+        apply(s, {ActionKind::Pick, s.battlefields[0].card, 0});  // location
+    };
+    play_here(real("Loyal Poro"));
+    ASSERT_EQ(s.decision.purpose, Purpose::May);
+    EXPECT_EQ(s.decision.player, p);
+    apply(s, legal_actions(s).front());  // yes; Inferna is the only other unit here
+    settle(s);
+    EXPECT_EQ(s.obj(there).zone, Zone::Base);
+    play_here(real("Loyal Poro"));
+    EXPECT_TRUE(s.triggered.empty() && s.chain.empty());  // only the first time each turn
+    expect_ok(s);
+}
+
+// "When a player plays a unit here, they may pay [1] to [Buff] it."
+TEST(RiftboundVi, ValleyOfIdols) {
+    for (const bool pay : {false, true}) {
+        GameState s = vi_game();
+        const PlayerId p = s.first_player;
+        set_field(s, 0, real("Valley of Idols"));
+        at_field(s, p, real("Inferna"), 0);
+        fund(s, p, 4);
+        const ObjId poro = in_hand(s, p, real("Loyal Poro"));
+        play(s, poro);
+        apply(s, {ActionKind::Pick, s.battlefields[0].card, 0});
+        ASSERT_EQ(s.decision.purpose, Purpose::May);
+        apply(s, pay ? legal_actions(s).front() : Action{ActionKind::Done});
+        settle(s);
+        EXPECT_EQ(might(s, poro), pay ? 4 : 3) << pay;
+        EXPECT_EQ(s.player(p).pool.energy, pay ? 0 : 1);
+        expect_ok(s);
+    }
+}
+
 TEST(RiftboundRandom, ViCards) {  // every card registered so far, invariants after every action
     const Deck d = registered_deck("V", cards::vi_unleashed(), domain::order);
     int triggers = 0;

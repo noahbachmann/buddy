@@ -149,6 +149,9 @@ Place place_of(const GameState& s, ObjId id) {
 
 PlayerId controller_of(const GameState& s, ObjId id) {
     const Object& o = s.obj(id);
+    if (o.card->type == CardType::Battlefield) {  // 190.6.a–b
+        return s.battlefields.at(o.where).controller.value_or(s.turn_player);
+    }
     return on_board(o.zone) ? o.controller : o.owner;
 }
 
@@ -165,7 +168,10 @@ void emit(GameState& s, const Event& e) {
             out.push_back(ability_vision);  // 817.1.c
         }
         const ObjRef self = e.kind == EventKind::Die ? e.subject : s.obj(id).ref(id);
-        for (const std::uint8_t a : out) queue(s, self, a, controller_of(s, id), e, *ability_spec(s, id, a));
+        for (const std::uint8_t a : out) {
+            const AbilitySpec& spec = *ability_spec(s, id, a);
+            queue(s, self, a, spec.event_player ? e.player : controller_of(s, id), e, spec);
+        }
     }
     for (std::size_t i = 0; i < s.delayed.size();) {
         const Delayed d = s.delayed[i];

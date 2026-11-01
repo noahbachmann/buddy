@@ -364,6 +364,75 @@ TEST(RiftboundZed, RavenbloomPrefect) {
     expect_ok(s);
 }
 
+// Legend: "When you banish a card you own, empower me. [Action][>] Disempower me, [E]: Discard 1, then draw 1."
+TEST(RiftboundZed, ZedMasterOfShadows) {
+    GameState s = zed_game();
+    const PlayerId p = s.first_player;
+    const ObjId legend = s.player(p).legend.front();
+    s.obj(legend).card = real("Zed, Master of Shadows");
+    EXPECT_FALSE(offered(s, {ActionKind::Activate, legend, 1}));  // not Empowered
+    const ObjId own = at_field(s, p, real("Punching Poro"), 0);
+    fund(s, p, 3, {domain::chaos});
+    play(s, in_hand(s, p, real("Wind and Ghosts")));
+    settle(s);  // banishes p's own 2 Might unit
+    ASSERT_EQ(s.obj(own).zone, Zone::Banishment);
+    EXPECT_TRUE(s.obj(legend).empowered);
+    const auto hand = s.player(p).hand.size(), trash = s.player(p).trash.size();
+    apply(s, {ActionKind::Activate, legend, 1});
+    settle(s);
+    EXPECT_FALSE(s.obj(legend).empowered);
+    EXPECT_TRUE(s.obj(legend).exhausted);
+    EXPECT_EQ(s.player(p).hand.size(), hand);
+    EXPECT_EQ(s.player(p).trash.size(), trash + 1);
+    next_turn_of(s, p);
+    EXPECT_FALSE(s.obj(legend).exhausted);  // 315.1.b: legends ready too
+    expect_ok(s);
+}
+
+// "When you conquer here, discard 1, then draw 1."
+TEST(RiftboundZed, ZaunWarrens) {
+    GameState s = zed_game();
+    const PlayerId p = s.first_player, o = opponent(p);
+    set_field(s, 0, real("Zaun Warrens"));
+    at_field(s, o, real("Punching Poro"), 0);
+    move_units(s, 0, {ready_in_base(s, p, real("Kinkou Lifeblade"))});
+    const auto hand = s.player(p).hand.size(), trash = s.player(p).trash.size();
+    both_pass(s);
+    settle(s);
+    ASSERT_EQ(s.battlefields[0].controller, p);
+    EXPECT_EQ(s.player(p).hand.size(), hand);
+    EXPECT_EQ(s.player(p).trash.size(), trash + 1);
+    expect_ok(s);
+}
+
+// "When you hold here, [Burn 3]."
+TEST(RiftboundZed, ShadowTemple) {
+    GameState s = zed_game();
+    const PlayerId p = s.first_player;
+    set_field(s, 0, real("Shadow Temple"));
+    at_field(s, p, real("Kinkou Lifeblade"), 0);
+    next_turn_of(s, opponent(p));
+    const auto trash = s.player(p).trash.size();
+    next_turn_of(s, p);  // p's Beginning Phase: holds
+    EXPECT_EQ(s.player(p).trash.size(), trash + 3);
+    expect_ok(s);
+}
+
+// "When combat starts here, the attacker and defender each [Add] [1]."
+TEST(RiftboundZed, ThresholdOfTheGray) {
+    GameState s = zed_game();
+    const PlayerId p = s.first_player, o = opponent(p);
+    set_field(s, 0, real("Threshold of the Gray"));
+    at_field(s, o, real("Punching Poro"), 0);
+    s.player(p).pool = {};
+    move_units(s, 0, {ready_in_base(s, p, real("Kinkou Lifeblade"))});
+    settle(s);
+    ASSERT_TRUE(s.showdown);
+    EXPECT_EQ(s.player(p).pool.energy, 1);
+    EXPECT_EQ(s.player(o).pool.energy, 1);
+    expect_ok(s);
+}
+
 TEST(RiftboundRandom, ZedCards) {  // every card registered so far, invariants after every action
     const Deck d = registered_deck("Z", cards::zed_vendetta(), domain::chaos);
     int activations = 0;

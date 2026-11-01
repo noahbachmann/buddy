@@ -125,13 +125,15 @@ TEST(RiftboundSetup, SeedDecidesOrderBattlefieldsAndFirstPlayer) {  // 114, 115,
 }
 
 TEST(RiftboundSetup, RealDecksNeedTheirCards) {  // D21: unimplemented = hard error, runes are built in
+    EXPECT_NO_THROW(new_game(vi(), zed(), {.seed = 1}));  // 5.3: every card of both decks
+    Deck missing = zed();
+    missing.battlefields[0] = test::card("Unwritten Field", CardType::Battlefield, 0);
     try {
-        new_game(vi(), zed(), {.seed = 1});
+        new_game(vi(), missing, {.seed = 1});
         FAIL() << "no error";
     } catch (const std::runtime_error& e) {
         const std::string what = e.what();
-        EXPECT_NE(what.find("Zed, Master of Shadows"), std::string::npos) << what;
-        EXPECT_NE(what.find("Zaun Warrens"), std::string::npos) << what;
+        EXPECT_NE(what.find("Unwritten Field"), std::string::npos) << what;
         EXPECT_EQ(what.find("Fury Rune"), std::string::npos) << what;
     }
 }

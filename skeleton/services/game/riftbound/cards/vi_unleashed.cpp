@@ -324,6 +324,104 @@ struct Mageseeker : CardRules {
     }
 } const mageseeker;
 
+// Vi, Piltover Enforcer (legend): "When you conquer, if you assigned 3 or more excess damage, you may exhaust me to
+// ready a unit."
+struct ViPiltoverEnforcer : CardRules {
+    static constexpr TargetSpec kTargets[] = {{filters::unit}};
+    static constexpr AbilitySpec kAbilities[] = {[] {
+        AbilitySpec a;
+        a.kind = AbilityKind::Triggered;
+        a.cost.exhaust_self = true;
+        a.may = true;
+        a.targets = kTargets;
+        return a;
+    }()};
+    std::span<const AbilitySpec> abilities() const override { return kAbilities; }
+    void triggers(const GameState& s, const Event& e, ObjId self, std::vector<std::uint8_t>& out) const override {
+        if (e.kind == EventKind::Conquer && e.player == s.obj(self).controller && e.amount >= 3) out.push_back(0);
+    }
+    Status resolve(Resolution& r) const override {
+        if (const ObjId t = r.target(); t != no_obj) ready(r.s, t);
+        return Status::Done;
+    }
+} const vi_piltover_enforcer;
+
+// Trapping Grounds: "When you conquer here, if you assigned 3 or more excess damage, play a 1 Might Bird unit token
+// with [Deflect]." "You" = whoever conquered, who controls it now (190.6.d). The token's place: a location choice.
+struct TrappingGrounds : CardRules {
+    static constexpr AbilitySpec kAbilities[] = {[] {
+        AbilitySpec a;
+        a.kind = AbilityKind::Triggered;
+        a.event_player = true;
+        return a;
+    }()};
+    std::span<const AbilitySpec> abilities() const override { return kAbilities; }
+    void triggers(const GameState&, const Event& e, ObjId self, std::vector<std::uint8_t>& out) const override {
+        if (e.kind == EventKind::Conquer && e.subject.id == self && e.amount >= 3) out.push_back(0);
+    }
+    Status resolve(Resolution& r) const override {
+        play_token(r.s, tokens::bird(), r.controller());
+        return Status::Done;
+    }
+} const trapping_grounds;
+
+// Star Spring: "The first time a player plays a non-token unit here each turn, they may move another unit they
+// control here to its base." Once per turn for all players (⚠️ ruling); the unit is a target of that player.
+struct StarSpring : CardRules {
+    static bool other_here(const GameState& s, const ChainItem& item, const Target& t) {
+        const Place here = item.event.place;
+        return filters::friendly_unit(s, item, t) && t.ref.id != item.event.subject.id &&
+               battlefield_of(s, t.ref.id) == std::optional<std::uint8_t>(here.where);
+    }
+    static constexpr TargetSpec kTargets[] = {{other_here}};
+    static constexpr AbilitySpec kAbilities[] = {[] {
+        AbilitySpec a;
+        a.kind = AbilityKind::Triggered;
+        a.may = true;
+        a.per_turn = 1;
+        a.targets = kTargets;
+        a.event_player = true;
+        return a;
+    }()};
+    std::span<const AbilitySpec> abilities() const override { return kAbilities; }
+    void triggers(const GameState& s, const Event& e, ObjId self, std::vector<std::uint8_t>& out) const override {
+        if (e.kind != EventKind::Played) return;
+        const Object& unit = s.obj(e.subject.id);
+        if (unit.card->type == CardType::Unit && !unit.card->token &&
+            e.place.zone == Zone::Battlefield && e.place.where == s.obj(self).where) {
+            out.push_back(0);
+        }
+    }
+    Status resolve(Resolution& r) const override {
+        if (const ObjId t = r.target(); t != no_obj) move(r.s, {t}, to_base, by(r));
+        return Status::Done;
+    }
+} const star_spring;
+
+// Valley of Idols: "When a player plays a unit here, they may pay [1] to [Buff] it."
+struct ValleyOfIdols : CardRules {
+    static constexpr AbilitySpec kAbilities[] = {[] {
+        AbilitySpec a;
+        a.kind = AbilityKind::Triggered;
+        a.cost = cost(1);
+        a.may = true;
+        a.event_player = true;
+        return a;
+    }()};
+    std::span<const AbilitySpec> abilities() const override { return kAbilities; }
+    void triggers(const GameState& s, const Event& e, ObjId self, std::vector<std::uint8_t>& out) const override {
+        if (e.kind == EventKind::Played && s.obj(e.subject.id).card->type == CardType::Unit &&
+            e.place.zone == Zone::Battlefield && e.place.where == s.obj(self).where) {
+            out.push_back(0);
+        }
+    }
+    Status resolve(Resolution& r) const override {
+        const ObjRef unit = r.item().event.subject;
+        if (r.s.alive(unit) && on_board(r.s.obj(unit.id).zone)) buff(r.s, unit.id);
+        return Status::Done;
+    }
+} const valley_of_idols;
+
 constexpr Entry kCards[] = {
     {"Rengar, Unseen", &rengar},
     {"Inferna", &inferna},
@@ -349,6 +447,10 @@ constexpr Entry kCards[] = {
     {"Lord Broadmane", &lord_broadmane},
     {"Yeti Brawler", &yeti_brawler},
     {"Mageseeker Investigator", &mageseeker},
+    {"Vi, Piltover Enforcer", &vi_piltover_enforcer},
+    {"Trapping Grounds", &trapping_grounds},
+    {"Star Spring", &star_spring},
+    {"Valley of Idols", &valley_of_idols},
 };
 
 } // namespace

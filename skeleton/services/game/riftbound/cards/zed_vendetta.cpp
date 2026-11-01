@@ -367,6 +367,76 @@ struct RavenbloomPrefect : CardRules {
     }
 } const ravenbloom_prefect;
 
+// Zed, Master of Shadows (legend): "When you banish a card you own, empower me. [Action][>] Disempower me, [E]:
+// Discard 1, then draw 1."
+struct ZedMasterOfShadows : CardRules {
+    static constexpr AbilitySpec kAbilities[] = {{AbilityKind::Triggered}, [] {
+        AbilitySpec a;
+        a.cost.disempower_self = a.cost.exhaust_self = true;
+        a.timing = Timing::Action;
+        return a;
+    }()};
+    std::span<const AbilitySpec> abilities() const override { return kAbilities; }
+    void triggers(const GameState& s, const Event& e, ObjId self, std::vector<std::uint8_t>& out) const override {
+        const PlayerId me = s.obj(self).controller;
+        if (e.kind == EventKind::Banished && e.player == me && s.obj(e.subject.id).owner == me) out.push_back(0);
+    }
+    Status resolve(Resolution& r) const override {
+        if (r.ability() == 1) return loot(r, r.controller());
+        if (const ObjId me = r.self(); me != no_obj) empower(r.s, me);
+        return Status::Done;
+    }
+} const zed_master_of_shadows;
+
+// Zaun Warrens: "When you conquer here, discard 1, then draw 1."
+struct ZaunWarrens : CardRules {
+    static constexpr AbilitySpec kAbilities[] = {[] {
+        AbilitySpec a;
+        a.kind = AbilityKind::Triggered;
+        a.event_player = true;
+        return a;
+    }()};
+    std::span<const AbilitySpec> abilities() const override { return kAbilities; }
+    void triggers(const GameState&, const Event& e, ObjId self, std::vector<std::uint8_t>& out) const override {
+        if (e.kind == EventKind::Conquer && e.subject.id == self) out.push_back(0);
+    }
+    Status resolve(Resolution& r) const override { return loot(r, r.controller()); }
+} const zaun_warrens;
+
+// Shadow Temple: "When you hold here, [Burn 3]."
+struct ShadowTemple : CardRules {
+    static constexpr AbilitySpec kAbilities[] = {[] {
+        AbilitySpec a;
+        a.kind = AbilityKind::Triggered;
+        a.event_player = true;
+        return a;
+    }()};
+    std::span<const AbilitySpec> abilities() const override { return kAbilities; }
+    void triggers(const GameState&, const Event& e, ObjId self, std::vector<std::uint8_t>& out) const override {
+        if (e.kind == EventKind::Hold && e.subject.id == self) out.push_back(0);
+    }
+    Status resolve(Resolution& r) const override {
+        burn(r.s, r.controller(), 3);
+        return Status::Done;
+    }
+} const shadow_temple;
+
+// Threshold of the Gray: "When combat starts here, the attacker and defender each [Add] [1]." No choices: the
+// battlefield's controller (or the turn player) controls it (190.6.a–b).
+struct ThresholdOfTheGray : CardRules {
+    static constexpr AbilitySpec kAbilities[] = {{AbilityKind::Triggered}};
+    std::span<const AbilitySpec> abilities() const override { return kAbilities; }
+    void triggers(const GameState&, const Event& e, ObjId self, std::vector<std::uint8_t>& out) const override {
+        if (e.kind == EventKind::CombatStart && e.subject.id == self) out.push_back(0);
+    }
+    Status resolve(Resolution& r) const override {
+        const PlayerId attacker = r.item().event.player;
+        add(r.s, attacker, 1);
+        add(r.s, opponent(attacker), 1);
+        return Status::Done;
+    }
+} const threshold_of_the_gray;
+
 constexpr Entry kCards[] = {
     {"Shadow Assassin", &shadow_assassin},
     {"Shadowblade Lurker", &lurker},
@@ -388,6 +458,10 @@ constexpr Entry kCards[] = {
     {"Gust Monk", &gust_monk},
     {"Twilight Reveler", &twilight_reveler},
     {"Ravenbloom Prefect", &ravenbloom_prefect},
+    {"Zed, Master of Shadows", &zed_master_of_shadows},
+    {"Zaun Warrens", &zaun_warrens},
+    {"Shadow Temple", &shadow_temple},
+    {"Threshold of the Gray", &threshold_of_the_gray},
 };
 
 } // namespace
