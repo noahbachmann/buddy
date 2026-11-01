@@ -402,13 +402,11 @@ unit's rules text, 718.3), only the rules text (the Equip line).
 | Card | Might Bonus | Effect Text |
 |---|---|---|
 | Serrated Dirk | +0 | [Assault] (= Assault 1, 807.1.b.3): the unit it's attached to has Assault |
-| Hextech Gauntlets | +3 | see Open for Dev |
+| Hextech Gauntlets | +3 | none (the only text is the Equip line Riftcodex has) |
 
 Dirk's [Assault] needs the engine gap "Equipment effect text" (`services/game/CLAUDE.md` → Known gaps) closed in 5.3:
 a `CardRules` hook for the effect text that `traits()` applies to the top-most card while attached.
 
 ## Open for Dev
 
-- **Hextech Gauntlets' effect text** (for 5.3): what the second text block says, word for word, if it's more than the
-  Equip line Riftcodex has.
 - **When to slot Phase 5** relative to 2.x and 3: the software can run in parallel; the hardware waits for 4.1 and 4.2.
