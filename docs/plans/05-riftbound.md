@@ -95,8 +95,9 @@ believes in (a misread at draw), table reports the corrected hand; game fixes it
 
 - **v1 heuristic:** score every legal action with the board, points, card advantage and a lethal check, then take the
   best one.
-- **v2 ISMCTS:** Monte Carlo tree search over legal moves, re-sampling Dev's hidden cards per iteration, with a time
-  budget per decision (start: 2 s on 4 threads on the Pi 5 ⚠️).
+- **v2 ISMCTS:** Monte Carlo tree search over legal moves, re-sampling Dev's hidden cards per iteration, truncated
+  playouts scored by v1's evaluation, with a time budget per decision (start: 2 s on 4 threads on the Pi 5 ⚠️).
+- How: "5.4 design" below. The AI sees only `view(s, p)` and both decklists: Buddy knows Dev's precon list ⚠️.
 - Tie-breaker for later: among equal plays, prefer cards near the bottom of the pile (fewer feeds).
 
 ### MQTT (`shared/topics.json`)
@@ -120,7 +121,7 @@ moves ("pass", "I attack the left battlefield") comes after that.
 | 5.1 Card data & decks | `deploy/pi/fetch-cards.sh` → `~/buddy/data/riftbound/cards.json` (pruned, not in Git). Code parser, printing → card map, decklist format (Piltover Archive text). Both decklists in `services/game/decks/`; a small card fixture for tests in the repo. | `buddy-game --deck <file> --check` lists every card; an unknown code is a clear error |
 | 5.2 Rules engine core | Turn structure, runes/energy/power, units, moves, battlefields, showdowns, combat, chain/priority, conquer/hold scoring and the win condition, mulligan. Keywords only as the two decks need them. gtest per rules section. | 1000 seeded random-vs-random games without assertion failures under ASan/UBSan |
 | 5.3 Cards of both decks | Every card in both decklists, one test each. Dev reviews odd rulings. | both decks load, per-card tests green |
-| 5.4 AI player | v1 heuristic, then v2 ISMCTS | v1 beats random in ≥ 90 % and v2 beats v1 in > 50 % of 200 games each; decision time on the Pi within budget |
+| 5.4 AI player | v1 heuristic, then v2 ISMCTS | v1 beats random ≥ 180 / 200; v2 beats v1 ≥ 115 / 200 (95 % Wilson lower bound > 50 %) at a fixed iteration budget; decision time on the Pi p95 ≤ budget + 10 % |
 | 5.5 `table` service + sim | piles, primitive ops, hand tracker, verify/recover, fault injection. Property tests: random op sequences with faults always end in the correct state. | 10k games' worth of pile ops with faults: zero unrecovered states; scans per play reported |
 | 5.6 `game` service + panel page | MQTT wiring, Riftbound page, voice lines via `buddy/voice/say`, `buddy-game --sim` | the phase's "Done when" above |
 | 5.7+ Hardware | card scanner, hand tray mechanism, card placement, reading Dev's cards | separate plan after Phase 4 |
@@ -427,6 +428,30 @@ cards; a different reading is a small change in the card's file.
 | Battlefields (190.6) | "When you conquer/hold here" and "a player plays … they may" belong to the player who did it; Threshold of the Gray to the battlefield's controller (no choices in it). |
 | Star Spring | ✅ Dev, 2026-11-01: once per turn in total, not per player; the other unit is a target of the player who played. |
 | Valley of Idols | Tokens played there trigger it ("a unit"). |
+
+### 5.4 design (2026-11-01, #39)
+
+Sub-issues, in order: #34 player API and arena, #35 evaluation and v1 greedy, #36 engine speed, #37 v2 ISMCTS, #38 Pi
+budget, tuning, docs. Code in `services/game/riftbound/ai/` (pure, like the engine), `buddy-game --match`.
+
+**Why truncated playouts:** with rules the engine does 56k actions/s per core on the Pi (5.3) and a game is ~167
+actions, so full random playouts give ~330 per second per core: ~2600 in 2 s on 4 cores. Too few for plain MCTS over
+this branching. v2 plays each playout only a few actions (or to the end of the turn) and scores it with v1's `eval`,
+and the engine gets its own speed step (#36) before the search.
+
+| Topic | Decision |
+|---|---|
+| What the AI sees | `Player::choose(view, seat0, seat1)`: only `view(s, p)` and both decklists, never the referee's state. The arena hands each seat its view, so a leak is impossible by construction. Search plays on `determinize(view, …)`, which gives the deciding player the same legal actions in every determinization (#27). |
+| Forced moves | A decision with one legal action is applied without asking the player, in the arena and inside the search. |
+| Action keys | Hand and trash cards by card (two Zaps = one move; an opponent's hidden hand card is the same move in every determinization), board objects by `ObjId`, plus kind and `n`. |
+| Evaluation | `eval(s, p)`, shared by v1 and v2: points against `victory_score` (steeper near 8), battlefield control and contests, might per battlefield, units, cards in hand, runes ready next turn, legend; a win or loss is ±∞. Weights in one struct: hand-set, then tuned by self-play (#38). |
+| v1 greedy | On one determinization, per legal action: apply, play on to quiescence (own sub-decisions greedy, the opponent passes and declines every choice, chain resolved), `eval`. Best wins, ties by action order (deterministic). Mulligan by a rule (cost threshold), not search. |
+| v2 ISMCTS | Single observer: one tree over action keys, a fresh determinization per iteration, UCB1 over the actions available in that determinization (availability counts), one expansion, truncated playout, `eval` squashed to [0, 1]. Budget in iterations (tests, arena: reproducible) or time (Pi). Root parallelization: a tree, Rng and determinizations per thread, root visits summed, no locks. Accepted weakness: in the tree the opponent plays as if it saw Buddy's hand (strategy fusion); MO-ISMCTS only if the numbers ask for it. |
+| Measurement | `buddy-game --match <a> <b> [--games N] [--seed S] [--iterations N \| --budget-ms M] [--threads T] [--jobs J]`, players `random`, `greedy`, `ismcts`. Each pairing plays both decks from both seats, games in parallel. Reports wins with the 95 % Wilson interval, per deck, decision time p50/p95/max, iterations per decision. `GameChecks` after every action; a failure writes a replay. |
+| Pass marks | "> 50 % of 200 games" is noise, so: v1 vs random ≥ 180 / 200, v2 vs v1 ≥ 115 / 200 (Wilson lower bound > 50 %) at a fixed iteration budget on the VM. The Pi measures time, not strength. |
+
+Later, not 5.4: among equal plays prefer cards near the bottom of the hand pile (needs 5.5's order), thinking during
+Dev's turn, reusing the tree between decisions, MO-ISMCTS.
 
 ## Hardware notes for Phase 4 (decide there, not now)
 
