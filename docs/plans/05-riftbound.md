@@ -97,7 +97,8 @@ believes in (a misread at draw), table reports the corrected hand; game fixes it
   best one.
 - **v2 ISMCTS:** Monte Carlo tree search over legal moves, re-sampling Dev's hidden cards per iteration, truncated
   playouts scored by v1's evaluation, with a time budget per decision (start: 2 s on 4 threads on the Pi 5 ⚠️).
-- How: "5.4 design" below. The AI sees only `view(s, p)` and both decklists: Buddy knows Dev's precon list ⚠️.
+- How: "5.4 design" below. The AI sees only `view(s, p)` and both decklists: Buddy knows Dev's list (Dev, 2026-11-01:
+  always an unmodified deck; which one comes with `new`, so a new deck needs no AI change).
 
 ### MQTT (`shared/topics.json`)
 
