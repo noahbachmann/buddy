@@ -39,6 +39,26 @@ inline int count_named(const GameState& s, const std::vector<ObjId>& zone, std::
         std::count_if(zone.begin(), zone.end(), [&](ObjId id) { return s.obj(id).card->name == name; }));
 }
 
+// "a unit at a battlefield with 3 Might or less" (Soul Harvest, Wind and Ghosts' banish half, Mel).
+inline bool small_at_battlefield(const GameState& s, ObjId id) {
+    return s.obj(id).zone == Zone::Battlefield && might(s, id) <= 3;
+}
+
+// Where an effect can move `id` (447–452; Duel, so 451.2 never bites): any battlefield it isn't at, and its
+// controller's base unless it's there. Choose options in the Location decision's shape: Pick obj = battlefield card,
+// n = index; base: no_obj, to_base.
+inline std::vector<Action> destinations(const GameState& s, ObjId id) {
+    const Object& o = s.obj(id);
+    std::vector<Action> out;
+    for (std::size_t b = 0; b < s.battlefields.size(); ++b) {
+        if (o.zone != Zone::Battlefield || o.where != b) {
+            out.push_back({ActionKind::Pick, s.battlefields[b].card, static_cast<std::uint8_t>(b)});
+        }
+    }
+    if (o.zone != Zone::Base) out.push_back({ActionKind::Pick, no_obj, to_base});
+    return out;
+}
+
 // Deathknell (808): the keyword plus a trigger on its own Die event, ability 0.
 struct Deathknell : CardRules {
     static constexpr AbilitySpec kAbilities[] = {{AbilityKind::Triggered}};

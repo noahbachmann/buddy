@@ -12,7 +12,9 @@ namespace {
 
 Deck vi_deck() {
     return real_deck("V", {"Rengar, Unseen", "Inferna", "Sharkling", "Towering Pairofant", "Arena Kingpin", "Loyal Poro",
-                           "Carrion Dredger", "Crimson Pigeons"},
+                           "Carrion Dredger", "Crimson Pigeons", "Vault Breaker", "Square Up", "Right of Conquest",
+                           "Tactical Retreat", "Upstage Comedy", "Soul Harvest", "Divining Shells", "Serrated Dirk",
+                           "Hextech Gauntlets"},
                      domain::order);
 }
 
@@ -134,6 +136,157 @@ TEST(RiftboundVi, CrimsonPigeons) {
     EXPECT_EQ(might(s, pigeons), 5);
     s.obj(other).designation = Designation::Defender;  // not "with" it
     EXPECT_EQ(might(s, pigeons), 3);
+}
+
+// "[Action] Give a unit [Assault 2] and [Ganking] this turn."
+TEST(RiftboundVi, VaultBreaker) {
+    GameState s = vi_game();
+    const PlayerId p = s.first_player;
+    const ObjId unit = put(s, p, real("Loyal Poro"), Zone::Base);
+    fund(s, p, 0, {domain::fury});
+    play(s, in_hand(s, p, real("Vault Breaker")));
+    settle(s);
+    EXPECT_EQ(kw(s, unit).get(Keyword::Assault), 2);
+    EXPECT_TRUE(kw(s, unit).has(Keyword::Ganking));
+    expect_ok(s);
+}
+
+// "[Repeat] — Discard 1 Give a unit [Assault 4] this turn."
+TEST(RiftboundVi, SquareUp) {
+    for (const bool repeat : {false, true}) {
+        GameState s = vi_game();
+        const PlayerId p = s.first_player;
+        const ObjId unit = put(s, p, real("Loyal Poro"), Zone::Base);  // the only unit: every target automatic
+        fund(s, p, 4);
+        const ObjId spell = in_hand(s, p, real("Square Up"));
+        const auto hand = s.player(p).hand.size();
+        play(s, spell);
+        optional_cost(s, repeat);
+        settle(s);
+        EXPECT_EQ(kw(s, unit).get(Keyword::Assault), repeat ? 8 : 4) << repeat;  // 807.2: adds up
+        EXPECT_EQ(s.player(p).hand.size(), hand - (repeat ? 2 : 1));
+        expect_ok(s);
+    }
+}
+
+// "Draw 1, then draw 1 for each battlefield you or allies control."
+TEST(RiftboundVi, RightOfConquest) {
+    GameState s = vi_game();
+    const PlayerId p = s.first_player;
+    at_field(s, p, real("Loyal Poro"), 0);
+    at_field(s, p, real("Loyal Poro"), 1);
+    fund(s, p, 3, {domain::fury});
+    const ObjId spell = in_hand(s, p, real("Right of Conquest"));
+    const auto hand = s.player(p).hand.size();
+    play(s, spell);
+    settle(s);
+    EXPECT_EQ(s.player(p).hand.size(), hand - 1 + 3);
+    expect_ok(s);
+}
+
+// "[Reaction] Choose a friendly unit. The next time it would die this turn, heal it, exhaust it, and recall it
+// instead."
+TEST(RiftboundVi, TacticalRetreat) {
+    GameState s = vi_game();
+    const PlayerId p = s.first_player;
+    const ObjId unit = at_field(s, p, real("Crimson Pigeons"), 0);
+    play(s, in_hand(s, p, real("Tactical Retreat")));
+    settle(s);
+    zap_kill(s, p, unit);
+    EXPECT_EQ(s.obj(unit).zone, Zone::Base);  // recalled, not dead
+    EXPECT_EQ(s.obj(unit).damage, 0);
+    EXPECT_TRUE(s.obj(unit).exhausted);
+    zap_kill(s, p, unit);  // only the next time
+    EXPECT_EQ(s.obj(unit).zone, Zone::Trash);
+    expect_ok(s);
+}
+
+// "[Repeat] [2] Ready a unit."
+TEST(RiftboundVi, UpstageComedy) {
+    for (const bool repeat : {false, true}) {
+        GameState s = vi_game();
+        const PlayerId p = s.first_player;
+        std::array<ObjId, 2> units{put(s, p, real("Loyal Poro"), Zone::Base), put(s, p, real("Inferna"), Zone::Base)};
+        std::sort(units.begin(), units.end());
+        for (const ObjId u : units) s.obj(u).exhausted = true;
+        fund(s, p, 4);
+        play(s, in_hand(s, p, real("Upstage Comedy")));
+        optional_cost(s, repeat);
+        pick(s, units[0]);
+        if (repeat) pick(s, units[1]);  // the repeat's own target (820.2)
+        settle(s);
+        EXPECT_FALSE(s.obj(units[0]).exhausted);
+        EXPECT_EQ(s.obj(units[1]).exhausted, !repeat) << repeat;
+        expect_ok(s);
+    }
+}
+
+// "Kill a unit at a battlefield with 3 Might or less."
+TEST(RiftboundVi, SoulHarvest) {
+    GameState s = vi_game();
+    const PlayerId p = s.first_player, o = opponent(p);
+    put(s, o, real("Crimson Pigeons"), Zone::Base);         // 3 Might, not at a battlefield
+    at_field(s, o, real("Arena Kingpin"), 0);                         // 3 Might
+    const ObjId big = at_field(s, o, real("Towering Pairofant"), 1);  // 6 Might
+    fund(s, p, 0, {domain::order});
+    const ObjId spell = in_hand(s, p, real("Soul Harvest"));
+    play(s, spell);  // Kingpin is the only candidate
+    settle(s);
+    EXPECT_EQ(s.player(o).trash.size(), 1u);
+    EXPECT_EQ(s.obj(s.player(o).trash.front()).card->name, "Arena Kingpin");
+    EXPECT_EQ(s.obj(big).zone, Zone::Battlefield);
+    expect_ok(s);
+}
+
+// "[Vision] [Action][>] Kill this, [E]: Give a unit +2 Might this turn."
+TEST(RiftboundVi, DiviningShells) {
+    GameState s = vi_game();
+    const PlayerId p = s.first_player;
+    const ObjId unit = put(s, p, real("Loyal Poro"), Zone::Base);
+    const ObjId shells = in_hand(s, p, real("Divining Shells"));
+    play(s, shells);
+    settle(s);  // Vision: keeps the top card (first option)
+    EXPECT_EQ(s.obj(shells).zone, Zone::Base);
+    apply(s, {ActionKind::Activate, shells, 0});
+    settle(s);
+    EXPECT_EQ(s.obj(shells).zone, Zone::Trash);  // killed as the cost
+    EXPECT_EQ(might(s, unit), 5);
+    expect_ok(s);
+}
+
+// "[Equip] [Fury]"; printed Might Bonus +0 and effect text [Assault].
+TEST(RiftboundVi, SerratedDirk) {
+    GameState s = vi_game();
+    const PlayerId p = s.first_player;
+    const ObjId unit = put(s, p, real("Loyal Poro"), Zone::Base);
+    const ObjId dirk = put(s, p, real("Serrated Dirk"), Zone::Base);
+    EXPECT_FALSE(kw(s, unit).has(Keyword::Assault));
+    fund(s, p, 0, {domain::fury});
+    apply(s, {ActionKind::Activate, dirk, 0});
+    settle(s);
+    ASSERT_EQ(s.obj(dirk).attached, unit);
+    EXPECT_EQ(might(s, unit), 3);
+    EXPECT_EQ(kw(s, unit).get(Keyword::Assault), 1);
+    EXPECT_FALSE(kw(s, dirk).has(Keyword::Assault));  // 718.2: inactive on the gear itself
+    expect_ok(s);
+}
+
+// "[Equip] [3][A]. This ability's Energy cost is reduced by the Might of the unit you choose."; Might Bonus +3.
+TEST(RiftboundVi, HextechGauntlets) {
+    GameState s = vi_game();
+    const PlayerId p = s.first_player;
+    const ObjId unit = put(s, p, real("Crimson Pigeons"), Zone::Base);  // 3 Might: costs [0][A]
+    const ObjId gauntlets = put(s, p, real("Hextech Gauntlets"), Zone::Base);
+    s.player(p).pool = {};
+    for (const ObjId r : s.player(p).base) {
+        if (s.obj(r).card->type == CardType::Rune) s.obj(r).exhausted = true;  // no Energy at all
+    }
+    s.obj(s.player(p).base.front()).exhausted = false;  // one rune: [A] by recycling it
+    apply(s, {ActionKind::Activate, gauntlets, 0});
+    settle(s);
+    ASSERT_EQ(s.obj(gauntlets).attached, unit);
+    EXPECT_EQ(might(s, unit), 6);
+    expect_ok(s);
 }
 
 TEST(RiftboundRandom, ViCards) {  // every card registered so far, invariants after every action

@@ -58,7 +58,9 @@ same view and gives the deciding player the same legal actions: run it on any ne
   Deathknell = keyword + a `Die` trigger. Empower / Equip: an `AbilitySpec` with `builtin` and the cost (Equip's
   target defaults to a friendly unit; "discard a spell": `Cost::discard_spell`). `[Empowered]` text = a passive or
   trigger checking `Object::empowered`. Repeat: `repeat_costs()` (the card's slots repeat, `r.target(k)` maps to
-  the running execution). Flow: `flow_cost()`. Equipment: `might_bonus()` (not in Riftcodex: from the printed card).
+  the running execution). Flow: `flow_cost()`. Equipment: `might_bonus()` and `effect_keywords()` (not in Riftcodex: from the printed
+  card; the keywords join the unit's own in `traits()`). "Move a unit" without a destination: `cards::destinations()`
+  as an `r.ask` choice.
   Cost kinds: `Cost` fields (`any_power` = [A], `burn`, `banish_self`, …).
 - Tokens: `play_token(s, tokens::bird(), p, played::to_base)` from a resolution; it finalizes after it.
 - Triggers: `triggers()` pushes ability indexes for an `Event`; a card's own death arrives as `Die` while it's still
@@ -81,10 +83,9 @@ not decisions (fixed order: delayed newest first, then static by id); group targ
 component discounts (356.4.c), Add abilities during payment (357.1.a: Gold tokens can be used before playing instead,
 but `playable` doesn't count them), abilities on the chain as targets, dependency loops across objects (478.1.c: depth
 limit); `completable` fills "up to N" slots at their minimum and multi-target slots with the first candidates;
-Ambush's location isn't re-checked if the units leave before finalizing (822.3); Equipment effect text (724, an
-attached card's text added to its unit), reveal (425), counter (426), Equipped events (818.2.a); `pay_energy` pays
-Energy only. For 5.3: Serrated Dirk needs the Equipment effect text ([Assault], Might Bonus +0; Hextech Gauntlets
-+3: plan → "Equipment as printed"); a battlefield's triggers ("when you conquer here") are controlled by its owner
+Ambush's location isn't re-checked if the units leave before finalizing (822.3); Equipment effect text beyond
+keywords (`effect_keywords()`, 718.3), reveal (425), counter (426), Equipped events (818.2.a); `pay_energy` pays
+Energy only. For 5.3: a battlefield's triggers ("when you conquer here") are controlled by its owner
 (`controller_of`), not by the player who conquered (Valley of Idols: "they may pay"); Mageseeker Investigator's cost
 on moving several units needs a hook on the Standard Move; Star Spring's "non-token" = `Card::token`.
 

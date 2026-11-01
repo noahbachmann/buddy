@@ -11,26 +11,14 @@ using namespace buddy::riftbound::test;
 namespace {
 
 Deck zed_deck() {
-    return real_deck("Z", {"Shadow Assassin", "Shadowblade Lurker", "Kinkou Lifeblade", "Shadow Fiend", "Punching Poro"},
+    return real_deck("Z", {"Shadow Assassin", "Shadowblade Lurker", "Kinkou Lifeblade", "Shadow Fiend", "Punching Poro",
+                            "Ruthless Strike", "Perfect Execution", "Twilight Step", "Wind and Ghosts", "Death Mark"},
                      domain::chaos);
 }
 
 GameState zed_game() {
     static const Deck d = zed_deck();
     return started(d);
-}
-
-// A copy of `card` in p's hand: one already there, else one from the deck (put() may take one from the trash).
-ObjId in_hand(GameState& s, PlayerId p, const Card* card) {
-    for (const ObjId id : s.player(p).hand) {
-        if (s.obj(id).card == card) return id;
-    }
-    for (const ObjId id : s.player(p).main_deck) {
-        if (s.obj(id).card != card) continue;
-        move_to(s, id, Zone::Hand, p);
-        return id;
-    }
-    throw std::logic_error("no copy in hand or deck");
 }
 
 // Activates Empower (ability 0), discarding the first card if asked, and resolves it.
@@ -111,6 +99,88 @@ TEST(RiftboundZed, PunchingPoro) {
     empower_it(s, poro);
     EXPECT_EQ(s.player(p).hand.size(), hand - 1);
     EXPECT_EQ(might(s, poro), 3);
+    expect_ok(s);
+}
+
+// "[Action] As an additional cost to play this, you may discard 1. Deal 3 to a unit at a battlefield. If you paid
+// the additional cost, deal 5 to it instead."
+TEST(RiftboundZed, RuthlessStrike) {
+    for (const bool paid : {false, true}) {
+        GameState s = zed_game();
+        const PlayerId p = s.first_player, o = opponent(p);
+        const ObjId unit = at_field(s, o, real("Kinkou Lifeblade"), 0);  // 4 Might
+        fund(s, p, 3);
+        play(s, in_hand(s, p, real("Ruthless Strike")));
+        optional_cost(s, paid);
+        settle(s);
+        EXPECT_EQ(s.obj(unit).zone, paid ? Zone::Trash : Zone::Battlefield) << paid;
+        expect_ok(s);
+    }
+}
+
+// "Ready a unit and give it [Assault 3] this turn. [Flow] [3][Fury]"
+TEST(RiftboundZed, PerfectExecution) {
+    GameState s = zed_game();
+    const PlayerId p = s.first_player;
+    const ObjId unit = put(s, p, real("Punching Poro"), Zone::Base);
+    s.obj(unit).exhausted = true;
+    const ObjId spell = put(s, p, real("Perfect Execution"), Zone::Trash);  // played for its Flow cost
+    fund(s, p, 3, {domain::fury});
+    ASSERT_TRUE(playable(s, p, spell));
+    play(s, spell);
+    settle(s);
+    EXPECT_FALSE(s.obj(unit).exhausted);
+    EXPECT_EQ(traits(s, unit).keywords.get(Keyword::Assault), 3);
+    EXPECT_EQ(s.obj(spell).zone, Zone::Banishment);
+    expect_ok(s);
+}
+
+// "Move a unit with 3 Might or less. [Flow] [4][Chaos]": the controller picks the destination.
+TEST(RiftboundZed, TwilightStep) {
+    GameState s = zed_game();
+    const PlayerId p = s.first_player;
+    const ObjId small = put(s, p, real("Punching Poro"), Zone::Base);
+    put(s, p, real("Kinkou Lifeblade"), Zone::Base);  // 4 Might: not a candidate
+    fund(s, p, 0, {domain::chaos});
+    play(s, in_hand(s, p, real("Twilight Step")));
+    both_pass(s);
+    ASSERT_EQ(s.decision.purpose, Purpose::Effect);
+    EXPECT_EQ(s.decision.options.size(), s.battlefields.size());  // not "base": it's there
+    apply(s, {ActionKind::Pick, s.battlefields[1].card, 1});
+    settle(s);
+    EXPECT_EQ(s.obj(small).zone, Zone::Battlefield);
+    EXPECT_EQ(s.obj(small).where, 1);
+    expect_ok(s);
+}
+
+// "[Action] Choose a unit at a battlefield. If it has 3 Might or less, banish it. Otherwise, return it to its
+// owner's hand."
+TEST(RiftboundZed, WindAndGhosts) {
+    for (const bool small : {true, false}) {
+        GameState s = zed_game();
+        const PlayerId p = s.first_player, o = opponent(p);
+        const ObjId unit = at_field(s, o, real(small ? "Punching Poro" : "Kinkou Lifeblade"), 0);
+        fund(s, p, 3, {domain::chaos});
+        play(s, in_hand(s, p, real("Wind and Ghosts")));
+        settle(s);
+        EXPECT_EQ(s.obj(unit).zone, small ? Zone::Banishment : Zone::Hand) << small;
+        expect_ok(s);
+    }
+}
+
+// "[Burn 3]. Play a 0 Might Shadow Clone unit token. [Flow] [1][A][A]"
+TEST(RiftboundZed, DeathMark) {
+    GameState s = zed_game();
+    const PlayerId p = s.first_player;
+    fund(s, p, 0, {domain::fury});
+    const ObjId spell = in_hand(s, p, real("Death Mark"));
+    const auto trash = s.player(p).trash.size();
+    play(s, spell);
+    settle(s);  // the token's location: the first option
+    EXPECT_EQ(s.player(p).trash.size(), trash + 3 + 1);  // burnt 3, then the spell itself
+    int clones = 0;
+    for (const Object& o : s.objects) clones += on_board(o.zone) && o.card->name == "Shadow Clone";
+    EXPECT_EQ(clones, 1);
     expect_ok(s);
 }
 

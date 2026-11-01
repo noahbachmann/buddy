@@ -84,6 +84,9 @@ public:
     virtual Keywords keywords() const { return {}; }
     // 137: an Equipment's Might Bonus, added to the unit it's attached to (layer 4). Riftcodex doesn't have it.
     virtual int might_bonus() const { return 0; }
+    // 136.2, 718.3: keywords of an Equipment's effect text, which its unit has while it's attached (Serrated Dirk's
+    // [Assault]). Not in Riftcodex either.
+    virtual Keywords effect_keywords() const { return {}; }
     // Every ability with an index into this span: activated, triggered (incl. reflexive and delayed), replacement.
     virtual std::span<const AbilitySpec> abilities() const { return {}; }
 

@@ -81,4 +81,30 @@ inline void zap_kill(GameState& s, PlayerId p, ObjId id) {
     settle(s);
 }
 
+// A copy of `card` at battlefield b, which p controls (no contest, no showdown).
+inline ObjId at_field(GameState& s, PlayerId p, const Card* card, std::uint8_t b) {
+    const ObjId id = put(s, p, card, Zone::Battlefield, b);
+    s.battlefields[b].controller = p;
+    return id;
+}
+
+// Answers an OptionalCost decision: pay (Pick) or not (Done).
+inline void optional_cost(GameState& s, bool pay) {
+    ASSERT_EQ(s.decision.purpose, Purpose::OptionalCost);
+    apply(s, pay ? legal_actions(s).front() : Action{ActionKind::Done});
+}
+
+// A copy of `card` in p's hand: one already there, else one from the deck (put() may take one from the trash).
+inline ObjId in_hand(GameState& s, PlayerId p, const Card* card) {
+    for (const ObjId id : s.player(p).hand) {
+        if (s.obj(id).card == card) return id;
+    }
+    for (const ObjId id : s.player(p).main_deck) {
+        if (s.obj(id).card != card) continue;
+        move_to(s, id, Zone::Hand, p);
+        return id;
+    }
+    throw std::logic_error("no copy of " + card->name + " in hand or deck");
+}
+
 } // namespace buddy::riftbound::test

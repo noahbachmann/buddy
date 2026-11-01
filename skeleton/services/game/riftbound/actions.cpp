@@ -86,7 +86,7 @@ void queue(GameState& s, ObjRef source, std::uint8_t ability, PlayerId controlle
 Traits traits(const GameState& s, ObjId id) {
     const Object& o = s.obj(id);
     const CardRules* own = rules_of(s, id);
-    const Keywords printed = own ? own->keywords() : Keywords{};
+    Keywords printed = own ? own->keywords() : Keywords{};
     std::vector<const Effect*> effects;
     for (const Effect& e : s.effects) {
         if (e.subject == o.ref(id)) effects.push_back(&e);
@@ -95,7 +95,12 @@ Traits traits(const GameState& s, ObjId id) {
     if (!s.vanilla && on_board(o.zone)) {
         for (ObjId g = 0; g < s.objects.size(); ++g) {
             const CardRules* rules = s.obj(g).attached == id ? rules_of(s, g) : nullptr;
-            if (rules != nullptr) bonus += rules->might_bonus();
+            if (rules == nullptr) continue;
+            bonus += rules->might_bonus();
+            const Keywords text = rules->effect_keywords();  // 718.3: part of the unit's own text
+            for (int k = 0; k < keyword_count; ++k) {
+                if (text.value[k] > 0) printed.grant(static_cast<Keyword>(k), text.value[k]);
+            }
         }
     }
     std::vector<Applied> applied;
