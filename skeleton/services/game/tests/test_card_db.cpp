@@ -3,6 +3,8 @@
 #include <nlohmann/json.hpp>
 
 #include "riftbound/card_db.hpp"
+#include "riftbound/cards/cards.hpp"
+#include "riftbound/deck.hpp"
 
 using namespace buddy::riftbound;
 using json = nlohmann::json;
@@ -158,4 +160,22 @@ TEST(RiftboundCardDb, PrintedTiming) {  // 806, 813: the card's leading keyword;
     EXPECT_EQ(db.find_name("Tactical Retreat")->timing, Timing::Reaction);
     EXPECT_EQ(db.find_name("Ruthless Strike")->timing, Timing::Action);
     EXPECT_EQ(db.find_name("Soul Harvest")->timing, Timing::Normal);
+}
+
+// cards/: every entry is a card of its deck (a typo would leave the real card unimplemented) and gets attached.
+TEST(RiftboundCardDb, RegisteredCardsAttach) {
+    const std::string decks = std::string(BUDDY_SOURCE_DIR) + "/services/game/decks/";
+    for (const auto& [file, entries] : {std::pair{"vi-unleashed", cards::vi_unleashed()},
+                                        std::pair{"zed-vendetta", cards::zed_vendetta()}}) {
+        const Deck deck = load_deck(fixture(), decks + file + ".txt");
+        std::vector<const Card*> in_deck = {deck.legend, deck.champion};
+        for (const auto& e : deck.main) in_deck.push_back(e.card);
+        in_deck.insert(in_deck.end(), deck.battlefields.begin(), deck.battlefields.end());
+        for (const auto& e : entries) {
+            const Card* c = fixture().find_name(e.name);
+            ASSERT_NE(c, nullptr) << e.name;
+            EXPECT_EQ(c->rules, e.rules) << e.name;
+            EXPECT_NE(std::find(in_deck.begin(), in_deck.end(), c), in_deck.end()) << e.name << " not in " << file;
+        }
+    }
 }

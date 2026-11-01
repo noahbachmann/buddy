@@ -3,6 +3,9 @@
 add_library(riftbound STATIC
     riftbound/actions.cpp
     riftbound/card_db.cpp
+    riftbound/cards/cards.cpp
+    riftbound/cards/vi_unleashed.cpp
+    riftbound/cards/zed_vendetta.cpp
     riftbound/code.cpp
     riftbound/deck.cpp
     riftbound/engine.cpp
@@ -25,5 +28,5 @@ install(DIRECTORY decks/ DESTINATION share/game/decks COMPONENT game)
 # Label riftbound: deploy/test.sh runs them only with --riftbound (the gate alone takes a while under ASan).
 buddy_add_tests(game
     tests/test_abilities.cpp tests/test_actions.cpp tests/test_card_db.cpp tests/test_chain.cpp tests/test_code.cpp tests/test_combat.cpp tests/test_deck.cpp tests/test_gate.cpp tests/test_hidden.cpp tests/test_pay.cpp tests/test_random.cpp
-    tests/test_keywords.cpp tests/test_replay.cpp tests/test_setup.cpp tests/test_state.cpp tests/test_turn.cpp
+    tests/test_cards_vi.cpp tests/test_cards_zed.cpp tests/test_keywords.cpp tests/test_replay.cpp tests/test_setup.cpp tests/test_state.cpp tests/test_turn.cpp
     LIBS riftbound LABELS riftbound)

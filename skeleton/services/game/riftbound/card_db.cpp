@@ -8,6 +8,7 @@
 #include <nlohmann/json.hpp>
 
 #include "buddy/names.hpp"
+#include "cards/cards.hpp"
 
 namespace buddy::riftbound {
 
@@ -241,6 +242,7 @@ CardDb CardDb::parse(const json& doc) {
         }
     }
     for (auto& card : db.cards_) {
+        card.rules = cards::rules_for(card.name);
         for (auto& p : card.printings) {
             p.label = p.code.str();
             if (db.by_code_.count(p.label) > 1) p.label += slash_total(p.code.total);
