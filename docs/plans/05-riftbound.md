@@ -415,7 +415,7 @@ cards; a different reading is a small change in the card's file.
 | Death Mark, Zed From the Shadows, Trapping Grounds | Token without a stated place: a location choice like any played unit (184.2): base or a battlefield its player controls. |
 | Square Up, Upstage Comedy | Each paid Repeat chooses its own target (820.2); Square Up twice on one unit = Assault 8 (807.2). |
 | Serrated Dirk | [Assault] = Assault 1 on the equipped unit, Might Bonus +0 (as printed). |
-| Mageseeker Investigator | "My battlefield" = the battlefield it's at. Only Standard Moves move several units at once. The [A] runes are recycled in the engine's order, no choice (no Recycle decision outside the chain). |
+| Mageseeker Investigator | ✅ Dev, 2026-11-01. "My battlefield" = the battlefield it's at. Only Standard Moves move several units at once. The [A] runes are recycled in the engine's order, no choice (no Recycle decision outside the chain). |
 | Zed, Without a Sound | Zed and the clone at the same location: nothing moves (no Moved events). Otherwise two moves, Zed first. |
 | Gust Monk | The banished card is picked as the trigger resolves, from either trash; no card → no Assault. The unit is a target, chosen as the trigger goes on the chain. |
 | Morgana, Vindictive | Damage = what's marked on the target as the trigger resolves. |
@@ -425,7 +425,7 @@ cards; a different reading is a small change in the card's file.
 | Ravenbloom Prefect | The gear is banished only if it's still on the board. |
 | Vi, Piltover Enforcer | "A unit" = any unit, either side. Triggers while exhausted too, but then can't pay. |
 | Battlefields (190.6) | "When you conquer/hold here" and "a player plays … they may" belong to the player who did it; Threshold of the Gray to the battlefield's controller (no choices in it). |
-| Star Spring | "The first time a player plays a non-token unit here each turn" = once per turn in total, not per player; the other unit is a target of the player who played. |
+| Star Spring | ✅ Dev, 2026-11-01: once per turn in total, not per player; the other unit is a target of the player who played. |
 | Valley of Idols | Tokens played there trigger it ("a unit"). |
 
 ## Hardware notes for Phase 4 (decide there, not now)

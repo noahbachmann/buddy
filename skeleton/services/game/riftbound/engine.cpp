@@ -542,7 +542,7 @@ void run_task(GameState& s, const Task& task) {
                 exhaust(s, a.obj);  // 144.2, paid simultaneously (144.3.c)
             }
             if (const Cost tax = move_tax(s, p, task.where, static_cast<int>(ids.size())); tax != Cost{}) {
-                // ⚠️ the engine picks the runes to recycle (pay.hpp's order): no Recycle decision outside the chain
+                // the engine picks the runes to recycle (pay.hpp's order; Dev's ruling): no Recycle decision outside the chain
                 std::vector<ObjId> recycled;
                 for (auto options = recycle_options(s, p, tax, recycled); !options.empty();
                      options = recycle_options(s, p, tax, recycled)) {

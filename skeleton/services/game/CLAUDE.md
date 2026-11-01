@@ -91,7 +91,7 @@ limit); `completable` fills "up to N" slots at their minimum and multi-target sl
 Ambush's location isn't re-checked if the units leave before finalizing (822.3); Equipment effect text beyond
 keywords (`effect_keywords()`, 718.3), reveal (425), counter (426), Equipped events (818.2.a); `pay_energy` pays
 Energy only. The Standard Move's tax (`CardRules::move_tax`, Mageseeker) caps the Move pick count at what's payable
-and recycles the runes in pay.hpp's order: no Recycle decision outside the chain ⚠️.
+and recycles the runes in pay.hpp's order (Dev's ruling): no Recycle decision outside the chain.
 
 ## Invariants (`check_invariants`, run after every random-game action)
 

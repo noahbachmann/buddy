@@ -366,7 +366,7 @@ struct TrappingGrounds : CardRules {
 } const trapping_grounds;
 
 // Star Spring: "The first time a player plays a non-token unit here each turn, they may move another unit they
-// control here to its base." Once per turn for all players (⚠️ ruling); the unit is a target of that player.
+// control here to its base." Once per turn for all players (Dev's ruling); the unit is a target of that player.
 struct StarSpring : CardRules {
     static bool other_here(const GameState& s, const ChainItem& item, const Target& t) {
         const Place here = item.event.place;
