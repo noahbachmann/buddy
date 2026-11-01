@@ -453,7 +453,7 @@ and the engine gets its own speed step (#36) before the search.
 Later, not 5.4: thinking during Dev's turn, reusing the tree between decisions, MO-ISMCTS. The hand pile's order never
 weighs on the choice (Dev, 2026-11-01): play strength only, feeds are the table's cost.
 
-**As built so far (#34, #35, #36, 2026-11-01).** Code in `services/game/riftbound/ai/`, how it runs: `services/game/CLAUDE.md`.
+**As built (#34–#38, 2026-11-01).** Code in `services/game/riftbound/ai/`, how it runs: `services/game/CLAUDE.md`.
 
 - **Arena:** `Player::choose(view, actions)` gets `view(s, seat)` and the legal actions (the same in every
   determinization); a test checks every state a player gets is a view of its own seat. `play_match`: seed S + i/2,
@@ -482,6 +482,34 @@ weighs on the choice (Dev, 2026-11-01): play strength only, feeds are the table'
   143k actions/s** with `GameChecks` (2.6×), **64k → 244k** engine only (`legal_actions` + `apply`, what a playout
   pays: 3.8×, 4.1 µs per action); vanilla 144k → 196k / 224k → 448k. State copy 0.93 µs (920 B). Full random
   playouts would now be ~1460 per second per core; truncated playouts stay the plan.
+- **v2 ISMCTS (#37)** as designed above (`ai/ismcts`). Details that weren't in the design: forced moves get no node
+  (as in the arena); the root's edges are the given actions merged by key **on the view**, applied as they are in
+  every determinization (an opponent's hidden card would key differently per determinization), deeper nodes key on
+  the determinization; the playout plays `playout` random actions within the turn, then passes and declines until
+  someone has Neutral Open priority (eval never reads a half-resolved chain); reward = 1 / (1 + e^(−eval / 20)),
+  win 1, loss 0; most root visits wins, ties by action order. An iteration budget is split over the threads (fixed
+  shares: reproducible for a given thread count). ~55 µs per iteration on one core, VM and Pi alike.
+- **Tuning (#38)**, ISMCTS vs greedy, 1000 iterations, one thread. Seeds 0–99 (200 games): c 0.7 / playout 20
+  (first version) 149; c 0.4: 157, c 1.0: 146; playout 0: 160, 10: 164, 40: 152; scale 10: 147, 40: 142 (20 stays).
+  Combined c 0.4 + playout 10: 160; on top, eval weights hand 3: 166, control 8: 167, gear 3: 167, rune 3: 157,
+  might_field 1.5: 158. Every single step is inside the noise (CI ± 6 %), so the candidates went to fresh seeds
+  1000–1199 (400 games): c 0.7 / playout 20 **293** (73.2 %), c 0.4 / playout 10 **325** (81.2 %, CI 77.1–84.8 %),
+  plus hand 3, control 8, gear 3: 308. Kept: c 0.4, playout 10, the hand-set weights (greedy shares them).
+  `--tune` takes these keys for the next round.
+- **#37's pass mark:** ISMCTS (1000 iterations) vs greedy **160 / 200** (seeds 0–99, CI 73.9–85.0 %; ≥ 115 needed).
+  More iterations keep paying: 8000 iterations **184 / 200** (92 %, CI 87.4–95.0 %; 14.5 turns instead of 15.8).
+- **Pi (#38)**, 2 s budget, Buddy's services running, vs greedy, 8 games each (Release, one job): 4 threads
+  p50 92k iterations per decision (p5 68k), time p95 2003.9 ms, max 2005.7 ms; 3 threads p50 71k (p5 51k), p95
+  2002.3 ms, max 2002.8 ms; both with the first version's c 0.7 / playout 20, 16 / 16 won. With the tuned defaults,
+  3 threads: p50 78k (p5 53k, shorter playouts), p95 2002.5 ms, max 2003.1 ms, 7 / 8 won. All within budget + 10 %
+  (2.2 s). Dev used the voice during the
+  3-thread run: wake word and speech-to-text (1.1 s) as usual, no xruns or watchdog hits. **Default for the service
+  (5.6): 3 threads, 2 s**: the fourth core stays for ears, which must hear "Hey Jarvis" while Buddy thinks; 3 threads
+  lose only a quarter of the iterations. Whether 70k beats 8000 by as much as 8000 beats 1000 isn't measured (one
+  match takes hours on the VM); 5.6 may still shorten the budget if waiting 2 s per decision feels slow. ⚠️
+- Tests (`test_ai`): reproducible under an iteration budget (1 and 3 threads), takes the win in 1, ≥ 1000 searched
+  decisions in ISMCTS-vs-ISMCTS games all legal. 5.4's checks green on the Pi (`deploy/test.sh --pi --riftbound`:
+  611 tests).
 
 ## Hardware notes for Phase 4 (decide there, not now)
 

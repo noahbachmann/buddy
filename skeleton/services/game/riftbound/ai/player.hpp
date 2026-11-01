@@ -25,6 +25,8 @@ public:
     // (determinize() it); `actions` = legal_actions(s), the same in every determinization of the view (#27).
     // Returns one of `actions`.
     virtual Action choose(const GameState& view, const std::vector<Action>& actions) = 0;
+    // Search iterations of the last choose(); 0 = no search.
+    virtual int iterations() const { return 0; }
 };
 
 // Uniform among the legal actions, its own Rng.

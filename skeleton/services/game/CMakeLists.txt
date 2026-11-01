@@ -4,6 +4,7 @@ add_library(riftbound STATIC
     riftbound/ai/arena.cpp
     riftbound/ai/eval.cpp
     riftbound/ai/greedy.cpp
+    riftbound/ai/ismcts.cpp
     riftbound/ai/player.cpp
     riftbound/actions.cpp
     riftbound/card_db.cpp

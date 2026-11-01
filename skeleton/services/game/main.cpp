@@ -12,9 +12,12 @@
 //                                           digest), the engine-only speed, sizeof(GameState) and its copy time
 //   buddy-game --replay <file>              play a replay action by action with the same checks
 //   buddy-game --match <a> <b> [--games N] [--seed S] [--jobs J] [--deck A --deck B]
+//              [--iterations N | --budget-ms M] [--threads T] [--tune key=value,…]
 //                                           AI players against each other with the cards' rules (players:
-//                                           random, greedy): both decks from both seats, wins with the 95 % Wilson
-//                                           interval, decision times, branching; a failing game writes its replay
+//                                           random, greedy, ismcts): both decks from both seats, wins with the 95 %
+//                                           Wilson interval, decision times, iterations, branching; a failing game
+//                                           writes its replay. --iterations/--budget-ms/--threads/--tune set ismcts
+//                                           (tune keys: c, playout, scale and eval's Weights by name)
 //
 // Config (env, see deploy/config/buddy.env.example): BUDDY_GAME_CARDS, BUDDY_GAME_DECKS
 #include <algorithm>
@@ -31,6 +34,7 @@
 #include "buddy/config.hpp"
 #include "riftbound/ai/arena.hpp"
 #include "riftbound/ai/greedy.hpp"
+#include "riftbound/ai/ismcts.hpp"
 #include "riftbound/card_db.hpp"
 #include "riftbound/deck.hpp"
 #include "riftbound/engine.hpp"
@@ -249,10 +253,38 @@ int replay_file(const CardDb& db, const fs::path& path) {
     return 0;
 }
 
-ai::PlayerFactory player_factory(const std::string& name) {
+ai::PlayerFactory player_factory(const std::string& name, const ai::IsmctsOptions& ismcts) {
     if (name == "random") return [](std::uint64_t seed) { return std::make_unique<ai::RandomPlayer>(seed); };
     if (name == "greedy") return [](std::uint64_t seed) { return std::make_unique<ai::GreedyPlayer>(seed); };
-    throw std::runtime_error("no player \"" + name + "\" (random, greedy)");
+    if (name == "ismcts") {
+        return [ismcts](std::uint64_t seed) { return std::make_unique<ai::IsmctsPlayer>(seed, ismcts); };
+    }
+    throw std::runtime_error("no player \"" + name + "\" (random, greedy, ismcts)");
+}
+
+// "c=0.7,playout=20,scale=20" → options
+void tune(ai::IsmctsOptions& o, const std::string& spec) {
+    std::istringstream in(spec);
+    for (std::string item; std::getline(in, item, ',');) {
+        const auto eq = item.find('=');
+        if (eq == std::string::npos) throw std::invalid_argument(item);
+        const std::string key = item.substr(0, eq);
+        const double v = std::stod(item.substr(eq + 1));
+        if (key == "c") o.exploration = v;
+        else if (key == "playout") o.playout = static_cast<int>(v);
+        else if (key == "scale") o.scale = v;
+        else if (key == "point") o.weights.point = v;
+        else if (key == "near_win") o.weights.near_win = v;
+        else if (key == "control") o.weights.control = v;
+        else if (key == "unit") o.weights.unit = v;
+        else if (key == "might") o.weights.might = v;
+        else if (key == "might_field") o.weights.might_field = v;
+        else if (key == "gear") o.weights.gear = v;
+        else if (key == "hand") o.weights.hand = v;
+        else if (key == "rune") o.weights.rune = v;
+        else if (key == "legend_ready") o.weights.legend_ready = v;
+        else throw std::invalid_argument(key);
+    }
 }
 
 std::string interval(int wins, int n) {
@@ -262,21 +294,27 @@ std::string interval(int wins, int n) {
 }
 
 int match(const CardDb& db, const std::vector<fs::path>& paths, const std::array<std::string, 2>& names, int games,
-          std::uint64_t seed, int jobs) {
+          std::uint64_t seed, int jobs, const ai::IsmctsOptions& ismcts) {
     if (paths.size() < 2) throw std::runtime_error("--match needs two decks");
     const Deck deck_a = load_deck(db, paths[0]), deck_b = load_deck(db, paths[1]);
     const std::array<std::string, 2> decks{paths[0].stem().string(), paths[1].stem().string()};
     std::cout << std::format("match {} (A) vs {} (B): {} games, decks {} and {}, seeds {}–{}, {} jobs\n", names[0],
                              names[1], games, decks[0], decks[1], seed, ai::pairing(seed, games - 1).seed, jobs);
+    if (std::ranges::find(names, "ismcts") != names.end()) {
+        std::cout << std::format("  ismcts: {}, {} threads, c {}, playout {}, scale {}\n",
+                                 ismcts.budget_ms > 0 ? std::format("{} ms", ismcts.budget_ms)
+                                                      : std::format("{} iterations", ismcts.iterations),
+                                 ismcts.threads, ismcts.exploration, ismcts.playout, ismcts.scale);
+    }
     const auto start = std::chrono::steady_clock::now();
-    const auto results = ai::play_match(player_factory(names[0]), player_factory(names[1]), deck_a, deck_b, games,
-                                        seed, jobs);
+    const auto results = ai::play_match(player_factory(names[0], ismcts), player_factory(names[1], ismcts), deck_a,
+                                        deck_b, games, seed, jobs);
     const double s = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
 
     int failed = 0, ok = 0;
     std::array<int, 2> player_wins{}, deck_wins{};
     std::array<std::array<int, 2>, 2> with_deck{}, with_deck_n{};  // [player][deck]
-    std::array<std::vector<double>, 2> ms;
+    std::array<std::vector<double>, 2> ms, iterations;
     std::array<long, 2> decisions{};
     long forced = 0, all = 0, turns = 0;
     std::vector<double> legal, runs;
@@ -307,6 +345,7 @@ int match(const CardDb& db, const std::vector<fs::path>& paths, const std::array
             const ai::SeatStats& st = g.seats[seat];
             const int p = (seat == 0) == r.pairing.b_in_seat0 ? 1 : 0;
             ms[p].insert(ms[p].end(), st.ms.begin(), st.ms.end());
+            iterations[p].insert(iterations[p].end(), st.iterations.begin(), st.iterations.end());
             decisions[p] += static_cast<long>(st.ms.size());
             forced += st.forced;
             all += static_cast<long>(st.legal.size());
@@ -327,6 +366,10 @@ int match(const CardDb& db, const std::vector<fs::path>& paths, const std::array
         std::cout << std::format("  {} decision time: p50 {:.3f} ms, p95 {:.3f} ms, max {:.3f} ms ({:.1f} asked per game)\n",
                                  p == 0 ? "A" : "B", ai::percentile(ms[p], 50), ai::percentile(ms[p], 95),
                                  ai::percentile(ms[p], 100), static_cast<double>(decisions[p]) / ok);
+        if (!iterations[p].empty()) {
+            std::cout << std::format("  {} iterations per decision: p5 {:.0f}, p50 {:.0f}\n", p == 0 ? "A" : "B",
+                                     ai::percentile(iterations[p], 5), ai::percentile(iterations[p], 50));
+        }
     }
     std::cout << std::format("  branching: {:.1f} decisions per game, {:.1f} % forced; legal actions p50 {:.0f}, p95 "
                              "{:.0f}, max {:.0f}; Choose depth p50 {:.0f}, p95 {:.0f}, max {:.0f}\n",
@@ -340,7 +383,9 @@ int match(const CardDb& db, const std::vector<fs::path>& paths, const std::array
 int usage(const char* argv0) {
     std::cerr << "usage: " << argv0 << " --deck <name|file> --check | --check | --code <code>… |\n"
               << "       --random [--rules] [--games N] [--seed S] [--deck A --deck B] | --replay <file> |\n"
-              << "       --match <a> <b> [--games N] [--seed S] [--jobs J] [--deck A --deck B]  (players: random, greedy)\n"
+              << "       --match <a> <b> [--games N] [--seed S] [--jobs J] [--deck A --deck B]\n"
+              << "               [--iterations N | --budget-ms M] [--threads T] [--tune key=value,…]\n"
+              << "               (players: random, greedy, ismcts)\n"
               << "(the game service itself comes in step 5.6)\n";
     return 2;
 }
@@ -356,6 +401,7 @@ int main(int argc, char** argv) {
     bool games_given = false;
     int code_index = 0, games = 100, jobs = static_cast<int>(std::max(1u, std::thread::hardware_concurrency()));
     std::uint64_t seed = 1;
+    ai::IsmctsOptions ismcts;
     try {
         for (std::size_t i = 0; i < args.size() && code_index == 0; ++i) {
             const bool value = i + 1 < args.size();
@@ -373,6 +419,10 @@ int main(int argc, char** argv) {
                 games_given = true;
             }
             else if (args[i] == "--jobs" && value) jobs = std::stoi(args[++i]);
+            else if (args[i] == "--iterations" && value) ismcts.iterations = std::stoi(args[++i]);
+            else if (args[i] == "--budget-ms" && value) ismcts.budget_ms = std::stod(args[++i]);
+            else if (args[i] == "--threads" && value) ismcts.threads = std::stoi(args[++i]);
+            else if (args[i] == "--tune" && value) tune(ismcts, args[++i]);
             else if (args[i] == "--seed" && value) seed = std::stoull(args[++i]);
             else if (args[i] == "--code" && value) code_index = static_cast<int>(i) + 2;
             else return usage(argv[0]);
@@ -382,6 +432,7 @@ int main(int argc, char** argv) {
     }
     const bool matching = !players[0].empty();
     if ((code_index != 0) + check + random + !replay.empty() + matching != 1 || games < 1 || jobs < 1 ||
+        ismcts.iterations < 1 || ismcts.threads < 1 ||
         (rules && !random)) {
         return usage(argv[0]);
     }
@@ -402,7 +453,7 @@ int main(int argc, char** argv) {
         for (const auto& d : deck_args) paths.push_back(deck_path(d, decks));
         if (paths.empty()) paths = all_decks(decks);
         if (random) return random_games(db, paths, games, seed, !rules);
-        if (matching) return match(db, paths, players, games_given ? games : 200, seed, jobs);
+        if (matching) return match(db, paths, players, games_given ? games : 200, seed, jobs, ismcts);
 
         bool ok = true;
         for (const auto& path : paths) {

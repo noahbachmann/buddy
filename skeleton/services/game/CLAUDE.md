@@ -1,6 +1,6 @@
 # services/game – Riftbound engine quick reference
 
-What the engine does **now** (state after #36: 5.3 done, 5.4 arena, v1 greedy, engine speed) and where the next work plugs in.
+What the engine does **now** (state after #38: 5.3 and 5.4 done: arena, v1 greedy, engine speed, v2 ISMCTS) and where the next work plugs in.
 Why it is built this way: `docs/plans/05-riftbound.md` → "5.2 design", "5.3 as built" (with the rulings, confirmed by Dev),
 "5.4 design". Sub-issues: 5.2 #20, 5.3 #33, 5.4 #39. Rules text: `~/buddy/data/riftbound/core-rules-2026-10-09.txt`
 on the VM (grep the rule number); full card text: `~/buddy/data/riftbound/cards.json` (VM and Pi, not in Git).
@@ -20,10 +20,11 @@ on the VM (grep the rule number); full card text: `~/buddy/data/riftbound/cards.
 | `hidden` | `view(s, p)`: objects p doesn't know (`Object::known` bit, set by `move_to`/`recycle`/`predict`) get `hidden_card()`, RNG reset; not playable. `determinize(view, seat0, seat1, rng)`: per owner the decklist minus visible cards, shuffled onto the hidden objects (rune deck: runes), RNG reseeded |
 | `replay` | `Replay` (seed, vanilla, both decklists' text, actions) ⇄ text (`parse_replay`, `to_text`: annotated by replaying), `run_replay` (GameChecks after every action; `buddy-game --replay`) |
 | `rng` | xoshiro256\*\*, own `below`/`shuffle` (portable replays) |
-| `ai/player` | `Player` (`begin(seat, decks)`, `choose(view, actions)`: never the referee's state), `RandomPlayer`; `ActionKey` / `key_of` (hand and trash cards by card, the rest by id), `distinct` |
-| `ai/arena` | `play_game` (forced moves applied unasked, `GameChecks` after every action, per-seat `SeatStats`: legal actions per decision, forced, time per asked decision, Choose runs), `play_match` (`PlayerFactory` per game, `pairing()`: seed S + i/2, players swapped every game, decks every other seed; `--jobs` threads, results independent of them), `wilson`, `percentile` |
+| `ai/player` | `Player` (`begin(seat, decks)`, `choose(view, actions)`: never the referee's state; `iterations()` of the last search), `RandomPlayer`; `ActionKey` / `key_of` (hand and trash cards by card, the rest by id), `distinct` |
+| `ai/arena` | `play_game` (forced moves applied unasked, `GameChecks` after every action, per-seat `SeatStats`: legal actions per decision, forced, time and iterations per asked decision, Choose runs), `play_match` (`PlayerFactory` per game, `pairing()`: seed S + i/2, players swapped every game, decks every other seed; `--jobs` threads, results independent of them), `wilson`, `percentile` |
 | `ai/eval` | `eval(s, p, Weights)`: points (steeper past 5), control, units + Might (more at battlefields), gear, hand size, runes in base, legend ready; mine − theirs, win/loss ±∞ |
 | `ai/greedy` | `greedy_choice(s)` on a full state: per `distinct` action apply + `play_on` to quiescence (anyone's Neutral Open priority or game over; own sub-decisions nested greedy up to `depth` 2, otherwise pass/decline/first) + `eval`; EndTurn = eval of the state now; ties → first. `mulligan_choice` (Energy ≥ 5 set aside). `GreedyPlayer` = one determinization per decision |
+| `ai/ismcts` | `ismcts_search(view, actions, decks, seed, IsmctsOptions)`: SO-ISMCTS. Per iteration a fresh `determinize`, descend the tree (edges = `ActionKey`, forced moves skipped as in the arena, UCB1 with availability counts, rewards from the chooser's side), expand one untried action, playout (`playout` random actions within the turn, then pass/decline to quiescence), reward = sigmoid(`eval` / `scale`), win/loss 1/0. The root uses the given actions merged by key on the view (a determinization would key an opponent's hidden card differently). Budget: `iterations` (split over `threads`, reproducible) or `budget_ms`; root parallel, visits summed, most visits wins, ties → action order. `IsmctsPlayer`: mulligan by greedy's rule |
 | `cards/` | The decks' cards (5.3, #33): `vi_unleashed.cpp`, `zed_vendetta.cpp` (one `CardRules` per card, its text above it, an `Entry` table at the end), `common.hpp` (`keywords({…})`, `cost()`, `discard()`, `count_named`, `battlefield_of`, `conquered_with`, `played_me`, `loot`, `Deathknell` base); `rules_for(name)`, attached by `CardDb::parse`: every loaded db (the test fixture too) has them |
 
 ## The loop (`engine.cpp` → `run()`), in this order every iteration
@@ -129,7 +130,8 @@ start, e.g. a determinization, skips its own turn).
   Vision, Repeat, Ambush, Empower, Flow, Equip and attachment, tokens; 40 random games each for both files' decks),
   `test_random` (50 games each: spell decks and the real decks vanilla, most must end by scoring; 60
   ability-deck games in `test_abilities`; `apply` accepts exactly `legal_actions`), `test_ai` (keys, players only get views, matches reproducible across
-  jobs, eval, greedy on hand-built states: conquer, lethal, no trade down, no own target; greedy vs random 8 games), `test_hidden` (knowledge, view, determinize; views along random games, the
+  jobs, eval, greedy on hand-built states: conquer, lethal, no trade down, no own target; greedy vs random 8 games;
+  ISMCTS reproducible with 1 and 3 threads, takes the win in 1, ≥ 1000 searched decisions in ISMCTS-vs-ISMCTS games all legal: ~30 s under ASan), `test_hidden` (knowledge, view, determinize; views along random games, the
   ability deck's in `test_abilities`; real decks with rules too), `test_replay`, `test_gate` (1000 games of the real
   decks, vanilla (5.2) and with rules (5.3); writes the replay of a failure).
 - `test_real.hpp` + `test_cards_vi.cpp` / `test_cards_zed.cpp` (5.3): real cards from the fixture with their rules
@@ -149,10 +151,14 @@ start, e.g. a determinization, skips its own turn).
   After #26 on the VM (Release): vanilla 0.63 ms per game (#25: 0.58), 17 turns (scoring ends games; before #25 they ran ~180
   turns to burn out); ability decks ~7 activations, ~9 triggers, ~36 choices per game. #27 on the Pi (Release):
   0.72 ms per game, `sizeof(GameState)` 896 B, a copy 0.83 µs (printed after every `--random` run).
-- `buddy-game --match <a> <b> [--games N] [--seed S] [--jobs J]` (players `random`, `greedy`; default 200 games,
-  jobs = cores, decks = the first two): wins with Wilson CI per player and deck, decision times, branching. #35 (seed 0):
+- `buddy-game --match <a> <b> [--games N] [--seed S] [--jobs J] [--iterations N | --budget-ms M] [--threads T]
+  [--tune c=…,playout=…,scale=…,<weight>=…]` (players `random`, `greedy`, `ismcts`; default 200 games,
+  jobs = cores, decks = the first two; the ISMCTS flags apply to both seats if both are `ismcts`): wins with Wilson CI per player and deck, decision times, branching. #35 (seed 0):
   random vs random 1000 games 479:521, decks 517:483; greedy vs random 190/200 (seed 1000: 196), greedy vs greedy
   Zed 146:54. Pi: greedy decision p50 0.24 ms, p95 3.4 ms, max 30 ms; identical games on VM and Pi.
+  #37/#38: ismcts (1000 iterations, c 0.4, playout 10) vs greedy 160/200 (seeds 1000–1199: 325/400); ~55 µs per
+  iteration per core. Service default (5.6): `--budget-ms 2000 --threads 3` (the 4th core stays for ears), ~78k
+  iterations per decision on the Pi. Tuning results and what didn't help: plan → "5.4 as built".
 - A failing random game: `replay-<seed>.txt` in the current directory → `buddy-game --replay <file>` (or by hand:
   the action lines are `<kind> [<obj>|-] [<n>]`, cut it down to find the action).
 

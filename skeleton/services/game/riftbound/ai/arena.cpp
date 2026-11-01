@@ -45,6 +45,7 @@ ArenaGame play_game(const Deck& seat0, const Deck& seat1, const std::array<Playe
                 a = players[p]->choose(seen, actions);
                 stats.ms.push_back(
                     std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count());
+                if (const int n = players[p]->iterations(); n > 0) stats.iterations.push_back(n);
             }
             last = describe(s, a);
             result.log.push_back(a);

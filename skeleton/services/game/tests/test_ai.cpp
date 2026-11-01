@@ -1,5 +1,5 @@
-// The AI (5.4, riftbound/ai/): action keys, the arena (players see only views, matches are reproducible), eval and
-// v1 greedy on hand-built states.
+// The AI (5.4, riftbound/ai/): action keys, the arena (players see only views, matches are reproducible), eval,
+// v1 greedy on hand-built states, v2 ISMCTS (reproducible, wins in 1, only legal actions).
 #include <gtest/gtest.h>
 
 #include <fstream>
@@ -8,6 +8,7 @@
 
 #include "riftbound/ai/arena.hpp"
 #include "riftbound/ai/greedy.hpp"
+#include "riftbound/ai/ismcts.hpp"
 #include "riftbound/hidden.hpp"
 #include "test_real.hpp"
 
@@ -22,10 +23,15 @@ const Card* kFive = make("Five", CardType::Unit, 5, 5, plain_rules);
 
 Deck frame() { return deck_of("A", {kTwo, kFive, zap()}); }
 
+// One frame for states and determinize(): each deck_of() makes its own legend and battlefield cards.
+const Deck& shared_frame() {
+    static const Deck d = frame();
+    return d;
+}
+
 // Turn 1's main phase for the first player, both hands back in the decks.
 GameState empty_handed() {
-    static const Deck d = frame();
-    GameState s = started(d);
+    GameState s = started(shared_frame());
     for (PlayerId p = 0; p < player_count; ++p) {
         while (!s.player(p).hand.empty()) move_to(s, s.player(p).hand.back(), Zone::MainDeck, p);
     }
@@ -219,4 +225,58 @@ TEST(RiftboundAi, GreedyBeatsRandom) {
         wins += g.winning_player() == 0;
     }
     EXPECT_GE(wins, 7);
+}
+
+TEST(RiftboundAi, IsmctsIsReproducibleUnderAnIterationBudget) {
+    const auto& d = real_decks();
+    GameState s = new_game(d[0], d[1], {.seed = 11});
+    while (legal_actions(s).size() < 3 || s.decision.kind != DecisionKind::Priority) {
+        const auto actions = legal_actions(s);
+        apply(s, actions.back());  // Done in the mulligan, then on to a decision with a choice
+    }
+    const GameState v = view(s, s.decision.player);
+    const auto actions = legal_actions(s);
+    for (const int threads : {1, 3}) {
+        const IsmctsOptions o{.iterations = 300, .threads = threads};
+        const IsmctsResult a = ismcts_search(v, actions, d[0], d[1], 42, o);
+        const IsmctsResult b = ismcts_search(v, actions, d[0], d[1], 42, o);
+        EXPECT_EQ(a.action, b.action);
+        EXPECT_EQ(a.visits, b.visits);
+        EXPECT_EQ(a.iterations, 300);
+        int sum = 0;
+        for (const int n : a.visits) sum += n;
+        EXPECT_EQ(sum, 300);  // every iteration passes the root
+    }
+}
+
+TEST(RiftboundAi, IsmctsTakesTheWinInOne) {
+    const Deck& d = shared_frame();
+    GameState s = empty_handed();
+    const PlayerId p = s.first_player, o = opponent(p);
+    s.player(p).points = victory_score - 1;
+    s.player(p).scored = 0b10;  // conquering battlefield 0 is the final point, as in GreedyTakesLethal
+    ready_in_base(s, p, kTwo);
+    put(s, o, kFive, Zone::Base);
+    put(s, p, zap(), Zone::Hand);
+    const IsmctsResult r = ismcts_search(view(s, p), legal_actions(s), d, d, 1, {.iterations = 200});
+    EXPECT_EQ(r.action, move_to_field(s, 0));
+}
+
+TEST(RiftboundAi, IsmctsOnlyReturnsLegalActions) {
+    // ismcts in both seats, few iterations: the arena applies each choice (IllegalAction → problem) and checks
+    // every state; at least 1000 searched decisions over the games
+    const auto& d = real_decks();
+    const PlayerFactory ismcts = [](std::uint64_t seed) {
+        return std::make_unique<IsmctsPlayer>(seed, IsmctsOptions{.iterations = 8});
+    };
+    int searched = 0;
+    for (std::uint64_t seed = 0; searched < 1000; ++seed) {
+        auto a = ismcts(seed), b = ismcts(seed + 100);
+        const ArenaGame g = play_game(d[seed % 2], d[1 - seed % 2], {a.get(), b.get()}, seed);
+        ASSERT_TRUE(g.problem.empty()) << g.problem;
+        for (const SeatStats& st : g.seats) {
+            for (const double n : st.iterations) EXPECT_EQ(n, 8);
+            searched += static_cast<int>(st.iterations.size());
+        }
+    }
 }

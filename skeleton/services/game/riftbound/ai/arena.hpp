@@ -20,6 +20,7 @@ struct SeatStats {
     int forced = 0;
     std::vector<int> legal;       // legal actions per decision, forced ones included
     std::vector<double> ms;       // time per asked decision
+    std::vector<double> iterations;  // per asked decision of a searching player
     std::vector<int> choose_runs;  // sub-decisions (Choose, Recycle) in a row after a Priority action, if any
 };
 
