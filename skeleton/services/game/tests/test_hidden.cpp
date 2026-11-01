@@ -96,9 +96,10 @@ TEST(RiftboundHidden, DeterminizeRefusesAViewOfOtherDecks) {
     EXPECT_THROW(determinize(view(s, 0), zed(), vi(), rng), std::logic_error);
 }
 
-TEST(RiftboundHidden, ViewsAlongRandomGames) {  // real decks vanilla and spell decks, both seats' views each action
+TEST(RiftboundHidden, ViewsAlongRandomGames) {  // real decks with and without rules, spell decks; both seats' views
     for (std::uint64_t seed = 0; seed < 6; ++seed) {
         EXPECT_EQ(test::views_along_a_game(vi(), zed(), seed, true), "");
+        EXPECT_EQ(test::views_along_a_game(vi(), zed(), seed, false), "");
     }
     const Deck a = test::spell_deck("A"), b = test::spell_deck("B");
     for (std::uint64_t seed = 0; seed < 4; ++seed) {
