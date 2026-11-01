@@ -382,6 +382,52 @@ struct CardRules {
   0.83 µs (average over one game's states). The baseline for 5.4: ~1.2 M state copies per second per core before any
   fixed-capacity containers.
 
+### 5.3 as built (2026-11-01, #33)
+
+- **Cards:** `services/game/riftbound/cards/`: `vi_unleashed.cpp` (28), `zed_vendetta.cpp` (24), one `CardRules`
+  per card with its text above it; basic runes need none. `CardDb::parse` attaches them by name, so a decklist with
+  an unwritten card still fails at `new_game` (D21). `buddy-game --check` has a "rules" column, `--random --rules`
+  plays with them. Sub-issues: #28 simple units, #29 spells and gear, #30 units with triggers and abilities, #31
+  legends and battlefields, #32 gate and docs.
+- **Engine changes the cards needed:** Equipment effect keywords (`effect_keywords()`, 718.3: Serrated Dirk);
+  a tax on the Standard Move (`move_tax()`, Mageseeker Investigator: the Move choice is capped at what's payable);
+  a permanent's Played event carries its paid optional costs ("if you paid the additional cost"); battlefield ability
+  control (190.6: the battlefield's controller, else the turn player; `AbilitySpec::event_player` for "they may …"
+  and "when you conquer here"). Bug fixed: Awaken now readies the legend (315.1.b).
+- **Tests:** `tests/test_cards_vi.cpp`, `test_cards_zed.cpp`: one test per card (several branches where the text
+  has an "if"), on the text-free fixture plus the rules from `cards/`, and 40 random games of every registered card
+  per deck file. Gate: `RiftboundGate.ThousandRandomGamesWithRules` next to the vanilla one; hidden-information views
+  along rules-on games of both decks.
+- **Measurements:** gate with rules under ASan/UBSan 73 s on the VM, 0 failures; all 592 tests green on the Pi. Pi
+  Release, 1000 games, seeds 0–999: **2.97 ms per game** with rules (336 games/s, 56k actions/s, 167 actions, 17
+  turns, 6.5 spells and 0.8 chain plays per game, 500:500 wins) vs 0.74 ms vanilla (142k actions/s, 343:657). A
+  state copy stays 0.85 µs; an action costs ~2.5× vanilla's: `traits()` asks every object's passives each call.
+  The first thing to profile when 5.4's search wants more playouts.
+
+#### Rulings for Dev (⚠️ until confirmed)
+
+Where the card text or the Core Rules leave room, this is what the engine does. Check them against the physical
+cards; a different reading is a small change in the card's file.
+
+| Card | Ruling |
+|---|---|
+| Twilight Step | No destination printed: the controller picks any other location as it resolves (any battlefield, or the unit's controller's base). |
+| Death Mark, Zed From the Shadows, Trapping Grounds | Token without a stated place: a location choice like any played unit (184.2): base or a battlefield its player controls. |
+| Square Up, Upstage Comedy | Each paid Repeat chooses its own target (820.2); Square Up twice on one unit = Assault 8 (807.2). |
+| Serrated Dirk | [Assault] = Assault 1 on the equipped unit, Might Bonus +0 (as printed). |
+| Mageseeker Investigator | "My battlefield" = the battlefield it's at. Only Standard Moves move several units at once. The [A] runes are recycled in the engine's order, no choice (no Recycle decision outside the chain). |
+| Zed, Without a Sound | Zed and the clone at the same location: nothing moves (no Moved events). Otherwise two moves, Zed first. |
+| Gust Monk | The banished card is picked as the trigger resolves, from either trash; no card → no Assault. The unit is a target, chosen as the trigger goes on the chain. |
+| Morgana, Vindictive | Damage = what's marked on the target as the trigger resolves. |
+| Lord Broadmane | "Here" = where it entered (its base too). |
+| Vi, Peacekeeper; Twilight Reveler | Targets chosen as the attack trigger goes on the chain. |
+| Blade Twirler | "Choose a player" = target either player. |
+| Ravenbloom Prefect | The gear is banished only if it's still on the board. |
+| Vi, Piltover Enforcer | "A unit" = any unit, either side. Triggers while exhausted too, but then can't pay. |
+| Battlefields (190.6) | "When you conquer/hold here" and "a player plays … they may" belong to the player who did it; Threshold of the Gray to the battlefield's controller (no choices in it). |
+| Star Spring | "The first time a player plays a non-token unit here each turn" = once per turn in total, not per player; the other unit is a target of the player who played. |
+| Valley of Idols | Tokens played there trigger it ("a unit"). |
+
 ## Hardware notes for Phase 4 (decide there, not now)
 
 - **Scanning:** the code is ~1.5 mm text. The head camera (4.2) won't read that at table distance, so it needs a fixed
@@ -404,9 +450,10 @@ unit's rules text, 718.3), only the rules text (the Equip line).
 | Serrated Dirk | +0 | [Assault] (= Assault 1, 807.1.b.3): the unit it's attached to has Assault |
 | Hextech Gauntlets | +3 | none (the only text is the Equip line Riftcodex has) |
 
-Dirk's [Assault] needs the engine gap "Equipment effect text" (`services/game/CLAUDE.md` → Known gaps) closed in 5.3:
-a `CardRules` hook for the effect text that `traits()` applies to the top-most card while attached.
+Built in 5.3 (#29): `CardRules::might_bonus()` and `effect_keywords()`, which `traits()` adds to the unit while the
+gear is attached.
 
 ## Open for Dev
 
+- **5.3 rulings:** the table in "5.3 as built" against the physical cards.
 - **When to slot Phase 5** relative to 2.x and 3: the software can run in parallel; the hardware waits for 4.1 and 4.2.

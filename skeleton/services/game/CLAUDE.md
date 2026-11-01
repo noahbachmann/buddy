@@ -1,7 +1,8 @@
 # services/game – Riftbound engine quick reference
 
-What the engine does **now** (state after #27: 5.2 done) and where the next work plugs in. Why it is built this way:
-`docs/plans/05-riftbound.md` → "5.2 design". Sub-issues of 5.2: #20. Rules text: `~/buddy/data/riftbound/core-rules-2026-10-09.txt`
+What the engine does **now** (state after #33: 5.3 done, every card of both decks) and where the next work plugs in.
+Why it is built this way: `docs/plans/05-riftbound.md` → "5.2 design", "5.3 as built" (with the rulings for Dev).
+Sub-issues: 5.2 #20, 5.3 #33. Rules text: `~/buddy/data/riftbound/core-rules-2026-10-09.txt`
 on the VM (grep the rule number); full card text: `~/buddy/data/riftbound/cards.json` (VM and Pi, not in Git).
 
 ## Files (`riftbound/`, pure library, no MQTT)
@@ -124,7 +125,8 @@ start, e.g. a determinization, skips its own turn).
   Vision, Repeat, Ambush, Empower, Flow, Equip and attachment, tokens; 40 random games each for both files' decks),
   `test_random` (50 games each: spell decks and the real decks vanilla, most must end by scoring; 60
   ability-deck games in `test_abilities`), `test_hidden` (knowledge, view, determinize; views along random games, the
-  ability deck's in `test_abilities`), `test_replay`, `test_gate` (5.2's 1000 games, writes the replay of a failure).
+  ability deck's in `test_abilities`; real decks with rules too), `test_replay`, `test_gate` (1000 games of the real
+  decks, vanilla (5.2) and with rules (5.3); writes the replay of a failure).
 - `test_real.hpp` + `test_cards_vi.cpp` / `test_cards_zed.cpp` (5.3): real cards from the fixture with their rules
   (`real(name)`), `real_deck` (test frame, Zap, the deck's runes), `fund` (pool energy/power), `zap_kill`; one
   `TEST(RiftboundVi|Zed, <Card>)` per card, and 40 random games of everything a deck file registers
@@ -132,8 +134,10 @@ start, e.g. a determinization, skips its own turn).
   `next_turn_of(s, p)` plays on to p's next Main phase. `put()` may take a copy from the trash: `in_hand()` instead. Combat: `at_field` (a unit
   holding a battlefield) + `ready_in_base` + `move_units`, then `both_pass`/`settle`; `close_showdown`.
 - Every game test has the ctest label `riftbound`: `deploy/test.sh --riftbound [--pi]` (skipped without).
-- `buddy-game --random --games 1000 --seed 0 --deck decks/vi-unleashed.txt --deck decks/zed-vendetta.txt` on the
-  ASan build (`build-test/services/game/buddy-game`); `deploy/run.sh game --random …` on the Pi (Release).
+- `buddy-game --random [--rules] --games 1000 --seed 0 --deck decks/vi-unleashed.txt --deck decks/zed-vendetta.txt`
+  on the ASan build (`build-test/services/game/buddy-game`); `deploy/run.sh game --random …` on the Pi (Release).
+  #32 on the Pi (Release): with rules 2.97 ms per game (56k actions/s, 167 actions) vs vanilla 0.74 ms; `traits()`
+  asking every object's passives is the likely cost. Gate with rules under ASan: 73 s on the VM.
   After #26 on the VM (Release): vanilla 0.63 ms per game (#25: 0.58), 17 turns (scoring ends games; before #25 they ran ~180
   turns to burn out); ability decks ~7 activations, ~9 triggers, ~36 choices per game. #27 on the Pi (Release):
   0.72 ms per game, `sizeof(GameState)` 896 B, a copy 0.83 µs (printed after every `--random` run).

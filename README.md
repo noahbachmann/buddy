@@ -31,7 +31,7 @@ From the repo's `skeleton/` folder on the PC (or the dev VM). `buddy` is the SSH
 |---|---|
 | Run all tests (C++ under ASan/UBSan, pytest, shellcheck) | `deploy/test.sh` (one suite: `deploy/test.sh -R Player`) |
 | C++ tests on the Pi (what really counts) | `deploy/test.sh --pi` |
-| With the Riftbound engine's tests (skipped by default; incl. the 1000-game gate, ~30 s) | `deploy/test.sh --riftbound`, `deploy/test.sh --pi --riftbound` |
+| With the Riftbound engine's tests (skipped by default; incl. the 1000-game gates, ~75 s) | `deploy/test.sh --riftbound`, `deploy/test.sh --pi --riftbound` |
 | Deploy everything / some services | `deploy/deploy.sh` / `deploy/deploy.sh hue web` |
 | Build and flash the Pico firmware | `deploy/deploy.sh --firmware` |
 | Health: services, restarts, memory, temperature | `deploy/status.sh` (`-l`: plus recent log lines) |
@@ -58,7 +58,7 @@ the hardware is real: lights switch, music plays, servos move.
 | speakers | `--cmd list` (the Nests, connected?), `--cmd connect "bathroom speaker"`, `--cmd disconnect`, `--pair "Bathroom speaker"` (say "Hey Google, pair Bluetooth" to the Nest first). The running service disconnects a Nest without music: stop `buddy@speakers` to keep one connected |
 | ears | `--transcribe a.wav b.wav`, `--wav a.wav` (whole pipeline on a file on the Pi) |
 | motion | `--cmd move demo=30 --ms 400`, `--cmd gesture shake`, `--cmd relax`, `--raw "1 PING"`. Stop `buddy@motion` first: it owns the Pico's port |
-| game | `--check` (every Riftbound deck, card by card), `--deck zed-vendetta --check`, `--code "OGN • 007a/298"` (what a printed code is), `--random --games 1000` (random-vs-random games on the rules engine, vanilla cards; a failing one writes `replay-<seed>.txt`), `--replay <file>` (play a replay action by action). Card data: `ssh buddy bash ~/buddy/src/deploy/pi/setup.sh cards` |
+| game | `--check` (every Riftbound deck, card by card), `--deck zed-vendetta --check`, `--code "OGN • 007a/298"` (what a printed code is), `--random --games 1000` (random-vs-random games on the rules engine, vanilla cards; `--rules` with every card's rules; a failing one writes `replay-<seed>.txt`), `--replay <file>` (play a replay action by action). Card data: `ssh buddy bash ~/buddy/src/deploy/pi/setup.sh cards` |
 
 ## Rules that protect the hardware
 
