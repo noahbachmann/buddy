@@ -93,7 +93,7 @@ Traits traits(const GameState& s, ObjId id) {
     }
     int bonus = 0;  // 137.3
     if (!s.vanilla && on_board(o.zone)) {
-        for (ObjId g = 0; g < s.objects.size(); ++g) {
+        for (const ObjId g : s.active) {  // attached gear is on the board (718.1)
             const CardRules* rules = s.obj(g).attached == id ? rules_of(s, g) : nullptr;
             if (rules == nullptr) continue;
             bonus += rules->might_bonus();
@@ -114,7 +114,7 @@ Traits traits(const GameState& s, ObjId id) {
     std::vector<Mod> out;
     for (int round = 0; round < 8; ++round) {  // 478.3: again until nothing new applies
         bool added = false;
-        for (ObjId src = 0; src < s.objects.size(); ++src) {
+        for (const ObjId src : s.active) {
             const CardRules* rules = active_rules(s, src);
             if (rules == nullptr) continue;
             out.clear();
@@ -158,9 +158,9 @@ PlayerId controller_of(const GameState& s, ObjId id) {
 void emit(GameState& s, const Event& e) {
     if (s.vanilla) return;
     std::vector<std::uint8_t> out;
-    for (ObjId id = 0; id < s.objects.size(); ++id) {
+    const auto fire = [&](ObjId id) {
         const CardRules* rules = e.kind == EventKind::Die ? rules_of(s, id) : active_rules(s, id);
-        if (rules == nullptr || (e.kind == EventKind::Die && id != e.subject.id)) continue;
+        if (rules == nullptr) return;
         out.clear();
         rules->triggers(s, e, id, out);
         if (e.kind == EventKind::Played && e.subject.id == id && on_board(s.obj(id).zone) &&
@@ -172,6 +172,11 @@ void emit(GameState& s, const Event& e) {
             const AbilitySpec& spec = *ability_spec(s, id, a);
             queue(s, self, a, spec.event_player ? e.player : controller_of(s, id), e, spec);
         }
+    };
+    if (e.kind == EventKind::Die) {  // only the dying card's own abilities, whatever its zone
+        if (e.subject.id < s.objects.size()) fire(e.subject.id);
+    } else {
+        for (const ObjId id : s.active) fire(id);
     }
     for (std::size_t i = 0; i < s.delayed.size();) {
         const Delayed d = s.delayed[i];
@@ -218,7 +223,9 @@ bool replaced(GameState& s, Event& e) {
             }
             applied = true;
         }
-        for (ObjId id = 0; id < s.objects.size() && !applied; ++id) {
+        // by index: a replacement may move objects, but the loop stops right after one applies
+        for (std::size_t i = 0; i < s.active.size() && !applied; ++i) {
+            const ObjId id = s.active[i];
             const CardRules* rules = active_rules(s, id);
             if (rules == nullptr) continue;
             const auto all = rules->abilities();

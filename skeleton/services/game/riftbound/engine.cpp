@@ -339,7 +339,7 @@ bool can_move(const GameState& s, PlayerId p, ObjId id, std::uint8_t where) {
 
 std::vector<Action> movers(const GameState& s, PlayerId p, std::uint8_t where) {
     std::vector<Action> out;
-    for (ObjId id = 0; id < s.objects.size(); ++id) {
+    for (const ObjId id : s.active) {
         if (can_move(s, p, id, where)) out.push_back({ActionKind::Pick, id});
     }
     return out;
@@ -365,7 +365,7 @@ void cleanup(GameState& s, CleanupKind kind = CleanupKind::Normal) {
     }
     if (s.showdown && s.showdown->combat) {  // 323.2: designations follow who is at the combat's battlefield
         const Showdown& sd = *s.showdown;
-        for (ObjId id = 0; id < s.objects.size(); ++id) {
+        for (const ObjId id : s.active) {
             Object& o = s.obj(id);
             if (o.card->type != CardType::Unit || !on_board(o.zone)) continue;
             const bool here = o.zone == Zone::Battlefield && o.where == sd.where;
@@ -379,7 +379,7 @@ void cleanup(GameState& s, CleanupKind kind = CleanupKind::Normal) {
 
     // 323.4 (3a): lethal damage kills (429.1.a.2), simultaneously; death triggers queue
     std::vector<ObjId> dead;
-    for (ObjId id = 0; id < s.objects.size(); ++id) {
+    for (const ObjId id : s.active) {
         const Object& o = s.obj(id);
         if (on_board(o.zone) && o.card->type == CardType::Unit && lethal_damage(s, id)) dead.push_back(id);
     }
@@ -1161,10 +1161,9 @@ std::vector<Action> legal_actions(const GameState& s) {
             for (const ObjId id : s.player(d.player).trash) {  // 829: Flow
                 if (playable(s, d.player, id)) actions.push_back({ActionKind::Play, id});
             }
-            for (ObjId id = 0; id < s.objects.size(); ++id) {  // 380: on the board, and legends; not attached (721.2)
-                const Zone z = s.obj(id).zone;
-                const CardRules* rules = rules_of(s, id);
-                if (rules == nullptr || !(on_board(z) || z == Zone::LegendZone) || s.obj(id).attached != no_obj) continue;
+            for (const ObjId id : s.active) {  // 380: on the board, and legends; not attached (721.2)
+                const CardRules* rules = active_rules(s, id);
+                if (rules == nullptr) continue;
                 for (std::size_t a = 0; a < rules->abilities().size(); ++a) {
                     const auto ab = static_cast<std::uint8_t>(a);
                     if (activatable(s, d.player, id, ab)) actions.push_back({ActionKind::Activate, id, ab});
@@ -1195,9 +1194,46 @@ std::vector<Action> legal_actions(const GameState& s) {
     return actions;
 }
 
+namespace {
+
+// Whether legal_actions(s) contains `a`, without building the list: Priority asks only about `a` (playable,
+// activatable and movers are the expensive part of legal_actions).
+bool is_legal(const GameState& s, const Action& a) {
+    const Decision& d = s.decision;
+    if (d.kind != DecisionKind::Priority) {
+        const auto legal = legal_actions(s);
+        return std::find(legal.begin(), legal.end(), a) != legal.end();
+    }
+    const auto contains = [](const std::vector<ObjId>& ids, ObjId id) {
+        return std::find(ids.begin(), ids.end(), id) != ids.end();
+    };
+    switch (a.kind) {
+        case ActionKind::Play:
+            return a.n == 0 && (contains(s.player(d.player).hand, a.obj) || contains(s.player(d.player).trash, a.obj)) &&
+                   playable(s, d.player, a.obj);
+        case ActionKind::Activate: {
+            if (a.obj >= s.objects.size()) return false;
+            const CardRules* rules = active_rules(s, a.obj);
+            return rules != nullptr && a.n < rules->abilities().size() && activatable(s, d.player, a.obj, a.n);
+        }
+        case ActionKind::Move: {
+            if (turn_state(s) != TurnState::NeutralOpen || s.phase != Phase::Main) return false;
+            const bool base = a.n == to_base;
+            if (!base && a.n >= s.battlefields.size()) return false;
+            return a.obj == (base ? no_obj : s.battlefields[a.n].card) && !movers(s, d.player, a.n).empty();
+        }
+        case ActionKind::Pass:
+        case ActionKind::EndTurn:
+            return a.obj == no_obj && a.n == 0 &&
+                   a.kind == (closed(s) || s.showdown ? ActionKind::Pass : ActionKind::EndTurn);
+        default: return false;
+    }
+}
+
+} // namespace
+
 void apply(GameState& s, const Action& action) {
-    const auto legal = legal_actions(s);
-    if (std::find(legal.begin(), legal.end(), action) == legal.end()) {
+    if (!is_legal(s, action)) {
         throw IllegalAction("not legal now (" + std::string(to_string(s.decision.kind)) + "): " +
                             describe(s, action));
     }

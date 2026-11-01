@@ -45,7 +45,9 @@ enum class Zone : std::uint8_t {
     Removed,  // in no zone: 487.5's unused battlefields; cards set aside mid-procedure (117.1)
 };
 std::string_view to_string(Zone zone);
-bool on_board(Zone zone);
+inline bool on_board(Zone zone) { return zone == Zone::Base || zone == Zone::Battlefield || zone == Zone::Facedown; }
+// Where card rules work (365, 384): the board and the legend zones. GameState::active lists the objects there.
+inline bool active_zone(Zone zone) { return on_board(zone) || zone == Zone::LegendZone; }
 // Everyone may look at the cards in it (128.5): not the decks (108.4.e, 108.5.d), hands (108.7.c), facedown cards
 // (107.3.f) or cards set aside.
 bool is_public(Zone zone);
@@ -420,6 +422,9 @@ inline Decision decide(DecisionKind kind, PlayerId player) {
 struct GameState {
     std::array<Player, player_count> players;
     std::vector<Object> objects;
+    // Ids of the objects in an active_zone(), ascending (battlefield cards too): what the rules' object loops walk
+    // instead of every object (most sit in decks and hands). Kept by move_to and create.
+    std::vector<ObjId> active;
     std::vector<Battlefield> battlefields;
     std::vector<ChainItem> chain;  // back = newest
     // Priority passes in a row on the chain (339): reset when an item is added or leaves. The holder is the newest

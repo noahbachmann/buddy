@@ -110,9 +110,6 @@ public:
     virtual bool enters_ready(const GameState&, ObjId /*self*/, const ChainItem& /*played*/) const { return false; }
 
     // ---- Passive abilities (363–366) ----
-    // Where this card's passives, triggers and replacements work: the board and the legend zone (365, 384). A card
-    // with "… from your trash" text adds that zone.
-    virtual bool active_in(Zone zone) const { return on_board(zone) || zone == Zone::LegendZone; }
     // Modifications this card (`self`, active) makes to `subject` (any object, itself included), given the
     // subject's traits so far. Called repeatedly until nothing new applies (478), so conditions may read `now`.
     virtual void passive(const GameState&, ObjId /*self*/, ObjId /*subject*/, const Traits& /*now*/,
@@ -151,9 +148,15 @@ public:
 };
 
 // A card's rules, nullptr in vanilla mode or for a card without rules.
-const CardRules* rules_of(const GameState& s, ObjId id);
-// Its rules if they work where it is now (CardRules::active_in) and it isn't attached (718.2: rules text inactive).
-const CardRules* active_rules(const GameState& s, ObjId id);
+inline const CardRules* rules_of(const GameState& s, ObjId id) { return s.vanilla ? nullptr : s.obj(id).card->rules; }
+// Its rules if they work where it is now: the board and the legend zone (365, 384), not attached (718.2: rules text
+// inactive). A card with "… from your trash" text would need a hook here and in GameState::active (no deck card has
+// one).
+inline const CardRules* active_rules(const GameState& s, ObjId id) {
+    const Object& o = s.obj(id);
+    if (!active_zone(o.zone) || o.attached != no_obj) return nullptr;
+    return rules_of(s, id);
+}
 // The rules behind a chain item: its card's, or its source's for an ability.
 const CardRules* rules_of(const GameState& s, const ChainItem& item);
 // The ability a chain item stands for (ability_vision included); nullptr for a card.

@@ -24,8 +24,6 @@ std::string_view to_string(Zone zone) {
     return "?";
 }
 
-bool on_board(Zone zone) { return zone == Zone::Base || zone == Zone::Battlefield || zone == Zone::Facedown; }
-
 bool is_public(Zone zone) {
     switch (zone) {
         case Zone::MainDeck: case Zone::RuneDeck: case Zone::Hand: case Zone::Facedown: case Zone::Removed: return false;
@@ -210,6 +208,11 @@ void move_to(GameState& s, ObjId id, Zone zone, PlayerId controller, std::uint8_
         o.attached = no_obj;
         controller = on_board(zone) ? controller : o.owner;
     }
+    if (active_zone(o.zone) != active_zone(zone)) {
+        const auto it = std::lower_bound(s.active.begin(), s.active.end(), id);
+        if (active_zone(zone)) s.active.insert(it, id);
+        else s.active.erase(it);
+    }
     o.zone = zone;
     o.controller = controller;
     o.where = where;
@@ -243,6 +246,7 @@ ObjId create(GameState& s, const Card* card, PlayerId owner, Zone zone, std::uin
     o.zone = zone;
     o.where = where;
     o.known = is_public(zone) || card->type == CardType::Battlefield ? everyone : 0;  // 487.5's unused ones: no secret
+    if (active_zone(zone)) s.active.push_back(id);  // the highest id yet
     if (card->type == CardType::Battlefield) return id;  // its place is Battlefield::card (or Removed), no list
     if (auto* list = zone_list(s, zone, owner, where)) list->push_back(id);
     return id;
@@ -337,6 +341,11 @@ std::vector<std::string> check_invariants(const GameState& s) {
             problems.push_back(who + "has a negative rune pool");
         }
     }
+    std::vector<ObjId> active;
+    for (ObjId id = 0; id < s.objects.size(); ++id) {
+        if (active_zone(s.objects[id].zone)) active.push_back(id);
+    }
+    if (active != s.active) problems.push_back("active list differs from the objects' zones");
     for (std::size_t b = 0; b < s.battlefields.size(); ++b) {
         const Battlefield& bf = s.battlefields[b];
         const std::string name = "battlefield " + std::to_string(b);

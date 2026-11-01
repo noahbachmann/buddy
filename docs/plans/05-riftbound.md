@@ -452,7 +452,7 @@ and the engine gets its own speed step (#36) before the search.
 Later, not 5.4: thinking during Dev's turn, reusing the tree between decisions, MO-ISMCTS. The hand pile's order never
 weighs on the choice (Dev, 2026-11-01): play strength only, feeds are the table's cost.
 
-**As built so far (#34, #35, 2026-11-01).** Code in `services/game/riftbound/ai/`, how it runs: `services/game/CLAUDE.md`.
+**As built so far (#34, #35, #36, 2026-11-01).** Code in `services/game/riftbound/ai/`, how it runs: `services/game/CLAUDE.md`.
 
 - **Arena:** `Player::choose(view, actions)` gets `view(s, seat)` and the legal actions (the same in every
   determinization); a test checks every state a player gets is a view of its own seat. `play_match`: seed S + i/2,
@@ -468,6 +468,19 @@ weighs on the choice (Dev, 2026-11-01): play strength only, feeds are the table'
   Greedy vs greedy: Zed wins 146 / 200: with sensible play the Zed precon is the stronger deck ⚠️ (watch it in v2).
 - **Pi** (Release, one job): greedy decision p50 0.24 ms, p95 3.4 ms, max 30 ms, 41 decisions asked per game.
 - Pass mark detail: 114 / 200 already has a Wilson lower bound > 50 % (50.07 %); the 115 above keeps one game spare.
+- **Engine speed (#36).** `perf` (VM, Release + frame pointers; the Pi has no perf) showed every object loop paying a
+  card-pointer chase and a virtual `active_in()` per object (36 % in `active_rules` alone), and `apply` rebuilding
+  `legal_actions` to validate one action (half of all `legal_actions` time). Fixes, in order: `active_rules` checks
+  the object's zone first (the unused `active_in` hook is gone); `apply` checks only the given action (`is_legal`;
+  a test probes every Play/Activate/Move/Pass along rules-on games against `legal_actions`); `GameState::active`,
+  the ascending ids in board and legend zones kept by `move_to`/`create` (checked by `check_invariants`), walked by
+  `traits`, `total_cost`, `emit`, `replaced`, `move_tax`, the activation and mover loops and `cleanup`. No `traits()`
+  cache: after these it is ~10 % of the time, not worth an invalidation scheme. Same games: `--random` prints a
+  digest over every game's winner, turns and actions, unchanged (rules `3fa44f83335b8657`, vanilla
+  `d04c2a02e1c41238`, VM = Pi); greedy vs random still 190 / 200. Pi Release, seeds 0–999, with rules: **55k →
+  143k actions/s** with `GameChecks` (2.6×), **64k → 244k** engine only (`legal_actions` + `apply`, what a playout
+  pays: 3.8×, 4.1 µs per action); vanilla 144k → 196k / 224k → 448k. State copy 0.93 µs (920 B). Full random
+  playouts would now be ~1460 per second per core; truncated playouts stay the plan.
 
 ## Hardware notes for Phase 4 (decide there, not now)
 

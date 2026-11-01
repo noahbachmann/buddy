@@ -47,14 +47,6 @@ bool is_spell(const GameState& s, ObjId id) { return s.obj(id).card->type == Car
 
 } // namespace
 
-const CardRules* rules_of(const GameState& s, ObjId id) { return s.vanilla ? nullptr : s.obj(id).card->rules; }
-
-const CardRules* active_rules(const GameState& s, ObjId id) {
-    const CardRules* rules = rules_of(s, id);
-    const Object& o = s.obj(id);
-    return rules != nullptr && rules->active_in(o.zone) && o.attached == no_obj ? rules : nullptr;
-}
-
 const CardRules* rules_of(const GameState& s, const ChainItem& item) {
     return rules_of(s, item.card != no_obj ? item.card : item.source.id);
 }
@@ -179,7 +171,7 @@ void emit_targeted(GameState& s, const ChainItem& item) {
 Cost move_tax(const GameState& s, PlayerId p, std::uint8_t where, int units) {
     Cost total;
     if (where == to_base) return total;
-    for (ObjId id = 0; id < s.objects.size(); ++id) {
+    for (const ObjId id : s.active) {
         if (const CardRules* rules = active_rules(s, id)) total = total + rules->move_tax(s, id, p, where, units);
     }
     return total;
@@ -200,7 +192,7 @@ Cost total_cost(const GameState& s, const ChainItem& item) {
     std::vector<CostMod> mods;
     const ObjId self = card ? item.card : item.source.id;
     rules->cost_mods(s, self, item, mods);  // 366.2: in any zone it's played from
-    for (ObjId id = 0; id < s.objects.size(); ++id) {
+    for (const ObjId id : s.active) {
         const CardRules* other = active_rules(s, id);
         if (id != self && other != nullptr) other->cost_mods(s, id, item, mods);
     }

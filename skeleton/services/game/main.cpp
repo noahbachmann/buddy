@@ -8,7 +8,8 @@
 //                                           random-vs-random games in vanilla mode, with --rules the cards' rules
 //                                           (every card must be implemented; default: the first two decks),
 //                                           seeds S … S+N-1, invariants checked after every action; a failing game
-//                                           writes replay-<seed>.txt; then sizeof(GameState) and its copy time
+//                                           writes replay-<seed>.txt; a digest of all games (same games = same
+//                                           digest), the engine-only speed, sizeof(GameState) and its copy time
 //   buddy-game --replay <file>              play a replay action by action with the same checks
 //   buddy-game --match <a> <b> [--games N] [--seed S] [--jobs J] [--deck A --deck B]
 //                                           AI players against each other with the cards' rules (players:
@@ -144,6 +145,27 @@ void measure_copies(const Deck& a, const Deck& b, std::uint64_t seed, const std:
                              log.size());
 }
 
+// What a playout pays per action: the same games again, legal_actions + apply only (no checks, no player).
+void measure_engine(const Deck& a, const Deck& b, std::uint64_t seed, const std::vector<std::vector<Action>>& logs,
+                    bool vanilla) {
+    long actions = 0;
+    std::size_t offered = 0;
+    const auto start = std::chrono::steady_clock::now();
+    for (std::size_t i = 0; i < logs.size(); ++i) {
+        if (logs[i].empty()) continue;  // failed game
+        GameState s = new_game(a, b, {.seed = seed + i, .vanilla = vanilla});
+        for (const Action& action : logs[i]) {
+            offered += legal_actions(s).size();
+            apply(s, action);
+        }
+        actions += static_cast<long>(logs[i].size());
+    }
+    const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+    std::cout << std::format("  engine only: {:.0f} actions/s ({:.2f} µs per action, {:.1f} legal actions avg)\n",
+                             static_cast<double>(actions) / ms * 1000, ms * 1000 / static_cast<double>(actions),
+                             static_cast<double>(offered) / static_cast<double>(actions));
+}
+
 int random_games(const CardDb& db, const std::vector<fs::path>& paths, int games, std::uint64_t seed, bool vanilla) {
     if (paths.size() < 2) throw std::runtime_error("--random needs two decks");
     const Deck a = load_deck(db, paths[0]), b = load_deck(db, paths[1]);
@@ -153,6 +175,9 @@ int random_games(const CardDb& db, const std::vector<fs::path>& paths, int games
     int failed = 0, min_turns = 0, max_turns = 0;
     long turns = 0, actions = 0, spells = 0, reactions = 0, moves = 0, showdowns = 0, combats = 0, scorings = 0;
     std::optional<RandomGame> sample;
+    std::vector<std::vector<Action>> logs(static_cast<std::size_t>(games));
+    std::uint64_t digest = 0xcbf29ce484222325;  // FNV-1a over every game's winner, turns and actions
+    const auto mix = [&](std::uint64_t v) { digest = (digest ^ v) * 0x100000001b3; };
     const auto start = std::chrono::steady_clock::now();
     for (int i = 0; i < games; ++i) {
         RandomGame g = play_random(a, b, seed + i, 100000, vanilla);
@@ -165,6 +190,10 @@ int random_games(const CardDb& db, const std::vector<fs::path>& paths, int games
             continue;
         }
         ++wins[*g.winner];
+        mix(*g.winner);
+        mix(static_cast<std::uint64_t>(g.turns));
+        for (const Action& a : g.log) mix(static_cast<std::uint64_t>(a.kind) << 24 | std::uint64_t{a.obj} << 8 | a.n);
+        logs[static_cast<std::size_t>(i)] = g.log;
         turns += g.turns;
         actions += g.actions;
         spells += g.spells;
@@ -179,7 +208,8 @@ int random_games(const CardDb& db, const std::vector<fs::path>& paths, int games
     }
     const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
     const int ok = games - failed;
-    std::cout << std::format("  wins: seat 0 {}, seat 1 {}; failed {}\n", wins[0], wins[1], failed);
+    std::cout << std::format("  wins: seat 0 {}, seat 1 {}; failed {}; digest {:016x}\n", wins[0], wins[1], failed,
+                             digest);
     if (ok > 0) {
         std::cout << std::format("  turns: avg {:.1f}, min {}, max {}; actions avg {:.1f}\n",
                                  static_cast<double>(turns) / ok, min_turns, max_turns,
@@ -192,6 +222,7 @@ int random_games(const CardDb& db, const std::vector<fs::path>& paths, int games
     }
     std::cout << std::format("  time: {:.2f} ms per game, {:.0f} games/s, {:.0f} actions/s\n", ms / games,
                              games / ms * 1000, static_cast<double>(actions) / ms * 1000);
+    measure_engine(a, b, seed, logs, vanilla);
     if (sample) measure_copies(a, b, seed, sample->log, vanilla);
     return failed == 0 ? 0 : 1;
 }

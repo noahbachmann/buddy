@@ -1,6 +1,6 @@
 # services/game – Riftbound engine quick reference
 
-What the engine does **now** (state after #35: 5.3 done, 5.4 arena and v1 greedy) and where the next work plugs in.
+What the engine does **now** (state after #36: 5.3 done, 5.4 arena, v1 greedy, engine speed) and where the next work plugs in.
 Why it is built this way: `docs/plans/05-riftbound.md` → "5.2 design", "5.3 as built" (with the rulings for Dev),
 "5.4 design". Sub-issues: 5.2 #20, 5.3 #33, 5.4 #39. Rules text: `~/buddy/data/riftbound/core-rules-2026-10-09.txt`
 on the VM (grep the rule number); full card text: `~/buddy/data/riftbound/cards.json` (VM and Pi, not in Git).
@@ -10,8 +10,8 @@ on the VM (grep the rule number); full card text: `~/buddy/data/riftbound/cards.
 | File | What |
 |---|---|
 | `card_db`, `code`, `deck` | Card data, printed codes, decklists (5.1). `Card::timing` = leading `[Action]`/`[Reaction]` (`printed_timing()`); `Card::rules` = its `CardRules` (nullptr = not implemented) |
-| `state` | `GameState` value: objects (`ObjId` + `gen`, 124; `attached` = the unit an Equipment hangs on), zone id lists, pools, battlefields (`controller`, `contested`), chain (`ChainItem` with targets, cost, step counters, unit location `to`, `play` = `played::` bits: Flow, Ambush, token to base / exhausted; `rep` = Repeat execution), `passes`, `showdown` (`Showdown`: focus, passes, attacker, damage assignment), tasks, decision, RNG, and the ability data: `triggered`, `effects`, `delayed`, `uses`, `links`. `move_to` (raw zone change, no events; carries attached gear, detaches it when its unit leaves the board, a token off the board → `Removed`), `create` (new object), `draw`, `burn`, `channel`, `recycle`, `turn_state`, `chain_priority`, `lethal_damage`, `check_invariants` |
-| `rules` | `CardRules` (the hooks a card implements), `AbilitySpec` (`builtin`: Empower, Equip), `TargetSpec`, `CostMod`, `Mod`; `Resolution` (what `resolve()` works with); `active_rules` (rules that work where the card is, none while attached); targets (`candidates`, `still_valid`, `target_slots`/`target_spec`: once per Repeat), `optional_costs` (card's, Accelerate, Repeats), `total_cost` (Flow base, Deflect), `payable`, `completable` (355.16: targets + cost can still work out); `predict`, `resolve_builtin` (Vision, Empower, Equip); `filters::` |
+| `state` | `GameState` value: objects (`ObjId` + `gen`, 124; `attached` = the unit an Equipment hangs on), zone id lists, `active` (ascending ids in board and legend zones, `active_zone()`: what rules loops walk instead of every object; kept by `move_to`/`create`), pools, battlefields (`controller`, `contested`), chain (`ChainItem` with targets, cost, step counters, unit location `to`, `play` = `played::` bits: Flow, Ambush, token to base / exhausted; `rep` = Repeat execution), `passes`, `showdown` (`Showdown`: focus, passes, attacker, damage assignment), tasks, decision, RNG, and the ability data: `triggered`, `effects`, `delayed`, `uses`, `links`. `move_to` (raw zone change, no events; carries attached gear, detaches it when its unit leaves the board, a token off the board → `Removed`), `create` (new object), `draw`, `burn`, `channel`, `recycle`, `turn_state`, `chain_priority`, `lethal_damage`, `check_invariants` |
+| `rules` | `CardRules` (the hooks a card implements), `AbilitySpec` (`builtin`: Empower, Equip), `TargetSpec`, `CostMod`, `Mod`; `Resolution` (what `resolve()` works with); `active_rules` (rules that work where the card is, none while attached); targets (`candidates`, `still_valid`, `target_slots`/`target_spec`: once per Repeat), `optional_costs` (card's, Accelerate, Repeats), `total_cost` (Flow base, Deflect), `payable`, `completable` (355.16: targets + cost can still work out); `predict`, `resolve_builtin` (Vision, Empower, Equip); `filters::`; `rules_of`/`active_rules` inline (hot) |
 | `actions` | Game actions abilities see: `kill`/`kill_all` (Die → Died), `deal`, `heal`, `exhaust`, `ready`, `recall`, `move` (Moved events, contests the destination), `contest`, `stun`, `buff`, `discard`, `empower`/`disempower`, `banish` (Banished event), `return_to_hand`, `add`, `pay_energy`, `attach`/`detach`, `play_token`; `emit` (queue triggers, Vision), `replaced` (replacement effects); layers `traits`/`might`/`has` (Assault/Shield while designated, Might Bonus of attached gear); `mighty`; `give`/`give_might`/`double_might`, `expire`, `prune`; `uses`, `link`/`linked`; `has_units_at` |
 | `tokens` | The decks' tokens with their rules: `bird()` (Deflect), `shadow_clone()` (attack trigger), `gold()` (Add [A]) |
 | `pay` | Rune payment of Energy, domain Power, then any-domain Power ([A]); which rune to recycle is the only choice (`Recycle` decision, one pick per domain) |
@@ -38,7 +38,7 @@ on the VM (grep the rule number); full card text: `~/buddy/data/riftbound/cards.
 8. `tasks` (stack, back runs next) → `run_task()`: Mulligan, Awaken (resets `uses`, `deaths_this_turn`), Beginning, Hold (scoring step), Channel, Draw, Main, Ending (PhaseStart events), Expiration (Ending Special Cleanup incl. "this turn" expiry and stuns; again after the chain while anything went on it, 317.2.f; then the next turn); StandardMove, Stage; after all passed in a showdown: ShowdownEnd, or CombatDamage (`Assign` picks, damage dealt at once, Combat Special Cleanup), CombatResult (control, conquer), CombatEnd. The chain comes before tasks: a Beginning-phase trigger resolves before Hold, conquer triggers before CombatEnd.
 9. No chain, Main phase, no showdown → Priority for the turn player (335). Otherwise stop.
 
-Priority actions: `Play` (hand cards, and trash cards with Flow, `playable()`: type, timing or Ambush (a Reaction to a battlefield where the player has units), `can_play`, `completable`), `Activate` (obj = source on the board or legend zone, not attached, n = ability: controller, timing, `usable`, `per_turn`, Empower only if not Empowered, `completable`), `Move` (Neutral Open main phase only: one per destination with a unit that can go, n = battlefield or `to_base`; the units are a `Move` choice), then `EndTurn` (Neutral Open) or `Pass` (closed: chain priority; Showdown Open: pass focus). `Choose` decisions: `options` in a fixed order, picks ascending, auto-finished at `max`, `Done` from `min`; the answer goes to `GameState::answer` for whoever asked. `apply` accepts only what `legal_actions` offers and throws `IllegalAction` with the state untouched.
+Priority actions: `Play` (hand cards, and trash cards with Flow, `playable()`: type, timing or Ambush (a Reaction to a battlefield where the player has units), `can_play`, `completable`), `Activate` (obj = source on the board or legend zone, not attached, n = ability: controller, timing, `usable`, `per_turn`, Empower only if not Empowered, `completable`), `Move` (Neutral Open main phase only: one per destination with a unit that can go, n = battlefield or `to_base`; the units are a `Move` choice), then `EndTurn` (Neutral Open) or `Pass` (closed: chain priority; Showdown Open: pass focus). `Choose` decisions: `options` in a fixed order, picks ascending, auto-finished at `max`, `Done` from `min`; the answer goes to `GameState::answer` for whoever asked. `apply` accepts only what `legal_actions` offers and throws `IllegalAction` with the state untouched; it checks the one action (`is_legal`), not the whole list: a new action kind or condition goes into both (`RiftboundRandom.ApplyAcceptsExactlyTheLegalActions` probes them against each other).
 
 ## Hidden information (128)
 
@@ -99,7 +99,7 @@ and recycles the runes in pay.hpp's order (Dev's ruling): no Recycle decision ou
 
 ## Invariants (`check_invariants`, run after every random-game action)
 
-Every object in exactly one zone list matching its zone/owner/controller/where; public cards known to everyone, hand
+Every object in exactly one zone list matching its zone/owner/controller/where; `active` = the objects in active zones, ascending; public cards known to everyone, hand
 cards to their owner; single-card zones; pools ≥ 0; no
 finalized permanent on the chain; pending items never below finalized ones; at most one item resolving, never a pending
 one; Choose picks in bounds and ascending; Priority only for the turn player (open) or `chain_priority()` (closed),
@@ -128,7 +128,7 @@ start, e.g. a determinization, skips its own turn).
   triggers), `test_actions` (408–446, 701–711, Burn / discard-a-spell / banish-me costs), `test_keywords` (Deflect,
   Vision, Repeat, Ambush, Empower, Flow, Equip and attachment, tokens; 40 random games each for both files' decks),
   `test_random` (50 games each: spell decks and the real decks vanilla, most must end by scoring; 60
-  ability-deck games in `test_abilities`), `test_ai` (keys, players only get views, matches reproducible across
+  ability-deck games in `test_abilities`; `apply` accepts exactly `legal_actions`), `test_ai` (keys, players only get views, matches reproducible across
   jobs, eval, greedy on hand-built states: conquer, lethal, no trade down, no own target; greedy vs random 8 games), `test_hidden` (knowledge, view, determinize; views along random games, the
   ability deck's in `test_abilities`; real decks with rules too), `test_replay`, `test_gate` (1000 games of the real
   decks, vanilla (5.2) and with rules (5.3); writes the replay of a failure).
@@ -141,8 +141,11 @@ start, e.g. a determinization, skips its own turn).
 - Every game test has the ctest label `riftbound`: `deploy/test.sh --riftbound [--pi]` (skipped without).
 - `buddy-game --random [--rules] --games 1000 --seed 0 --deck decks/vi-unleashed.txt --deck decks/zed-vendetta.txt`
   on the ASan build (`build-test/services/game/buddy-game`); `deploy/run.sh game --random …` on the Pi (Release).
-  #32 on the Pi (Release): with rules 2.97 ms per game (56k actions/s, 167 actions) vs vanilla 0.74 ms; `traits()`
-  asking every object's passives is the likely cost. Gate with rules under ASan: 73 s on the VM.
+  Prints a digest over every game (winner, turns, actions): an engine change that must not change play keeps it
+  (#36: rules `3fa44f83335b8657`, vanilla `d04c2a02e1c41238`, seeds 0–999), and "engine only" = the same games
+  again with `legal_actions` + `apply` alone (what a playout pays). #36 on the Pi (Release): with rules 1.17 ms per
+  game, 143k actions/s with checks, 244k engine only (#32: 2.97 ms, 56k / 64k); vanilla 196k / 448k. Gate with rules
+  under ASan: 54 s on the VM. Profiling: `perf` on the VM (Release, `-fno-omit-frame-pointer -g`; the Pi has none).
   After #26 on the VM (Release): vanilla 0.63 ms per game (#25: 0.58), 17 turns (scoring ends games; before #25 they ran ~180
   turns to burn out); ability decks ~7 activations, ~9 triggers, ~36 choices per game. #27 on the Pi (Release):
   0.72 ms per game, `sizeof(GameState)` 896 B, a copy 0.83 µs (printed after every `--random` run).
