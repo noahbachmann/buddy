@@ -114,6 +114,11 @@ public:
     // Cost modifiers of this card for `item`: its own (any zone it can be played from, 366.2) or another card or
     // ability being played while this one is active.
     virtual void cost_mods(const GameState&, ObjId /*self*/, const ChainItem& /*item*/, std::vector<CostMod>&) const {}
+    // An extra cost on `mover`'s Standard Move of `units` units to battlefield `where` (Mageseeker Investigator).
+    virtual Cost move_tax(const GameState&, ObjId /*self*/, PlayerId /*mover*/, std::uint8_t /*where*/,
+                          int /*units*/) const {
+        return {};
+    }
     // 757: "I can't be chosen by …" while `self` is a candidate for `by`.
     virtual bool untargetable(const GameState&, ObjId /*self*/, const ChainItem& /*by*/) const { return false; }
 
@@ -174,6 +179,9 @@ bool still_valid(const GameState& s, const ChainItem& item, const Target& t);
 
 // 383.4.b: a Targeted event for every chosen (not picked) object of `item`.
 void emit_targeted(GameState& s, const ChainItem& item);
+
+// The Standard Move's extra costs (CardRules::move_tax of everything active) for `units` units of p to `where`.
+Cost move_tax(const GameState& s, PlayerId p, std::uint8_t where, int units);
 
 // 356: base cost (Flow's when played for it), optional costs paid, Deflect of chosen targets (809), cost modifiers of
 // the card itself and of everything active.

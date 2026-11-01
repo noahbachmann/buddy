@@ -107,4 +107,36 @@ inline ObjId in_hand(GameState& s, PlayerId p, const Card* card) {
     throw std::logic_error("no copy of " + card->name + " in hand or deck");
 }
 
+// A Standard Move of `ids` to `where` (a battlefield or to_base).
+inline void move_units(GameState& s, std::uint8_t where, std::vector<ObjId> ids) {
+    apply(s, {ActionKind::Move, where == to_base ? no_obj : s.battlefields[where].card, where});
+    std::sort(ids.begin(), ids.end());
+    for (const ObjId id : ids) {
+        if (s.decision.purpose == Purpose::Move) apply(s, {ActionKind::Pick, id});
+    }
+    if (s.decision.purpose == Purpose::Move) apply(s, {ActionKind::Done});
+}
+
+// A copy of `card` in p's base, ready to move.
+inline ObjId ready_in_base(GameState& s, PlayerId p, const Card* card) {
+    const ObjId id = put(s, p, card, Zone::Base);
+    s.obj(id).exhausted = false;
+    return id;
+}
+
+// Passes until no showdown is open (a move to an empty battlefield starts one) and the turn player may act.
+inline void close_showdown(GameState& s) {
+    settle(s);
+    while (s.showdown) {
+        pass(s);
+        settle(s);
+    }
+}
+
+inline int count_on_board(const GameState& s, PlayerId p, std::string_view name) {
+    int n = 0;
+    for (const Object& o : s.objects) n += on_board(o.zone) && o.controller == p && o.card->name == name;
+    return n;
+}
+
 } // namespace buddy::riftbound::test

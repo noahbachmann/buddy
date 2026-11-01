@@ -528,8 +528,9 @@ void run_task(GameState& s, const Task& task) {
                 picks = take_answer(s);
             } else {
                 picks = movers(s, p, task.where);
+                int n = static_cast<int>(picks.size());  // as many as p can pay the move tax for
+                while (n > 1 && !can_pay(s, p, move_tax(s, p, task.where, n))) --n;
                 if (picks.size() > 1) {
-                    const int n = static_cast<int>(picks.size());
                     ask(s, p, Purpose::Move, std::move(picks), 1, n);
                     s.tasks.push_back(task);
                     return;
@@ -539,6 +540,15 @@ void run_task(GameState& s, const Task& task) {
             for (const Action& a : picks) {
                 ids.push_back(a.obj);
                 exhaust(s, a.obj);  // 144.2, paid simultaneously (144.3.c)
+            }
+            if (const Cost tax = move_tax(s, p, task.where, static_cast<int>(ids.size())); tax != Cost{}) {
+                // ⚠️ the engine picks the runes to recycle (pay.hpp's order): no Recycle decision outside the chain
+                std::vector<ObjId> recycled;
+                for (auto options = recycle_options(s, p, tax, recycled); !options.empty();
+                     options = recycle_options(s, p, tax, recycled)) {
+                    recycled.push_back(options.front());
+                }
+                pay(s, p, tax, recycled);
             }
             move(s, ids, task.where, {{}, p});
             return;
@@ -699,6 +709,7 @@ void finished(GameState& s, std::size_t i) {
     s.obj(done.card).exhausted = unit ? !ready : (done.play & played::exhausted) != 0;  // 184.1
     Event e = make_event(EventKind::Played, s.obj(done.card).ref(done.card), done.controller);
     e.place = place_of(s, done.card);
+    e.amount = done.paid;  // "if you paid the additional cost" (Zed, From the Shadows; Gust Monk)
     emit(s, e);
     if (unit && done.to != to_base) contest(s, done.to, done.controller);  // 190.3.a.1
 }

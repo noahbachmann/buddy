@@ -79,11 +79,14 @@ inline void both_pass(GameState& s) {
     pass(s);
 }
 
-// Answers everything with the first option and passes until the chain is empty and the turn player may act.
+// Answers everything with the first option (Recycle picks too) and passes until the chain is empty and the turn player may act.
 inline void settle(GameState& s) {
     while (!s.chain.empty() || s.decision.kind != DecisionKind::Priority) {
-        if (s.decision.kind == DecisionKind::Choose) apply(s, legal_actions(s).front());
-        else pass(s);
+        if (s.decision.kind == DecisionKind::Choose || s.decision.kind == DecisionKind::Recycle) {
+            apply(s, legal_actions(s).front());
+        } else {
+            pass(s);
+        }
     }
 }
 

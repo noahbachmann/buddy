@@ -166,7 +166,7 @@ struct Place {
 // A game action or change of state that abilities react to (370.1.a). Game actions emit them (actions.hpp); rules
 // read them in triggers() and replace().
 enum class EventKind : std::uint8_t {
-    Played,      // a card was played: a permanent entered (383.4.a), a spell was finalized
+    Played,      // a card was played: a permanent entered (383.4.a; `amount` = ChainItem::paid), a spell was finalized
     Activated,   // an activated ability resolved (377.2.a)
     Die,         // `subject` would die (429): replaceable; Deathknell triggers before it moves (383.2.c.3)
     Died,        // `subject` died: for everyone else, after the move (383.2.c)

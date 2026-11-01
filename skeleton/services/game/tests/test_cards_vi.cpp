@@ -2,6 +2,7 @@
 // every registered card at the end.
 #include <gtest/gtest.h>
 
+#include "riftbound/pay.hpp"
 #include "riftbound/random_game.hpp"
 #include "test_real.hpp"
 
@@ -14,7 +15,8 @@ Deck vi_deck() {
     return real_deck("V", {"Rengar, Unseen", "Inferna", "Sharkling", "Towering Pairofant", "Arena Kingpin", "Loyal Poro",
                            "Carrion Dredger", "Crimson Pigeons", "Vault Breaker", "Square Up", "Right of Conquest",
                            "Tactical Retreat", "Upstage Comedy", "Soul Harvest", "Divining Shells", "Serrated Dirk",
-                           "Hextech Gauntlets"},
+                           "Hextech Gauntlets", "Vi, Hotheaded", "Vi, Destructive", "Vi, Peacekeeper", "Xerath, Freed",
+                           "Lord Broadmane", "Yeti Brawler", "Mageseeker Investigator"},
                      domain::order);
 }
 
@@ -287,6 +289,136 @@ TEST(RiftboundVi, HextechGauntlets) {
     ASSERT_EQ(s.obj(gauntlets).attached, unit);
     EXPECT_EQ(might(s, unit), 6);
     expect_ok(s);
+}
+
+// "[Deflect] [2][Fury]: Double my Might this turn."
+TEST(RiftboundVi, ViHotheaded) {
+    GameState s = vi_game();
+    const PlayerId p = s.first_player;
+    const ObjId vi = put(s, p, real("Vi, Hotheaded"), Zone::Base);
+    EXPECT_TRUE(kw(s, vi).has(Keyword::Deflect));
+    fund(s, p, 2, {domain::fury});
+    apply(s, {ActionKind::Activate, vi, 0});
+    settle(s);
+    EXPECT_EQ(might(s, vi), 6);
+    expect_ok(s);
+}
+
+// "[Ganking] Recycle 1 from your trash: Give me +1 Might this turn."
+TEST(RiftboundVi, ViDestructive) {
+    GameState s = vi_game();
+    const PlayerId p = s.first_player;
+    const ObjId vi = put(s, p, real("Vi, Destructive"), Zone::Base);
+    EXPECT_TRUE(kw(s, vi).has(Keyword::Ganking));
+    EXPECT_FALSE(offered(s, {ActionKind::Activate, vi, 0}));  // empty trash
+    const ObjId junk = put(s, p, real("Inferna"), Zone::Trash);
+    apply(s, {ActionKind::Activate, vi, 0});
+    settle(s);
+    EXPECT_EQ(s.obj(junk).zone, Zone::MainDeck);
+    EXPECT_EQ(might(s, vi), 4);
+    expect_ok(s);
+}
+
+// "[Ambush] When I attack, [Stun] an enemy unit here."
+TEST(RiftboundVi, ViPeacekeeper) {
+    GameState s = vi_game();
+    const PlayerId p = s.first_player, o = opponent(p);
+    const ObjId enemy = at_field(s, o, real("Arena Kingpin"), 0);  // 3 Might
+    const ObjId vi = ready_in_base(s, p, real("Vi, Peacekeeper"));
+    EXPECT_TRUE(kw(s, vi).has(Keyword::Ambush));
+    move_units(s, 0, {vi});
+    settle(s);  // the attack trigger: the only enemy there
+    EXPECT_TRUE(s.obj(enemy).stunned);
+    both_pass(s);
+    settle(s);
+    EXPECT_EQ(s.obj(enemy).zone, Zone::Trash);
+    EXPECT_EQ(s.obj(vi).damage, 0);  // stunned: no combat damage
+    expect_ok(s);
+}
+
+// "[Fury], [E]: Deal 3 to a unit. Use this ability only while I'm at a battlefield."
+TEST(RiftboundVi, XerathFreed) {
+    GameState s = vi_game();
+    const PlayerId p = s.first_player, o = opponent(p);
+    fund(s, p, 0, {domain::fury});
+    const ObjId x = put(s, p, real("Xerath, Freed"), Zone::Base);
+    EXPECT_FALSE(offered(s, {ActionKind::Activate, x, 0}));
+    const ObjId enemy = put(s, o, real("Mageseeker Investigator"), Zone::Base);  // 4 Might: survives
+    move_to(s, x, Zone::Battlefield, p, 0);
+    s.battlefields[0].controller = p;
+    apply(s, {ActionKind::Activate, x, 0});
+    pick(s, enemy);
+    settle(s);
+    EXPECT_EQ(s.obj(enemy).damage, 3);
+    EXPECT_TRUE(s.obj(x).exhausted);
+    expect_ok(s);
+}
+
+// "[Ambush] When you play me, give your other units here [Assault] this turn."
+TEST(RiftboundVi, LordBroadmane) {
+    GameState s = vi_game();
+    const PlayerId p = s.first_player;
+    const ObjId here = at_field(s, p, real("Loyal Poro"), 0);
+    const ObjId elsewhere = put(s, p, real("Inferna"), Zone::Base);
+    fund(s, p, 5, {domain::fury});
+    const ObjId lord = in_hand(s, p, real("Lord Broadmane"));
+    play(s, lord);
+    ASSERT_EQ(s.decision.purpose, Purpose::Location);
+    apply(s, {ActionKind::Pick, s.battlefields[0].card, 0});
+    settle(s);
+    EXPECT_EQ(s.obj(lord).zone, Zone::Battlefield);
+    EXPECT_EQ(kw(s, here).get(Keyword::Assault), 1);
+    EXPECT_EQ(kw(s, elsewhere).get(Keyword::Assault), 2);  // Inferna's own only
+    EXPECT_FALSE(kw(s, lord).has(Keyword::Assault));       // "other"
+    expect_ok(s);
+}
+
+// "When I conquer, if you assigned 3 or more excess damage, play two Gold gear tokens exhausted."
+TEST(RiftboundVi, YetiBrawler) {
+    for (const bool excess : {true, false}) {
+        GameState s = vi_game();
+        const PlayerId p = s.first_player, o = opponent(p);
+        at_field(s, o, real(excess ? "Arena Kingpin" : "Mageseeker Investigator"), 0);  // 6 - 3 or 6 - 4 excess
+        const ObjId yeti = ready_in_base(s, p, real("Yeti Brawler"));
+        move_units(s, 0, {yeti});
+        both_pass(s);
+        settle(s);
+        EXPECT_EQ(s.battlefields[0].controller, p);
+        EXPECT_EQ(count_on_board(s, p, "Gold"), excess ? 2 : 0) << excess;
+        for (const ObjId id : s.player(p).base) {
+            if (s.obj(id).card->name == "Gold") {
+                EXPECT_TRUE(s.obj(id).exhausted);
+            }
+        }
+        expect_ok(s);
+    }
+}
+
+// "Opponents must pay [A] for each unit beyond the first to move multiple units to my battlefield at the same
+// time."
+TEST(RiftboundVi, MageseekerInvestigator) {
+    GameState s = vi_game();
+    const PlayerId p = s.first_player, o = opponent(p);
+    at_field(s, o, real("Mageseeker Investigator"), 0);
+    std::array<ObjId, 3> units{ready_in_base(s, p, real("Loyal Poro")), ready_in_base(s, p, real("Inferna")),
+                               ready_in_base(s, p, real("Sharkling"))};
+    std::sort(units.begin(), units.end());
+    const auto runes = runes_of(s, p).size();
+    ASSERT_EQ(runes, 2u);  // turn 1: two runes, [A][A] at most
+    apply(s, {ActionKind::Move, s.battlefields[0].card, 0});
+    ASSERT_EQ(s.decision.purpose, Purpose::Move);
+    EXPECT_EQ(s.decision.max, 3);
+    for (const ObjId id : {units[0], units[1]}) pick(s, id);
+    done(s);
+    EXPECT_EQ(runes_of(s, p).size(), runes - 1);  // one [A]: one rune recycled
+    settle(s);
+
+    GameState t = vi_game();  // one rune: two units at most
+    for (int i = 0; i < 3; ++i) ready_in_base(t, p, real("Loyal Poro"));
+    at_field(t, o, real("Mageseeker Investigator"), 0);
+    recycle(t, {runes_of(t, p).front()});
+    apply(t, {ActionKind::Move, t.battlefields[0].card, 0});
+    EXPECT_EQ(t.decision.max, 2);
 }
 
 TEST(RiftboundRandom, ViCards) {  // every card registered so far, invariants after every action

@@ -19,7 +19,7 @@ on the VM (grep the rule number); full card text: `~/buddy/data/riftbound/cards.
 | `hidden` | `view(s, p)`: objects p doesn't know (`Object::known` bit, set by `move_to`/`recycle`/`predict`) get `hidden_card()`, RNG reset; not playable. `determinize(view, seat0, seat1, rng)`: per owner the decklist minus visible cards, shuffled onto the hidden objects (rune deck: runes), RNG reseeded |
 | `replay` | `Replay` (seed, vanilla, both decklists' text, actions) ⇄ text (`parse_replay`, `to_text`: annotated by replaying), `run_replay` (GameChecks after every action; `buddy-game --replay`) |
 | `rng` | xoshiro256\*\*, own `below`/`shuffle` (portable replays) |
-| `cards/` | The decks' cards (5.3, #33): `vi_unleashed.cpp`, `zed_vendetta.cpp` (one `CardRules` per card, its text above it, an `Entry` table at the end), `common.hpp` (`keywords({…})`, `cost()`, `discard()`, `count_named`, `Deathknell` base); `rules_for(name)`, attached by `CardDb::parse`: every loaded db (the test fixture too) has them |
+| `cards/` | The decks' cards (5.3, #33): `vi_unleashed.cpp`, `zed_vendetta.cpp` (one `CardRules` per card, its text above it, an `Entry` table at the end), `common.hpp` (`keywords({…})`, `cost()`, `discard()`, `count_named`, `battlefield_of`, `conquered_with`, `played_me`, `loot`, `destinations`, `Deathknell` base); `rules_for(name)`, attached by `CardDb::parse`: every loaded db (the test fixture too) has them |
 
 ## The loop (`engine.cpp` → `run()`), in this order every iteration
 
@@ -69,7 +69,8 @@ same view and gives the deciding player the same legal actions: run it on any ne
 - Passives: `passive()` adds `Mod`s for any subject; called again until nothing new applies, so conditions may read
   `now`. Cost changes: `cost_mods()` (own: check `item.card == self`). "Can't be chosen": `untargetable()`.
 - Board events: `Banished` (`player` = who banished, `place` = origin: Zed's legend), `Moved` (subject, `place` = origin; "when I move"), `Attack`/`Defend` (as combat starts),
-  `CombatStart` (subject = the battlefield card), `Conquer`/`Hold` (subject = the battlefield card, `player` = who
+  `CombatStart` (subject = the battlefield card), `Played` of a permanent: `amount` = its `paid` bits ("if you
+  paid the additional cost"), `Conquer`/`Hold` (subject = the battlefield card, `player` = who
   scored, Conquer's `amount` = excess combat damage), `Played` (`place` = where it entered: "plays a unit here").
   "This combat" effects: `Duration::Combat`. Moving effects: `move(s, ids, where, cause)` (the caller checks the
   destination). Location of a unit: `zone == Battlefield` + `where`; the combat's battlefield: `s.showdown->where`.
@@ -86,8 +87,9 @@ limit); `completable` fills "up to N" slots at their minimum and multi-target sl
 Ambush's location isn't re-checked if the units leave before finalizing (822.3); Equipment effect text beyond
 keywords (`effect_keywords()`, 718.3), reveal (425), counter (426), Equipped events (818.2.a); `pay_energy` pays
 Energy only. For 5.3: a battlefield's triggers ("when you conquer here") are controlled by its owner
-(`controller_of`), not by the player who conquered (Valley of Idols: "they may pay"); Mageseeker Investigator's cost
-on moving several units needs a hook on the Standard Move; Star Spring's "non-token" = `Card::token`.
+(`controller_of`), not by the player who conquered (Valley of Idols: "they may pay"); Star Spring's "non-token" =
+`Card::token`. The Standard Move's tax (`CardRules::move_tax`, Mageseeker) caps the Move pick count at what's payable
+and recycles the runes in pay.hpp's order: no Recycle decision outside the chain ⚠️.
 
 ## Invariants (`check_invariants`, run after every random-game action)
 
@@ -125,7 +127,8 @@ start, e.g. a determinization, skips its own turn).
 - `test_real.hpp` + `test_cards_vi.cpp` / `test_cards_zed.cpp` (5.3): real cards from the fixture with their rules
   (`real(name)`), `real_deck` (test frame, Zap, the deck's runes), `fund` (pool energy/power), `zap_kill`; one
   `TEST(RiftboundVi|Zed, <Card>)` per card, and 40 random games of everything a deck file registers
-  (`registered_deck`). `put()` may take a copy from the trash: put the hand copy first.
+  (`registered_deck`). `put()` may take a copy from the trash: `in_hand()` instead. Combat: `at_field` (a unit
+  holding a battlefield) + `ready_in_base` + `move_units`, then `both_pass`/`settle`; `close_showdown`.
 - Every game test has the ctest label `riftbound`: `deploy/test.sh --riftbound [--pi]` (skipped without).
 - `buddy-game --random --games 1000 --seed 0 --deck decks/vi-unleashed.txt --deck decks/zed-vendetta.txt` on the
   ASan build (`build-test/services/game/buddy-game`); `deploy/run.sh game --random …` on the Pi (Release).

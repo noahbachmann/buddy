@@ -165,6 +165,15 @@ void emit_targeted(GameState& s, const ChainItem& item) {
     }
 }
 
+Cost move_tax(const GameState& s, PlayerId p, std::uint8_t where, int units) {
+    Cost total;
+    if (where == to_base) return total;
+    for (ObjId id = 0; id < s.objects.size(); ++id) {
+        if (const CardRules* rules = active_rules(s, id)) total = total + rules->move_tax(s, id, p, where, units);
+    }
+    return total;
+}
+
 Cost total_cost(const GameState& s, const ChainItem& item) {
     const CardRules* rules = rules_of(s, item);
     const bool card = item.kind == ItemKind::Card;

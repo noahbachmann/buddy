@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <initializer_list>
+#include <optional>
 #include <utility>
 
 #include "../actions.hpp"
@@ -57,6 +58,41 @@ inline std::vector<Action> destinations(const GameState& s, ObjId id) {
     }
     if (o.zone != Zone::Base) out.push_back({ActionKind::Pick, no_obj, to_base});
     return out;
+}
+
+// The battlefield `id` is at, or nullopt (base, off the board).
+inline std::optional<std::uint8_t> battlefield_of(const GameState& s, ObjId id) {
+    const Object& o = s.obj(id);
+    if (o.zone != Zone::Battlefield) return std::nullopt;
+    return o.where;
+}
+
+// "When I conquer" (Conquer event: subject = the battlefield card, player = who conquered): `self` is there, theirs.
+inline bool conquered_with(const GameState& s, const Event& e, ObjId self) {
+    const auto b = battlefield_of(s, self);
+    return e.kind == EventKind::Conquer && b && s.battlefields[*b].card == e.subject.id &&
+           s.obj(self).controller == e.player;
+}
+
+// The trigger's own card played ("When you play me"); `paid` = bits of its optional costs.
+inline bool played_me(const Event& e, ObjId self) { return e.kind == EventKind::Played && e.subject.id == self; }
+
+// Discard 1 of the player's choice, then draw 1 (Traveling Merchant, Zaun Warrens, Zed's legend): steps `from` and
+// `from + 1` of a resolution.
+inline Status loot(Resolution& r, PlayerId p, int from = 0) {
+    if (r.step() == from) {
+        std::vector<Action> hand;
+        for (const ObjId id : r.s.player(p).hand) hand.push_back({ActionKind::Pick, id});
+        std::sort(hand.begin(), hand.end(), [](const Action& a, const Action& b) { return a.obj < b.obj; });
+        if (!hand.empty()) {
+            r.ask(p, std::move(hand), 1, 1);
+            return r.wait(from + 1);
+        }
+    } else {
+        discard(r.s, r.answer().front().obj, {r.source(), p});
+    }
+    draw(r.s, p, 1);
+    return Status::Done;
 }
 
 // Deathknell (808): the keyword plus a trigger on its own Die event, ability 0.

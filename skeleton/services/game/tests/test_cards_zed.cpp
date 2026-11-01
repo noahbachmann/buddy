@@ -12,7 +12,11 @@ namespace {
 
 Deck zed_deck() {
     return real_deck("Z", {"Shadow Assassin", "Shadowblade Lurker", "Kinkou Lifeblade", "Shadow Fiend", "Punching Poro",
-                            "Ruthless Strike", "Perfect Execution", "Twilight Step", "Wind and Ghosts", "Death Mark"},
+                            "Ruthless Strike", "Perfect Execution", "Twilight Step", "Wind and Ghosts", "Death Mark",
+                            "Zed, From the Shadows", "Zed, Without a Sound", "Morgana, Vindictive", "Mel, Defiant Soul",
+                            "Blade Twirler", "Shadow Order Disciple", "Traveling Merchant", "Gust Monk",
+                            "Twilight Reveler", "Ravenbloom Prefect",
+                            "Serrated Dirk"},  // a gear for Ravenbloom Prefect
                      domain::chaos);
 }
 
@@ -181,6 +185,182 @@ TEST(RiftboundZed, DeathMark) {
     int clones = 0;
     for (const Object& o : s.objects) clones += on_board(o.zone) && o.card->name == "Shadow Clone";
     EXPECT_EQ(clones, 1);
+    expect_ok(s);
+}
+
+// "You may discard 1 as an additional cost to play me. When you play me, if you paid the additional cost, play a 0
+// Might Shadow Clone unit token."
+TEST(RiftboundZed, ZedFromTheShadows) {
+    for (const bool paid : {false, true}) {
+        GameState s = zed_game();
+        const PlayerId p = s.first_player;
+        fund(s, p, 4, {domain::fury});
+        const ObjId zed = in_hand(s, p, real("Zed, From the Shadows"));
+        const auto hand = s.player(p).hand.size();
+        play(s, zed);
+        optional_cost(s, paid);
+        settle(s);
+        EXPECT_TRUE(on_board(s.obj(zed).zone));
+        EXPECT_EQ(s.player(p).hand.size(), hand - (paid ? 2 : 1));
+        EXPECT_EQ(count_on_board(s, p, "Shadow Clone"), paid ? 1 : 0) << paid;
+        expect_ok(s);
+    }
+}
+
+// "When I conquer, play a 0 Might Shadow Clone unit token to your base. [Action][>] [1][Chaos]: Move me and a Shadow
+// Clone you control to each other's locations."
+TEST(RiftboundZed, ZedWithoutASound) {
+    GameState s = zed_game();
+    const PlayerId p = s.first_player, o = opponent(p);
+    at_field(s, o, real("Punching Poro"), 0);
+    const ObjId zed = ready_in_base(s, p, real("Zed, Without a Sound"));
+    EXPECT_FALSE(offered(s, {ActionKind::Activate, zed, 1}));  // no clone yet
+    move_units(s, 0, {zed});
+    both_pass(s);
+    settle(s);
+    ASSERT_EQ(s.battlefields[0].controller, p);
+    ASSERT_EQ(count_on_board(s, p, "Shadow Clone"), 1);
+    const ObjId clone = s.player(p).base.back();
+    ASSERT_EQ(s.obj(clone).card->name, "Shadow Clone");
+    fund(s, p, 1, {domain::chaos});
+    apply(s, {ActionKind::Activate, zed, 1});  // the clone: the only target
+    settle(s);
+    EXPECT_EQ(s.obj(zed).zone, Zone::Base);
+    EXPECT_EQ(s.obj(clone).zone, Zone::Battlefield);
+    EXPECT_EQ(s.obj(clone).where, 0);
+    expect_ok(s);
+}
+
+// "[Ambush] When you play me, deal damage to a unit equal to the damage marked on it."
+TEST(RiftboundZed, MorganaVindictive) {
+    GameState s = zed_game();
+    const PlayerId p = s.first_player, o = opponent(p);
+    const ObjId enemy = put(s, o, real("Kinkou Lifeblade"), Zone::Base);  // 4 Might
+    s.obj(enemy).damage = 2;
+    fund(s, p, 5, {domain::fury});
+    const ObjId morgana = in_hand(s, p, real("Morgana, Vindictive"));
+    EXPECT_TRUE(traits(s, morgana).keywords.has(Keyword::Ambush));
+    play(s, morgana);
+    while (s.decision.purpose != Purpose::Target) apply(s, legal_actions(s).front());
+    pick(s, enemy);
+    settle(s);
+    EXPECT_EQ(s.obj(enemy).zone, Zone::Trash);  // 2 + 2
+    expect_ok(s);
+}
+
+// "[Empower] — Discard a spell. When I become [Empowered], banish an enemy unit at a battlefield with 3 Might or
+// less."
+TEST(RiftboundZed, MelDefiantSoul) {
+    GameState s = zed_game();
+    const PlayerId p = s.first_player, o = opponent(p);
+    const ObjId enemy = at_field(s, o, real("Punching Poro"), 0);
+    const ObjId mel = put(s, p, real("Mel, Defiant Soul"), Zone::Base);
+    for (const ObjId id : std::vector<ObjId>(s.player(p).hand)) move_to(s, id, Zone::MainDeck, p);
+    EXPECT_FALSE(offered(s, {ActionKind::Activate, mel, 0}));  // no spell to discard
+    const ObjId spell = in_hand(s, p, real("Ruthless Strike"));
+    in_hand(s, p, real("Punching Poro"));  // a unit: not discardable for it
+    apply(s, {ActionKind::Activate, mel, 0});
+    settle(s);
+    EXPECT_EQ(s.obj(spell).zone, Zone::Trash);
+    EXPECT_TRUE(s.obj(mel).empowered);
+    EXPECT_EQ(s.obj(enemy).zone, Zone::Banishment);
+    expect_ok(s);
+}
+
+// "The first time I move each turn, choose a player. They [Burn 1]."
+TEST(RiftboundZed, BladeTwirler) {
+    GameState s = zed_game();
+    const PlayerId p = s.first_player, o = opponent(p);
+    const ObjId twirler = ready_in_base(s, p, real("Blade Twirler"));
+    const auto trash = s.player(o).trash.size();
+    move_units(s, 1, {twirler});
+    while (s.decision.purpose != Purpose::Target) apply(s, legal_actions(s).front());
+    apply(s, {ActionKind::Pick, no_obj, o});
+    close_showdown(s);
+    EXPECT_EQ(s.player(o).trash.size(), trash + 1);
+    s.obj(twirler).exhausted = false;
+    move_units(s, to_base, {twirler});
+    EXPECT_TRUE(s.chain.empty());  // only the first time
+    EXPECT_TRUE(s.triggered.empty());
+    expect_ok(s);
+}
+
+// "When I move, you may [Burn 1] to give me +1 Might this turn."
+TEST(RiftboundZed, ShadowOrderDisciple) {
+    for (const bool pay : {false, true}) {
+        GameState s = zed_game();
+        const PlayerId p = s.first_player;
+        const ObjId disciple = ready_in_base(s, p, real("Shadow Order Disciple"));
+        const auto trash = s.player(p).trash.size();
+        move_units(s, 1, {disciple});
+        ASSERT_EQ(s.decision.purpose, Purpose::May);
+        apply(s, pay ? legal_actions(s).front() : Action{ActionKind::Done});
+        settle(s);
+        EXPECT_EQ(s.player(p).trash.size(), trash + (pay ? 1 : 0));
+        EXPECT_EQ(might(s, disciple), pay ? 3 : 2) << pay;
+        expect_ok(s);
+    }
+}
+
+// "When I move, discard 1, then draw 1."
+TEST(RiftboundZed, TravelingMerchant) {
+    GameState s = zed_game();
+    const PlayerId p = s.first_player;
+    const ObjId merchant = ready_in_base(s, p, real("Traveling Merchant"));
+    const auto hand = s.player(p).hand.size(), trash = s.player(p).trash.size();
+    move_units(s, 1, {merchant});
+    settle(s);
+    EXPECT_EQ(s.player(p).hand.size(), hand);
+    EXPECT_EQ(s.player(p).trash.size(), trash + 1);
+    expect_ok(s);
+}
+
+// "You may pay [1] as an additional cost to play me. When you play me, if you paid the additional cost, banish a
+// card from any trash to give a unit [Assault 2] this turn."
+TEST(RiftboundZed, GustMonk) {
+    GameState s = zed_game();
+    const PlayerId p = s.first_player, o = opponent(p);
+    const ObjId ally = put(s, p, real("Kinkou Lifeblade"), Zone::Base);
+    const ObjId junk = put(s, o, real("Punching Poro"), Zone::Trash);  // the only trash card
+    fund(s, p, 3);
+    play(s, in_hand(s, p, real("Gust Monk")));
+    optional_cost(s, true);
+    while (s.decision.purpose != Purpose::Target) apply(s, legal_actions(s).front());
+    pick(s, ally);
+    settle(s);  // the only card to banish
+    EXPECT_EQ(s.obj(junk).zone, Zone::Banishment);
+    EXPECT_EQ(traits(s, ally).keywords.get(Keyword::Assault), 2);
+    expect_ok(s);
+}
+
+// "When I attack, ready another friendly unit."
+TEST(RiftboundZed, TwilightReveler) {
+    GameState s = zed_game();
+    const PlayerId p = s.first_player, o = opponent(p);
+    at_field(s, o, real("Punching Poro"), 0);
+    const ObjId tired = put(s, p, real("Kinkou Lifeblade"), Zone::Base);
+    s.obj(tired).exhausted = true;
+    const ObjId reveler = ready_in_base(s, p, real("Twilight Reveler"));
+    move_units(s, 0, {reveler});
+    settle(s);  // the only other friendly unit
+    EXPECT_FALSE(s.obj(tired).exhausted);
+    expect_ok(s);
+}
+
+// "When an opponent plays a gear, you may banish me to banish it."
+TEST(RiftboundZed, RavenbloomPrefect) {
+    GameState s = zed_game();
+    const PlayerId p = s.first_player, o = opponent(p);
+    const ObjId prefect = put(s, o, real("Ravenbloom Prefect"), Zone::Base);
+    const ObjId gear = put(s, p, real("Serrated Dirk"), Zone::Hand);
+    fund(s, p, 1);
+    play(s, gear);
+    while (s.decision.purpose != Purpose::May) apply(s, legal_actions(s).front());
+    EXPECT_EQ(s.decision.player, o);
+    apply(s, legal_actions(s).front());  // yes
+    settle(s);
+    EXPECT_EQ(s.obj(prefect).zone, Zone::Banishment);
+    EXPECT_EQ(s.obj(gear).zone, Zone::Banishment);
     expect_ok(s);
 }
 

@@ -208,6 +208,122 @@ struct HextechGauntlets : CardRules {
     }
 } const hextech_gauntlets;
 
+// Vi, Hotheaded: "[Deflect] [2][Fury]: Double my Might this turn."
+struct ViHotheaded : CardRules {
+    static constexpr AbilitySpec kAbilities[] = {{AbilityKind::Activated, cost(2, 1, domain::fury)}};
+    Keywords keywords() const override { return cards::keywords({{Keyword::Deflect, 1}}); }
+    std::span<const AbilitySpec> abilities() const override { return kAbilities; }
+    Status resolve(Resolution& r) const override {
+        if (const ObjId me = r.self(); me != no_obj) double_might(r.s, me, r.source(), Duration::Turn);
+        return Status::Done;
+    }
+} const vi_hotheaded;
+
+// Vi, Destructive: "[Ganking] Recycle 1 from your trash: Give me +1 Might this turn."
+struct ViDestructive : CardRules {
+    static constexpr AbilitySpec kAbilities[] = {[] {
+        AbilitySpec a;
+        a.cost.recycle_trash = 1;
+        return a;
+    }()};
+    Keywords keywords() const override { return cards::keywords({{Keyword::Ganking, 1}}); }
+    std::span<const AbilitySpec> abilities() const override { return kAbilities; }
+    Status resolve(Resolution& r) const override {
+        if (const ObjId me = r.self(); me != no_obj) give_might(r.s, me, 1, r.source(), Duration::Turn);
+        return Status::Done;
+    }
+} const vi_destructive;
+
+// Vi, Peacekeeper: "[Ambush] When I attack, [Stun] an enemy unit here."
+struct ViPeacekeeper : CardRules {
+    static bool enemy_here(const GameState& s, const ChainItem& item, const Target& t) {
+        const auto here = battlefield_of(s, item.source.id);
+        return filters::enemy_unit(s, item, t) && here && battlefield_of(s, t.ref.id) == here;
+    }
+    static constexpr TargetSpec kTargets[] = {{enemy_here}};
+    static constexpr AbilitySpec kAbilities[] = {[] {
+        AbilitySpec a;
+        a.kind = AbilityKind::Triggered;
+        a.targets = kTargets;
+        return a;
+    }()};
+    Keywords keywords() const override { return cards::keywords({{Keyword::Ambush, 1}}); }
+    std::span<const AbilitySpec> abilities() const override { return kAbilities; }
+    void triggers(const GameState&, const Event& e, ObjId self, std::vector<std::uint8_t>& out) const override {
+        if (e.kind == EventKind::Attack && e.subject.id == self) out.push_back(0);
+    }
+    Status resolve(Resolution& r) const override {
+        if (const ObjId t = r.target(); t != no_obj) stun(r.s, t);
+        return Status::Done;
+    }
+} const vi_peacekeeper;
+
+// Xerath, Freed: "[Fury], [E]: Deal 3 to a unit. Use this ability only while I'm at a battlefield."
+struct Xerath : CardRules {
+    static bool at_battlefield(const GameState& s, ObjId self) { return battlefield_of(s, self).has_value(); }
+    static constexpr TargetSpec kTargets[] = {{filters::unit}};
+    static constexpr AbilitySpec kAbilities[] = {[] {
+        AbilitySpec a;
+        a.cost = cost(0, 1, domain::fury);
+        a.cost.exhaust_self = true;
+        a.targets = kTargets;
+        a.usable = at_battlefield;
+        return a;
+    }()};
+    std::span<const AbilitySpec> abilities() const override { return kAbilities; }
+    Status resolve(Resolution& r) const override {
+        if (const ObjId t = r.target(); t != no_obj) deal(r.s, t, 3, by(r));
+        return Status::Done;
+    }
+} const xerath;
+
+// Lord Broadmane: "[Ambush] When you play me, give your other units here [Assault] this turn."
+struct LordBroadmane : CardRules {
+    static constexpr AbilitySpec kAbilities[] = {{AbilityKind::Triggered}};
+    Keywords keywords() const override { return cards::keywords({{Keyword::Ambush, 1}}); }
+    std::span<const AbilitySpec> abilities() const override { return kAbilities; }
+    void triggers(const GameState&, const Event& e, ObjId self, std::vector<std::uint8_t>& out) const override {
+        if (played_me(e, self)) out.push_back(0);
+    }
+    Status resolve(Resolution& r) const override {
+        const Place here = r.item().event.place;  // where I entered
+        const ObjId me = r.item().event.subject.id;
+        for (ObjId id = 0; id < r.s.objects.size(); ++id) {
+            const Object& o = r.s.obj(id);
+            if (id == me || o.card->type != CardType::Unit || o.controller != r.controller() || o.zone != here.zone ||
+                (here.zone == Zone::Battlefield && o.where != here.where)) {
+                continue;
+            }
+            r.give(id, ModKind::Grant, 1, Duration::Turn, Keyword::Assault);
+        }
+        return Status::Done;
+    }
+} const lord_broadmane;
+
+// Yeti Brawler: "When I conquer, if you assigned 3 or more excess damage, play two Gold gear tokens exhausted."
+struct YetiBrawler : CardRules {
+    static constexpr AbilitySpec kAbilities[] = {{AbilityKind::Triggered}};
+    std::span<const AbilitySpec> abilities() const override { return kAbilities; }
+    void triggers(const GameState& s, const Event& e, ObjId self, std::vector<std::uint8_t>& out) const override {
+        if (conquered_with(s, e, self) && e.amount >= 3) out.push_back(0);
+    }
+    Status resolve(Resolution& r) const override {
+        for (int i = 0; i < 2; ++i) play_token(r.s, tokens::gold(), r.controller(), played::to_base | played::exhausted);
+        return Status::Done;
+    }
+} const yeti_brawler;
+
+// Mageseeker Investigator: "Opponents must pay [A] for each unit beyond the first to move multiple units to my
+// battlefield at the same time." Standard Moves only (the only way to move several at once); "my battlefield" = the
+// one I'm at.
+struct Mageseeker : CardRules {
+    Cost move_tax(const GameState& s, ObjId self, PlayerId mover, std::uint8_t where, int units) const override {
+        Cost c;
+        if (mover != s.obj(self).controller && battlefield_of(s, self) == where && units > 1) c.any_power = units - 1;
+        return c;
+    }
+} const mageseeker;
+
 constexpr Entry kCards[] = {
     {"Rengar, Unseen", &rengar},
     {"Inferna", &inferna},
@@ -226,6 +342,13 @@ constexpr Entry kCards[] = {
     {"Divining Shells", &divining_shells},
     {"Serrated Dirk", &serrated_dirk},
     {"Hextech Gauntlets", &hextech_gauntlets},
+    {"Vi, Hotheaded", &vi_hotheaded},
+    {"Vi, Destructive", &vi_destructive},
+    {"Vi, Peacekeeper", &vi_peacekeeper},
+    {"Xerath, Freed", &xerath},
+    {"Lord Broadmane", &lord_broadmane},
+    {"Yeti Brawler", &yeti_brawler},
+    {"Mageseeker Investigator", &mageseeker},
 };
 
 } // namespace
