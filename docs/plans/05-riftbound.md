@@ -98,7 +98,6 @@ believes in (a misread at draw), table reports the corrected hand; game fixes it
 - **v2 ISMCTS:** Monte Carlo tree search over legal moves, re-sampling Dev's hidden cards per iteration, truncated
   playouts scored by v1's evaluation, with a time budget per decision (start: 2 s on 4 threads on the Pi 5 ⚠️).
 - How: "5.4 design" below. The AI sees only `view(s, p)` and both decklists: Buddy knows Dev's precon list ⚠️.
-- Tie-breaker for later: among equal plays, prefer cards near the bottom of the pile (fewer feeds).
 
 ### MQTT (`shared/topics.json`)
 
@@ -450,8 +449,8 @@ and the engine gets its own speed step (#36) before the search.
 | Measurement | `buddy-game --match <a> <b> [--games N] [--seed S] [--iterations N \| --budget-ms M] [--threads T] [--jobs J]`, players `random`, `greedy`, `ismcts`. Each pairing plays both decks from both seats, games in parallel. Reports wins with the 95 % Wilson interval, per deck, decision time p50/p95/max, iterations per decision. `GameChecks` after every action; a failure writes a replay. |
 | Pass marks | "> 50 % of 200 games" is noise, so: v1 vs random ≥ 180 / 200, v2 vs v1 ≥ 115 / 200 (Wilson lower bound > 50 %) at a fixed iteration budget on the VM. The Pi measures time, not strength. |
 
-Later, not 5.4: among equal plays prefer cards near the bottom of the hand pile (needs 5.5's order), thinking during
-Dev's turn, reusing the tree between decisions, MO-ISMCTS.
+Later, not 5.4: thinking during Dev's turn, reusing the tree between decisions, MO-ISMCTS. The hand pile's order never
+weighs on the choice (Dev, 2026-11-01): play strength only, feeds are the table's cost.
 
 ## Hardware notes for Phase 4 (decide there, not now)
 
