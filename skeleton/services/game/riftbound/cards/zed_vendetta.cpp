@@ -86,23 +86,33 @@ struct PerfectExecution : CardRules {
     }
 } const perfect_execution;
 
-// Twilight Step: "Move a unit with 3 Might or less. [Flow] [4][Chaos]". The text names no destination: the
-// controller picks one as it resolves (any other location, 451.1). ⚠️ ruling (plan → 5.3 rulings).
+// Twilight Step: "Move a unit with 3 Might or less. [Flow] [4][Chaos]". No destination printed: the controller picks
+// one as they play it, any location the unit isn't at (Dev's ruling, 2026-11-01).
 struct TwilightStep : CardRules {
     static bool small(const GameState& s, const ChainItem& item, const Target& t) {
         return filters::unit(s, item, t) && might(s, t.ref.id) <= 3;
     }
-    static constexpr TargetSpec kTargets[] = {{small}};
+    // Not where the unit is now: chosen after it, rechecked as it resolves.
+    static bool elsewhere(const GameState& s, const ChainItem& item, const Target& t) {
+        const auto unit = std::find_if(item.targets.begin(), item.targets.end(),
+                                       [](const Target& x) { return x.slot == 0; });
+        if (unit == item.targets.end() || !s.alive(unit->ref)) return false;
+        const auto at = battlefield_of(s, unit->ref.id);
+        if (t.ref.id == no_obj) return at.has_value();  // the base
+        return at != std::optional<std::uint8_t>(s.obj(t.ref.id).where);
+    }
+    static constexpr TargetSpec kTargets[] = {{small}, [] {
+        TargetSpec t;
+        t.filter = elsewhere;
+        t.pick = t.location = true;
+        return t;
+    }()};
     std::span<const TargetSpec> targets() const override { return kTargets; }
     std::optional<Cost> flow_cost() const override { return cost(4, 1, domain::chaos); }
     Status resolve(Resolution& r) const override {
-        const ObjId t = r.target();
-        if (t == no_obj) return Status::Done;
-        if (r.step() == 0) {
-            r.ask(r.controller(), destinations(r.s, t), 1, 1);
-            return r.wait(1);
-        }
-        move(r.s, {t}, r.answer().front().n, by(r));
+        const ObjId t = r.target(0);
+        const auto where = r.location(1);
+        if (t != no_obj && where) move(r.s, {t}, *where, by(r));
         return Status::Done;
     }
 } const twilight_step;

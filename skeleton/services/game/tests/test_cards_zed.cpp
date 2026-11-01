@@ -139,21 +139,40 @@ TEST(RiftboundZed, PerfectExecution) {
     expect_ok(s);
 }
 
-// "Move a unit with 3 Might or less. [Flow] [4][Chaos]": the controller picks the destination.
+// "Move a unit with 3 Might or less. [Flow] [4][Chaos]": the destination is picked as it's played.
 TEST(RiftboundZed, TwilightStep) {
     GameState s = zed_game();
     const PlayerId p = s.first_player;
     const ObjId small = put(s, p, real("Punching Poro"), Zone::Base);
     put(s, p, real("Kinkou Lifeblade"), Zone::Base);  // 4 Might: not a candidate
     fund(s, p, 0, {domain::chaos});
-    play(s, in_hand(s, p, real("Twilight Step")));
-    both_pass(s);
-    ASSERT_EQ(s.decision.purpose, Purpose::Effect);
-    EXPECT_EQ(s.decision.options.size(), s.battlefields.size());  // not "base": it's there
-    apply(s, {ActionKind::Pick, s.battlefields[1].card, 1});
+    play(s, in_hand(s, p, real("Twilight Step")));  // the Poro: the only unit
+    ASSERT_EQ(s.decision.purpose, Purpose::Target);
+    const std::vector<Action> fields{{ActionKind::Pick, s.battlefields[0].card, 0},
+                                     {ActionKind::Pick, s.battlefields[1].card, 1}};
+    EXPECT_EQ(legal_actions(s), fields);  // not its base: it's there
+    apply(s, fields[1]);
+    ASSERT_EQ(s.chain.size(), 1u);  // chosen on the chain, before anyone responds
+    EXPECT_EQ(s.chain[0].targets.size(), 2u);
     settle(s);
     EXPECT_EQ(s.obj(small).zone, Zone::Battlefield);
     EXPECT_EQ(s.obj(small).where, 1);
+    expect_ok(s);
+}
+
+// The destination is rechecked: the unit already there by then → no move.
+TEST(RiftboundZed, TwilightStepToWhereItIsNow) {
+    GameState s = zed_game();
+    const PlayerId p = s.first_player;
+    const ObjId small = at_field(s, p, real("Punching Poro"), 0);
+    fund(s, p, 0, {domain::chaos});
+    play(s, in_hand(s, p, real("Twilight Step")));
+    const std::vector<Action> places{{ActionKind::Pick, s.battlefields[1].card, 1}, {ActionKind::Pick, no_obj, to_base}};
+    EXPECT_EQ(legal_actions(s), places);
+    apply(s, places[1]);  // to base
+    recall(s, small);     // gets there first
+    settle(s);
+    EXPECT_EQ(s.obj(small).zone, Zone::Base);
     expect_ok(s);
 }
 

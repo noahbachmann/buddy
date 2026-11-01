@@ -24,6 +24,10 @@ struct TargetSpec {
     std::uint8_t min = 1, max = 1;  // "up to N": min 0 (355.13)
     bool pick = false;              // "pick" (355.7): not targeted, ignores untargetability, no Targeted event
     bool players = false;           // chooses players instead of objects
+    // Picks a location as the card is played (Twilight Step's destination): each battlefield (Pick obj = its card,
+    // n = index) and the base (Pick no_obj, n = to_base; Target: no ref, player = to_base) the filter accepts. Not
+    // targeted: set `pick` too. Read it with Resolution::location().
+    bool location = false;
 };
 
 enum class AbilityKind : std::uint8_t {
@@ -224,6 +228,8 @@ public:
     // The first one, or no_obj when it mistargeted (its instructions are ignored).
     ObjId target(std::size_t slot = 0) const;
     std::optional<PlayerId> target_player(std::size_t slot = 0) const;
+    // A location slot's pick if still legal: a battlefield index or to_base.
+    std::optional<std::uint8_t> location(std::size_t slot) const;
     // How many targets the slot had (359.3.e.9.a: mistargeted ones on the board count, ones gone off the board don't).
     std::size_t target_count(std::size_t slot = 0) const;
 

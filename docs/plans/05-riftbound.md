@@ -393,7 +393,7 @@ struct CardRules {
   a tax on the Standard Move (`move_tax()`, Mageseeker Investigator: the Move choice is capped at what's payable);
   a permanent's Played event carries its paid optional costs ("if you paid the additional cost"); battlefield ability
   control (190.6: the battlefield's controller, else the turn player; `AbilitySpec::event_player` for "they may …"
-  and "when you conquer here"). Bug fixed: Awaken now readies the legend (315.1.b).
+  and "when you conquer here"); location slots picked while playing (`TargetSpec::location`: Twilight Step). Bug fixed: Awaken now readies the legend (315.1.b).
 - **Tests:** `tests/test_cards_vi.cpp`, `test_cards_zed.cpp`: one test per card (several branches where the text
   has an "if"), on the text-free fixture plus the rules from `cards/`, and 40 random games of every registered card
   per deck file. Gate: `RiftboundGate.ThousandRandomGamesWithRules` next to the vanilla one; hidden-information views
@@ -411,7 +411,7 @@ cards; a different reading is a small change in the card's file.
 
 | Card | Ruling |
 |---|---|
-| Twilight Step | No destination printed: the controller picks any other location as it resolves (any battlefield, or the unit's controller's base). |
+| Twilight Step | ✅ Dev, 2026-11-01: the destination is picked as it's played, after the unit (any location it isn't at: a battlefield, or its controller's base); not targeted. If the unit is there by the time it resolves, nothing moves. |
 | Death Mark, Zed From the Shadows, Trapping Grounds | Token without a stated place: a location choice like any played unit (184.2): base or a battlefield its player controls. |
 | Square Up, Upstage Comedy | Each paid Repeat chooses its own target (820.2); Square Up twice on one unit = Assault 8 (807.2). |
 | Serrated Dirk | [Assault] = Assault 1 on the equipped unit, Might Bonus +0 (as printed). |

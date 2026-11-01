@@ -126,6 +126,17 @@ int repeats(const GameState& s, const ChainItem& item) {
 std::vector<Action> candidates(const GameState& s, const ChainItem& item, std::size_t slot) {
     const TargetSpec& spec = target_spec(s, item, slot);
     std::vector<Action> out;
+    const auto sl = static_cast<std::uint8_t>(slot);
+    if (spec.location) {
+        for (std::size_t b = 0; b < s.battlefields.size(); ++b) {
+            const ObjId card = s.battlefields[b].card;
+            if (spec.filter(s, item, {s.obj(card).ref(card), 0, sl})) {
+                out.push_back({ActionKind::Pick, card, static_cast<std::uint8_t>(b)});
+            }
+        }
+        if (spec.filter(s, item, {{}, to_base, sl})) out.push_back({ActionKind::Pick, no_obj, to_base});
+        return out;
+    }
     if (spec.players) {
         for (PlayerId p = 0; p < player_count; ++p) {
             if (spec.filter(s, item, {{}, p, static_cast<std::uint8_t>(slot)})) out.push_back({ActionKind::Pick, no_obj, p});
@@ -346,6 +357,15 @@ std::optional<PlayerId> Resolution::target_player(std::size_t slot) const {
     slot = slot_of(slot);
     for (const Target& t : item().targets) {
         if (t.slot == slot && t.ref.id == no_obj && still_valid(s, item(), t)) return t.player;
+    }
+    return std::nullopt;
+}
+
+std::optional<std::uint8_t> Resolution::location(std::size_t slot) const {
+    slot = slot_of(slot);
+    for (const Target& t : item().targets) {
+        if (t.slot != slot || !still_valid(s, item(), t)) continue;
+        return t.ref.id == no_obj ? to_base : s.obj(t.ref.id).where;
     }
     return std::nullopt;
 }

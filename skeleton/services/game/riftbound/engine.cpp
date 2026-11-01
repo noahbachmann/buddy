@@ -1292,7 +1292,9 @@ std::string describe(const GameState& s, const Action& action) {
             if (s.decision.kind == DecisionKind::Mulligan) return "set aside " + name;
             if (s.decision.kind == DecisionKind::Recycle) return "recycle " + name;
             if (s.decision.purpose == Purpose::Location) return action.obj == no_obj ? "to base" : "to " + name;
-            if (action.obj == no_obj) return "pick player " + std::to_string(action.n);
+            if (action.obj == no_obj) {
+                return action.n == to_base ? "to base" : "pick player " + std::to_string(action.n);
+            }
             switch (s.decision.purpose) {
                 case Purpose::May: return "use " + name + "'s ability";
                 case Purpose::OptionalCost: return "pay " + name + "'s optional cost " + std::to_string(action.n);

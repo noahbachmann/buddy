@@ -20,7 +20,7 @@ on the VM (grep the rule number); full card text: `~/buddy/data/riftbound/cards.
 | `hidden` | `view(s, p)`: objects p doesn't know (`Object::known` bit, set by `move_to`/`recycle`/`predict`) get `hidden_card()`, RNG reset; not playable. `determinize(view, seat0, seat1, rng)`: per owner the decklist minus visible cards, shuffled onto the hidden objects (rune deck: runes), RNG reseeded |
 | `replay` | `Replay` (seed, vanilla, both decklists' text, actions) ⇄ text (`parse_replay`, `to_text`: annotated by replaying), `run_replay` (GameChecks after every action; `buddy-game --replay`) |
 | `rng` | xoshiro256\*\*, own `below`/`shuffle` (portable replays) |
-| `cards/` | The decks' cards (5.3, #33): `vi_unleashed.cpp`, `zed_vendetta.cpp` (one `CardRules` per card, its text above it, an `Entry` table at the end), `common.hpp` (`keywords({…})`, `cost()`, `discard()`, `count_named`, `battlefield_of`, `conquered_with`, `played_me`, `loot`, `destinations`, `Deathknell` base); `rules_for(name)`, attached by `CardDb::parse`: every loaded db (the test fixture too) has them |
+| `cards/` | The decks' cards (5.3, #33): `vi_unleashed.cpp`, `zed_vendetta.cpp` (one `CardRules` per card, its text above it, an `Entry` table at the end), `common.hpp` (`keywords({…})`, `cost()`, `discard()`, `count_named`, `battlefield_of`, `conquered_with`, `played_me`, `loot`, `Deathknell` base); `rules_for(name)`, attached by `CardDb::parse`: every loaded db (the test fixture too) has them |
 
 ## The loop (`engine.cpp` → `run()`), in this order every iteration
 
@@ -60,8 +60,8 @@ same view and gives the deciding player the same legal actions: run it on any ne
   target defaults to a friendly unit; "discard a spell": `Cost::discard_spell`). `[Empowered]` text = a passive or
   trigger checking `Object::empowered`. Repeat: `repeat_costs()` (the card's slots repeat, `r.target(k)` maps to
   the running execution). Flow: `flow_cost()`. Equipment: `might_bonus()` and `effect_keywords()` (not in Riftcodex: from the printed
-  card; the keywords join the unit's own in `traits()`). "Move a unit" without a destination: `cards::destinations()`
-  as an `r.ask` choice.
+  card; the keywords join the unit's own in `traits()`). "Move a unit" without a destination: a second slot with
+  `TargetSpec::location` (+ `pick`), picked as it's played; `r.location(slot)` = battlefield index or `to_base`.
   Cost kinds: `Cost` fields (`any_power` = [A], `burn`, `banish_self`, …).
 - Tokens: `play_token(s, tokens::bird(), p, played::to_base)` from a resolution; it finalizes after it.
 - Battlefields (190.6): `controller_of` = the battlefield's controller, else the turn player; an ability that names
