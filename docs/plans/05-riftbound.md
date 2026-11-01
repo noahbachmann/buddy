@@ -404,29 +404,29 @@ struct CardRules {
   state copy stays 0.85 µs; an action costs ~2.5× vanilla's: `traits()` asks every object's passives each call.
   The first thing to profile when 5.4's search wants more playouts.
 
-#### Rulings for Dev (⚠️ until confirmed)
+#### Rulings (all confirmed by Dev, 2026-11-01)
 
-Where the card text or the Core Rules leave room, this is what the engine does. Check them against the physical
-cards; a different reading is a small change in the card's file.
+Where the card text or the Core Rules leave room, this is what the engine does. A different reading is a small change
+in the card's file. "AI:" = how Dev plays it, for the search (#37), not a rule.
 
 | Card | Ruling |
 |---|---|
 | Twilight Step | ✅ Dev, 2026-11-01: the destination is picked as it's played, after the unit (any location it isn't at: a battlefield, or its controller's base); not targeted. If the unit is there by the time it resolves, nothing moves. |
-| Death Mark, Zed From the Shadows, Trapping Grounds | Token without a stated place: a location choice like any played unit (184.2): base or a battlefield its player controls. |
-| Square Up, Upstage Comedy | Each paid Repeat chooses its own target (820.2); Square Up twice on one unit = Assault 8 (807.2). |
-| Serrated Dirk | [Assault] = Assault 1 on the equipped unit, Might Bonus +0 (as printed). |
+| Death Mark, Zed From the Shadows, Trapping Grounds | ✅ Dev, 2026-11-01. Token without a stated place: a location choice like any played unit (184.2): base or a battlefield its player controls. |
+| Square Up, Upstage Comedy | ✅ Dev, 2026-11-01. Each paid Repeat chooses its own target (820.2); Square Up twice on one unit = Assault 8 (807.2). |
+| Serrated Dirk | ✅ Dev, 2026-11-01. [Assault] = Assault 1 on the equipped unit, Might Bonus +0 (as printed). |
 | Mageseeker Investigator | ✅ Dev, 2026-11-01. "My battlefield" = the battlefield it's at. Only Standard Moves move several units at once. The [A] runes are recycled in the engine's order, no choice (no Recycle decision outside the chain). |
-| Zed, Without a Sound | Zed and the clone at the same location: nothing moves (no Moved events). Otherwise two moves, Zed first. |
-| Gust Monk | The banished card is picked as the trigger resolves, from either trash; no card → no Assault. The unit is a target, chosen as the trigger goes on the chain. |
-| Morgana, Vindictive | Damage = what's marked on the target as the trigger resolves. |
-| Lord Broadmane | "Here" = where it entered (its base too). |
-| Vi, Peacekeeper; Twilight Reveler | Targets chosen as the attack trigger goes on the chain. |
-| Blade Twirler | "Choose a player" = target either player. |
-| Ravenbloom Prefect | The gear is banished only if it's still on the board. |
-| Vi, Piltover Enforcer | "A unit" = any unit, either side. Triggers while exhausted too, but then can't pay. |
-| Battlefields (190.6) | "When you conquer/hold here" and "a player plays … they may" belong to the player who did it; Threshold of the Gray to the battlefield's controller (no choices in it). |
+| Zed, Without a Sound | ✅ Dev, 2026-11-01. Zed and the clone at the same location: nothing moves (no Moved events, not a move). Otherwise two moves, Zed first. AI: at the same location it's a wasted play, never worth it. |
+| Gust Monk | ✅ Dev, 2026-11-01. Unit (target) and card (picked, either trash) are both chosen as the trigger goes on the chain; no card, or it left the trash before the trigger resolves → no Assault. |
+| Morgana, Vindictive | ✅ Dev, 2026-11-01. Damage = what's marked on the target as the trigger resolves. |
+| Lord Broadmane | ✅ Dev, 2026-11-01. "Here" = where it entered (its base too). |
+| Vi, Peacekeeper; Twilight Reveler | ✅ Dev, 2026-11-01. Targets chosen as the attack trigger goes on the chain. |
+| Blade Twirler | ✅ Dev, 2026-11-01. "Choose a player" = target either player. |
+| Ravenbloom Prefect | ✅ Dev, 2026-11-01. The gear is banished only if it's still on the board. |
+| Vi, Piltover Enforcer | ✅ Dev, 2026-11-01. "A unit" = any unit, either side. Triggers while exhausted too, but then can't pay. AI: rarely worth using on an enemy unit. |
+| Battlefields (190.6) | ✅ Dev, 2026-11-01. "When you conquer/hold here" and "a player plays … they may" belong to the player who did it; Threshold of the Gray to the battlefield's controller (no choices in it). |
 | Star Spring | ✅ Dev, 2026-11-01: once per turn in total, not per player; the other unit is a target of the player who played. |
-| Valley of Idols | Tokens played there trigger it ("a unit"). |
+| Valley of Idols | ✅ Dev, 2026-11-01. Tokens played there trigger it ("a unit"). |
 
 ### 5.4 design (2026-11-01, #39)
 

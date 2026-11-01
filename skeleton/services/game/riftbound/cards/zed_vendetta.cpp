@@ -299,11 +299,19 @@ struct TravelingMerchant : CardRules {
 } const traveling_merchant;
 
 // Gust Monk: "You may pay [1] as an additional cost to play me. When you play me, if you paid the additional cost,
-// banish a card from any trash to give a unit [Assault 2] this turn." The card is picked as it resolves; none to
-// banish: no Assault (383.3.b-style "do X to").
+// banish a card from any trash to give a unit [Assault 2] this turn." Unit and card both chosen as the trigger goes
+// on the chain (Dev, 2026-11-01), the card picked, not targeted; no card to banish, or it left the trash: no Assault
+// (383.3.b-style "do X to").
 struct GustMonk : CardRules {
+    static bool in_trash(const GameState& s, const ChainItem&, const Target& t) {
+        return t.ref.id != no_obj && s.obj(t.ref.id).zone == Zone::Trash;
+    }
     static constexpr Cost kOptional[] = {cost(1)};
-    static constexpr TargetSpec kTargets[] = {{filters::unit}};
+    static constexpr TargetSpec kTargets[] = {{filters::unit}, [] {
+        TargetSpec t{in_trash};
+        t.pick = true;
+        return t;
+    }()};
     static constexpr AbilitySpec kAbilities[] = {[] {
         AbilitySpec a;
         a.kind = AbilityKind::Triggered;
@@ -316,17 +324,9 @@ struct GustMonk : CardRules {
         if (played_me(e, self) && (e.amount & 1)) out.push_back(0);
     }
     Status resolve(Resolution& r) const override {
-        if (r.step() == 0) {
-            std::vector<Action> cards;
-            for (PlayerId p = 0; p < player_count; ++p) {
-                for (const ObjId id : r.s.player(p).trash) cards.push_back({ActionKind::Pick, id});
-            }
-            std::sort(cards.begin(), cards.end(), [](const Action& a, const Action& b) { return a.obj < b.obj; });
-            if (cards.empty()) return Status::Done;
-            r.ask(r.controller(), std::move(cards), 1, 1);
-            return r.wait(1);
-        }
-        banish(r.s, r.answer().front().obj, by(r));
+        const ObjId card = r.target(1);
+        if (card == no_obj) return Status::Done;
+        banish(r.s, card, by(r));
         if (const ObjId t = r.target(); t != no_obj) r.give(t, ModKind::Grant, 2, Duration::Turn, Keyword::Assault);
         return Status::Done;
     }

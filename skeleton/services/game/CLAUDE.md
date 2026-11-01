@@ -1,7 +1,7 @@
 # services/game – Riftbound engine quick reference
 
 What the engine does **now** (state after #36: 5.3 done, 5.4 arena, v1 greedy, engine speed) and where the next work plugs in.
-Why it is built this way: `docs/plans/05-riftbound.md` → "5.2 design", "5.3 as built" (with the rulings for Dev),
+Why it is built this way: `docs/plans/05-riftbound.md` → "5.2 design", "5.3 as built" (with the rulings, confirmed by Dev),
 "5.4 design". Sub-issues: 5.2 #20, 5.3 #33, 5.4 #39. Rules text: `~/buddy/data/riftbound/core-rules-2026-10-09.txt`
 on the VM (grep the rule number); full card text: `~/buddy/data/riftbound/cards.json` (VM and Pi, not in Git).
 
@@ -142,7 +142,7 @@ start, e.g. a determinization, skips its own turn).
 - `buddy-game --random [--rules] --games 1000 --seed 0 --deck decks/vi-unleashed.txt --deck decks/zed-vendetta.txt`
   on the ASan build (`build-test/services/game/buddy-game`); `deploy/run.sh game --random …` on the Pi (Release).
   Prints a digest over every game (winner, turns, actions): an engine change that must not change play keeps it
-  (#36: rules `3fa44f83335b8657`, vanilla `d04c2a02e1c41238`, seeds 0–999), and "engine only" = the same games
+  (seeds 0–999: rules `42705b80131137f7` since Gust Monk's ruling, `3fa44f83335b8657` at #36; vanilla `d04c2a02e1c41238`), and "engine only" = the same games
   again with `legal_actions` + `apply` alone (what a playout pays). #36 on the Pi (Release): with rules 1.17 ms per
   game, 143k actions/s with checks, 244k engine only (#32: 2.97 ms, 56k / 64k); vanilla 196k / 448k. Gate with rules
   under ASan: 54 s on the VM. Profiling: `perf` on the VM (Release, `-fno-omit-frame-pointer -g`; the Pi has none).

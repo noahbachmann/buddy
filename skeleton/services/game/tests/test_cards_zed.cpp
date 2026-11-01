@@ -2,6 +2,8 @@
 // every registered card at the end.
 #include <gtest/gtest.h>
 
+#include <algorithm>
+
 #include "riftbound/random_game.hpp"
 #include "test_real.hpp"
 
@@ -340,15 +342,55 @@ TEST(RiftboundZed, GustMonk) {
     GameState s = zed_game();
     const PlayerId p = s.first_player, o = opponent(p);
     const ObjId ally = put(s, p, real("Kinkou Lifeblade"), Zone::Base);
-    const ObjId junk = put(s, o, real("Punching Poro"), Zone::Trash);  // the only trash card
+    const ObjId junk = put(s, o, real("Punching Poro"), Zone::Trash);
+    const ObjId mine = put(s, p, real("Punching Poro"), Zone::Trash);
     fund(s, p, 3);
     play(s, in_hand(s, p, real("Gust Monk")));
     optional_cost(s, true);
     while (s.decision.purpose != Purpose::Target) apply(s, legal_actions(s).front());
     pick(s, ally);
-    settle(s);  // the only card to banish
-    EXPECT_EQ(s.obj(junk).zone, Zone::Banishment);
+    // the card too, as the trigger goes on the chain (Dev, 2026-11-01)
+    ASSERT_EQ(s.decision.purpose, Purpose::Target);
+    EXPECT_TRUE(std::none_of(s.chain.begin(), s.chain.end(), [](const ChainItem& c) { return c.resolving; }));
+    EXPECT_TRUE(offered(s, {ActionKind::Pick, junk}));
+    pick(s, std::max(junk, mine));
+    settle(s);
+    EXPECT_EQ(s.obj(std::max(junk, mine)).zone, Zone::Banishment);
+    EXPECT_EQ(s.obj(std::min(junk, mine)).zone, Zone::Trash);
     EXPECT_EQ(traits(s, ally).keywords.get(Keyword::Assault), 2);
+    expect_ok(s);
+}
+
+// The picked card left the trash before the trigger resolves: nothing to banish, no Assault.
+TEST(RiftboundZed, GustMonkCardGone) {
+    GameState s = zed_game();
+    const PlayerId p = s.first_player, o = opponent(p);
+    const ObjId ally = put(s, p, real("Kinkou Lifeblade"), Zone::Base);
+    const ObjId junk = put(s, o, real("Punching Poro"), Zone::Trash);  // the only trash card
+    fund(s, p, 3);
+    play(s, in_hand(s, p, real("Gust Monk")));
+    optional_cost(s, true);
+    while (s.decision.purpose != Purpose::Target) apply(s, legal_actions(s).front());
+    pick(s, ally);  // the card is the only one: picked automatically
+    ASSERT_EQ(s.decision.kind, DecisionKind::Priority);
+    move_to(s, junk, Zone::Hand, o);
+    settle(s);
+    EXPECT_EQ(s.obj(junk).zone, Zone::Hand);
+    EXPECT_EQ(traits(s, ally).keywords.get(Keyword::Assault), 0);
+    expect_ok(s);
+}
+
+// Empty trashes: no card to pick, no Assault.
+TEST(RiftboundZed, GustMonkEmptyTrash) {
+    GameState s = zed_game();
+    const PlayerId p = s.first_player, o = opponent(p);
+    ASSERT_TRUE(s.player(p).trash.empty() && s.player(o).trash.empty());
+    const ObjId ally = put(s, p, real("Kinkou Lifeblade"), Zone::Base);
+    fund(s, p, 3);
+    play(s, in_hand(s, p, real("Gust Monk")));
+    optional_cost(s, true);
+    settle(s);
+    EXPECT_EQ(traits(s, ally).keywords.get(Keyword::Assault), 0);
     expect_ok(s);
 }
 
