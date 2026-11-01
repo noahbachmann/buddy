@@ -452,6 +452,23 @@ and the engine gets its own speed step (#36) before the search.
 Later, not 5.4: thinking during Dev's turn, reusing the tree between decisions, MO-ISMCTS. The hand pile's order never
 weighs on the choice (Dev, 2026-11-01): play strength only, feeds are the table's cost.
 
+**As built so far (#34, #35, 2026-11-01).** Code in `services/game/riftbound/ai/`, how it runs: `services/game/CLAUDE.md`.
+
+- **Arena:** `Player::choose(view, actions)` gets `view(s, seat)` and the legal actions (the same in every
+  determinization); a test checks every state a player gets is a view of its own seat. `play_match`: seed S + i/2,
+  every seed twice with the players swapped (same shuffles), decks swap seats every other seed; per-game player
+  seeds, so results don't depend on `--jobs` (and VM and Pi play the same games).
+- **Greedy:** quiescence = anyone's Neutral Open priority or game over, so a move's showdown or combat and a spell's
+  chain play out before `eval`. EndTurn is scored as the state now: playing on into the opponent's turn would charge
+  it alone with their Hold, draw and channel. Own sub-decisions nested greedy (depth 2), then pass/decline/first.
+- **Branching** (random vs random, 1000 games): 172 decisions per game, 41 % forced; legal actions p50 2, p95 8, max
+  37; Choose runs after a Priority action p50 1, p95 3, max 9.
+- **Results** (Release, seed 0, both decks from both seats): random vs random 479:521 (CI 44.8–51.0 %), decks
+  vi:zed 517:483 (`--random` 500:500). **Greedy vs random 190 / 200** (CI 91.0–97.3 %; seed 1000: 196), 14.6 turns.
+  Greedy vs greedy: Zed wins 146 / 200: with sensible play the Zed precon is the stronger deck ⚠️ (watch it in v2).
+- **Pi** (Release, one job): greedy decision p50 0.24 ms, p95 3.4 ms, max 30 ms, 41 decisions asked per game.
+- Pass mark detail: 114 / 200 already has a Wilson lower bound > 50 % (50.07 %); the 115 above keeps one game spare.
+
 ## Hardware notes for Phase 4 (decide there, not now)
 
 - **Scanning:** the code is ~1.5 mm text. The head camera (4.2) won't read that at table distance, so it needs a fixed
