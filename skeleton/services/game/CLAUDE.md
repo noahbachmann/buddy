@@ -82,7 +82,8 @@ but `playable` doesn't count them), abilities on the chain as targets, dependenc
 limit); `completable` fills "up to N" slots at their minimum and multi-target slots with the first candidates;
 Ambush's location isn't re-checked if the units leave before finalizing (822.3); Equipment effect text (724, an
 attached card's text added to its unit), reveal (425), counter (426), Equipped events (818.2.a); `pay_energy` pays
-Energy only. For 5.3: a battlefield's triggers ("when you conquer here") are controlled by its owner
+Energy only. For 5.3: Serrated Dirk needs the Equipment effect text ([Assault], Might Bonus +0; Hextech Gauntlets
++3: plan → "Equipment as printed"); a battlefield's triggers ("when you conquer here") are controlled by its owner
 (`controller_of`), not by the player who conquered (Valley of Idols: "they may pay"); Mageseeker Investigator's cost
 on moving several units needs a hook on the Standard Move; Star Spring's "non-token" = `Card::token`.
 

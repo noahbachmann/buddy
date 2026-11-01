@@ -64,8 +64,8 @@ What's left right now, in order. Update it with the progress table; GitHub issue
 2. **Live check** for #12: "Hey Jarvis, play Spotify" ducks, plays, and Buddy answers without delay (idle loops changed).
 3. **Decisions** in `docs/plans/02-05-head-pan-tilt.md` and `02-06-head-body.md` (end of each), then fill in
    `docs/plans/02-06-cad-prompt.md` (measurements after 2.1 and the parts order).
-4. **Riftbound Might Bonus** (for 5.3): read the "+N" off Serrated Dirk and Hextech Gauntlets (lower right corner;
-   `docs/plans/05-riftbound.md` → Open for Dev).
+4. **Hextech Gauntlets' effect text** (for 5.3): the second text block word for word (`docs/plans/05-riftbound.md`
+   → Open for Dev).
 
 **Claude** (code and guides):
 

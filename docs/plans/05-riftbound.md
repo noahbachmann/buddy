@@ -394,8 +394,21 @@ struct CardRules {
 - **Dev's cards:** for now Dev taps them on the panel. Reading Dev's cards on the table with the camera is an optional
   extra later.
 
+## Equipment as printed (Dev, 2026-11-01; for 5.3)
+
+Riftcodex has neither the Might Bonus (137) nor the Effect Text (136.2: inactive until attached, then appended to the
+unit's rules text, 718.3), only the rules text (the Equip line).
+
+| Card | Might Bonus | Effect Text |
+|---|---|---|
+| Serrated Dirk | +0 | [Assault] (= Assault 1, 807.1.b.3): the unit it's attached to has Assault |
+| Hextech Gauntlets | +3 | see Open for Dev |
+
+Dirk's [Assault] needs the engine gap "Equipment effect text" (`services/game/CLAUDE.md` → Known gaps) closed in 5.3:
+a `CardRules` hook for the effect text that `traits()` applies to the top-most card while attached.
+
 ## Open for Dev
 
-- **Equipment Might Bonus** (for 5.3): Riftcodex has no Might Bonus. Read it off Serrated Dirk and Hextech Gauntlets
-  (lower right corner, "+N").
+- **Hextech Gauntlets' effect text** (for 5.3): what the second text block says, word for word, if it's more than the
+  Equip line Riftcodex has.
 - **When to slot Phase 5** relative to 2.x and 3: the software can run in parallel; the hardware waits for 4.1 and 4.2.
