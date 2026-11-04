@@ -69,7 +69,13 @@ std::string to_string(const SimFaults& f) {
     return out.tellp() > 0 ? out.str() : "none";
 }
 
-Sim::Sim(SimSetup setup, SimFaults faults, std::uint64_t seed) : setup_(std::move(setup)), rates_(faults), rng_(seed) {
+Sim::Sim(SimSetup setup, SimFaults faults, std::uint64_t seed) : rates_(faults), rng_(seed) {
+    configure(std::move(setup));
+}
+
+void Sim::configure(SimSetup setup) {
+    setup_ = std::move(setup);
+    codes_.clear();
     for (const auto* list : {&setup_.deck, &setup_.runes}) codes_.insert(codes_.end(), list->begin(), list->end());
     std::sort(codes_.begin(), codes_.end());
     codes_.erase(std::unique(codes_.begin(), codes_.end()), codes_.end());

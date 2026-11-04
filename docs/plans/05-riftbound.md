@@ -106,9 +106,9 @@ believes in (a misread at draw), table reports the corrected hand; game fixes it
 |---|---|---|
 | `buddy/game/cmd` | → game | `new` (decks, seed), `action` (Dev's move), `concede` |
 | `buddy/game/state` | game → | retained **public** view: board, scores, Dev's legal actions. Never Buddy's hand. |
-| `buddy/table/cmd` | game → table | `draw`, `play {card, to}`, `move`, `rescan_hand`. `"web": false`: it moves the arm later (D19). |
-| `buddy/table/event` | table → game | `drawn {code}`, `done`, `failed`, `hand_corrected {cards}` |
-| `buddy/table/state` | table → | retained pile model (debug; the panel doesn't render it) |
+| `buddy/table/cmd` | game → table | `setup`, `deal`, `peek`/`peek_done`, `play {id, to}`, `move`, `exhaust`, `token`, `remove`, `rescan_hand`, … with a `seq` (5.5 design). `"web": false`: it moves the arm later (D19). |
+| `buddy/table/event` | table → game | `done {seq, cards}`, `failed {seq, reason}`, `hand_corrected {hand, replaced, extra, missing}` |
+| `buddy/table/debug` | table → | retained belief (debug; not `/state`: web would stream Buddy's hand to the browser) |
 
 **Dev's moves** come from a Riftbound page on the web panel: the board, Dev's legal actions as buttons, and pass/respond
 prompts during showdowns and the chain. The same page works for real games (Dev taps what they played). Voice for common
@@ -122,7 +122,7 @@ moves ("pass", "I attack the left battlefield") comes after that.
 | 5.2 Rules engine core | Turn structure, runes/energy/power, units, moves, battlefields, showdowns, combat, chain/priority, conquer/hold scoring and the win condition, mulligan. Keywords only as the two decks need them. gtest per rules section. | 1000 seeded random-vs-random games without assertion failures under ASan/UBSan |
 | 5.3 Cards of both decks | Every card in both decklists, one test each. Dev reviews odd rulings. | both decks load, per-card tests green |
 | 5.4 AI player | v1 heuristic, then v2 ISMCTS | v1 beats random ≥ 180 / 200; v2 beats v1 ≥ 115 / 200 (95 % Wilson lower bound > 50 %) at a fixed iteration budget; decision time on the Pi p95 ≤ budget + 10 % |
-| 5.5 `table` service + sim | piles, primitive ops, hand tracker, verify/recover, fault injection. Property tests: random op sequences with faults always end in the correct state. | 10k games' worth of pile ops with faults: zero unrecovered states; scans per play reported |
+| 5.5 `table` service + sim ✅ | piles, primitive ops, hand tracker, verify/recover, fault injection. Property tests: random op sequences with faults always end in the correct state. | 10k games' worth of pile ops with faults: zero unrecovered states; scans per play reported (done 2026-11-04, #45: "5.5 as built") |
 | 5.6 `game` service + panel page | MQTT wiring, Riftbound page, voice lines via `buddy/voice/say`, `buddy-game --sim` | the phase's "Done when" above |
 | 5.7+ Hardware | card scanner, hand tray mechanism, card placement, reading Dev's cards | separate plan after Phase 4 |
 
@@ -587,6 +587,17 @@ disturbed pile), no `failed`. Sim seeds 1–3: 0 unrecovered as well.
   **Default on**: it costs one scan per deal and play.
 - ctest (label `riftbound`): `RiftboundTableMoves.SoakUnderStress`, 200 random-player games under the stress rates
   (16 s under ASan).
+
+**Service (#44):** `buddy@table`, sim backend only (`BUDDY_TABLE_*`: faults, seed, `confirm_reads`, post-check).
+`setup` may carry `sim_deck`/`sim_runes` (game's decklist as home-printing codes; without them the sim uses `SIM-n`
+placeholders); the sim shuffles them. The belief goes retained on **`buddy/table/debug`, not `buddy/table/state`**:
+web streams every retained `buddy/+/state` to the browser, and this one holds Buddy's hand. On the Pi: `deal`/`play`
+published by hand give `done` events and a consistent belief; the gate pipeline as written above (Release, `--jobs 3`)
+gives the VM's numbers exactly (same games, same faults) in 2.5 min. `deploy/test.sh --pi --riftbound`: 643 tests green.
+
+Open for 5.6 (unchanged from the design): whether game sends a play before or after `apply` and what happens on
+`failed`; the engine taking drawn codes in place of its own deck order (a misread public card is then the engine's
+problem too); Vision `peek`s before the choice (the workload only peeks when the card goes to the bottom).
 
 ## Hardware notes for Phase 4 (decide there, not now)
 

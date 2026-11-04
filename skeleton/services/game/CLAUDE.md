@@ -1,8 +1,9 @@
 # services/game – Riftbound engine quick reference
 
-What the engine does **now** (state after #38: 5.3 and 5.4 done: arena, v1 greedy, engine speed, v2 ISMCTS) and where the next work plugs in.
+What the engine does **now** (state after #45: 5.3, 5.4 and 5.5 done: arena, v1 greedy, engine speed, v2 ISMCTS, table
+moves) and where the next work plugs in.
 Why it is built this way: `docs/plans/05-riftbound.md` → "5.2 design", "5.3 as built" (with the rulings, confirmed by Dev),
-"5.4 design". Sub-issues: 5.2 #20, 5.3 #33, 5.4 #39. Rules text: `~/buddy/data/riftbound/core-rules-2026-10-09.txt`
+"5.4 design", "5.5 design"/"as built". Sub-issues: 5.2 #20, 5.3 #33, 5.4 #39, 5.5 #45. Rules text: `~/buddy/data/riftbound/core-rules-2026-10-09.txt`
 on the VM (grep the rule number); full card text: `~/buddy/data/riftbound/cards.json` (VM and Pi, not in Git).
 
 ## Files (`riftbound/`, pure library, no MQTT)
@@ -26,6 +27,21 @@ on the VM (grep the rule number); full card text: `~/buddy/data/riftbound/cards.
 | `ai/greedy` | `greedy_choice(s)` on a full state: per `distinct` action apply + `play_on` to quiescence (anyone's Neutral Open priority or game over; own sub-decisions nested greedy up to `depth` 2, otherwise pass/decline/first) + `eval`; EndTurn = eval of the state now; ties → first. `mulligan_choice` (Energy ≥ 5 set aside). `GreedyPlayer` = one determinization per decision |
 | `ai/ismcts` | `ismcts_search(view, actions, decks, seed, IsmctsOptions)`: SO-ISMCTS. Per iteration a fresh `determinize`, descend the tree (edges = `ActionKey`, forced moves skipped as in the arena, UCB1 with availability counts, rewards from the chooser's side), expand one untried action, playout (`playout` random actions within the turn, then pass/decline to quiescence), reward = sigmoid(`eval` / `scale`), win/loss 1/0. The root uses the given actions merged by key on the view (a determinization would key an opponent's hidden card differently). Budget: `iterations` (split over `threads`, reproducible) or `budget_ms`; root parallel, visits summed, most visits wins, ties → action order. `IsmctsPlayer`: mulligan by greedy's rule |
 | `cards/` | The decks' cards (5.3, #33): `vi_unleashed.cpp`, `zed_vendetta.cpp` (one `CardRules` per card, its text above it, an `Entry` table at the end), `common.hpp` (`keywords({…})`, `cost()`, `discard()`, `count_named`, `battlefield_of`, `conquered_with`, `played_me`, `loot`, `Deathknell` base); `rules_for(name)`, attached by `CardDb::parse`: every loaded db (the test fixture too) has them |
+
+## Table moves (5.5, `game_core`: `table_moves.*`)
+
+What Buddy's physical cards do per referee step, as table commands (`shared/table_protocol.hpp`; the table side:
+`services/table/CLAUDE.md`). `riftbound::move_log` (state.hpp): a thread-local log `move_to`/`create` append to,
+installed by `MoveRecorder` around the referee's `new_game`/`apply` only (search and players never log; off it costs
+one load per move; the `--random` digest is unchanged). `table_setup` takes the created objects off new_game's log
+(legend, champion, decks bottom → top). `TableMoves::step(after, log)`: the seat's cards, hops through the chain or
+set aside collapsed (hand → chain → base = one play, mulligan = play → deck bottom after the redraw), deck → place
+= `deal` (consecutive ones merged), deck → deck bottom = `peek` + `peek_done`, created = `token`, a token gone =
+`remove`, hand → anywhere = `play`, else `move`; then exhaust/ready where the state differs from what the table shows.
+`nearest_copy(s, a)`: of same-card copies in hand play the lowest index (the table plays exactly the id asked, so the
+engine's hand order stays the pile's): game (5.6) calls it on Buddy's chosen action before `apply`.
+`workload_game` / `buddy-game --table-workload` = the soak's input. Tests: `tests/test_table_moves.cpp` (own
+executable `buddy-game-table-tests`, links `table_core`).
 
 ## The loop (`engine.cpp` → `run()`), in this order every iteration
 

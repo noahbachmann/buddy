@@ -12,6 +12,8 @@ dev = ["pytest>=8.3"]
 
 [tool.pytest.ini_options]
 testpaths = ["shared/python/tests", "tools"]
+# deploy/test.sh passes the root: never collect build dirs (FetchContent sources bring their own tests)
+norecursedirs = ["build*", ".*", "node_modules"]
 
 # PyTorch comes from its own index: CUDA 12.8 wheels (any NVIDIA GPU from the last ~10 years, driver ≥ 570) or CPU.
 [tool.uv]

@@ -35,7 +35,7 @@ struct CardRef {
 };
 
 enum class CommandKind : std::uint8_t {
-    Setup,      // legend, champion (codes), deck, runes (counts): a new game, everything else forgotten
+    Setup,      // legend, champion (codes), deck, runes (counts), [sim_deck, sim_runes]: a new game, all else forgotten
     Deal,       // n cards from the top of `from` to `to`, each scanned: done.cards = the dealt cards
     Peek,       // top card of the deck to the scan spot: done.cards = that card (Vision)
     PeekDone,   // the peeked card to `to` (deck_top / deck_bottom)
@@ -62,6 +62,9 @@ struct Command {
     std::string legend{}, champion{};  // Setup
     int deck = 0, runes = 0;       // Setup
     std::vector<int> order{};      // ShuffleTrashIntoDeck, optional
+    // Setup, sim backend only (optional): the decks' codes, bottom → top before the sim shuffles them; game sends its
+    // decklist's home printings. The hardware ignores them.
+    std::vector<std::string> sim_deck{}, sim_runes{};
     bool operator==(const Command&) const = default;
 };
 

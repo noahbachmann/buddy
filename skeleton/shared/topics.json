@@ -21,6 +21,9 @@
     {"name": "hue_cmd",         "topic": "buddy/hue/cmd",         "kind": "command", "payload": ["action: on|off|toggle|brightness|brighter|darker|color|temperature|scene|scene_save|scene_delete|status", "[query]", "[device: room, zone or light as spoken]", "[id: room, zone or light id]"]},
     {"name": "hue_state",       "topic": "buddy/hue/state",       "kind": "event",   "retained": true, "payload": ["bridge: ok|connecting|unreachable|error|key revoked|not paired", "rooms: [{id, name, kind: home|room|zone, on, brightness, lights: [ids], scenes: [{id, name}]}]", "lights: [{id, name, room, on, brightness, color, temperature, dimming, [mirek], [xy]}]"]},
     {"name": "motion_cmd",      "topic": "buddy/motion/cmd",      "kind": "command", "web": false, "payload": ["action: move|center|relax|gesture", "[joints: {name: deg}]", "[ms]", "[query: gesture name]"]},
-    {"name": "motion_state",    "topic": "buddy/motion/state",    "kind": "event",   "retained": true, "payload": ["connected", "joints: {name: deg|null}", "gesture: name|null"]}
+    {"name": "motion_state",    "topic": "buddy/motion/state",    "kind": "event",   "retained": true, "payload": ["connected", "joints: {name: deg|null}", "gesture: name|null"]},
+    {"name": "table_cmd",       "topic": "buddy/table/cmd",       "kind": "command", "web": false, "payload": ["action: setup|deal|peek|peek_done|play|move|exhaust|shuffle_trash_into_deck|token|remove|rescan_hand", "seq", "fields per action: shared/include/buddy/table_protocol.hpp"]},
+    {"name": "table_event",     "topic": "buddy/table/event",     "kind": "event",   "payload": ["event: done|failed|hand_corrected", "seq", "[cards: [{id, code}]]", "[reason: not_in_hand|unreadable|hardware|invalid, message]", "[hand, replaced, extra: [{id, code}], missing: [id]]"]},
+    {"name": "table_debug",     "topic": "buddy/table/debug",     "kind": "event",   "retained": true, "payload": ["hand: [{id, code}] (Buddy's hidden cards: not /state, so never on the panel)", "deck", "runes", "spots: {place: [{id, code, [exhausted]}]}", "held", "ops: {scans, feeds, takes, deals, passes, recoveries}"]}
   ]
 }

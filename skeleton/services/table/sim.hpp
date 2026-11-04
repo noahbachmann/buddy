@@ -56,6 +56,8 @@ struct FaultCounts {
 class Sim : public Backend {
 public:
     Sim(SimSetup setup, SimFaults faults, std::uint64_t seed);
+    // What the next setup() lays out (the service: from each setup command).
+    void configure(SimSetup setup);
 
     void begin_command() override;
     void setup(int legend_id, int champion_id) override;

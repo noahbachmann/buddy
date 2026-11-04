@@ -1,6 +1,8 @@
 #include "buddy/table_protocol.hpp"
 
+#include <algorithm>
 #include <array>
+#include <tuple>
 
 #include <nlohmann/json.hpp>
 
@@ -102,6 +104,8 @@ json to_json(const Command& c) {
             j["champion"] = c.champion;
             j["deck"] = c.deck;
             j["runes"] = c.runes;
+            if (!c.sim_deck.empty()) j["sim_deck"] = c.sim_deck;
+            if (!c.sim_runes.empty()) j["sim_runes"] = c.sim_runes;
             break;
         case CommandKind::Deal:
             j["from"] = to_string(c.from);
@@ -153,6 +157,15 @@ Command parse_command(const json& j) {
             c.deck = int_field(j, "deck");
             c.runes = int_field(j, "runes");
             if (c.deck < 0 || c.runes < 0) throw ProtocolError("negative pile size");
+            for (const auto& [key, list, n] : {std::tuple{"sim_deck", &c.sim_deck, c.deck},
+                                                std::tuple{"sim_runes", &c.sim_runes, c.runes}}) {
+                if (!j.contains(key)) continue;
+                const json& v = j[key];
+                if (!v.is_array() || !std::all_of(v.begin(), v.end(), [](const json& x) { return x.is_string(); }))
+                    throw ProtocolError(std::string("\"") + key + "\" must hold codes");
+                *list = v.get<std::vector<std::string>>();
+                if (static_cast<int>(list->size()) != n) throw ProtocolError(std::string("\"") + key + "\" isn't the pile's size");
+            }
             break;
         case CommandKind::Deal: {
             const std::string from = string_field(j, "from");

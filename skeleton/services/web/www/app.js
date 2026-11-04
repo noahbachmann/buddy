@@ -598,6 +598,7 @@ const SERVICE_CHIPS = [
   { name: "hue", members: ["hue"] },
   { name: "spotify", members: ["spotify"] },
   { name: "speakers", members: ["speakers"] },
+  { name: "table", members: ["table"] },
 ];
 
 function renderServices() {

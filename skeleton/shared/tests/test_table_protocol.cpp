@@ -18,6 +18,11 @@ std::vector<Command> every_command() {
     c.deck = 40;
     c.runes = 12;
     out.push_back(c);
+    c.deck = 2;
+    c.runes = 1;
+    c.sim_deck = {"OGN-001", "OGN-002"};
+    c.sim_runes = {"OGN-R01"};
+    out.push_back(c);
     c = {.kind = CommandKind::Deal, .seq = 2, .from = Source::Runes, .to = Place::Base, .n = 2};
     out.push_back(c);
     out.push_back({.kind = CommandKind::Peek, .seq = 3});
@@ -83,4 +88,6 @@ TEST(TableProtocol, BadCommandsSayWhy) {
               "\"from\" must be deck or runes");
     EXPECT_EQ(error(R"({"action": "deal", "seq": 1, "from": "deck", "to": "hand", "n": 0})"), "\"n\" out of range");
     EXPECT_EQ(error(R"({"action": "token", "seq": 1, "code": "x", "to": "hand"})"), "a token goes to a spot");
+    EXPECT_EQ(error(R"({"action": "setup", "seq": 1, "legend": "L", "champion": "C", "deck": 2, "runes": 0,
+                        "sim_deck": ["A"]})"), "\"sim_deck\" isn't the pile's size");
 }
