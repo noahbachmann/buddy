@@ -511,6 +511,37 @@ weighs on the choice (Dev, 2026-11-01): play strength only, feeds are the table'
   decisions in ISMCTS-vs-ISMCTS games all legal. 5.4's checks green on the Pi (`deploy/test.sh --pi --riftbound`:
   611 tests).
 
+### 5.5 design (2026-11-04, #45)
+
+Sub-issues, in order: #40 protocol, pile model, tracker; #41 sim backend and faults; #42 engine moves → table
+commands; #43 soak and defaults (the gate); #44 service, deploy, docs. Code in `services/table/` (`table_core`,
+`buddy-table`), the protocol in `shared/table_protocol.*`, the engine side in `services/game/table_moves.*`
+(`game_core`).
+
+**Facts from the engine:** the hand list is the pile model (`draw` takes `deck.back()` = top and appends = top of
+H, a card leaving keeps the others' order, a returned card is appended). Decklists name cards, not printings: the
+code is known only after a scan, so the table works in codes and game maps code → card. Buddy's cards also leave
+hidden piles through Burn, Vision, channel, mulligan, Burn Out, recycle from the trash, return to hand, discard costs
+and tokens.
+
+| Topic | Decision |
+|---|---|
+| Ownership | table owns every physical card of Buddy's (piles, board spots, exhausted or not); game owns the rules and which object is which card. Dev's cards are never tracked. Battlefield cards don't move: not tracked. |
+| Ids | The table numbers each card it deals or sets up (`id`) and reports `{id, code}`. A card going back into a deck loses its id (a later deal gives a new one). Same-code copies in the hand are interchangeable: a play takes the nearest copy and keeps the asked id (the ids swap in the belief). |
+| Zones | Piles (hidden, ordered bottom → top): `deck`, `runes`, two hand trays (H and B, the names swap after every merge) and the scan **spot** (deals and takes land there, a placing arm moves its bottom card on). Spots (face up, cards by id): `base`, `bf0`/`bf1`, `fd0`/`fd1` (facedown), `chain`, `trash`, `banish`, `champion`, `legend`. Places a card can go: those spots, `hand` (top of H), `deck_top`, `deck_bottom`, `runes_bottom`. |
+| Backend | `scan(pile)` → code / unreadable / empty (bottom card), `feed(H → B)`, `take(H → spot)`, `deal(deck\|runes → spot)`, `stack(H onto B)`, `place(spot → place)`, `put(id → place)`, `turn(id, exhausted)`, `shuffle_trash_into_deck`, `token`, `remove`. Only scans, feeds, takes and deals fail; placing a held card and moving a card on a spot don't (sim). |
+| Reads | `confirm_reads` agreeing reads of the same pile give a code (an unreadable read doesn't count, a different code starts over; a bounded number of tries, then `unreadable`). Deals and plays read this way. |
+| Post-check | After placing the spot's card, scan the spot: it must be empty. A card left there came along by a double deal (→ back on the deck top) or a double take (→ top of B, which is exactly its place in the merged hand). Scanning the spot instead of the next hand card (the issue's first idea) also catches a double take of two same-code cards. |
+| Play X | nearest copy of X at index k: k × `feed(H → B)`, confirm X at the bottom of H, `take`, `place`, post-check, `stack(H onto B)`. Mismatch → recover, retry once, else `failed not_in_hand`. |
+| Recover | Full scan passes H → B (each card read, then fed). A pass is accepted if it matches the believed multiset (adopts the order: a disturbed pile), else passes until two agree (max `max_passes` → `failed hardware`). The believed ids follow the scanned codes: same multiset → by code in order; otherwise an edit-distance alignment keeps ids where codes match, pairs the rest as `replaced` (a misread at draw), leftovers are `extra` (new id) or `missing`. `hand_corrected {hand, replaced, extra, missing}`; game decides (extra → back on the deck top). |
+| Sim faults | Seeded, per op: misread (a wrong code from the sim's codes), unreadable, double feed, missed feed, double take, double deal; per command: pile disturbed (two hand cards swap). |
+| Unrecovered | A wrong card played, `failed hardware`, or belief ≠ truth after a recovery or at game end (after a final `rescan_hand`). |
+| Engine → commands | The diff of two states can't order a Burn Out between two draws or tell which recycled card went down first, so the engine reports its physical moves: a thread-local move log in `move_to`/`create`, installed only around the referee's `new_game`/`apply` (search never logs). `physical_moves(before, after, log, seat)` turns one action's log into table commands: hops through the chain or "set aside" collapse (hand → chain → base = one play), consecutive deck → same place = one `deal`, deck → deck bottom = `peek` + `peek_done`, exhaust changes from the before/after diff. 5.6 uses it as is. |
+| Workload | `buddy-game --table-workload --games N --seed S [greedy\|random]` → JSON lines: per game a `setup` (Buddy's seat, deck and rune order as home-printing codes with the engine objects), then commands with engine object ids (`deal` lists the objects it deals). `buddy-table --soak -` stands in for game. |
+
+Open for 5.6: whether game sends a play before or after `apply` and what happens on `failed`; the engine taking drawn
+codes in place of its own deck order; Vision `peek`s before the choice. Hardware details wait for 5.7+.
+
 ## Hardware notes for Phase 4 (decide there, not now)
 
 - **Scanning:** the code is ~1.5 mm text. The head camera (4.2) won't read that at table distance, so it needs a fixed
