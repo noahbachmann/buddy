@@ -113,14 +113,13 @@ TEST(TableTracker, ReturnsGoOnTopAndKeepTheOrder) {
     EXPECT_EQ(f.hand(), (std::vector<std::string>{"A", "C", "D"}));
 }
 
-TEST(TableTracker, SameCodeCopiesPlayTheNearestOne) {
+TEST(TableTracker, SameCodeCopiesPlayExactlyTheAskedOne) {
     Fixture f(setup_of({"X", "B", "X", "A"}));
     const auto cards = f.draw(4);  // A X B X
     const long feeds = f.counts().feeds;
-    EXPECT_EQ(f.play(cards[3].id).id, cards[3].id);  // the asked id leaves, the copy at index 1 goes physically
-    EXPECT_EQ(f.counts().feeds - feeds, 1);
-    EXPECT_EQ(f.hand(), (std::vector<std::string>{"A", "B", "X"}));
-    EXPECT_EQ(f.table.tracker().belief().hand[2].id, cards[1].id);  // the other copy keeps the other id
+    EXPECT_EQ(f.play(cards[3].id).id, cards[3].id);  // the far copy: game asks for the near one when it can
+    EXPECT_EQ(f.counts().feeds - feeds, 3);
+    EXPECT_EQ(f.table.tracker().belief().hand[1].id, cards[1].id);
 }
 
 TEST(TableTracker, RunesBoardMovesAndExhaust) {
@@ -198,3 +197,4 @@ TEST(TableTracker, StateShowsTheBelief) {
     EXPECT_EQ(s["spots"]["legend"][0]["code"], "LEG");
     EXPECT_TRUE(s["held"].is_null());
 }
+

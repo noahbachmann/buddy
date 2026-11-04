@@ -2,6 +2,7 @@
 # and the sim backend; no MQTT, linked by the service, its tests and game's table-move tests.
 add_library(table_core STATIC
     sim.cpp
+    soak.cpp
     table.cpp
     tracker.cpp
 )

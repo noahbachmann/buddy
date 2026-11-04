@@ -80,8 +80,7 @@ private:
     void merge();                 // stack H onto B, B becomes H
     bool recover();               // full scan passes; false: the hand was as believed
     std::optional<std::vector<std::string>> pass();  // every card H → spot → B, read; nullopt: one unreadable
-    // Hand index and code of `id`, the nearest same-code copy taking its id. Not in the hand: Invalid, or NotInHand
-    // after a recovery.
+    // Hand index and code of `id`. Not in the hand: Invalid, or NotInHand after a recovery.
     std::pair<std::size_t, std::string> locate(int id, bool recovered);
     bool search(std::size_t j, int id, const std::string& code, Place to);  // play `id` reading every card
     void adopt(const std::vector<std::string>& codes);

@@ -192,6 +192,8 @@ PlayerId list_player(const Object& o) { return on_board(o.zone) ? o.controller :
 void move_to(GameState& s, ObjId id, Zone zone, PlayerId controller, std::uint8_t where, Pos pos) {
     Object& o = s.obj(id);
     const bool was_on_board = on_board(o.zone);
+    const Zone from_zone = o.zone;
+    const std::uint8_t from_where = o.where;
     if (auto* from = zone_list(s, o.zone, list_player(o), o.where)) {
         const auto it = std::find(from->begin(), from->end(), id);
         if (it == from->end()) throw std::logic_error("move_to: object not in its zone list");
@@ -223,6 +225,7 @@ void move_to(GameState& s, ObjId id, Zone zone, PlayerId controller, std::uint8_
         if (pos == Pos::Top) to->push_back(id);
         else to->insert(to->begin(), id);
     }
+    if (move_log) [[unlikely]] move_log->push_back({id, from_zone, zone, from_where, where, pos, false});
     if (!was_on_board) return;
     for (ObjId g = 0; g < s.objects.size(); ++g) {  // 719.3.a, 719.5
         Object& gear = s.obj(g);
@@ -247,6 +250,7 @@ ObjId create(GameState& s, const Card* card, PlayerId owner, Zone zone, std::uin
     o.where = where;
     o.known = is_public(zone) || card->type == CardType::Battlefield ? everyone : 0;  // 487.5's unused ones: no secret
     if (active_zone(zone)) s.active.push_back(id);  // the highest id yet
+    if (move_log) [[unlikely]] move_log->push_back({id, Zone::Removed, zone, 0, where, Pos::Top, true});
     if (card->type == CardType::Battlefield) return id;  // its place is Battlefield::card (or Removed), no list
     if (auto* list = zone_list(s, zone, owner, where)) list->push_back(id);
     return id;

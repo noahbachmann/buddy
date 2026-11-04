@@ -18,6 +18,10 @@
 //                                           Wilson interval, decision times, iterations, branching; a failing game
 //                                           writes its replay. --iterations/--budget-ms/--threads/--tune set ismcts
 //                                           (tune keys: c, playout, scale and eval's Weights by name)
+//   buddy-game --table-workload [greedy|random] [--games N] [--seed S] [--jobs J] [--deck A --deck B]
+//                                           Buddy's physical card moves for the table soak (5.5) as JSON lines on
+//                                           stdout: game i = seed S+i, Buddy in seat i % 2, decks swapped every
+//                                           other pair; `| buddy-table --soak -`
 //
 // Config (env, see deploy/config/buddy.env.example): BUDDY_GAME_CARDS, BUDDY_GAME_DECKS
 #include <algorithm>
@@ -27,9 +31,12 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <atomic>
 #include <thread>
 #include <string>
 #include <vector>
+
+#include <nlohmann/json.hpp>
 
 #include "buddy/config.hpp"
 #include "riftbound/ai/arena.hpp"
@@ -40,6 +47,7 @@
 #include "riftbound/engine.hpp"
 #include "riftbound/random_game.hpp"
 #include "riftbound/replay.hpp"
+#include "table_moves.hpp"
 
 namespace {
 
@@ -380,12 +388,52 @@ int match(const CardDb& db, const std::vector<fs::path>& paths, const std::array
     return failed == 0 ? 0 : 1;
 }
 
+int table_workload(const CardDb& db, const std::vector<fs::path>& paths, int games, std::uint64_t seed, int jobs,
+                   bool greedy) {
+    if (paths.size() < 2) throw std::runtime_error("--table-workload needs two decks");
+    const Deck a = load_deck(db, paths[0]), b = load_deck(db, paths[1]);
+    std::cerr << std::format("table workload: {} games, {} players, seeds {}–{}\n", games, greedy ? "greedy" : "random",
+                             seed, seed + games - 1);
+    int failed = 0;
+    const int batch = jobs * 16;  // games in flight; printed in order
+    for (int first = 0; first < games; first += batch) {
+        const int n = std::min(batch, games - first);
+        std::vector<game::WorkloadGame> out(static_cast<std::size_t>(n));
+        std::atomic<int> next{0};
+        const auto work = [&] {
+            for (int i = next++; i < n; i = next++) {
+                const int g = first + i;
+                const bool swapped = (g / 2) % 2 == 1;
+                out[static_cast<std::size_t>(i)] = game::workload_game(swapped ? b : a, swapped ? a : b,
+                                                                       static_cast<PlayerId>(g % 2), seed + g, greedy);
+            }
+        };
+        std::vector<std::thread> threads;
+        for (int j = 0; j < std::min(jobs, n); ++j) threads.emplace_back(work);
+        for (auto& t : threads) t.join();
+        for (int i = 0; i < n; ++i) {
+            const auto& w = out[static_cast<std::size_t>(i)];
+            if (!w.problem.empty()) {
+                std::cerr << std::format("✗ game {} (seed {}): {}\n", first + i, seed + first + i, w.problem);
+                ++failed;
+                continue;
+            }
+            for (const auto& line : w.lines) std::cout << line.dump() << '\n';
+        }
+        std::cerr << std::format("  {} / {} games\r", first + n, games) << std::flush;
+    }
+    std::cout << std::flush;
+    std::cerr << std::format("\n{} failed\n", failed);
+    return failed == 0 ? 0 : 1;
+}
+
 int usage(const char* argv0) {
     std::cerr << "usage: " << argv0 << " --deck <name|file> --check | --check | --code <code>… |\n"
               << "       --random [--rules] [--games N] [--seed S] [--deck A --deck B] | --replay <file> |\n"
               << "       --match <a> <b> [--games N] [--seed S] [--jobs J] [--deck A --deck B]\n"
               << "               [--iterations N | --budget-ms M] [--threads T] [--tune key=value,…]\n"
               << "               (players: random, greedy, ismcts)\n"
+              << "       --table-workload [greedy|random] [--games N] [--seed S] [--jobs J] [--deck A --deck B]\n"
               << "(the game service itself comes in step 5.6)\n";
     return 2;
 }
@@ -395,7 +443,7 @@ int usage(const char* argv0) {
 int main(int argc, char** argv) {
     const std::vector<std::string> args(argv + 1, argv + argc);
     std::vector<std::string> deck_args;
-    bool check = false, random = false, rules = false;
+    bool check = false, random = false, rules = false, workload = false, greedy = true;
     std::string replay;
     std::array<std::string, 2> players;
     bool games_given = false;
@@ -409,6 +457,10 @@ int main(int argc, char** argv) {
             else if (args[i] == "--check") check = true;
             else if (args[i] == "--random") random = true;
             else if (args[i] == "--rules") rules = true;
+            else if (args[i] == "--table-workload") {
+                workload = true;
+                if (value && (args[i + 1] == "greedy" || args[i + 1] == "random")) greedy = args[++i] == "greedy";
+            }
             else if (args[i] == "--replay" && value) replay = args[++i];
             else if (args[i] == "--match" && i + 2 < args.size()) {
                 players = {args[i + 1], args[i + 2]};
@@ -431,7 +483,7 @@ int main(int argc, char** argv) {
         return usage(argv[0]);
     }
     const bool matching = !players[0].empty();
-    if ((code_index != 0) + check + random + !replay.empty() + matching != 1 || games < 1 || jobs < 1 ||
+    if ((code_index != 0) + check + random + !replay.empty() + matching + workload != 1 || games < 1 || jobs < 1 ||
         ismcts.iterations < 1 || ismcts.threads < 1 ||
         (rules && !random)) {
         return usage(argv[0]);
@@ -443,7 +495,7 @@ int main(int argc, char** argv) {
         const fs::path decks = env_string("BUDDY_GAME_DECKS", home + "/buddy/share/game/decks");
 
         const CardDb db = CardDb::load(cards);
-        std::cout << std::format("{}: {} cards, {} printings, fetched {}\n", cards.string(), db.cards().size(),
+        (workload ? std::cerr : std::cout) << std::format("{}: {} cards, {} printings, fetched {}\n", cards.string(), db.cards().size(),
                                  db.printing_count(), db.fetched());
         for (const auto& w : db.warnings()) std::cerr << "  ⚠ " << w << "\n";
         if (code_index != 0) return codes(db, argc, argv, code_index);
@@ -453,6 +505,7 @@ int main(int argc, char** argv) {
         for (const auto& d : deck_args) paths.push_back(deck_path(d, decks));
         if (paths.empty()) paths = all_decks(decks);
         if (random) return random_games(db, paths, games, seed, !rules);
+        if (workload) return table_workload(db, paths, games, seed, jobs, greedy);
         if (matching) return match(db, paths, players, games_given ? games : 200, seed, jobs, ismcts);
 
         bool ok = true;

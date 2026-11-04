@@ -168,13 +168,9 @@ std::pair<std::size_t, std::string> Tracker::locate(int id, bool recovered) {
         find_spot(id);  // Invalid if the table knows the card elsewhere or not at all
         throw Failure(FailReason::Invalid, "card " + std::to_string(id) + " is not in the hand");
     }
-    const std::string code = it->code;
-    // the nearest copy goes: same code, fewer feeds; it takes the asked id
-    const auto k = static_cast<std::size_t>(it - hand.begin());
-    const auto j = static_cast<std::size_t>(
-        std::find_if(hand.begin(), hand.end(), [&](const Known& c) { return c.code == code; }) - hand.begin());
-    std::swap(hand[j].id, hand[k].id);
-    return {j, code};
+    // exactly this copy: game picks the nearest one of same-code copies (game_core nearest_copy), so the engine's
+    // hand order stays the pile's
+    return {static_cast<std::size_t>(it - hand.begin()), it->code};
 }
 
 CardRef Tracker::play(int id, Place to) {
@@ -205,13 +201,16 @@ CardRef Tracker::play(int id, Place to) {
 
 bool Tracker::search(std::size_t j, int id, const std::string& code, Place to) {
     bool found = false;
+    // exactly the asked copy: same-code copies below it stay
+    auto skip = std::count_if(belief_.hand.begin(), belief_.hand.begin() + static_cast<std::ptrdiff_t>(j),
+                              [&](const Known& k) { return k.code == code; });
     for (int i = 0; i < max_hand && !found; ++i) {
         backend_.take(h_);
         ++counts_.takes;
         int on_spot = 0;
         for (Scan s = read(Pile::Spot); s.kind != Scan::Kind::Empty; s = read(Pile::Spot)) {
             if (++on_spot > max_extras) throw Failure(FailReason::Hardware, "the scan spot doesn't empty");
-            if (!found && s.kind == Scan::Kind::Code && s.code == code) {
+            if (!found && s.kind == Scan::Kind::Code && s.code == code && skip-- == 0) {
                 found = true;
                 belief_.hand.erase(belief_.hand.begin() + static_cast<std::ptrdiff_t>(j));
                 place_held(to, {id, code, false});

@@ -474,6 +474,19 @@ bool lethal_damage(const GameState& s, ObjId id);
 std::vector<ObjId>* zone_list(GameState& s, Zone zone, PlayerId player, std::uint8_t where = 0);
 
 enum class Pos { Top, Bottom };
+
+// Physical moves for the table (5.5, game_core's table_moves): while this thread has a log installed, move_to and
+// create append to it, in the order the cards move. Only the referee installs one, around new_game and apply; search
+// copies never log. Off, it costs one thread-local load per move.
+struct LoggedMove {
+    ObjId id = no_obj;
+    Zone from = Zone::Removed, to = Zone::Removed;
+    std::uint8_t from_where = 0, to_where = 0;
+    Pos pos = Pos::Top;
+    bool created = false;
+    bool operator==(const LoggedMove&) const = default;
+};
+inline thread_local std::vector<LoggedMove>* move_log = nullptr;
 // Moves a card. Into or out of a non-board zone it becomes a new object (124): gen + 1, damage, buffs, statuses and
 // designation cleared, controller back to the owner. No events, no replacements: game actions (actions.hpp) do that.
 // Attached gear goes along on the board (719.3.a) and detaches where it is when its top-most card leaves the board
