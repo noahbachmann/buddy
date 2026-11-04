@@ -104,14 +104,14 @@ believes in (a misread at draw), table reports the corrected hand; game fixes it
 
 | Topic | Direction | Notes |
 |---|---|---|
-| `buddy/game/cmd` | → game | `new` (decks, seed), `action` (Dev's move), `concede` |
-| `buddy/game/state` | game → | retained **public** view: board, scores, Dev's legal actions. Never Buddy's hand. |
+| `buddy/game/cmd` | → game | `new {buddy: zed\|vi, seed?, dev: human\|greedy\|random}`, `act {v, i}` (one of Dev's options), `reveal {v, cards}` (Dev's answer to a prompt), `resume`, `concede` (5.6 design) |
+| `buddy/game/state` | game → | retained, built from `public_view` only (cards everyone knows): board, scores, Buddy's status, Dev's options or prompt, log, card catalogue. Never Buddy's hand. |
 | `buddy/table/cmd` | game → table | `setup`, `deal`, `peek`/`peek_done`, `play {id, to}`, `move`, `exhaust`, `token`, `remove`, `rescan_hand`, … with a `seq` (5.5 design). `"web": false`: it moves the arm later (D19). |
 | `buddy/table/event` | table → game | `done {seq, cards}`, `failed {seq, reason}`, `hand_corrected {hand, replaced, extra, missing}` |
 | `buddy/table/debug` | table → | retained belief (debug; not `/state`: web would stream Buddy's hand to the browser) |
 
 **Dev's moves** come from a Riftbound page on the web panel: the board, Dev's legal actions as buttons, and pass/respond
-prompts during showdowns and the chain. The same page works for real games (Dev taps what they played). Voice for common
+prompts during showdowns and the chain. Dev plays real cards (5.6 design): the page asks for a card when it turns public. Voice for common
 moves ("pass", "I attack the left battlefield") comes after that.
 
 ## Steps
@@ -123,7 +123,7 @@ moves ("pass", "I attack the left battlefield") comes after that.
 | 5.3 Cards of both decks | Every card in both decklists, one test each. Dev reviews odd rulings. | both decks load, per-card tests green |
 | 5.4 AI player | v1 heuristic, then v2 ISMCTS | v1 beats random ≥ 180 / 200; v2 beats v1 ≥ 115 / 200 (95 % Wilson lower bound > 50 %) at a fixed iteration budget; decision time on the Pi p95 ≤ budget + 10 % |
 | 5.5 `table` service + sim ✅ | piles, primitive ops, hand tracker, verify/recover, fault injection. Property tests: random op sequences with faults always end in the correct state. | 10k games' worth of pile ops with faults: zero unrecovered states; scans per play reported (done 2026-11-04, #45: "5.5 as built") |
-| 5.6 `game` service + panel page | MQTT wiring, Riftbound page, voice lines via `buddy/voice/say`, `buddy-game --sim` | the phase's "Done when" above |
+| 5.6 `game` service + panel page | session (table acts before the state commits, scanned cards bound into the engine), Dev's real cards, MQTT, Riftbound page, voice lines via `buddy/voice/say`, `buddy-game --sim` (#46) | the phase's "Done when" above, with Dev's real cards; before it the session soak: 1000 games under stress, 0 unrecovered, 0 desyncs, 0 leaks |
 | 5.7+ Hardware | card scanner, hand tray mechanism, card placement, reading Dev's cards | separate plan after Phase 4 |
 
 ### 5.1 as built (2026-10-31, #19)
@@ -598,6 +598,35 @@ gives the VM's numbers exactly (same games, same faults) in 2.5 min. `deploy/tes
 Open for 5.6 (unchanged from the design): whether game sends a play before or after `apply` and what happens on
 `failed`; the engine taking drawn codes in place of its own deck order (a misread public card is then the engine's
 problem too); Vision `peek`s before the choice (the workload only peeks when the card goes to the bottom).
+
+### 5.6 design (2026-11-04, #46)
+
+Sub-issues, in order: #47 engine: binding hidden cards, public view, replay lines; #48 session: step protocol and
+Buddy's side; #49 Dev's real cards; #50 public state, commands, voice lines; #51 session soak and terminal play (the
+gate); #52 service and deploy; #53 panel page, live game, docs. Code in `services/game/` (`session.*` and the rest in
+`game_core`, `buddy-game --sim`, `buddy@game`), the page in `services/web/www/`.
+
+**Dev plays real cards (Dev, 2026-11-04).** The referee doesn't know Dev's hand or deck order: Dev enters a card when
+it turns public (played, discarded, burned, channelled, the battlefield at setup). Buddy's draws are the same problem:
+the table reads codes, and the deck is shuffled by the sim (later by hand), not by the engine.
+
+| Topic | Decision |
+|---|---|
+| Binding | `bind(s, obj, card)` swaps `Object::card` with an object of the same owner holding that card, from a pool of cards Buddy doesn't know (Buddy: deck and rune deck; Dev: hand, deck, rune deck). Zones, `gen`, `known` unchanged, so views and determinizations stay valid. A misread hand card is rebound the same way; a disturbed pile gets `set_hand_order`. Replays get `bind`/`order` lines: seed + actions + binds reproduce a service game. |
+| Oracles | One per seat answers reveals: Buddy's = the table (`deal`/`peek` codes → cards), Dev's = a prompt on the panel ("which card did you burn?", "which runes did you channel?", "your battlefield?"). Tests and bot games: `SimDev`, a true shuffled deck that answers truthfully. |
+| Step protocol | Answers 5.5's first open point. `next = s; apply(next, a)` under the move log, `TableMoves::step` gives the commands. Commands and prompts run one at a time in log order; each revealed identity is bound on `s` and `next` re-applied. Whatever already ran must be a prefix of the new list, else a **desync** (pause, replay written; the soak counts them, expected 0: no deck card branches on a drawn or burned card's identity within the step). After the last `done`, `s = next`. The table always acts before the state commits. |
+| Vision | Peek as soon as the engine shows Buddy the top card (Vision's `predict` opens the decision): bound before the AI chooses, `peek_done` follows the answer. `TableMoves` changes for it (#47). |
+| Failures | `not_in_hand` on Buddy's play (the step's first command): `hand_corrected` into `s`, extras back on the deck top, the AI decides again. `unreadable`: retry once, then pause. `hardware`, `missing`, a table restart: pause and say so; `resume` (after a `rescan_hand`) or `concede`. `replaced` → rebind + "I misread a card". |
+| Dev's options | Dev's hidden objects hold placeholder cards, never shown or trusted. Plays: the non-hand actions plus one "play C" per card C that could be in Dev's hand (decklist minus the copies known elsewhere), each checked on a copy with a hand object bound to C; choosing C binds it for real. Choices that reveal a hand card (discard costs) go by card, the others (mulligan) by count. An impossible entry is refused. |
+| Public state | `buddy/game/state` comes only from `public_view(s)` (cards known to everyone): free of Buddy's hand and of Dev's placeholders by construction. Leak test: the JSON is the same after re-determinizing Buddy's hidden cards or Dev's placeholders. The card catalogue goes in once; web's JSON patches carry only changes afterwards. |
+| AI in the service | ISMCTS 2 s, 3 threads (5.4) on a worker thread; forced moves unasked; `nearest_copy` on Buddy's choice. |
+| Voice | Game start, Buddy's plays/moves/attacks (one line per action group, never per pass), scoring, corrections, pauses, the result. |
+| Gate | `buddy-game --sim --games 1000 --faults stress` (`SimDev` greedy vs Buddy greedy, both decks from both seats): 0 unrecovered, 0 desyncs, 0 leaks; 50 games vs ISMCTS (1000 iterations). Also reports Dev's prompts and taps per game: what real cards cost Dev ⚠️. |
+
+Later, not 5.6: voice input ("pass", "let's play Riftbound": STT doesn't know these words yet, next voice session),
+thinking during Dev's turn, a game that survives a *table* restart (the sim's piles are in memory; a *game* restart
+resumes from the replay). **D19:** `buddy/game/cmd` is on the web without a login; fine while the table is a sim,
+a login comes before the table drives motion (5.7).
 
 ## Hardware notes for Phase 4 (decide there, not now)
 
