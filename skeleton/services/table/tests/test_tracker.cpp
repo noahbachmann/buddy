@@ -97,7 +97,7 @@ TEST(TableTracker, PlayCostsExactlyItsIndexInFeeds) {
     EXPECT_EQ(f.counts().feeds - feeds, 3);
     EXPECT_EQ(f.hand(), (std::vector<std::string>{"B", "C", "E"}));
     EXPECT_EQ(f.counts().recoveries, 0);
-    EXPECT_EQ(f.counts().scans, 6 * 3 + 3 * 3);  // per deal and play: 2 confirming reads + the post-check
+    EXPECT_EQ(f.counts().scans, 6 * 4 + 3 * 4);  // per deal and play: 3 confirming reads + the post-check
 }
 
 TEST(TableTracker, ReturnsGoOnTopAndKeepTheOrder) {

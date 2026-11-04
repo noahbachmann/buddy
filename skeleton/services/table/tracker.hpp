@@ -16,7 +16,9 @@
 namespace buddy::table {
 
 struct TrackerConfig {
-    int confirm_reads = 2;  // reads of one code that make it the card's (unreadable ones don't count)
+    // Reads of one code that make it the card's (unreadable ones don't count). Soak (#43): 2 leaves misreads that
+    // agree, on cards nobody scans again (runes, burns) or that match another hand card.
+    int confirm_reads = 3;
     bool post_check = true; // scan the spot after placing: catches double deals and double takes
     int max_reads = 10;     // reads of one card before it counts as unreadable
     int max_passes = 6;     // recovery scan passes before `failed hardware`

@@ -270,3 +270,30 @@ TEST(RiftboundTableMoves, BurnOut) {
     }
     EXPECT_EQ(r.problem, "");
 }
+
+// 5.5's gate in small (#43): 200 random-player games' workload against the sim under the stress rates and the
+// defaults, nothing unrecovered. The full gate (10 000 greedy games) runs from the command line: plan → "5.5 as built".
+TEST(RiftboundTableMoves, SoakUnderStress) {
+    const Deck vi = deck("vi-unleashed"), zed = deck("zed-vendetta");
+    std::stringstream lines;
+    for (int i = 0; i < 200; ++i) {
+        const bool swapped = (i / 2) % 2 == 1;
+        const auto w = game::workload_game(swapped ? zed : vi, swapped ? vi : zed, static_cast<PlayerId>(i % 2),
+                                           static_cast<std::uint64_t>(i), false);
+        ASSERT_EQ(w.problem, "") << "game " << i;
+        for (const auto& l : w.lines) lines << l.dump() << '\n';
+    }
+    table::SoakOptions o;
+    o.faults = table::parse_faults("stress");
+    std::stringstream log;
+    const table::SoakReport r = table::soak(lines, o, &log);
+    EXPECT_EQ(r.games, 200);
+    EXPECT_EQ(r.unrecovered, 0) << log.str();
+    long faults = 0, corrections = 0;
+    for (const auto& g : r.per_game) {
+        faults += g.faults.total();
+        corrections += g.corrections;
+    }
+    EXPECT_GT(faults, 1000);      // the faults happened
+    EXPECT_GT(corrections, 20);   // and some needed a correction
+}

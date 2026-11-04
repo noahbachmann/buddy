@@ -156,7 +156,7 @@ Outcome run_sequence(SimFaults faults, std::uint64_t seed, TrackerConfig cfg, in
     return out;
 }
 
-void expect_holds(const std::string& name, SimFaults faults, int seeds, TrackerConfig cfg = {.confirm_reads = 3}) {
+void expect_holds(const std::string& name, SimFaults faults, int seeds, TrackerConfig cfg = {}) {
     Outcome total;
     for (int s = 0; s < seeds; ++s) {
         const Outcome o = run_sequence(faults, static_cast<std::uint64_t>(s), cfg);

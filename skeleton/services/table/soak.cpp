@@ -117,7 +117,7 @@ void StandIn::apply(const json& line) {
             if (c.kind == CommandKind::Play) {
                 ++stats_.plays;
                 const OpCounts& now = table_->tracker().counts();
-                stats_.feeds.push_back(static_cast<int>(now.feeds - before.feeds + now.takes - before.takes));
+                stats_.feeds.push_back(static_cast<int>(now.feeds - before.feeds));
                 stats_.scans.push_back(static_cast<int>(now.scans - before.scans));
                 const auto& placed = sim_->placed();
                 const std::string& want = code_[objs[0]];
@@ -216,7 +216,7 @@ void print_report(const SoakReport& r, const SoakOptions& o, std::ostream& out) 
     out << "unrecovered: " << r.unrecovered << "\n";
     out << "commands " << sum.commands << " (" << per_game(sum.commands) << " per game), plays " << sum.plays << " ("
         << per_game(sum.plays) << " per game)\n";
-    out << "per play: feeds+takes p50 " << percentile(feeds, 50) << " p95 " << percentile(feeds, 95) << " max "
+    out << "per play: feeds p50 " << percentile(feeds, 50) << " p95 " << percentile(feeds, 95) << " max "
         << percentile(feeds, 100) << "; scans p50 " << percentile(scans, 50) << " p95 " << percentile(scans, 95)
         << " max " << percentile(scans, 100) << "\n";
     out << "per game: scans " << per_game(sum.ops.scans) << ", feeds " << per_game(sum.ops.feeds) << ", takes "

@@ -542,6 +542,52 @@ and tokens.
 Open for 5.6: whether game sends a play before or after `apply` and what happens on `failed`; the engine taking drawn
 codes in place of its own deck order; Vision `peek`s before the choice. Hardware details wait for 5.7+.
 
+### 5.5 as built (2026-11-04, #40–#44)
+
+Code: `shared/table_protocol.*`, `services/table/` (`table_core`: `tracker`, `table`, `sim`, `soak`; `buddy-table`),
+`services/game/table_moves.*` (`game_core`). How it runs: `services/table/CLAUDE.md`.
+
+What the tests changed against the design above:
+
+- **Reads vote.** A code needs `confirm_reads` reads of it, not in a row: a misread between two good reads doesn't
+  start over. A dealt card that stays unreadable goes back on top (`failed unreadable`), not left on the spot.
+- **Recovery passes go through the spot**, not blind feeds: take, read, place on B, and read whatever a double take
+  brought along. Blind feeds skip a card on a double feed, and two passes then agreed on a hand with a card missing.
+- **After a mismatch** the play is retried by searching card by card on the spot (every card read), not by blind
+  feeds again: under 5 % double feeds, two fast attempts in a row failed often in big hands.
+- **Same-code copies:** the table plays exactly the id it's asked for; game picks the copy nearest the bottom
+  (`nearest_copy`, the AI keys hand cards by card anyway). With the table choosing, the engine removed the other copy
+  and its hand order stopped being the pile's.
+- **A double feed onto a same-code copy** further up plays that copy: same codes, the order drifts by one; the next
+  recovery (at the latest the final rescan) adopts it. Accepted: no extra scan per play for it.
+- **Engine → table** reports moves through a thread-local log (`riftbound::move_log`), see the table above; the
+  `--random --rules` digest over seeds 0–999 is unchanged (`42705b80131137f7`).
+
+**Soak (#43):** `buddy-game --table-workload --games 10000 --seed 0` (greedy players, both decks from both seats,
+824k commands, 66 s on the VM in Release) `| buddy-table --soak -`. 13.3 plays and 32.9 deals per game.
+
+| Run | Unrecovered | Feeds per play p50 / p95 / max | Scans per play p50 / p95 / max | Scans per game |
+|---|---|---|---|---|
+| no faults | 0 | 1 / 4 / 7 | 4 / 4 / 4 | 191 |
+| stress, `confirm_reads` 1 | 3239 | 1 / 4 / 10 | 2 / 18 / 105 | 123 |
+| stress, `confirm_reads` 2 | 11 | 1 / 4 / 7 | 3 / 22 / 58 | 174 |
+| **stress, `confirm_reads` 3 (default)** | **0** | 1 / 4 / 7 | 4 / 30 / 64 | 233 |
+| stress, 2, post-check off | 20 934 | 1 / 4 / 8 | 2 / 24 / 117 | 134 |
+| stress, 3, post-check off | 21 124 | 1 / 4 / 8 | 3 / 33 / 132 | 196 |
+
+Stress rates ⚠️ (guesses until 5.7 measures a scanner): misread 2 %, unreadable 5 %, double/missed feed 2 %,
+double take 1 %, double deal 1 % per op, disturbed 1 % per command. At `confirm_reads` 3 under stress: 2.1
+recoveries per game (max 7, the final rescan included), 4825 corrections in 10k games (all order fixes after a
+disturbed pile), no `failed`. Sim seeds 1–3: 0 unrecovered as well.
+
+- `confirm_reads` 2's 11: misreads that agreed twice on cards nobody scans again (a rune into the base, a burned
+  card into the trash: "base/trash differs" at game end) or on a drawn card whose wrong code matched another hand
+  card (that one got played). 1 adds every single misread. **Default 3**: a third of the scans more for none left.
+- Post-check off: a double take or deal leaves a card on the spot, the next deal or take reads that one instead.
+  **Default on**: it costs one scan per deal and play.
+- ctest (label `riftbound`): `RiftboundTableMoves.SoakUnderStress`, 200 random-player games under the stress rates
+  (16 s under ASan).
+
 ## Hardware notes for Phase 4 (decide there, not now)
 
 - **Scanning:** the code is ~1.5 mm text. The head camera (4.2) won't read that at table distance, so it needs a fixed
