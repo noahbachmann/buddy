@@ -179,7 +179,7 @@ void Sim::place(Pile to, End end) {
     if (spot.empty()) throw std::logic_error("place: the scan spot is empty");
     Phys card = spot.front();
     spot.erase(spot.begin());
-    placed_.push_back(card.code);
+    if (to != Pile::TrayA && to != Pile::TrayB) placed_.push_back(card.code);
     card.id = 0;
     card.exhausted = false;
     auto& dst = at(to);
@@ -267,7 +267,7 @@ void Sim::token(Place to, int id, const std::string& code) { at(to).push_back({+
 
 void Sim::remove(int id) { take_id(id); }
 
-std::string Sim::compare(const Belief& b, Pile hand) const {
+std::string Sim::compare(const Belief& b, Pile hand, bool hand_only) const {
     const Pile other = hand == Pile::TrayA ? Pile::TrayB : Pile::TrayA;
     std::vector<std::string> truth, believed;
     for (const Phys& c : pile(hand)) truth.push_back(c.code);
@@ -282,6 +282,7 @@ std::string Sim::compare(const Belief& b, Pile hand) const {
     const std::size_t held = b.held ? 1 : 0;
     if (pile(Pile::Spot).size() != held) return "scan spot holds " + std::to_string(pile(Pile::Spot).size());
     if (b.held && pile(Pile::Spot).front().code != b.held->code) return "peeked card misread";
+    if (hand_only) return {};
     if (static_cast<int>(pile(Pile::Deck).size()) != b.deck) {
         return "deck " + std::to_string(pile(Pile::Deck).size()) + ", believed " + std::to_string(b.deck);
     }

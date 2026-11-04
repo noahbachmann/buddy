@@ -1,6 +1,7 @@
 #pragma once
 // What the table believes about Buddy's cards, and the procedures that keep that belief true: deal with a confirmed
-// scan, play from the hand pile (feed, confirm, take, post-check, merge), recover by full scan passes. Design:
+// scan, play from the hand pile (feed, confirm, take, post-check, merge; after a mismatch: recover, then search card by
+// card on the spot), recover by full scan passes. Design:
 // docs/plans/05-riftbound.md → "5.5 design".
 
 #include <array>
@@ -15,9 +16,9 @@
 namespace buddy::table {
 
 struct TrackerConfig {
-    int confirm_reads = 2;  // agreeing reads that make a code
+    int confirm_reads = 2;  // reads of one code that make it the card's (unreadable ones don't count)
     bool post_check = true; // scan the spot after placing: catches double deals and double takes
-    int max_reads = 8;      // reads of one card before it counts as unreadable
+    int max_reads = 10;     // reads of one card before it counts as unreadable
     int max_passes = 6;     // recovery scan passes before `failed hardware`
 };
 
@@ -73,12 +74,16 @@ public:
 
 private:
     Scan scan(Pile p);
-    Scan read(Pile p);  // confirm_reads agreeing reads
+    Scan read(Pile p);  // until one code has confirm_reads votes
     void place_held(Place to, const Known& card);
     void return_extras(Pile to);  // post-check: cards left on the spot go onto `to`
     void merge();                 // stack H onto B, B becomes H
     bool recover();               // full scan passes; false: the hand was as believed
-    std::optional<std::vector<std::string>> pass();
+    std::optional<std::vector<std::string>> pass();  // every card H → spot → B, read; nullopt: one unreadable
+    // Hand index and code of `id`, the nearest same-code copy taking its id. Not in the hand: Invalid, or NotInHand
+    // after a recovery.
+    std::pair<std::size_t, std::string> locate(int id, bool recovered);
+    bool search(std::size_t j, int id, const std::string& code, Place to);  // play `id` reading every card
     void adopt(const std::vector<std::string>& codes);
     std::pair<Place, std::size_t> find_spot(int id) const;  // throws Invalid
 

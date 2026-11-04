@@ -76,11 +76,12 @@ public:
     // Truth.
     const std::vector<Phys>& pile(Pile p) const { return piles_[static_cast<std::size_t>(p)]; }
     const std::vector<Phys>& spot(Place p) const { return spots_[static_cast<std::size_t>(p)]; }
-    // Codes of the cards the spot gave away during the current command, in order: after a take, the first is the
-    // card that left the hand.
+    // Codes of the cards the spot gave away during the current command, in order, except onto the hand trays: in a
+    // play, the first is the card that left the hand.
     const std::vector<std::string>& placed() const { return placed_; }
     // "" if the belief is the truth: hand order by code, deck and rune counts, every spot's ids, codes and exhausted.
-    std::string compare(const Belief& b, Pile hand) const;
+    // hand_only: the hand piles and the scan spot alone (what a recovery fixes).
+    std::string compare(const Belief& b, Pile hand, bool hand_only = false) const;
     const FaultCounts& faults() const { return counts_; }
     SimFaults& rates() { return rates_; }
 

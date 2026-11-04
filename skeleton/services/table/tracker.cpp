@@ -36,15 +36,14 @@ Scan Tracker::scan(Pile p) {
 }
 
 Scan Tracker::read(Pile p) {
-    std::string last;
-    int streak = 0;
+    std::vector<std::pair<std::string, int>> votes;
     for (int i = 0; i < cfg_.max_reads; ++i) {
         Scan s = scan(p);
         if (s.kind == Scan::Kind::Empty) return s;
         if (s.kind == Scan::Kind::Unreadable) continue;
-        streak = s.code == last ? streak + 1 : 1;
-        last = s.code;
-        if (streak >= cfg_.confirm_reads) return s;
+        auto it = std::find_if(votes.begin(), votes.end(), [&](const auto& v) { return v.first == s.code; });
+        if (it == votes.end()) it = votes.insert(votes.end(), {s.code, 0});
+        if (++it->second >= cfg_.confirm_reads) return s;
     }
     return {Scan::Kind::Unreadable, {}};
 }
@@ -110,7 +109,11 @@ std::vector<CardRef> Tracker::deal(Source from, Place to, int n) {
         ++counts_.deals;
         const Scan s = read(Pile::Spot);
         if (s.kind == Scan::Kind::Empty) throw Failure(FailReason::Hardware, "nothing dealt");
-        if (s.kind == Scan::Kind::Unreadable) throw Failure(FailReason::Unreadable, "dealt card unreadable");
+        if (s.kind == Scan::Kind::Unreadable) {
+            backend_.place(pile, End::Top);
+            return_extras(pile);
+            throw Failure(FailReason::Unreadable, "dealt card unreadable, back on top");
+        }
         --count;
         const Known card{next_id_++, s.code, false};
         place_held(to, card);
@@ -127,7 +130,11 @@ CardRef Tracker::peek() {
     ++counts_.deals;
     const Scan s = read(Pile::Spot);
     if (s.kind == Scan::Kind::Empty) throw Failure(FailReason::Hardware, "nothing dealt");
-    if (s.kind == Scan::Kind::Unreadable) throw Failure(FailReason::Unreadable, "peeked card unreadable");
+    if (s.kind == Scan::Kind::Unreadable) {
+        backend_.place(Pile::Deck, End::Top);
+        return_extras(Pile::Deck);
+        throw Failure(FailReason::Unreadable, "peeked card unreadable, back on top");
+    }
     --belief_.deck;
     belief_.held = Known{next_id_++, s.code, false};
     return {belief_.held->id, belief_.held->code};
@@ -153,39 +160,69 @@ void Tracker::peek_done(Place to) {
     throw Failure(FailReason::Hardware, "the scan spot doesn't empty");
 }
 
+std::pair<std::size_t, std::string> Tracker::locate(int id, bool recovered) {
+    auto& hand = belief_.hand;
+    const auto it = std::find_if(hand.begin(), hand.end(), [&](const Known& k) { return k.id == id; });
+    if (it == hand.end()) {
+        if (recovered) throw Failure(FailReason::NotInHand, "card " + std::to_string(id) + " isn't in the hand");
+        find_spot(id);  // Invalid if the table knows the card elsewhere or not at all
+        throw Failure(FailReason::Invalid, "card " + std::to_string(id) + " is not in the hand");
+    }
+    const std::string code = it->code;
+    // the nearest copy goes: same code, fewer feeds; it takes the asked id
+    const auto k = static_cast<std::size_t>(it - hand.begin());
+    const auto j = static_cast<std::size_t>(
+        std::find_if(hand.begin(), hand.end(), [&](const Known& c) { return c.code == code; }) - hand.begin());
+    std::swap(hand[j].id, hand[k].id);
+    return {j, code};
+}
+
 CardRef Tracker::play(int id, Place to) {
     if (belief_.held) throw Failure(FailReason::Invalid, "a peeked card is still on the scan spot");
-    for (int attempt = 0;; ++attempt) {
-        auto& hand = belief_.hand;
-        const auto it = std::find_if(hand.begin(), hand.end(), [&](const Known& k) { return k.id == id; });
-        if (it == hand.end()) {
-            find_spot(id);  // Invalid if the table knows the card elsewhere or not at all
-            throw Failure(FailReason::Invalid, "card " + std::to_string(id) + " is not in the hand");
-        }
-        const std::string code = it->code;
-        // the nearest copy goes: same code, fewer feeds; it takes the asked id
-        const auto k = static_cast<std::size_t>(it - hand.begin());
-        const auto j = static_cast<std::size_t>(
-            std::find_if(hand.begin(), hand.end(), [&](const Known& c) { return c.code == code; }) - hand.begin());
-        std::swap(hand[j].id, hand[k].id);
-        for (std::size_t i = 0; i < j; ++i) {
-            backend_.feed(h_, b_);
-            ++counts_.feeds;
-        }
-        const Scan s = read(h_);
-        if (s.kind == Scan::Kind::Code && s.code == code) {
-            backend_.take(h_);
-            ++counts_.takes;
-            hand.erase(hand.begin() + static_cast<std::ptrdiff_t>(j));
-            place_held(to, {id, code, false});
-            return_extras(b_);  // a double take: the card above X, whose place in the merged pile is B's top
-            merge();
-            return {id, code};
-        }
-        merge();  // the fed cards back under the rest: one pile again
-        recover();
-        if (attempt == 1) throw Failure(FailReason::NotInHand, "card " + std::to_string(id) + " not found twice");
+    auto [j, code] = locate(id, false);
+    for (std::size_t i = 0; i < j; ++i) {
+        backend_.feed(h_, b_);
+        ++counts_.feeds;
     }
+    const Scan s = read(h_);
+    if (s.kind == Scan::Kind::Code && s.code == code) {
+        backend_.take(h_);
+        ++counts_.takes;
+        belief_.hand.erase(belief_.hand.begin() + static_cast<std::ptrdiff_t>(j));
+        place_held(to, {id, code, false});
+        return_extras(b_);  // a double take: the card above X, whose place in the merged pile is B's top
+        merge();
+        return {id, code};
+    }
+    // Mismatch: one pile again, recover, then look for the card the slow way (every card read on the spot).
+    merge();
+    recover();
+    std::tie(j, code) = locate(id, true);
+    if (search(j, id, code, to)) return {id, code};
+    recover();
+    throw Failure(FailReason::NotInHand, "card " + std::to_string(id) + " not found");
+}
+
+bool Tracker::search(std::size_t j, int id, const std::string& code, Place to) {
+    bool found = false;
+    for (int i = 0; i < max_hand && !found; ++i) {
+        backend_.take(h_);
+        ++counts_.takes;
+        int on_spot = 0;
+        for (Scan s = read(Pile::Spot); s.kind != Scan::Kind::Empty; s = read(Pile::Spot)) {
+            if (++on_spot > max_extras) throw Failure(FailReason::Hardware, "the scan spot doesn't empty");
+            if (!found && s.kind == Scan::Kind::Code && s.code == code) {
+                found = true;
+                belief_.hand.erase(belief_.hand.begin() + static_cast<std::ptrdiff_t>(j));
+                place_held(to, {id, code, false});
+            } else {
+                backend_.place(b_, End::Top);
+            }
+        }
+        if (on_spot == 0) break;  // H ran out
+    }
+    merge();
+    return found;
 }
 
 void Tracker::move(int id, Place to) {
@@ -276,15 +313,20 @@ std::optional<std::vector<std::string>> Tracker::pass() {
     ++counts_.passes;
     std::vector<std::string> codes;
     bool readable = true;
+    // through the spot, not blind feeds: every card gets read, also the second of a double take
     for (int i = 0; i < max_hand; ++i) {
-        const Scan s = read(h_);
-        if (s.kind == Scan::Kind::Empty) break;
-        if (s.kind == Scan::Kind::Unreadable) readable = false;
-        else codes.push_back(s.code);
-        backend_.feed(h_, b_);
-        ++counts_.feeds;
+        backend_.take(h_);
+        ++counts_.takes;
+        int on_spot = 0;
+        for (Scan s = read(Pile::Spot); s.kind != Scan::Kind::Empty; s = read(Pile::Spot)) {
+            if (++on_spot > max_extras) throw Failure(FailReason::Hardware, "the scan spot doesn't empty");
+            if (s.kind == Scan::Kind::Unreadable) readable = false;
+            else codes.push_back(s.code);
+            backend_.place(b_, End::Top);
+        }
+        if (on_spot == 0) break;  // H ran out
     }
-    std::swap(h_, b_);  // everything was fed: B is the pile now, H empty
+    std::swap(h_, b_);  // B is the pile now, H empty
     if (!readable) return std::nullopt;
     return codes;
 }
