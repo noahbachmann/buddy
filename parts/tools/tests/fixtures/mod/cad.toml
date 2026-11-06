@@ -1,0 +1,5 @@
+[parts.bracket]
+file = "../bracket.scad"
+[parts.shelf]
+file = "../bracket.scad"
+defines = { defect = "shelf" }

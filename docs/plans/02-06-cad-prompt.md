@@ -29,8 +29,8 @@ Before you model anything: list your assumptions and the open questions, and wai
 ## Format
 
 - Parametric **OpenSCAD**, laid out like `parts/arm`: every dimension in `params.scad`, shared geometry in `lib.scad`,
-  `assembly.scad` posed (pan/tilt angles as variables) with stand-ins for every bought part, `build.sh` renders STLs
-  already in print orientation into `stl/`.
+  `assembly.scad` posed (pan/tilt angles as variables) with stand-ins for every bought part, `cad.toml` lists the
+  parts; `parts/cad build <module>` renders STLs already in print orientation into `stl/` (`parts/CLAUDE.md`).
 - Check collisions in `assembly.scad` across the full pan and tilt range, including the cable slot and loop space.
 - A `README.md` per folder: parts list (bought parts with sizes), print table (file, orientation, material, supports),
   assembly steps with *why*, ⚠️ list of untested assumptions. I'm new to mechanical design and printing: explain the

@@ -1,0 +1,9 @@
+# cad build arm / cad render arm (parts/CLAUDE.md)
+assembly = "assembly.scad"
+
+[parts.shoulder-mount]
+[parts.upper-arm-top]
+[parts.upper-arm-bottom]
+[parts.forearm-top]
+[parts.forearm-bottom]
+[parts.couplers]
