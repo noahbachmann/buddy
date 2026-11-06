@@ -22,6 +22,7 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 | `skeleton/services/web/CLAUDE.md` | Web panel internals: server, state stream, `www/` page structure |
 | `skeleton/services/game/CLAUDE.md` | Riftbound engine as it is now: the loop, hidden information, hook points for cards, invariants, test helpers, gotchas |
 | `skeleton/services/table/CLAUDE.md` | Buddy's physical cards (5.5): tracker procedures, sim faults, soak, gotchas |
+| `parts/CLAUDE.md` | CAD toolchain (pinned OpenSCAD nightly, BOSL2, NopSCADlib, Python checks), conventions for printable parts |
 
 - Read this file and `buddy-hardware.md` before answering about setup, parts or next steps.
 - The progress table is the current status.
@@ -235,7 +236,8 @@ buddy/
 │   ├── tools/voice/         ← commands.tsv (corpus) + buddy_voice (record/train/eval, runs on the PC)
 │   ├── firmware/pico-motion/ ← Pico 2 firmware: all servos (separate CMake project, D17)
 │   └── deploy/              ← PC scripts; pi/ = scripts that run on the Pi; config/ = units, env example, PipeWire
-└── parts/                   ← printable parts: STLs, arm/ in parametric OpenSCAD
+└── parts/                   ← printable parts: one folder per module (arm/ parametric OpenSCAD), lib/ (BOSL2,
+                                NopSCADlib submodules), tools/ (setup.sh, CAD checks, #54)
 ```
 
 ---

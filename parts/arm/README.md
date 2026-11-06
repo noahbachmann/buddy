@@ -14,7 +14,7 @@ Range (checked for collisions in `assembly.scad`, servo included): elbow ±115°
 
 ## Files
 
-Parametric OpenSCAD. All dimensions are in `params.scad`. `./build.sh` renders `stl/` (OpenSCAD 2021.01+).
+Parametric OpenSCAD. All dimensions are in `params.scad`. `./build.sh` renders `stl/` (toolchain: `parts/tools/setup.sh`).
 
 | File | What | Print |
 |---|---|---|

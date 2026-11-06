@@ -1,0 +1,6 @@
+[submodule "parts/lib/BOSL2"]
+	path = parts/lib/BOSL2
+	url = https://github.com/BelfrySCAD/BOSL2.git
+[submodule "parts/lib/NopSCADlib"]
+	path = parts/lib/NopSCADlib
+	url = https://github.com/nophead/NopSCADlib.git
