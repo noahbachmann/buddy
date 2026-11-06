@@ -20,6 +20,7 @@ Jabra mic → [ears] wake word, speech-to-text → [brain] intent → [spotify] 
 | Current step guides (motion controller, motion service) | `docs/guides/02-*.md` |
 | Plans for the next steps (head pan/tilt, head & body), CAD prompt | `docs/plans/` |
 | Train speech-to-text on your voice | `docs/voice-training.md` |
+| Print a part: settings, design rules, tolerances, print log | `docs/3d-printing.md` |
 | Parts in use | `buddy-hardware.md` |
 | Code map: services, shared helpers, tests, gotchas | `skeleton/CLAUDE.md` (web panel: `skeleton/services/web/CLAUDE.md`) |
 

@@ -17,6 +17,7 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 | `docs/plans/02-06-cad-prompt.md` | Prompt Dev fills in to get the neck, head and body CAD (2.5 stage 1, 2.6 stage 2) |
 | `docs/guides/0N-setup-summary.md` | A finished phase condensed into one file (rebuild, config, tests, troubleshooting); replaces its step guides |
 | `docs/voice-training.md` | Recurring workflow: record, train, score and install speech-to-text on Dev's voice |
+| `docs/3d-printing.md` | Living printing reference: materials, slicer baseline, design rules, measured tolerances, troubleshooting, print log |
 | `skeleton/CLAUDE.md` | Code quick reference: service pattern (C++ and Python), shared helpers, deploy scripts, tests |
 | `skeleton/services/web/CLAUDE.md` | Web panel internals: server, state stream, `www/` page structure |
 | `skeleton/services/game/CLAUDE.md` | Riftbound engine as it is now: the loop, hidden information, hook points for cards, invariants, test helpers, gotchas |
@@ -215,7 +216,8 @@ buddy/
 ├── docs/
 │   ├── guides/              ← step guides of the current phase, one summary per finished phase
 │   ├── plans/               ← step plans before their guide exists, CAD prompt, Phase 5 plan
-│   └── voice-training.md    ← speech-to-text training workflow
+│   ├── voice-training.md    ← speech-to-text training workflow
+│   └── 3d-printing.md       ← printing reference + print log (grows with every print)
 ├── skeleton/                ← project root (CMake + uv workspace); paths below and in "Dev workflow" are relative to it
 │   ├── shared/              ← topics.json (all MQTT topics), C++ helpers, python/buddy_shared
 │   ├── third_party/         ← ONNX Runtime, libpiper (prebuilt in /opt), whisper.cpp, cpp-httplib (FetchContent)
