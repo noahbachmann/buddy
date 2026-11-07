@@ -202,9 +202,10 @@ The 4023 sits in the back wall, so the frame goes into the box first and the mot
 8. **Gates:** press them into their sockets from above: the left one under the left wall, the right one (with the lip)
    in front of the divider. The lip passes the drum on its way down.
 
-**Lift:** lift motor under the floor first (coupling on the shaft, boss into the floor's hole, 2× M3×8 from inside),
-screw into the coupling. Nut flange onto the lift's tab from above, 2× M3×8. Lower the lift onto the screw from
-above and turn the screw into the nut.
+**Lift:** motor under the floor (boss into the floor's hole, 2× M3×8 from inside), coupling on the shaft inside the
+box (z 11.5…36.5), tighten the 5 mm side. Nut flange onto the lift's tab from above, 2× M3×8. Outside the box, turn the
+screw through the nut (the lift can't turn once it's in). Lower lift and screw in together, screw end into the
+coupling, tighten the 8 mm side.
 
 **Pusher** (after Dev's changes to the box):
 
