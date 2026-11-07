@@ -80,15 +80,54 @@ module motor_gear() {
 // to tune the gap takes seconds (the left one sits under the left wall, no tool reaches there).
 peg = [gate_w, 3, 4];             // full bar width: prints on the bed
 peg_fit = 0.15;
-module gate() {
+module gate(right = false) {
   bar_z = belt_top + gate_gap;
   box([0, gate_w], [front_y[0], back_y[1]], [bar_z, gate_top]);
   for (yr = [back_y, front_y]) box([0, gate_w], yr, [bed_top, gate_top]);
   for (y = plate_cy) translate([0, y - peg[1] / 2, bed_top - peg[2]]) cube(peg + [0, 0, eps]);
+  if (right) mirror([1, 0, 0]) translate([-gate_xr, 0, 0]) gate_lip();   // built in box coordinates
 }
+gate_xr = divider_x - 0.5;   // right gate's outer face
 module gate_placed(i) {
   if (i == 0) translate([gate_xs[0], 0, 0]) gate();
-  else translate([divider_x - 0.5, 0, 0]) mirror([1, 0, 0]) gate();
+  else translate([gate_xr, 0, 0]) mirror([1, 0, 0]) gate(true);
+}
+
+// Right gate's lip + slit ends, box coordinates. Lip profile (x-z): flat top, drum side = clearance arc, then the arc's
+// 45° tangent down to the gate's outer face (prints on that face: no overhang).
+lip_top = belt_top - lip_drop;
+lip_r   = cord_out + lip_clear;
+lip_y   = [front_y[1], gear_y[0] - 0.5];   // front plate .. the drum gear (it reaches above the belts)
+module gate_lip() {
+  a0 = atan2(lip_top - lip_edge - drum_z, sqrt(lip_r ^ 2 - (lip_top - lip_edge - drum_z) ^ 2));
+  x45 = drive_x + lip_r * cos(45);
+  z45 = drum_z + lip_r * sin(45);
+  arc = [for (a = [45 : (a0 - 45) / 16 : a0]) [drive_x + lip_r * cos(a), drum_z + lip_r * sin(a)]];
+  edge = arc[16][0];
+  bar_z = belt_top + gate_gap;
+  card_y = [card_yc - card[1] / 2 - slit_play, card_yc + card[1] / 2 + slit_play];
+  difference() {
+    union() {
+      // into the front leg by 1 mm, above the front plate only
+      difference() {
+        translate([0, lip_y[1], 0]) rotate([90, 0, 0]) linear_extrude(lip_y[1] - lip_y[0] + 1)
+          polygon(concat([[edge, lip_top], [gate_xr, lip_top], [gate_xr, z45 - (gate_xr - x45)]], arc));
+        box([gate_xr - gate_w - 1, gate_xr + 1], [lip_y[0] - 2, lip_y[0]], [0, bed_top]);
+      }
+      // slit ends: fill lip..bar outside the card, closing in at 45° towards the exit (+X)
+      for (s = [0, 1]) {
+        e = card_y[s];
+        far = s == 0 ? lip_y[0] - 1 : lip_y[1];
+        d = s == 0 ? -gate_w : gate_w;
+        intersection() {
+          translate([0, 0, lip_top - 0.5]) linear_extrude(bar_z - lip_top + 1)
+            polygon([[gate_xr, e], [gate_xr - gate_w, e + d], [gate_xr - gate_w, far + (s == 0 ? -gate_w : 0)], [gate_xr, far]]);
+          box([gate_xr - gate_w, gate_xr], [lip_y[0] - 1, lip_y[1]], [0, gate_top]);
+        }
+      }
+    }
+    translate([drive_x, lip_y[1] + 1, drum_z]) rotate([90, 0, 0]) cylinder(r = lip_r - 0.02, h = lip_y[1] - lip_y[0] + 3);   // just inside the arc: no coincident faces
+  }
 }
 function gate_x(i) = i == 0 ? gate_xs[0] + gate_w / 2 : divider_x - 0.5 - gate_w / 2;   // peg centre
 

@@ -31,6 +31,12 @@ stand-ins (motors, rods, screw, nut, O-rings). `make_copy.py` regenerates it.
   under it, the second one doesn't. One gate stands on each side of the pile. Both sit at the height of the divider's
   upper block (z 66.04), so the belt top is `66.04 − gap`. The divider's 1.04 mm slot is now only clearance: the right gate
   does the separating, and it can be swapped to tune it.
+- **Right gate's lip:** between the drive drum's top (x 62) and the divider (x 72) the card has 10 mm without support,
+  and its leading edge would droop into the gap and hit the divider under the slot. The right gate has a lip under the
+  card path there: flat top 0.5 mm below the belt top (z 65.06, just above the divider's lower part at z 65), drum
+  side following the belts at 0.6 mm clearance. Beside the card the lip is joined to the bar, so the slit is only the
+  card's width + 1 mm per side (y −143…−53). Its ends close in at 45° from the entry side, so a card up to ~3 mm (front)
+  or ~5 mm (back) off centre is led into it. The lip stops at y −43.5, in front of the drum gear.
 - **Bed:** the belts slide on a flat bed. One O-ring strand carries only ~2.5 N, so a pile of 20 cards would sag a free
   span by ~1.4 mm and the cards would sit on the bed instead of the rubber.
 - **Drive:** the 4023 is turned 90° (shaft to the front, connector to the left) and sits behind the back plate. A 20T
@@ -114,7 +120,8 @@ STLs and `parts/cad render dispenser` for the sheets (`parts/CLAUDE.md`).
 | `drive-drum.scad` | 16T gear + 3 grooves, 2 bearing seats | standing, gear down |
 | `idler-drum.scad` | 3 grooves, 2 bearing seats | standing |
 | `motor-gear.scad` | 20T, D-bore for the 4023's shaft, M3 set screw + nut slot | gear down |
-| `gate.scad` | Gate (print **2**) | on its side |
+| `gate-left.scad` | Left gate | on its side |
+| `gate-right.scad` | Right gate with the lip under the card path | on its side, divider side down |
 | `pusher.scad` | Pusher carriage: plate, bar, nut tab | as placed, bottom down |
 | `make_copy.py` | `ref/` (box, lift, 4023 from `dispenser.stl`) + `dispenser-roller.stl` (box with Dev's changes, roller, pusher, lift motor under the floor) | – |
 | `check_pusher.py` | Collisions over the pusher's stroke with the lift at push height and a full pile, and of the lift (4 heights) with the pusher at home and its own motor and coupling (lift rebuilt from measured boxes) | – |
@@ -156,7 +163,8 @@ Screws go into 2.5 mm pilot holes (self-tapping into PETG).
 - PETG, 4 walls, 15 % infill. Drums, motor gear and gates at 0.12–0.16 mm layers (fits, teeth, the gap step);
   frame and front plate at 0.2.
 - **No supports.** Horizontal holes are teardrops, the drum grooves are teardrop-shaped and the lower bearing seat ends in a 45° cone.
-- The gate prints on its side so its gap step lies in the XY plane, where the printer is most accurate.
+- The gates print on their side so the gap step lies in the XY plane, where the printer is most accurate. The right
+  gate's lip grows from its divider-side face without overhang.
 - Pusher carriage: as it sits in the box, bottom down: the plate's lower edge, the one that slides, comes out of the
   bed flat. The nut hole is a teardrop. 0.2 mm layers.
 
@@ -170,7 +178,8 @@ Screws go into 2.5 mm pilot holes (self-tapping into PETG).
 5. **Belts:** slide the 3 O-rings over both drums from the front, into the grooves. They pass over the bed and the ribs.
 6. **Front plate:** rod ends into its holes, 3× M3×12 into the rib ends, 2 keeper screws with washers.
 7. **Into the box:** the frame's step sits against the left edge of the box floor. 4× M3×12 from below.
-8. **Gates:** press them into their sockets: one under the left wall, one in front of the divider.
+8. **Gates:** press them into their sockets from above: the left one under the left wall, the right one (with the lip)
+   in front of the divider. The lip passes the drum on its way down.
 
 **Pusher** (after Dev's changes to the box):
 
@@ -186,7 +195,7 @@ Screws go into 2.5 mm pilot holes (self-tapping into PETG).
 ## Tuning the gap
 
 1. Measure `card_t` (20 cards ÷ 20) and set it in `params.scad`. Everything follows from it: belt height, frame, gates.
-2. If 2 cards pass or the bottom card jams, reprint only the gates, e.g. `parts/cad build dispenser gate -D gate_gap=0.4`,
+2. If 2 cards pass or the bottom card jams, reprint only the gates, e.g. `parts/cad build dispenser gate-left gate-right -D gate_gap=0.4`,
    and swap them. That takes seconds, no screws.
 
 ## Dev: needed in Onshape
@@ -209,8 +218,9 @@ Screws go into 2.5 mm pilot holes (self-tapping into PETG).
 ## ⚠️ Open: feed stops short
 
 A fed card is driven only while it sits on the belt. Its trailing edge stops over the drive drum (x 62), so the card
-ends at x 62…125, while the divider ends at x 77. The last 15 mm still sit in the slot and under the right gate, and
-the next card would jam on them. No roller left of the divider can push further. Options:
+ends at x 62…125, while the divider ends at x 77. The last 15 mm still sit in the slot and under the right gate, on
+the lip. The lip keeps them 0.5 mm below the belt top, so the next card slides over them instead of into their edge,
+but then two cards sit in the slot. No roller left of the divider can push further. Options:
 
 1. **Software, test first:** feed fast so the card slides on over pile B until it hits the right wall (x 145). It then
    ends at x 82…145, clear of the divider and squared against the wall. That needs ≳ 0.35 m/s at the belt (~6 drum

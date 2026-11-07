@@ -90,6 +90,14 @@ gate_gap  = gap;
 gate_w    = 5;               // bar thickness in X; legs over the plates, pegs into the plates
 gate_top  = left_wall_bottom - 0.4;   // left gate sits under the left wall
 gate_xs   = [-gate_w, divider_x - 0.5 - gate_w];   // left gate bar x0, right gate bar x0
+// right gate only: lip under the card path between the drive drum and the divider (the card's leading edge would
+// droop into that 10 mm gap and hit the divider under the slot), joined to the bar at both card ends; there the slit
+// closes in at 45° from the entry side to the card's width
+lip_drop  = 0.5;             // lip top below belt_top, 0.06 above the divider under the slot (z 65): a card left
+                             // lying on the lip sits below the next one's path, which slides over it, not into its edge
+lip_edge  = 0.8;             // thinnest the lip gets at its drum-side edge
+lip_clear = open_clear;      // around the belts on the drum
+slit_play = 1;               // per side, beside the card at the slit's exit
 screw_pilot = 2.5;           // M3 self-tapping into PETG
 screw_clear = 3.4;
 screw_head  = 6.2;           // counterbore
