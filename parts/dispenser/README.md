@@ -87,7 +87,7 @@ stand-ins (motors, rods, screw, nut, O-rings). `make_copy.py` regenerates it.
 - **Where it runs:** three things fix the layout. The divider block (z 66…96) spans the full depth, so everything that
   crosses it stays above z 97. The lift's slope (from y −40.4 at the plate) rises to z 144 while pushing, so nothing may
   sit behind the cards. The cards cover y −128.4…−40.4, and the arm drops cards onto H from above. So the screw, the
-  coupling, the tab and the bar run in the **front strip** (y −151.4…−129.9); only the plate crosses the card area.
+  coupling, the tab and the bar run in the **front strip** (y −151.4…−132.9); only the plate crosses the card area.
 - **Pile height:** up to 35 mm (30 loose cards). The plate is as high as that pile; the motor and its lower screw
   holes sit above it, which sets the screw at z 154.
 - **Motor:** a 17HS4401 screwed flat onto the right wall's outer face (4× M3 from inside the box). The wall is
@@ -114,16 +114,16 @@ stand-ins (motors, rods, screw, nut, O-rings). `make_copy.py` regenerates it.
   held by the 2 front screws and the boss (the load is the lift's few hundred grams). The coupling sits at z
   11.5…36.5. The motor hangs 40 mm below the floor: the box needs feet of at least 42 mm.
 - **Lift (printed, `lift.scad`):** seen from the side, Dev's nut tab around the screw at the top (47 mm above the plate
-  top), then one slope down to the plate. Plate 67 × 101 × 4 mm (x 77.44…144.44, 0.44 / 0.56 to the divider and the
-  right wall: that keeps it from turning; front edge 1 mm in front of the cards). The slope starts at the cards' back
+  top), then one slope down to the plate. Plate 67 × 104 × 4 mm, its top 92 mm from the front edge to the slope's foot (Dev's) (x 77.44…144.44, 0.44 / 0.56 to the divider and the
+  right wall: that keeps it from turning; front edge 4 mm in front of the cards). The slope starts at the cards' back
   edge (y −40.4) and leans back 8 mm up to the tab (~10°), so a card dropping onto a low lift slides down into place;
   from the front it narrows upwards along straight sides from the plate's full width to the tab's 28 mm. The nut
   connection is Dev's as drawn: 5 mm tab with a round end (r 10.5), Ø10.2 hole for the nut's spigot, 4× Ø4 on a
   16 mm square, the nut's flange against the tab's underside. Lowest plate position z 29.56 (a 35 mm pile under the
   slot); the nut is then at z 56.6…71.6, far above the coupling.
 - **Front border (box):** in front of the lift plate, from the divider to the right wall, floor to z 65. Its inner
-  face is vertical 0.5 mm in front of the plate (y −129.9) up to the plate's lowest top (z 29.56), then leans forward
-  at the slope's angle to y −135.9 at z 65; 4 mm thick at the top. It keeps pile B from sliding out of the open front,
+  face is vertical 0.5 mm in front of the plate (y −132.9) up to the plate's lowest top (z 29.56), then leans forward
+  at the slope's angle to y −138.9 at z 65; 4 mm thick at the top. It keeps pile B from sliding out of the open front,
   and like the lift's slope it leads dropping cards into place.
 
 ## Files
@@ -235,8 +235,8 @@ coupling, tighten the 8 mm side.
 
 - **Box 13.6 mm shorter:** front edge at y −151.4 instead of −165 (floor, side walls, divider).
 - **Lift:** delete yours; the printed one from `lift.scad` replaces it.
-- **Front border for pile B:** x 77…145 (divider to right wall), z 5…65. Inner face at y −129.9 up to z 29.56, then
-  leaning forward to y −135.93 at z 65; outer face vertical at y −139.93.
+- **Front border for pile B:** x 77…145 (divider to right wall), z 5…65. Inner face at y −132.9 up to z 29.56, then
+  leaning forward to y −138.93 at z 65; outer face vertical at y −142.93.
 - **4023 in the back wall:** window through the wall at x 28.55…71.45, z 22.46…65.06 (the motor + 0.3, its floor
   flush with the motor's underside). Hold under the motor: a block x 28.85…71.15, y −20.2…3 (from 0.3 behind the
   frame's back plate to the motor's back end, 3 mm out behind the wall), z 0…22.46. Cable channel x 40…60,
@@ -248,7 +248,7 @@ coupling, tighten the 8 mm side.
   the back wall (y −5) to the line (72, −34.4)→(77, −39.4). Seen from above, the opening is 100 mm wide at x 72 and 90 mm
   at x 77. This also ties the divider's upper block to the lower part.
 - **Pusher notch** in the right wall, 4 mm deep from the inside (1 mm of wall stays), open to the front edge:
-  y −151.4…−40.4 at z 96.74…107.54 (bar), plus y −130.4…−40.4 up to z 133.04 (plate).
+  y −151.4…−40.4 at z 96.74…107.54 (bar), plus y −133.4…−40.4 up to z 133.04 (plate).
 - **Right wall extended forward** around the pusher motor: x 145…150, to y −166.05, z 130.89…177.19, the underside
   at 45° back to the wall's front edge (prints upright).
 - **Pusher motor hold:** a wedge on the right wall's outer face under the motor: y −150.9…−134.9, top at z 132.89 (the
