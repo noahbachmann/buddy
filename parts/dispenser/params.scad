@@ -169,8 +169,8 @@ screw_hole = 8.6;
 // --- Lift (printed, replaces Dev's) ----------------------------------------------------------------
 // Motor under the floor, face against its underside: coupling z 11.5..36.5. Side view: the nut tab around the screw at
 // the top, from its front edge one slope (leaning ~10°) down to the plate; the front border (box) leans the same way, so
-// a card dropping onto a low lift slides into place. Seen from the front the slope narrows upwards along concave
-// curves. The nut connection is Dev's as drawn: 5 mm tab with a round end, Ø10.2 + 4x Ø4 on a 16 mm square, the nut's
+// a card dropping onto a low lift slides into place. Seen from the front the slope narrows upwards along straight
+// sides. The nut connection is Dev's as drawn: 5 mm tab with a round end, Ø10.2 + 4x Ø4 on a 16 mm square, the nut's
 // flange under it, its spigot up in the hole. The plate's edges against the divider and the right wall keep it from
 // turning.
 lift_axis  = [111.8, -25.4 + shift];   // Dev's nut and tab centre (his screw was drawn 0.6 off)

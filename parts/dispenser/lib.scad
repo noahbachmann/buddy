@@ -333,8 +333,8 @@ module lift_coupling() lift_tf() coupling_local();
 module lift_screw() lift_tf() translate([0, 0, m44_shaft[1]]) cylinder(d = 8, h = lift_screw_top - m44_shaft[1]);
 
 // --- Lift (printed): plate + slope + Dev's nut tab. Plate top at `top`. Print: as placed, plate down; the tab needs
-// support (Dev's design). One intersection, no unions: side profile (along X) ∩ front profile (along Y, the concave
-// curves) ∩ plan (along Z: everything up to just under the tab, the tab's outline above).
+// support (Dev's design). One intersection, no unions: side profile (along X) ∩ front profile (along Y: straight sides
+// from the plate's corners to the tab's) ∩ plan (along Z: everything up to just under the tab, the tab's outline above).
 assert(card_yc + card[1] / 2 <= gear_y[0] - 1, "cards reach the drum gear");
 assert(lift_axis[1] - nut_flange[0] / 2 - (riser_y + stop_lean + stop_t) >= 0.5 - 1e-9, "nut flange hits the slope");
 module lift_part(top) {
@@ -344,24 +344,28 @@ module lift_part(top) {
   yb = riser_y + stop_lean + stop_t;     // slope wall's back face (vertical, below the tab)
   ax = lift_axis;
   sx = [ax[0] - stop_w / 2, ax[0] + stop_w / 2];
-  // front profile 1 mm beyond the side profile everywhere: only the side profile makes the outer faces
+  // front profile: straight sides from just outside the plate's top corners (0.3, so they don't meet its edges) to
+  // 0.2 outside the tab 1 mm under it; above that vertical, the plan's 28 mm outline makes the tab's sides (from
+  // zt - 0.5: no edge of one profile may lie on another's face)
+  zs = zt - 1;
   xo = [lift_x[0] - 1, lift_x[1] + 1];
-  rx = [sx[0] - xo[0], xo[1] - sx[1]];
-  rz = st + 1 - top;
-  arc_r = [for (a = [0 : 5 : 90]) [xo[1] - rx[1] * sin(a), st + 1 - rz * cos(a)]];
-  arc_l = [for (a = [90 : -5 : 0]) [xo[0] + rx[0] * sin(a), st + 1 - rz * cos(a)]];
+  side = function(i, z) let(x0 = i == 0 ? lift_x[0] - 0.3 : lift_x[1] + 0.3, x1 = i == 0 ? sx[0] - 0.2 : sx[1] + 0.2)
+    x0 + (x1 - x0) * (z - top) / (zs - top);
+  zx = function(i) top + (zs - top) * (xo[i] - (i == 0 ? lift_x[0] - 0.3 : lift_x[1] + 0.3))
+                                     / ((i == 0 ? sx[0] - 0.2 : sx[1] + 0.2) - (i == 0 ? lift_x[0] - 0.3 : lift_x[1] + 0.3));
   difference() {
     intersection() {
       translate([lift_x[0], 0, 0]) rotate([90, 0, 90]) linear_extrude(lift_x[1] - lift_x[0])
         polygon([[lift_front, b], [yb, b], [yb, zt], [lift_tab_y + 1, zt], [lift_tab_y + 1, st], [yb - stop_t, st],
                  [riser_y, top], [lift_front, top]]);
       translate([0, lift_tab_y + 2, 0]) rotate([90, 0, 0]) linear_extrude(lift_tab_y + 2 - (lift_front - 1))
-        polygon(concat([[xo[0], b - 1], [xo[1], b - 1]], arc_r, arc_l));
+        polygon([[xo[0], b - 1], [xo[1], b - 1], [xo[1], zx(1)], [side(1, zs), zs], [side(1, zs), st + 1],
+                 [side(0, zs), st + 1], [side(0, zs), zs], [xo[0], zx(0)]]);
       union() {   // plan: Dev's tab outline (round end, tapering to full width at the slope) above zt - 1
         box([xo[0], xo[1]], [lift_front - 1, lift_tab_y + 2], [b - 1, zt - 0.5]);
         translate([0, 0, zt - 1]) linear_extrude(st - zt + 2) hull() {
           translate([ax[0], ax[1]]) circle(r = lift_tab_r);
-          translate([sx[0] - 1, riser_y - 1]) square([stop_w + 2, yb - stop_t - riser_y + 1]);
+          translate([sx[0], riser_y - 1]) square([stop_w, yb - stop_t - riser_y + 2]);   // 1 past the slope's top edge
         }
       }
     }

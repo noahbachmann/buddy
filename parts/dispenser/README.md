@@ -117,7 +117,7 @@ stand-ins (motors, rods, screw, nut, O-rings). `make_copy.py` regenerates it.
   top), then one slope down to the plate. Plate 67 × 101 × 4 mm (x 77.44…144.44, 0.44 / 0.56 to the divider and the
   right wall: that keeps it from turning; front edge 1 mm in front of the cards). The slope starts at the cards' back
   edge (y −40.4) and leans back 8 mm up to the tab (~10°), so a card dropping onto a low lift slides down into place;
-  from the front it narrows upwards along concave curves from the plate's full width to the tab's 28 mm. The nut
+  from the front it narrows upwards along straight sides from the plate's full width to the tab's 28 mm. The nut
   connection is Dev's as drawn: 5 mm tab with a round end (r 10.5), Ø10.2 hole for the nut's spigot, 4× Ø4 on a
   16 mm square, the nut's flange against the tab's underside. Lowest plate position z 29.56 (a 35 mm pile under the
   slot); the nut is then at z 56.6…71.6, far above the coupling.
