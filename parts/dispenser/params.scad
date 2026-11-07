@@ -21,7 +21,7 @@ shift            = 8.5;
 
 // --- Card ------------------------------------------------------------------------------
 card    = [63, 88];          // X (travel) x Y
-card_yc = -79.5;             // card centre in Y: back edge (y -35.5) 1 mm in front of the drum gear (asserted in lib)
+card_yc = -85;               // card centre in Y: back edge = the lift's back stop, as far back as its nut allows (lib asserts)
 box_front = card_yc - card[1] / 2 - 23;   // open front edge, 23 in front of the cards (pusher's strip) as drawn
 slot_y    = [box_front, back_wall];       // the divider slot runs the full depth: open front .. back wall
 card_t  = 0.32;              // ⚠️ measure: thickness of 20 cards / 20
@@ -126,7 +126,7 @@ push_lift  = div_top + push_step;      // lift plate top while pushing (firmware
 push_rest  = 0.3;            // notch floor below push_lift: the plate starts level with the lift, never above it
 push_h     = pile_max;
 push_t     = 4;              // the notch is 4 deep: 1 mm of wall stays outside, the plate's home stop
-push_y     = [card_yc - card[1] / 2 - 4.5, riser_y - 1];   // 0.5 over the lift plate's front edge
+push_y     = [card_yc - card[1] / 2 - 1.5, riser_y - 1];   // 0.5 over the lift plate's front edge
 push_cham  = [0.8, 1.5];     // lower edge, push side / return side: ramps over the lift's and the notch's edges
 push_end   = divider_x;      // plate face at the end: plate on the divider, pile at x 9..72 over H's chute
 push_stroke = right_wall[0] - push_end;
@@ -167,22 +167,24 @@ ext_z    = [pu_screw_z - m44_sq / 2 - 2, pu_screw_z + m44_sq / 2 + 2];
 screw_hole = 8.6;
 
 // --- Lift (printed, replaces Dev's) ----------------------------------------------------------------
-// Motor under the floor, face against its underside: coupling z 11.5..36.5. Plate + back stop (full width at the plate,
-// narrowing upwards along concave curves) + nut tab right behind the stop, low: at the lowest position the nut clears
-// the coupling by 0.5. The plate's edges against the divider and the right wall keep it from turning.
+// Motor under the floor, face against its underside: coupling z 11.5..36.5. Dev's lift, rebuilt: plate + riser, tab on
+// the riser's top over the screw, nut hanging under the tab. Added: the riser full width at the plate, narrowing upwards
+// along concave curves; its front face leans back (a card dropping onto a low lift slides down into place), the front
+// border (box) leans the same way. The plate's edges against the divider and the right wall keep it from turning.
 lift_axis  = [111.9, -26 + shift];
 floor_t    = 5;
 lift_face  = 0;
 lift_screw_top = 200;        // ends at the box top
 lift_x     = [77.44, 144.44];   // plate: 0.44 to the divider, 0.56 to the right wall (as Dev's)
 lift_t     = 4;              // plate thickness
-stop_t     = 4;
-stop_h     = pile_max + 2;   // above the plate top
-stop_w     = 28;             // at the top, centred on the screw
+lift_front = card_yc - card[1] / 2 - 1;   // plate's front edge
+stop_t     = 4;              // riser at the top (Dev's)
+stop_h     = 47;             // plate top .. tab top (Dev's)
+stop_lean  = 8;              // the riser's front face leans back this much over stop_h (~10°)
+stop_w     = 32;             // at the top, centred on the screw: room for 45° gussets beside the nut flange
 lift_min   = (belt_top - lip_drop) - pile_max - 0.5;   // lowest plate top: a full pile under the slot
-lift_tab   = (lift_face + m44_shaft[1] + coupling[1] / 2 + 0.5) + (nut_len - nut_flange[1]) - lift_min;   // tab top above plate top
-lift_tab_y = lift_axis[1] + 6;   // tab's back edge (the flange overhangs it)
-border_t   = 4;              // front border of pile B (box): floor .. slot_bot, ^ ridge on top
+lift_tab_y = lift_axis[1] + 11.1;   // tab's back edge (Dev's), 1.4 to the back wall
+border_t   = 4;              // front border of pile B (box) at the top, floor .. slot_bot
 
 // --- Holds: the motors rest on the case, not only on their screws ------------------------------------------
 m23_conn   = [16, 4, 7.6];   // 4023 connector: width, out of the body, along the axis from the back end
