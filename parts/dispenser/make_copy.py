@@ -39,6 +39,7 @@ REF = {
 SPARE = {
     "lift motor": ([91, -47, 5], [133, -5, 69]),
     "lift screw": ([107.9, -30, 1.2], [115.9, -22, 201.2]),
+    "lift nut": ([100.8, -36.4, 47.5], [122.8, -14.4, 62.54]),
     "m4401": ([354, -47, 5], [396, -5, 69]),
     "screw": ([370.9, -30, 1.2], [378.9, -22, 201.2]),
     "nut": ([363.8, -36.4, 47.5], [385.8, -14.4, 62.54]),
@@ -58,6 +59,10 @@ def main() -> int:
     bodies = [src.submesh([np.flatnonzero(labels == k)], append=True) for k in range(labels.max() + 1)]
     idx = {name: find(bodies, *box) for name, box in REF.items()}
     drop = set(idx.values()) | {find(bodies, *box) for box in SPARE.values()}   # all re-added, placed
+    # loose flat faces of the lift's tab underside (z 61): they'd stay behind at the old place
+    lift_box = np.array(REF["lift"])
+    drop |= {i for i, b in enumerate(bodies) if np.ptp(b.bounds[:, 2]) < 1e-6
+             and np.all(b.bounds >= lift_box[0] - 0.01) and np.all(b.bounds <= lift_box[1] + 0.01)}
 
     (HERE / "ref").mkdir(exist_ok=True)
     for name, i in idx.items():

@@ -332,17 +332,16 @@ module lift_motor() lift_tf() m44_local();
 module lift_coupling() lift_tf() coupling_local();
 module lift_screw() lift_tf() translate([0, 0, m44_shaft[1]]) cylinder(d = 8, h = lift_screw_top - m44_shaft[1]);
 
-// --- Lift (printed): plate + riser + tab, nut hanging under the tab. Plate top at `top`. Print: as placed, plate down.
-// Plate and riser = (side profile along X) ∩ (front profile along Y): one solid, the riser full width at the plate and
-// narrowing upwards along concave quarter ellipses to stop_w at the top.
+// --- Lift (printed): plate + slope + Dev's nut tab. Plate top at `top`. Print: as placed, plate down; the tab needs
+// support (Dev's design). One intersection, no unions: side profile (along X) ∩ front profile (along Y, the concave
+// curves) ∩ plan (along Z: everything up to just under the tab, the tab's outline above).
 assert(card_yc + card[1] / 2 <= gear_y[0] - 1, "cards reach the drum gear");
-assert(lift_axis[1] - nut_flange[0] / 2 - (riser_y + stop_lean + stop_t) >= 0.5 - 1e-9, "nut flange hits the riser");
+assert(lift_axis[1] - nut_flange[0] / 2 - (riser_y + stop_lean + stop_t) >= 0.5 - 1e-9, "nut flange hits the slope");
 module lift_part(top) {
   b = top - lift_t;
   st = top + stop_h;
   zt = st - tab_t;                       // tab underside = nut flange top
-  yb = riser_y + stop_lean + stop_t;     // riser's back face (vertical)
-  ty = lift_tab_y;
+  yb = riser_y + stop_lean + stop_t;     // slope wall's back face (vertical, below the tab)
   ax = lift_axis;
   sx = [ax[0] - stop_w / 2, ax[0] + stop_w / 2];
   // front profile 1 mm beyond the side profile everywhere: only the side profile makes the outer faces
@@ -352,25 +351,27 @@ module lift_part(top) {
   arc_r = [for (a = [0 : 5 : 90]) [xo[1] - rx[1] * sin(a), st + 1 - rz * cos(a)]];
   arc_l = [for (a = [90 : -5 : 0]) [xo[0] + rx[0] * sin(a), st + 1 - rz * cos(a)]];
   difference() {
-    union() {
-      intersection() {
-        translate([lift_x[0], 0, 0]) rotate([90, 0, 90]) linear_extrude(lift_x[1] - lift_x[0])
-          polygon([[lift_front, b], [yb, b], [yb, zt], [ty, zt], [ty, st], [yb - stop_t, st], [riser_y, top],
-                   [lift_front, top]]);
-        translate([0, ty + 1, 0]) rotate([90, 0, 0]) linear_extrude(ty + 1 - (lift_front - 1))
-          polygon(concat([[xo[0], b - 1], [xo[1], b - 1]], arc_r, arc_l));
+    intersection() {
+      translate([lift_x[0], 0, 0]) rotate([90, 0, 90]) linear_extrude(lift_x[1] - lift_x[0])
+        polygon([[lift_front, b], [yb, b], [yb, zt], [lift_tab_y + 1, zt], [lift_tab_y + 1, st], [yb - stop_t, st],
+                 [riser_y, top], [lift_front, top]]);
+      translate([0, lift_tab_y + 2, 0]) rotate([90, 0, 0]) linear_extrude(lift_tab_y + 2 - (lift_front - 1))
+        polygon(concat([[xo[0], b - 1], [xo[1], b - 1]], arc_r, arc_l));
+      union() {   // plan: Dev's tab outline (round end, tapering to full width at the slope) above zt - 1
+        box([xo[0], xo[1]], [lift_front - 1, lift_tab_y + 2], [b - 1, zt - 0.5]);
+        translate([0, 0, zt - 1]) linear_extrude(st - zt + 2) hull() {
+          translate([ax[0], ax[1]]) circle(r = lift_tab_r);
+          translate([sx[0] - 1, riser_y - 1]) square([stop_w + 2, yb - stop_t - riser_y + 1]);
+        }
       }
-      // 2 gussets (~45°) under the tab, beside the nut flange, 0.5 in from the tab's sides: the tab prints without
-      // support; the slope ends inside the tab (no shared edge)
-      for (x = [sx[0] + 0.5, sx[1] - 4]) translate([x, 0, 0]) rotate([90, 0, 90]) linear_extrude(3.5)
-        polygon([[yb - 1, zt - (ty - yb + 0.5)], [ty - 1, zt + 0.5], [ty - 1, zt + 1], [yb - 1, zt + 1]]);
     }
-    // nut body up through the tab, flange against its underside, 2 screws from below into the tab
-    translate([ax[0], ax[1], zt - 1]) cylinder(d = nut_d + 0.4, h = tab_t + 2);
-    for (s = [-1, 1]) translate([ax[0] + s * nut_pcd / 2, ax[1], zt - 1]) cylinder(d = screw_pilot, h = tab_t + 2);
+    translate([ax[0], ax[1], zt - 1]) cylinder(d = lift_holes[0], h = tab_t + 2);
+    for (o = [[-1, 0], [1, 0], [0, -1], [0, 1]] * lift_holes[2])
+      translate([ax[0] + o[0], ax[1] + o[1], zt - 1]) cylinder(d = lift_holes[1], h = tab_t + 2);
   }
 }
-module lift_nut(top) translate([lift_axis[0], lift_axis[1], top + stop_h - tab_t]) {   // hanging under the tab
+// Dev's nut position: flange against the tab's underside, spigot up in its hole, body hanging below
+module lift_nut(top) translate([lift_axis[0], lift_axis[1], top + stop_h - tab_t]) {
   translate([0, 0, -nut_flange[1]]) cylinder(d = nut_flange[0], h = nut_flange[1]);
-  translate([0, 0, -nut_len]) cylinder(d = nut_d, h = nut_len - nut_flange[1] + eps);
+  translate([0, 0, -(nut_len - nut_spigot)]) cylinder(d = nut_d, h = nut_len);
 }

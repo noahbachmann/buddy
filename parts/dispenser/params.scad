@@ -21,7 +21,7 @@ shift            = 8.5;
 
 // --- Card ------------------------------------------------------------------------------
 card    = [63, 88];          // X (travel) x Y
-card_yc = -85;               // card centre in Y: back edge = the lift's back stop, as far back as its nut allows (lib asserts)
+card_yc = -84.4;             // card centre in Y: back edge = the foot of the lift's slope, as far back as its nut allows (lib asserts)
 box_front = card_yc - card[1] / 2 - 23;   // open front edge, 23 in front of the cards (pusher's strip) as drawn
 slot_y    = [box_front, back_wall];       // the divider slot runs the full depth: open front .. back wall
 card_t  = 0.32;              // ⚠️ measure: thickness of 20 cards / 20
@@ -167,23 +167,28 @@ ext_z    = [pu_screw_z - m44_sq / 2 - 2, pu_screw_z + m44_sq / 2 + 2];
 screw_hole = 8.6;
 
 // --- Lift (printed, replaces Dev's) ----------------------------------------------------------------
-// Motor under the floor, face against its underside: coupling z 11.5..36.5. Dev's lift, rebuilt: plate + riser, tab on
-// the riser's top over the screw, nut hanging under the tab. Added: the riser full width at the plate, narrowing upwards
-// along concave curves; its front face leans back (a card dropping onto a low lift slides down into place), the front
-// border (box) leans the same way. The plate's edges against the divider and the right wall keep it from turning.
-lift_axis  = [111.9, -26 + shift];
+// Motor under the floor, face against its underside: coupling z 11.5..36.5. Side view: the nut tab around the screw at
+// the top, from its front edge one slope (leaning ~10°) down to the plate; the front border (box) leans the same way, so
+// a card dropping onto a low lift slides into place. Seen from the front the slope narrows upwards along concave
+// curves. The nut connection is Dev's as drawn: 5 mm tab with a round end, Ø10.2 + 4x Ø4 on a 16 mm square, the nut's
+// flange under it, its spigot up in the hole. The plate's edges against the divider and the right wall keep it from
+// turning.
+lift_axis  = [111.8, -25.4 + shift];   // Dev's nut and tab centre (his screw was drawn 0.6 off)
 floor_t    = 5;
 lift_face  = 0;
 lift_screw_top = 200;        // ends at the box top
 lift_x     = [77.44, 144.44];   // plate: 0.44 to the divider, 0.56 to the right wall (as Dev's)
 lift_t     = 4;              // plate thickness
 lift_front = card_yc - card[1] / 2 - 1;   // plate's front edge
-stop_t     = 4;              // riser at the top (Dev's)
+stop_t     = 4;              // slope wall, measured along Y
 stop_h     = 47;             // plate top .. tab top (Dev's)
-stop_lean  = 8;              // the riser's front face leans back this much over stop_h (~10°)
-stop_w     = 32;             // at the top, centred on the screw: room for 45° gussets beside the nut flange
+stop_lean  = 8;              // the slope's front face leans back this much over stop_h (~10°)
+stop_w     = 28;             // at the top (Dev's tab width), centred on the screw
+lift_tab_r = 10.5;           // Dev's tab: round end around the nut
+lift_holes = [10.2, 4, 8];   // Dev's tab: nut spigot hole, 4 screw holes at ±8 in X and Y
+nut_spigot = 1.54;           // TR8 nut: body above the flange (Dev's), up in the tab's hole
 lift_min   = (belt_top - lip_drop) - pile_max - 0.5;   // lowest plate top: a full pile under the slot
-lift_tab_y = lift_axis[1] + 11.1;   // tab's back edge (Dev's), 1.4 to the back wall
+lift_tab_y = lift_axis[1] + lift_tab_r;   // tab's back edge (Dev's), 1.4 to the back wall
 border_t   = 4;              // front border of pile B (box) at the top, floor .. slot_bot
 
 // --- Holds: the motors rest on the case, not only on their screws ------------------------------------------
