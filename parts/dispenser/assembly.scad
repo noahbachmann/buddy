@@ -26,8 +26,8 @@ module piece(name) {
   else if (name == "lift-coupling") lift_coupling();
   else if (name == "lift-screw") lift_screw();
   else if (name == "pusher-nut") pu_nut(push);
-  else if (name == "box-cut")    difference() { union() { import("ref/box.stl"); case_add(); } box_cuts(); }
-  else if (name == "lift")       translate([0, 0, lift_top - lift_top0]) import("ref/lift.stl");
+  else if (name == "box-cut")    difference() { union() { box_trimmed(); case_add(); } box_cuts(); }
+  else if (name == "lift")       translate([0, shift, lift_top - lift_top0]) import("ref/lift.stl");   // moved back
 }
 
 if (part != "all") piece(part);

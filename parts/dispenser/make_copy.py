@@ -3,7 +3,7 @@
     cd parts/tools && uv run python ../dispenser/make_copy.py
 
 1. Writes ref/{box,lift,m4023}.stl from dispenser.stl: the context assembly.scad imports.
-2. Removes the upright 4023, the box, the lift's motor and screw and the spare 17HS4401 + screw + nut parked outside
+2. Removes the upright 4023, the box, the lift (moved back by `shift`), the lift's motor and screw and the spare 17HS4401 + screw + nut parked outside
    the box from a copy of dispenser.stl and appends every placed piece of assembly.scad as separate bodies: the box
    with Dev's changes (wall extension, pusher notch, holes), the roller (frame, drums, gears, gates, turned 4023,
    rods, O-rings), the pusher at home (carriage, 17HS4401, coupling, cut screw, nut) and the lift's motor under the
@@ -26,7 +26,7 @@ SRC = HERE / "dispenser.stl"
 OUT = HERE / "dispenser-roller.stl"
 PIECES = ["box-cut", "frame", "front-plate", "drive-drum", "idler-drum", "motor-gear", "gate-left", "gate-right", "motor",
           "rods", "belts", "pusher", "pusher-motor", "pusher-coupling", "pusher-screw", "pusher-nut",
-          "lift-motor", "lift-coupling", "lift-screw"]
+          "lift", "lift-motor", "lift-coupling", "lift-screw"]
 
 # Bodies of dispenser.stl, found by their bounding boxes (mm, min corner, max corner).
 REF = {
@@ -57,7 +57,7 @@ def main() -> int:
     labels = trimesh.graph.connected_component_labels(src.face_adjacency, node_count=len(src.faces))
     bodies = [src.submesh([np.flatnonzero(labels == k)], append=True) for k in range(labels.max() + 1)]
     idx = {name: find(bodies, *box) for name, box in REF.items()}
-    drop = {idx["m4023"], idx["box"]} | {find(bodies, *box) for box in SPARE.values()}
+    drop = set(idx.values()) | {find(bodies, *box) for box in SPARE.values()}   # all re-added, placed
 
     (HERE / "ref").mkdir(exist_ok=True)
     for name, i in idx.items():

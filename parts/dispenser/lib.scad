@@ -31,7 +31,7 @@ module box(xr, yr, zr) translate([xr[0], yr[0], zr[0]]) cube([xr[1] - xr[0], yr[
 module drum_tf(x) translate([x, drum_y[0], drum_z]) rotate([90, 0, 0]) children();
 // Motor local frame: face at z 0, shaft +Z, D-flat on +X, connector on -Y (as in dispenser.stl
 // with the axis moved to the origin). Placed: shaft to the front, connector to the left.
-module motor_tf() translate([motor_x, motor_face_y, motor_z]) rotate([90, 0, 0]) rotate(-90) children();
+module motor_tf() translate([motor_x, motor_face_y, motor_z]) rotate([90, 0, 0]) children();   // connector down
 
 // --- Drums -------------------------------------------------------------------------------------
 module drum(gear) {
@@ -248,7 +248,7 @@ module pusher(push = 0) translate([-push * push_stroke, 0, 0]) difference() {
 // Dev's change to the box: the right wall extended forward around the motor face (45° underneath, prints upright),
 // the boss's hole and the motor's 4 screw holes through it.
 m44_hole_offs = [for (a = [-1, 1], b = [-1, 1]) [a, b] * m44_holes / 2];
-module case_add() difference() {   // Dev's additions to the box: wall extension, slot ends
+module case_add() difference() {   // Dev's additions to the box: wall extension, slot ends, motor holds
   dy = ext_y[1] - ext_y[0];
   union() {
     hull() {
@@ -256,6 +256,8 @@ module case_add() difference() {   // Dev's additions to the box: wall extension
       box(right_wall, [ext_y[1], ext_y[1] + 1], [ext_z[0] - dy, ext_z[0]]);
     }
     slot_ends();
+    roller_hold();
+    pusher_hold();
   }
   wall_holes();
 }
@@ -265,14 +267,37 @@ module wall_holes() {
 }
 
 // Dev's cuts in the box (Onshape), here for the preview and the combined STL.
+// 4023: the hold carries the motor from below, from the frame's back plate through the wall to the motor's back end
+m23_box = [[motor_x - motor_sq / 2, motor_x + motor_sq / 2], [motor_face_y, motor_face_y + motor_body],
+           [motor_z - motor_sq / 2, motor_z + motor_sq / 2]];
+module roller_hold() box(m23_box[0], [m23_box[1][0] + hold_gap, m23_box[1][1]], [0, m23_box[2][0]]);
+// 17HS4401 on the right wall: a wedge under its body, 45° underside (the box prints upright)
+module pusher_hold() {
+  top = pu_screw_z - m44_sq / 2;
+  x0 = right_wall[1] - 1;
+  x1 = right_wall[1] + m44_body;
+  translate([0, pu_y + pu_hold[0] / 2, 0]) rotate([90, 0, 0]) linear_extrude(pu_hold[0])
+    polygon([[x0, top - (x1 - x0) - pu_hold[1]], [x0, top], [x1, top], [x1, top - pu_hold[1]]]);
+}
+// Dev's box as drawn, its front cut back by `shift`
+module box_trimmed() difference() {
+  import("ref/box.stl");
+  box([left_wall[0] - 1, right_wall[1] + 1], [box_front - 20, box_front], [-1, 201]);
+}
+
 module box_cuts() {
+  // 4023: window through the back wall, its floor = the hold's top; channel for the connector and cable, out below
+  box([m23_box[0][0] - m23_window, m23_box[0][1] + m23_window], [back_wall - 1, 1],
+      [m23_box[2][0], m23_box[2][1] + m23_window]);
+  box([motor_x - cable_slot[0] / 2, motor_x + cable_slot[0] / 2],
+      [m23_box[1][1] - m23_conn[2] - cable_slot[1], m23_box[1][1] + 1], [-1, m23_box[2][0] + 1]);
   for (n = [notch_lo, notch_hi]) box([right_wall[0] - 1, right_wall[0] + push_t], n[0], n[1]);
   wall_holes();
   hole_x(pu_y, pu_screw_z, screw_hole, left_wall[0] - 1, left_wall[1] + 1, 1);
   // lift motor under the floor: boss hole + 4 screw holes
   translate([lift_axis[0], lift_axis[1], -1]) {
     cylinder(d = m44_boss[0] + 0.6, h = floor_t + 2);
-    for (o = m44_hole_offs) translate(o) cylinder(d = screw_clear, h = floor_t + 2);
+    for (o = m44_hole_offs) if (o[1] < 0) translate(o) cylinder(d = screw_clear, h = floor_t + 2);   // back 2: under the wall
   }
 }
 

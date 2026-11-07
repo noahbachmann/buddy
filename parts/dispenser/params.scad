@@ -1,7 +1,7 @@
 // Dispenser roller (belt conveyor under the left pile): all dimensions in mm.
 // Frame = dispenser.stl's own coordinates, so parts drop straight into Dev's model:
 //   X: left -> right. Left side open below z 70, divider at x 72..77, lift on the right.
-//   Y: back wall (y 0) -> open front (y -165).   Z: up, box floor top at z 5.
+//   Y: back wall (y 0) -> open front (y -165 as drawn, cut back by `shift`).   Z: up, box floor top at z 5.
 // Cards lie with the long side along Y and travel along X: -X = take (out of the box),
 // +X = feed (through the divider slot onto the lift).
 
@@ -15,11 +15,15 @@ left_wall_bottom = 70;       // left wall ends here, open below
 slot_top         = 66.04;    // underside of the divider's upper block = top of the card slot
 slot_bot         = 65;       // top of the divider's lower part
 divider_t        = 5;
-slot_y           = [-165, -5];   // the slot runs the full depth: open front .. back wall
+// Everything inside moves back by `shift` (roller motor into the back wall, lift as far back as its nut tab allows:
+// 1.4 mm to the wall, nut 0.9 mm), the box gets as much shorter at the front. Dev moves the lift in Onshape.
+shift            = 8.5;
+box_front        = -165 + shift;
+slot_y           = [box_front, back_wall];   // the slot runs the full depth: open front .. back wall
 
 // --- Card ------------------------------------------------------------------------------
 card    = [63, 88];          // X (travel) x Y
-card_yc = -98;               // card centre in Y (= lift plate centre)
+card_yc = -98 + shift;       // card centre in Y (= lift plate centre)
 card_t  = 0.32;              // ⚠️ measure: thickness of 20 cards / 20
 gap     = 1.5 * card_t;      // gate opening above the belt: 1 card passes, 2 don't
 belt_top = slot_top - gap;   // underside of the bottom card
@@ -65,7 +69,8 @@ motor_sq      = 42.3;
 motor_body    = 23.5;
 motor_boss    = [22, 1.9];
 motor_holes   = 31;          // M3 square
-motor_face_y  = back_wall - 0.5 - motor_body;   // shaft points to the front (-Y)
+motor_face_y  = back_wall - 0.5 - motor_body + shift;   // shaft to the front (-Y), connector down; body through
+                                                        // a window in the back wall, resting on the hold below
 motor_dx      = 12;          // motor axis left of the drum axis: keeps the motor off the divider
 motor_x       = drive_x - motor_dx;
 motor_z       = drum_z - sqrt(gear_cd * gear_cd - motor_dx * motor_dx);
@@ -76,7 +81,7 @@ motor_z       = drum_z - sqrt(gear_cd * gear_cd - motor_dx * motor_dx);
 // drums, a flat bed (top = underside of the belts) and ribs along Y between the bed and the bottom run.
 plate_t     = 6;
 back_y      = [motor_face_y - plate_t, motor_face_y];   // back plate = motor plate
-front_y     = [-152, -146];  // front plate (separate part)
+front_y     = [-152, -146] + [shift, shift];  // front plate (separate part)
 drum_y      = [back_y[0] - boss, front_y[1] + boss];      // drum length along Y
 gear_y      = [drum_y[0] - gear_w, drum_y[0]];
 bed_top     = belt_top - cord_s;   // belts slide on it: a strand carries ~2.5 N, a pile would sag it
@@ -85,7 +90,7 @@ frame_x     = [idler_x - 10.5, divider_x - 0.5];
 step_x      = -0.3;          // left of this the frame stands on the table (box floor starts at x 0)
 rib_xs      = [-38, 3, 48];  // ribs under the bed (left faces), along Y; the right one clears drum and belts
 rib_t       = 5;
-cam_window  = [[10, 46], [-74, -56]];   // keep free: camera looks up at the bottom card
+cam_window  = [[10, 46], [-74 + shift, -56 + shift]];   // keep free: camera looks up at the bottom card
 open_clear  = 0.6;           // around drums and gears in the bed
 
 // --- Gates (printed, reprint with -D gate_gap=… to tune) ---------------------------------------
@@ -110,12 +115,11 @@ screw_head  = 6.2;           // counterbore
 // 17HS4401 on the right wall's outer face, coupling 5 -> 8, TR8x8 screw to the left wall. Carriage = the lift
 // turned 90°: plate (push face) + bar along the front strip + nut tab. No rods: the plate rests on the lift (then the
 // divider) by its own weight, and that weight keeps the nut from turning.
-// Everything but the plate stays in the front strip (y < -146: no cards, no lift) or above the pile.
-box_front  = -165;
+// Everything but the plate stays in the front strip (in front of the cards and the lift) or above the pile.
 div_top    = 96.04;          // top of the divider block (z 66..96, full depth)
 right_wall = [145, 150];
 left_wall  = [-5, 0];
-riser_y    = -54;            // front face of the lift's riser: the cards' back stop
+riser_y    = -54 + shift;            // front face of the lift's riser: the cards' back stop
 lift_top0  = 19;             // lift plate top as drawn in dispenser.stl (its lowest position)
 pile_max   = 35;             // 30 loose cards, not pressed together
 push_step  = 1;              // lift plate top above the divider top while pushing: cards step down onto it
@@ -123,7 +127,7 @@ push_lift  = div_top + push_step;      // lift plate top while pushing (firmware
 push_rest  = 0.3;            // notch floor below push_lift: the plate starts level with the lift, never above it
 push_h     = pile_max;
 push_t     = 4;              // the notch is 4 deep: 1 mm of wall stays outside, the plate's home stop
-push_y     = [-146.5, riser_y - 1];
+push_y     = [-146.5 + shift, riser_y - 1];
 push_cham  = [0.8, 1.5];     // lower edge, push side / return side: ramps over the lift's and the notch's edges
 push_end   = divider_x;      // plate face at the end: plate on the divider, pile at x 9..72 over H's chute
 push_stroke = right_wall[0] - push_end;
@@ -142,7 +146,7 @@ nut_pcd    = 16;
 lead       = 8;
 
 // layout: screw axis in the front strip, high enough that the motor's lower screw holes clear the plate's notch
-pu_y       = -156.5;
+pu_y       = -156.5 + shift;
 pu_screw_z = push_lift + (pile_max + 22);
 m44_face   = right_wall[1];
 shaft_tip  = m44_face - m44_shaft[1];
@@ -166,7 +170,14 @@ screw_hole = 8.6;
 // --- Lift motor (Dev's lift, moved for the coupling) ----------------------------------------------
 // As drawn, the coupling would sit where the lift's nut is at the bottom (z 47.5). The motor goes under the floor,
 // face against its underside: coupling z 11.5..36.5, the lift keeps its full travel.
-lift_axis  = [111.9, -26];
+lift_axis  = [111.9, -26 + shift];
 floor_t    = 5;
 lift_face  = 0;
 lift_screw_top = 200;     // as drawn (201.2), ending at the box top
+
+// --- Holds: the motors rest on the case, not only on their screws ------------------------------------------
+m23_conn   = [16, 4, 7.6];   // 4023 connector: width, out of the body, along the axis from the back end
+m23_window = 0.3;            // clearance around the 4023 in the back wall's window
+cable_slot = [20, 2];        // channel under the connector down through the floor: width, clearance in Y
+hold_gap   = 0.3;            // between the roller hold and the frame's back plate
+pu_hold    = [16, 3];        // pusher motor hold: width (Y), top thickness; 45° underside

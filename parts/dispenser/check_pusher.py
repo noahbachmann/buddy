@@ -30,7 +30,8 @@ FIXED = ["box-cut", "frame", "front-plate", "gate-left", "gate-right", "drive-dr
 HOME = ["case-add", "pusher-motor", "pusher-coupling", "pusher-screw", "pusher", "pusher-nut", "lift-motor",
         "lift-coupling"]
 LIFT_TOPS = [19, 40, 66]   # + push_lift
-# ref/lift.stl as drawn (plate top z 19): plate, riser, nut tab, + Dev's nut under the tab (its bounding box)
+SHIFT = 0.0   # read from params.scad: the lift moves back with everything
+# ref/lift.stl as drawn (plate top z 19, before the shift): plate, riser, nut tab, + Dev's nut under the tab (its bounding box)
 LIFT = [[[77.44, -146, 16], [144.44, -50, 19]], [[97.97, -54, 19], [125.97, -50, 66]],
         [[97.97, -54, 61], [125.97, -14.9, 66]], [[100.8, -36.4, 47.5], [122.8, -14.4, 61]]]
 
@@ -44,7 +45,7 @@ def param(tmp: Path, expr: str) -> float:
 
 def lift(top: float) -> trimesh.Trimesh:
     dz = top - LIFT[0][1][2]
-    return trimesh.util.concatenate([trimesh.creation.box(bounds=np.array(b) + [0, 0, dz]) for b in LIFT])
+    return trimesh.util.concatenate([trimesh.creation.box(bounds=np.array(b) + [0, SHIFT, dz]) for b in LIFT])
 
 
 def solid(t: trimesh.Trimesh) -> m3.Manifold:
@@ -55,7 +56,9 @@ def solid(t: trimesh.Trimesh) -> m3.Manifold:
 def main() -> int:
     with tempfile.TemporaryDirectory() as d:
         tmp = Path(d)
+        global SHIFT
         push_lift = param(tmp, "push_lift")
+        SHIFT = param(tmp, "shift")
 
         def piece(name: str, **defs) -> m3.Manifold:
             out = tmp / f"{name}-{len(list(tmp.iterdir()))}.stl"
@@ -68,7 +71,7 @@ def main() -> int:
         fixed = {n: piece(n) for n in FIXED}
         fixed["lift"] = solid(lift(push_lift))
         pile_max = param(tmp, "pile_max")
-        pile = solid(trimesh.creation.box(bounds=[[82, -142, push_lift], [145, -54, push_lift + pile_max]]))
+        pile = solid(trimesh.creation.box(bounds=[[82, -142 + SHIFT, push_lift], [145, -54 + SHIFT, push_lift + pile_max]]))
         hits = []
         for push in PUSHES:
             moving = {"pusher": piece("pusher", push=push), "pusher-nut": piece("pusher-nut", push=push)}

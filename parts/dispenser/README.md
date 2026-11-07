@@ -4,6 +4,10 @@ The box (`dispenser.stl`, Dev's Onshape model) holds Buddy's hand in two piles: 
 camera, and **B** on the lift on the right (Phase 5 plan: hand trays H and B, `feed` / `take` / `stack`). This module adds
 the roller under H and the pusher on the right wall. The roller moves the **bottom card** of H either way:
 
+Everything inside sits 8.5 mm further back than in `dispenser.stl` (`shift`): the 4023 sits in the back wall and the
+lift moves back as far as its nut tab allows (1.4 mm to the wall). The box gets 8.5 mm shorter at the front (y −156.5).
+All coordinates here are after the shift.
+
 - **take** (−X): out through the open left side onto the belts outside the box, where the arm picks it up.
 - **feed** (+X): through the divider's slot onto the lift pile B.
 
@@ -24,7 +28,7 @@ stand-ins (motors, rods, screw, nut, O-rings). `make_copy.py` regenerates it.
   (idler drum x −55.7)          bed: belts slide on it            (drive drum x 62) ◄─ 20:16 ◄─ 4023
 ```
 
-- **Belts:** three NBR O-rings (80 × 3 mm) at y −78 / −98 / −118, running on a printed drive drum and idler drum. They are
+- **Belts:** three NBR O-rings (80 × 3 mm) at y −69.5 / −89.5 / −109.5, running on a printed drive drum and idler drum. They are
   stretched 7 % (279.0 mm path, 260.8 mm free), which gives tension without a tensioner. The pile rests on the belts,
   rubber on card, so only the bottom card moves.
 - **Gates:** a bar across the card path, `gap` = 1.5 card thicknesses (0.48 mm) above the belt top. The bottom card fits
@@ -34,15 +38,17 @@ stand-ins (motors, rods, screw, nut, O-rings). `make_copy.py` regenerates it.
 - **Right gate's lip:** between the drive drum's top (x 62) and the divider (x 72) the card has 10 mm without support,
   and its leading edge would droop into the gap and hit the divider under the slot. The right gate has a lip under the
   card path there: flat top 0.5 mm below the belt top (z 65.06, just above the divider's lower part at z 65), drum
-  side following the belts at 0.6 mm clearance. It stops at y −43.5, in front of the drum gear, and is held by the front
+  side following the belts at 0.6 mm clearance. It stops at y −35, in front of the drum gear, and is held by the front
   leg and a small block joining it to the bar at the back.
 - **Slit ends:** the divider's slot is filled at both ends (Dev's change, below). The fill and the gate's back block
   form one 45° funnel. It narrows from the gate's entry side to the card's width + 1 mm per side at the divider's
-  right face (y −143…−53). A card up to ~3 mm (front: the gate's front leg) or ~10 mm (back) off centre is led
+  right face (y −134.5…−44.5). A card up to ~3 mm (front: the gate's front leg) or ~10 mm (back) off centre is led
   into it.
 - **Bed:** the belts slide on a flat bed. One O-ring strand carries only ~2.5 N, so a pile of 20 cards would sag a free
   span by ~1.4 mm and the cards would sit on the bed instead of the rubber.
-- **Drive:** the 4023 is turned 90° (shaft to the front, connector to the left) and sits behind the back plate. A 20T
+- **Drive:** the 4023 is turned 90° (shaft to the front, connector down) and sits behind the back plate, in a window
+  through the back wall (y −20.5…3, 3 mm out at the back). It rests on a block of the box (the hold) under it, and
+  its connector hangs in a 20 mm channel through the hold and the floor: the cable leaves under the box. A 20T
   gear on its shaft drives the 16T gear on the drum: 1.25 drum turns per motor turn, 54.6 mm of belt per motor turn,
   0.27 mm per full step. With the gear pair the drum can sit right at the divider (1 mm gap). A drum directly on the
   motor shaft would end 12 mm further left, because the motor body is 42 mm square.
@@ -78,13 +84,14 @@ stand-ins (motors, rods, screw, nut, O-rings). `make_copy.py` regenerates it.
   height still matters (calibrate it once, see "Untested assumptions"): if the lift is off by e, the plate tilts and
   its front end lifts by ~0.9 e.
 - **Where it runs:** three things fix the layout. The divider block (z 66…96) spans the full depth, so everything that
-  crosses it stays above z 97. The lift's riser (x 98…126, y −54…−50) rises to z 144 while pushing, so nothing may
-  sit behind the cards. The cards cover y −142…−54, and the arm drops cards onto H from above. So the screw, the
-  coupling, the tab and the bar run in the **front strip** (y −165…−147); only the plate crosses the card area.
+  crosses it stays above z 97. The lift's riser (x 98…126, y −45.5…−41.5) rises to z 144 while pushing, so nothing
+  may sit behind the cards. The cards cover y −133.5…−45.5, and the arm drops cards onto H from above. So the screw,
+  the coupling, the tab and the bar run in the **front strip** (y −156.5…−138.5); only the plate crosses the card area.
 - **Pile height:** up to 35 mm (30 loose cards). The plate is as high as that pile; the motor and its lower screw
   holes sit above it, which sets the screw at z 154.
 - **Motor:** a 17HS4401 screwed flat onto the right wall's outer face (4× M3 from inside the box). The wall is
-  extended 15 mm forward around it, because the motor is wider than the front strip. The coupling (Ø19 × 25)
+  extended 15 mm forward around it, because the motor is wider than the front strip. A wedge under the motor (16 mm
+  wide, 45° underside) carries it, so it doesn't hang on its screws alone. The coupling (Ø19 × 25)
   joins the 5 mm shaft and the screw inside the box; the screw runs to the left wall and turns in a plain hole there.
 - **Home:** the plate sits in a notch in the right wall, face flush with the inner face (x 145), resting on the notch
   floor 0.3 below the lift's push height, so it can only step *down* onto the lift. The notch is 4 mm deep: the last
@@ -103,7 +110,9 @@ stand-ins (motors, rods, screw, nut, O-rings). `make_copy.py` regenerates it.
 With a coupling on the lift's motor (shaft top at z 69), the coupling would sit at z 56…82, right where the lift's
 nut hangs at the bottom of its travel (z 47.5). The lift could then not go below z ~54, which leaves ~12 mm between
 the lift plate and the divider slot, where the roller feeds every card onto pile B. So the motor moves under the box:
-face against the floor's underside, boss in the floor's hole, 4× M3 from inside. The coupling then sits at z
+face against the floor's underside, boss in the floor's hole, M3 from inside. With the shift its axis is at y −17.5:
+the motor reaches under the back wall, and its 2 back screw holes lie under the wall, out of reach. It's held by the 2
+front screws and the boss in the floor (the load is the lift's few hundred grams). The coupling then sits at z
 11.5…36.5 and the lift keeps its full travel (plate top down to z 19; a 35 mm pile needs z 30.5). The motor hangs
 40 mm below the floor: the box needs feet of at least 42 mm. (The other option, the motor on the coming ceiling with
 the screw hanging down, works as well; the copy shows the floor version.)
@@ -152,7 +161,7 @@ cd parts/tools && uv run python ../dispenser/check_pusher.py # after a pusher, l
 | Qty | Part | Note |
 |---|---|---|
 | 2 | 17HS4401 + Purecrea flexible coupling 8/5 + TR8x8 lead screw + TR8x8 brass nut | The two sets on the shopping list: pusher and lift |
-| 8 | M3×8 socket head | 4 per motor: through the 5 mm right wall / box floor into the motor face (holes ~4.5 deep), from inside |
+| 6 | M3×8 socket head | Through the 5 mm right wall (4, pusher) / box floor (2, lift) into the motor face (holes ~4.5 deep), from inside |
 | 2 | M3×8 | Pusher nut flange to the tab (only the 2 holes above and below the screw) |
 
 ⚠️ **Cut the pusher's screw to 130 mm** (hacksaw, then file a chamfer so the nut starts cleanly). It reaches from the
@@ -173,14 +182,18 @@ Screws go into 2.5 mm pilot holes (self-tapping into PETG).
 
 ## Assembly
 
+The 4023 sits in the back wall, so the frame goes into the box first and the motor comes in from behind.
+
 1. **Bearings:** press 2 MR105 into each drum, pushing only on the outer race.
-2. **Motor:** put the 4023 behind the back plate, boss in the recess and connector to the left. Screw it on with 3× M3×6
-   from the front; the heads sink into the plate. The drum gear will run over them.
-3. **Motor gear:** on the shaft, flush with the drum gear's plane (7 mm in front of the motor face). Tighten the set screw on the flat.
-4. **Drums:** push the rods into the back plate (blind holes), then slide the drums on with the drive drum's gear at the back, meshing.
-5. **Belts:** slide the 3 O-rings over both drums from the front, into the grooves. They pass over the bed and the ribs.
-6. **Front plate:** rod ends into its holes, 3× M3×12 into the rib ends, 2 keeper screws with washers.
-7. **Into the box:** the frame's step sits against the left edge of the box floor. 4× M3×12 from below.
+2. **Frame into the box:** its step against the left edge of the box floor, 2× M3×12 from below into the back plate.
+3. **Motor:** cable plugged in. Push the 4023 through the back wall's window from behind, sliding on the hold,
+   connector down in the channel, cable out under the box. Boss into the plate's recess, 3× M3×6 from the front;
+   the heads sink into the plate. The drum gear will run over them.
+4. **Motor gear:** on the shaft, flush with the drum gear's plane (7 mm in front of the motor face). Tighten the set screw on the flat.
+5. **Drums:** push the rods into the back plate (blind holes), then slide the drums on with the drive drum's gear at the back, meshing.
+6. **Belts:** slide the 3 O-rings over both drums from the front, into the grooves. They pass over the bed and the ribs.
+7. **Front plate:** rod ends into its holes, 3× M3×12 into the rib ends, 2 keeper screws with washers, 2× M3×12 from
+   below through the floor.
 8. **Gates:** press them into their sockets from above: the left one under the left wall, the right one (with the lip)
    in front of the divider. The lip passes the drum on its way down.
 
@@ -203,24 +216,33 @@ Screws go into 2.5 mm pilot holes (self-tapping into PETG).
 
 ## Dev: needed in Onshape
 
-- **4 holes Ø3.4 in the box floor** at (x, y) = (20, −32), (60, −32), (20, −149), (60, −149).
-- Keep free for the camera: the bed has a window at x 10…46, y −74…−56 (between the back edge of the card and the first belt).
+- **Box 8.5 mm shorter:** front edge at y −156.5 instead of −165 (floor, side walls, divider).
+- **Lift 8.5 mm back** (+Y): plate y −137.5…−41.5, riser front face at y −45.5, nut tab to y −6.4, nut to −5.9.
+- **4023 in the back wall:** window through the wall at x 28.55…71.45, z 22.46…65.06 (the motor + 0.3, its floor
+  flush with the motor's underside). Hold under the motor: a block x 28.85…71.15, y −20.2…3 (from 0.3 behind the
+  frame's back plate to the motor's back end, 3 mm out behind the wall), z 0…22.46. Cable channel x 40…60,
+  y −6.6…3 (open at the back), from the hold's top down through the floor.
+- **4 holes Ø3.4 in the box floor** at (x, y) = (20, −23.5), (60, −23.5), (20, −140.5), (60, −140.5).
+- Keep free for the camera: the bed has a window at x 10…46, y −65.5…−47.5 (between the back edge of the card and the first belt).
 - **Divider slot filled at both ends** (z 65…66.04, x 72…77), leaving the card's width open. Each fill ends in a 45°
-  face toward the card. Front: from the front edge (y −165) to the line (72, −148)→(77, −143). Back: from the back
-  wall (y −5) to the line (72, −48)→(77, −53). Seen from above, the opening is 100 mm wide at x 72 and 90 mm at x 77.
-  This also ties the divider's upper block to the lower part.
+  face toward the card. Front: from the front edge (y −156.5) to the line (72, −139.5)→(77, −134.5). Back: from the
+  back wall (y −5) to the line (72, −39.5)→(77, −44.5). Seen from above, the opening is 100 mm wide at x 72 and 90 mm
+  at x 77. This also ties the divider's upper block to the lower part.
 - **Pusher notch** in the right wall, 4 mm deep from the inside (1 mm of wall stays), open to the front edge:
-  y −165…−54 at z 96.74…107.54 (bar), plus y −147…−54 up to z 133.04 (plate).
-- **Right wall extended forward** around the pusher motor: x 145…150, to y −179.65, z 130.89…177.19, the underside
+  y −156.5…−45.5 at z 96.74…107.54 (bar), plus y −138.5…−45.5 up to z 133.04 (plate).
+- **Right wall extended forward** around the pusher motor: x 145…150, to y −171.15, z 130.89…177.19, the underside
   at 45° back to the wall's front edge (prints upright).
-- **Holes through the right wall** for the pusher motor: Ø22.6 for the boss at (y, z) = (−156.5, 154.04), 4× Ø3.4 at
-  (−172, 138.54), (−141, 138.54), (−172, 169.54), (−141, 169.54).
-- **Screw hole Ø8.6 through the left wall** at (y, z) = (−156.5, 154.04).
-- **Lift motor under the floor:** in the floor at (x, y) = (111.9, −26) a hole Ø22.6 for the boss and 4× Ø3.4 at
-  (96.4, −41.5), (127.4, −41.5), (96.4, −10.5), (127.4, −10.5). Feet ≥ 42 mm under the box.
+- **Pusher motor hold:** a wedge on the right wall's outer face under the motor: y −156…−140, top at z 132.89 (the
+  motor's underside) from x 150 to 190, 3 mm thick there, underside at 45° down to the wall at z 88.89.
+- **Holes through the right wall** for the pusher motor: Ø22.6 for the boss at (y, z) = (−148, 154.04), 4× Ø3.4 at
+  (−163.5, 138.54), (−132.5, 138.54), (−163.5, 169.54), (−132.5, 169.54).
+- **Screw hole Ø8.6 through the left wall** at (y, z) = (−148, 154.04).
+- **Lift motor under the floor:** in the floor at (x, y) = (111.9, −17.5) a hole Ø22.6 for the boss and 2× Ø3.4 at
+  (96.4, −33), (127.4, −33) (the back 2 would be under the wall). Feet ≥ 42 mm under the box; the motor reaches
+  3.65 mm past the back wall.
 - The spare 17HS4401 + screw + nut at x 354…396 are now the pusher's, and the lift's motor and screw move under the
   floor: the copy drops them and places its own.
-- The pusher motor sticks out 40 mm to the right (x 190) and 13 mm in front of the box (y −178), the wall extension 15 mm.
+- The pusher motor sticks out 40 mm to the right (x 190) and 13 mm in front of the box (y −169.15), the wall extension 15 mm.
 
 ## ⚠️ Open: feed stops short
 
@@ -234,7 +256,7 @@ but then two cards sit in the slot. No roller left of the divider can push furth
    turns/s, ~300 rpm at the motor; card on card μ ≈ 0.3, 20 mm to slide). ⚠️ A pancake stepper should reach that
    without load. Test whether it does with the card.
 2. **Hardware:** a driven pinch roller on the lift side behind the slot, geared from the drum through the gear zone
-   behind the cards (y −36…−43). It would have to get out of the way when the lift pushes B back over to the left.
+   behind the cards (y −27.5…−34.5). It would have to get out of the way when the lift pushes B back over to the left.
 
 ## ⚠️ Untested assumptions
 
@@ -243,8 +265,8 @@ but then two cards sit in the slot. No roller left of the divider can push furth
 - NBR on the card back is assumed to grip better than card on card. If the second card comes along, lower the gap first.
 - The 4023's model (connector side, shaft flat at 2.0 mm from the axis) is taken from `dispenser.stl` as drawn.
 - Pusher: the plate rests on the lift by its weight (~5 mNm holding torque, estimated for 21 g printed; tips at ~2.5 N
-  push). The lift's push height has to be calibrated once: push a single card lying at the front (y ≈ −140), then one
-  at the back (y ≈ −60), and change the height in 0.05 mm steps until both are caught. Bowed cards may still slip
+  push). The lift's push height has to be calibrated once: push a single card lying at the front (y ≈ −131.5), then one
+  at the back (y ≈ −51.5), and change the height in 0.05 mm steps until both are caught. Bowed cards may still slip
   under the plate's front end; if they do, the fix is a comb (slots in the lift plate, Dev's part) so the plate's
   edge can dip below the lift top.
 - Pusher: the screw turns in a plain Ø8.6 hole in the left wall (PETG on steel, slow, light load). Coupling (Ø19 × 25)
