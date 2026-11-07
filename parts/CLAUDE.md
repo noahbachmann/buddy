@@ -53,11 +53,16 @@ section through every fit (bearing seat, slot, channel). Numbers can't see a mis
 - STLs are committed already in print orientation (+Z up = build direction), binary.
 - Every dimension in the module's `params.scad`; design rules and fits from `docs/3d-printing.md`.
 - `tray/` has no source (Dev's own): change only on request, by editing the STL directly (lid rim gap: `docs/3d-printing.md` → Fits).
-- `dispenser/dispenser.stl` is Dev's Onshape box: never modify it. The roller is built in its coordinates;
-  `make_copy.py` writes `ref/` (box, lift, 4023 cut out of it) and the combined copy `dispenser-roller.stl`.
+- `dispenser/dispenser.stl` is Dev's Onshape box: never modify it. Roller and pusher are built in its coordinates;
+  `make_copy.py` writes `ref/` (box, lift, 4023 cut out of it) and the combined copy `dispenser-roller.stl` (box with
+  the cuts Dev has to make). `check_pusher.py` checks the pusher's stroke for collisions.
 
 ## Gotchas
 
 - trimesh sections need `networkx` (declared); a missing optional trimesh dep fails only when the feature is used.
 - PIL's default font lacks × ² ³ ≤: sheets use matplotlib's DejaVu Sans.
 - OpenSCAD's eye/centre `--camera` picks its own up vector (top view came out rotated): use the gimbal form.
+- The same height reached by two different sums (`a + b + c` vs `(a + b) + c`) differs by 1e-14; where two such faces
+  meet, the STL gets zero-area slivers and isn't watertight. Derive touching faces from one base + exact offsets.
+- Manifold booleans need watertight input: an open reference mesh (e.g. `dispenser/ref/lift.stl`) silently intersects
+  as 0. Check `is_watertight` before trusting an overlap volume.

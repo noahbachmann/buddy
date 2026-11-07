@@ -1,10 +1,12 @@
-"""Dev's dispenser.stl + the roller -> dispenser-roller.stl (dispenser.stl stays untouched).
+"""Dev's dispenser.stl + roller + pusher -> dispenser-roller.stl (dispenser.stl stays untouched).
 
     cd parts/tools && uv run python ../dispenser/make_copy.py
 
 1. Writes ref/{box,lift,m4023}.stl from dispenser.stl: the context assembly.scad imports.
-2. Removes the upright 4023 from a copy of dispenser.stl and appends every placed piece of
-   assembly.scad (frame, drums, gears, gates, the turned 4023, rods, O-rings) as separate bodies.
+2. Removes the upright 4023, the box and the spare 17HS4401 + screw + nut parked outside the box from a copy of
+   dispenser.stl and appends every placed piece of assembly.scad as separate bodies: the box with Dev's cuts
+   (pusher notch, holes), the roller (frame, drums, gears, gates, turned 4023, rods, O-rings) and the pusher
+   at home (carriage, mount, 17HS4401, coupling, cut screw, nut, rods).
 """
 
 from __future__ import annotations
@@ -21,13 +23,21 @@ from cad import scad
 HERE = Path(__file__).resolve().parent
 SRC = HERE / "dispenser.stl"
 OUT = HERE / "dispenser-roller.stl"
-PIECES = ["frame", "front-plate", "drive-drum", "idler-drum", "motor-gear", "gate-left", "gate-right", "motor", "rods", "belts"]
+PIECES = ["box-cut", "frame", "front-plate", "drive-drum", "idler-drum", "motor-gear", "gate-left", "gate-right", "motor",
+          "rods", "belts", "pusher", "pusher-mount", "pusher-motor", "pusher-coupling", "pusher-screw", "pusher-nut",
+          "pusher-rods"]
 
 # Bodies of dispenser.stl, found by their bounding boxes (mm, min corner, max corner).
 REF = {
     "m4023": ([13.85, -50.66, 4.9], [56.15, -3.85, 53.5]),
     "box": ([-5, -165, 0], [150, 0, 200]),
     "lift": ([77.44, -146, 16], [144.44, -14.9, 66]),
+}
+# Dropped from the copy, not written to ref/: the pusher's motor, screw and nut as Dev parked them.
+SPARE = {
+    "m4401": ([354, -47, 5], [396, -5, 69]),
+    "screw": ([370.9, -30, 1.2], [378.9, -22, 201.2]),
+    "nut": ([363.8, -36.4, 47.5], [385.8, -14.4, 62.54]),
 }
 
 
@@ -43,12 +53,13 @@ def main() -> int:
     labels = trimesh.graph.connected_component_labels(src.face_adjacency, node_count=len(src.faces))
     bodies = [src.submesh([np.flatnonzero(labels == k)], append=True) for k in range(labels.max() + 1)]
     idx = {name: find(bodies, *box) for name, box in REF.items()}
+    drop = {idx["m4023"], idx["box"]} | {find(bodies, *box) for box in SPARE.values()}
 
     (HERE / "ref").mkdir(exist_ok=True)
     for name, i in idx.items():
         bodies[i].export(HERE / "ref" / f"{name}.stl")
 
-    keep = src.submesh([np.flatnonzero(labels != idx["m4023"])], append=True)
+    keep = src.submesh([np.flatnonzero(~np.isin(labels, list(drop)))], append=True)
     parts = [keep]
     with tempfile.TemporaryDirectory() as tmp:
         for p in PIECES:

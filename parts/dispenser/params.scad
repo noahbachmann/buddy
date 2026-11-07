@@ -93,3 +93,61 @@ gate_xs   = [-gate_w, divider_x - 0.5 - gate_w];   // left gate bar x0, right ga
 screw_pilot = 2.5;           // M3 self-tapping into PETG
 screw_clear = 3.4;
 screw_head  = 6.2;           // counterbore
+
+// --- Pusher: stack(B onto H) --------------------------------------------------------------------
+// 17HS4401 + TR8x8 lead screw on the right wall push the lift pile left, over the divider into H.
+// Everything but the plate runs in the front strip (y < -146: no cards, no lift; the lift's riser at
+// y -54..-50 rises to z 144 while pushing) and above the divider block (z 66..96, full depth).
+box_front  = -165;
+div_top    = 96.04;          // top of the divider block
+right_wall = [145, 150];
+riser_y    = -54;            // front face of the lift's riser: the cards' back stop
+lift_top0  = 19;             // lift plate top as drawn in dispenser.stl
+push_step  = 1;              // lift plate top above the divider top while pushing: cards step down onto it
+push_lift  = div_top + push_step;      // lift plate top while pushing (firmware)
+push_bot   = push_lift + card_t / 2;   // plate's lower edge: catches the bottom card's edge halfway
+push_h     = 35;
+push_t     = right_wall[1] - right_wall[0];   // home = flush with the wall's inner face, against the mount
+push_y     = [-144, riser_y - 1];             // plate: front end clears the coupling, back end the riser
+push_end   = card[0] + 3;    // plate face at the end of the stroke: pile at x 3..66, inside H's chute
+push_stroke = right_wall[0] - push_end;
+
+// bought: 17HS4401 (42 x 42 x 40), flexible coupling 5 -> 8, TR8x8 lead screw + brass nut, 2 rods
+m44_sq     = 42.3;
+m44_body   = 40;
+m44_boss   = [22, 2];
+m44_shaft  = [5, 24];        // from the face
+m44_holes  = 31;
+coupling   = [19, 25];       // diameter, length
+nut_d      = 10.2;           // TR8 brass nut: body, length incl. flange, flange, screw circle (as Dev's lift nut)
+nut_len    = 15;
+nut_flange = [22, 3.5];
+nut_pcd    = 16;
+lead       = 8;
+
+// layout: rods and screw on one vertical line in the front strip
+pu_y      = -156.5;
+pu_bar    = [19, 11];        // carriage bar around each rod (y, z); lower bar's bottom = plate's bottom
+mount_t   = 6;
+m44_face  = right_wall[1] + mount_t;
+shaft_tip = m44_face - m44_shaft[1];
+coup_x    = [shaft_tip - 13, shaft_tip + 12];   // 12 mm on the shaft, 12 on the screw
+nut_x     = [coup_x[0] - 1.5 - nut_len, coup_x[0] - 1.5];   // at home; flange on the right (push side)
+web_x     = [nut_x[1] - nut_flange[1] - 6, nut_x[1] - nut_flange[1]];
+bar_x     = [nut_x[0] - 2.5, right_wall[1]];
+screw_x   = [nut_x[0] - push_stroke - 4, shaft_tip - 1];   // cut the 200 mm screw to this length
+// heights as push_bot + exact offsets: sums in another order differ by 1e-14 and leave slivers in the STL
+pu_bar_z0  = [0, pu_bar[1] + 1 + nut_flange[0] + 1];   // bar bottoms above push_bot: flange between the bars
+pu_screw_z = push_bot + pu_bar[1] + 1 + nut_flange[0] / 2;
+pu_rod_z   = [for (o = pu_bar_z0) push_bot + (o + pu_bar[1] / 2)];
+pu_rod_x  = [-3, right_wall[1] + 4];     // blind 3 mm into the left wall, 4 into the mount
+bush      = [5.4, 10, 6.4];  // bushing bore, length at each bar end, relief between
+
+// Dev's cuts in the box: a notch at the front of the right wall (the plate's pocket), 8 screw holes
+// around it for the mount, 2 rod holes in the left wall
+notch_y  = [box_front - 1, push_y[1] + 1];
+notch_z  = [push_bot - 1, push_bot + (pu_bar_z0[1] + pu_bar[1] + 1)];
+mount_y  = [pu_y - m44_sq / 2 - 2, -42];
+mount_z  = [notch_z[0] - 8, notch_z[1] + 8];
+mount_screws = concat([for (y = [-155, -100, -60], z = [notch_z[0] - 4, notch_z[1] + 4]) [y, z]],
+                      [for (z = [104, 136]) [-48, z]]);

@@ -1,16 +1,20 @@
-# Card dispenser: roller (belt conveyor)
+# Card dispenser: roller (belt conveyor) and pusher
 
 The box (`dispenser.stl`, Dev's Onshape model) holds Buddy's hand in two piles: **H** on the left, face down over a
 camera, and **B** on the lift on the right (Phase 5 plan: hand trays H and B, `feed` / `take` / `stack`). This module adds
-the roller under H. It moves the **bottom card** of H either way:
+the roller under H and the pusher on the right wall. The roller moves the **bottom card** of H either way:
 
 - **take** (−X): out through the open left side onto the belts outside the box, where the arm picks it up.
 - **feed** (+X): through the divider's slot onto the lift pile B.
 
-`dispenser.stl` stays untouched. `dispenser-roller.stl` is the copy with the roller in place and the 4023 turned. It
-also holds bought parts as stand-ins (rods, O-rings). `make_copy.py` regenerates it.
+The pusher moves **all of B** back: **stack(B onto H)** (−X): the lift raises B to the pusher, which pushes the pile
+over the divider into H's chute, where it drops onto H.
 
-## How it works
+`dispenser.stl` stays untouched. `dispenser-roller.stl` is the copy with the roller and the pusher in place, the 4023
+turned and the box cut as Dev needs to cut it (below). It also holds bought parts as stand-ins (motors, rods, screw, nut,
+O-rings). `make_copy.py` regenerates it.
+
+## How the roller works
 
 ```
             left gate (x −5…0, under the left wall)      right gate (x 66.5…71.5)   divider slot
@@ -40,6 +44,42 @@ also holds bought parts as stand-ins (rods, O-rings). `make_copy.py` regenerates
   front plate off, everything inside the loops (drums, bed, ribs) hangs from the back plate, so the O-rings slide on
   from the front.
 
+## How the pusher works
+
+```
+  the carriage seen from +X                    on the line y −156.5, z 120, from the right:
+                                               17HS4401 (outside) → coupling (x 119…144) → screw (x 19…131)
+  z 143  ┌─────────┬────┐
+         │upper bar│ear ╲      (bar = bushing on a Ø5 rod)
+  z 132  ├─────────┤     ╲────────────────────────────┐
+  z 120  │ nut web │ ← the coupling passes here        │  plate: 35 high, its face pushes the pile
+  z 108  ├─────────┤                                   │
+  z  97  │lower bar│───────────────────────────────────┘  ← 0.16 above the lift, 1.16 above the divider
+         y −166    −147 −144                          −55 (lift riser at −54)
+```
+
+- **Where it runs:** three things fix the layout. The divider block (z 66…96) spans the full depth, so everything that
+  crosses it stays above z 97. The lift's riser (x 98…126, y −54…−50) rises to z 144 while pushing, so nothing may
+  sit behind the cards. The cards cover y −142…−54, and the arm drops cards onto H from above. That leaves the **front
+  strip** y −166…−147: rods, screw, nut and the carriage bars run there, on one vertical line at y −156.5. Only the
+  plate crosses the card area.
+- **Carriage** (`pusher.scad`): the plate (35 × 89 × 5, face over y −144…−55) plus two bars that slide on two Ø5
+  steel rods and a web that holds the TR8 nut. The rods carry the carriage; the nut only drives it. So the screw hangs
+  free at its far end, as on a printer's Z axis: no third support that would have to line up.
+- **Why the nut sits ahead of the plate:** a coupling (Ø19 × 25) joins the motor shaft and the screw, and it sits where the
+  plate rests. So the nut sits left of the coupling and the plate reaches around it: the gap between the plate's two
+  front tabs lets it pass the coupling.
+- **Home:** the plate sits in a notch in the right wall, face flush with the wall (x 145). The mount closes the notch
+  from outside and is the end stop. Home against the mount at low current: sensorless (TMC2209 StallGuard, if the
+  board has it, still undecided) or with one of the 4 limit switches on the shopping list.
+- **Push:** lift plate top to **z 97.04** (`push_lift` = divider top + 1). The plate's lower edge is at **z 97.20**, half a
+  card above the lift: it catches the bottom card's edge and clears the lift and the divider. The plate travels
+  **79 mm** (x 145 → 66, ~10 screw turns): the pile then lies at x 3…66, fully over H's chute (x 0…72), and drops. Then
+  back home, lower the lift.
+- **Direction:** the TR8x8 is right-handed. Which way "positive steps" turn depends on the wiring: set DIR in the firmware.
+- ⚠️ The pile drops 30 mm (z 97 → H's top at ~66). It lands between the left wall and the divider, 9 mm wider than a
+  card. Test with a real pile; if it lands skewed, try a slower push first.
+
 ## Files
 
 All dimensions are in `params.scad`, in `dispenser.stl`'s own coordinates. Run `parts/cad build dispenser` for the
@@ -49,17 +89,21 @@ STLs and `parts/cad render dispenser` for the sheets (`parts/CLAUDE.md`).
 |---|---|---|
 | `params.scad` | Box measurements, card, belts, drums, gears, layout | |
 | `lib.scad` | Geometry of every piece, placed in the box frame | |
-| `assembly.scad` | Preview in the box (box, lift, turned 4023, card); `part=` exports one placed piece | – |
+| `assembly.scad` | Preview in the box (cut box, lift, turned 4023, card, pile B); `part=` exports one placed piece; poses `-D push=0…1 -D lift_top=97.04` | – |
 | `roller-frame.scad` | Back plate (holds the 4023), bed, 3 ribs | bed down (upside down) |
 | `front-plate.scad` | Front plate: rod ends, keeper screws, access holes for the motor screws | outer face down |
 | `drive-drum.scad` | 16T gear + 3 grooves, 2 bearing seats | standing, gear down |
 | `idler-drum.scad` | 3 grooves, 2 bearing seats | standing |
 | `motor-gear.scad` | 20T, D-bore for the 4023's shaft, M3 set screw + nut slot | gear down |
 | `gate.scad` | Gate (print **2**) | on its side |
-| `make_copy.py` | `ref/` (box, lift, 4023 from `dispenser.stl`) + `dispenser-roller.stl` | – |
+| `pusher.scad` | Pusher carriage: plate, 2 rod bars, nut web | plate down (right face) |
+| `pusher-mount.scad` | Holds the 17HS4401 and the rods' right ends on the wall's outer face | inner face down |
+| `make_copy.py` | `ref/` (box, lift, 4023 from `dispenser.stl`) + `dispenser-roller.stl` (cut box, roller, pusher) | – |
+| `check_pusher.py` | Collisions over the pusher's stroke with the lift at push height (lift rebuilt from measured boxes) | – |
 
 ```bash
 cd parts/tools && uv run python ../dispenser/make_copy.py    # after any change, also regenerates ref/
+cd parts/tools && uv run python ../dispenser/check_pusher.py # after a pusher, lift or box change: must print 0 overlapping
 ```
 
 ## Parts
@@ -75,6 +119,20 @@ cd parts/tools && uv run python ../dispenser/make_copy.py    # after any change,
 | 3 | M3×12 | Front plate into the rib ends |
 | 4 | M3×12 | Frame to the box floor, from below |
 
+**Pusher**
+
+| Qty | Part | Note |
+|---|---|---|
+| 1 | 17HS4401 + flexible coupling 5/8 + TR8x8 lead screw + TR8x8 brass nut | The second set on the shopping list |
+| 2 | Steel rod Ø5 mm, 157 mm | Silver steel like the roller's, cut and deburred |
+| 4 | M3×6 socket head | Motor to the mount, from the inside; the heads sink into the mount |
+| 8 | M3×10 countersunk | Mount to the wall, from inside the box (heads flush: the lift slides past) |
+| 2 | M3×8 | Nut flange to the web (only the 2 holes above and below the screw) |
+
+⚠️ **Cut the lead screw to 111.5 mm** (hacksaw, then file a chamfer so the nut starts cleanly). Uncut, 200 mm would
+stick 65 mm out of the left wall. Cut the end that goes into the coupling; the factory end
+stays free, so the nut threads on easily.
+
 Screws go into 2.5 mm pilot holes (self-tapping into PETG).
 
 ## Print (Bambu X2D)
@@ -83,6 +141,8 @@ Screws go into 2.5 mm pilot holes (self-tapping into PETG).
   frame and front plate at 0.2.
 - **No supports.** Horizontal holes are teardrops, the drum grooves are teardrop-shaped and the lower bearing seat ends in a 45° cone.
 - The gate prints on its side so its gap step lies in the XY plane, where the printer is most accurate.
+- Pusher carriage: plate down, the bars stand, so the bushings come out round (vertical holes). The web over the nut
+  is the only bridge (24 mm). 0.16 mm layers. Mount: inner face down, 0.2 mm.
 
 ## Assembly
 
@@ -96,6 +156,19 @@ Screws go into 2.5 mm pilot holes (self-tapping into PETG).
 7. **Into the box:** the frame's step sits against the left edge of the box floor. 4× M3×12 from below.
 8. **Gates:** press them into their sockets: one under the left wall, one in front of the divider.
 
+**Pusher** (after Dev's cuts in the box):
+
+1. **Motor:** 4× M3×6 from the mount's inner face into the 17HS4401, boss in the recess.
+2. **Coupling:** on the motor shaft, its right end 6 mm from the mount's inner face (x 144). Tighten the 5 mm side.
+3. **Carriage:** thread the nut onto the screw, flange towards the motor; slide the flange onto the web's right face and
+   screw it on (2× M3×8). Push both rods through the bushings.
+4. **Into the box:** rods' left ends into the left wall's holes, at an angle through the wall's notch. Screw end
+   towards the motor.
+5. **Mount on:** the rods' right ends go into the mount's sockets, the screw into the coupling. 8× M3×10 countersunk
+   from inside the box. Tighten the coupling's 8 mm side through the open front.
+6. **Check:** turn the screw by hand. The carriage must run its full 79 mm without binding. If it binds, loosen the
+   mount screws, let it centre, and tighten again.
+
 ## Tuning the gap
 
 1. Measure `card_t` (20 cards ÷ 20) and set it in `params.scad`. Everything follows from it: belt height, frame, gates.
@@ -106,8 +179,12 @@ Screws go into 2.5 mm pilot holes (self-tapping into PETG).
 
 - **4 holes Ø3.4 in the box floor** at (x, y) = (20, −32), (60, −32), (20, −149), (60, −149).
 - Keep free for the camera: the bed has a window at x 10…46, y −74…−56 (between the back edge of the card and the first belt).
-- `dispenser.stl` holds a second NEMA 17 + lead screw + nut at x 354…396, outside the box. The copy keeps them as they
-  are; delete them if they're a leftover.
+- **Pusher notch** in the right wall: y −165…−54, z 96.2…144.2, through, open to the front edge (the plate's pocket).
+- **8 holes Ø3.4 through the right wall**, 90° countersink Ø6.5 on the **inside** (the lift slides past: heads flush), at
+  (y, z) = (−155, 92.2), (−100, 92.2), (−60, 92.2), (−155, 148.2), (−100, 148.2), (−60, 148.2), (−48, 104), (−48, 136).
+- **2 blind holes Ø5.2, 3 mm deep, in the left wall's inner face** (the rods) at (y, z) = (−156.5, 102.7), (−156.5, 137.7).
+- The spare 17HS4401 + screw + nut at x 354…396 are now the pusher's: the copy drops them and places its own.
+- The motor sticks out 13 mm in front of the box (y −178), the mount 15 mm: keep that free.
 
 ## ⚠️ Open: feed stops short
 
@@ -128,3 +205,9 @@ the next card would jam on them. No roller left of the divider can push further.
 - The MR105 press fit (`press`), the 5.2 mm rod holes and the printed gear mesh (`gear_slack`, `gear_backlash`) need a test print.
 - NBR on the card back is assumed to grip better than card on card. If the second card comes along, lower the gap first.
 - The 4023's model (connector side, shaft flat at 2.0 mm from the axis) is taken from `dispenser.stl` as drawn.
+- Pusher: the bottom card is caught by half its thickness (0.16 mm). That needs `card_t` measured and the lift's height
+  calibrated once (raise in 0.05 mm steps until a single card on the lift gets pushed). Bowed cards may slip under the
+  plate. If they do, the robust fix is a comb: slots in the lift plate (Dev's part) so the plate's lower edge can dip
+  below the lift top.
+- Pusher bushings (Ø5.4 printed on Ø5 steel) and the coupling and nut dimensions (Ø19 × 25, TR8 nut Ø22 flange on
+  Ø16 bolt circle, as Dev drew it) are untested.
