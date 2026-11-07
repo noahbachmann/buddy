@@ -52,7 +52,7 @@ section through every fit (bearing seat, slot, channel). Numbers can't see a mis
 - STL only. 3MF files (e.g. `tray/tray.3mf`) are Dev's print projects: never read, write or regenerate them.
 - STLs are committed already in print orientation (+Z up = build direction), binary.
 - Every dimension in the module's `params.scad`; design rules and fits from `docs/3d-printing.md`.
-- `tray/` has no source (Dev's own): leave it alone.
+- `tray/` has no source (Dev's own): change only on request, by editing the STL directly (lid rim gap: `docs/3d-printing.md` → Fits).
 - `dispenser/dispenser.stl` is Dev's Onshape box: never modify it. The roller is built in its coordinates;
   `make_copy.py` writes `ref/` (box, lift, 4023 cut out of it) and the combined copy `dispenser-roller.stl`.
 

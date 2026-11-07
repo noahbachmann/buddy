@@ -68,7 +68,8 @@ Gap per side, PETG.
 
 | Fit | Gap | Result |
 |---|---|---|
-| Tray lid in box | 0.15 mm | ? |
+| Tray lid in box | 0.15 mm | Slightly too loose |
+| Tray lid in box | 0.10 mm | ? |
 | Slides freely | ? | |
 | Press fit | ? | |
 
@@ -85,4 +86,4 @@ Gap per side, PETG.
 
 | # | Date | Part | Changes | Result | Notes |
 |---|---|---|---|---|---|
-| 1 | 2026-11 | Desiccant tray | walls 4, layers 8 | | lid fit? |
+| 1 | 2026-11 | Desiccant tray | walls 4, layers 8 | Lid slightly too loose (0.15 per side) | Lid rim widened to 0.10 per side |
