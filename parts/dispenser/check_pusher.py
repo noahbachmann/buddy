@@ -3,8 +3,8 @@
     cd parts/tools && uv run python ../dispenser/check_pusher.py
 
 Exports the placed pieces from assembly.scad, intersects the carriage and its nut (9 positions) with everything fixed
-(cut box, lift, roller, mount, motor, coupling, screw, rods, a 12 mm pile on the lift), and the lift and pile with the
-fixed pusher parts. Exit 1 on any overlap. ref/lift.stl isn't watertight (manifold can't intersect it), so the lift is
+(box with cradle and cuts, lift, roller, motor, screw, a 12 mm pile on the lift), and the lift (4 heights, carriage at
+home) and the pile with the cradle, motor, screw and the carriage at home. Exit 1 on any overlap. ref/lift.stl isn't watertight (manifold can't intersect it), so the lift is
 rebuilt here from boxes measured on its sections: re-measure if Dev changes the lift.
 """
 
@@ -25,8 +25,9 @@ from cad import scad
 HERE = Path(__file__).resolve().parent
 PUSHES = [0, 0.1, 0.25, 0.4, 0.5, 0.6, 0.75, 0.9, 1.0]
 FIXED = ["box-cut", "frame", "front-plate", "gate-left", "gate-right", "drive-drum", "idler-drum",
-         "pusher-mount", "pusher-motor", "pusher-coupling", "pusher-screw", "pusher-rods"]
-PUSHER_FIXED = ["pusher-mount", "pusher-motor", "pusher-coupling", "pusher-screw", "pusher-rods"]
+         "pusher-motor", "pusher-screw"]
+HOME = ["case-add", "pusher-motor", "pusher-screw", "pusher", "pusher-nut"]   # what the lift passes
+LIFT_TOPS = [19, 40, 66]   # + push_lift
 # ref/lift.stl as drawn (plate top z 19): plate, riser, nut tab
 LIFT = [[[77.44, -146, 16], [144.44, -50, 19]], [[97.97, -54, 19], [125.97, -50, 66]],
         [[97.97, -54, 61], [125.97, -14.9, 66]]]
@@ -72,9 +73,10 @@ def main() -> int:
             for (a, ma), (b, mb) in itertools.product(moving.items(), others.items()):
                 if (a, b) != ("pusher-nut", "pusher-screw"):
                     hits.append((f"push {push}: {a} x {b}", (ma ^ mb).volume()))
-        for a, ma in [("lift", fixed["lift"]), ("pile", pile)]:
-            for b in PUSHER_FIXED:
-                hits.append((f"{a} x {b}", (ma ^ fixed[b]).volume()))
+        home = {n: fixed[n] if n in fixed else piece(n) for n in HOME}
+        lifts = [(f"lift at {t}", solid(lift(t))) for t in [*LIFT_TOPS, push_lift]]
+        for (a, ma), (b, mb) in itertools.product([*lifts, ("pile", pile)], home.items()):
+            hits.append((f"{a} x {b}", (ma ^ mb).volume()))
         # self-test: 1 mm too high a lift must hit the plate
         canary = (piece("pusher", push=0.5) ^ solid(lift(push_lift + 1))).volume()
     bad = [(n, v) for n, v in hits if v > 1e-3]

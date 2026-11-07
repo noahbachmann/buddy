@@ -95,59 +95,62 @@ screw_clear = 3.4;
 screw_head  = 6.2;           // counterbore
 
 // --- Pusher: stack(B onto H) --------------------------------------------------------------------
-// 17HS4401 + TR8x8 lead screw on the right wall push the lift pile left, over the divider into H.
-// Everything but the plate runs in the front strip (y < -146: no cards, no lift; the lift's riser at
-// y -54..-50 rises to z 144 while pushing) and above the divider block (z 66..96, full depth).
+// 17HS4401 with integrated TR8x8 screw in a cradle at the front-right corner, screw end in the left wall.
+// Carriage = the lift turned 90°: plate (push face) + bar along the front strip + nut tab. No rods: the plate
+// rests on the lift (then the divider) by its own weight, and that weight keeps the nut from turning.
+// Everything but the plate stays in the front strip (y < -146: no cards, no lift) or above z 108.
 box_front  = -165;
-div_top    = 96.04;          // top of the divider block
+div_top    = 96.04;          // top of the divider block (z 66..96, full depth)
 right_wall = [145, 150];
+left_wall  = [-5, 0];
 riser_y    = -54;            // front face of the lift's riser: the cards' back stop
 lift_top0  = 19;             // lift plate top as drawn in dispenser.stl
 push_step  = 1;              // lift plate top above the divider top while pushing: cards step down onto it
-push_lift  = div_top + push_step;      // lift plate top while pushing (firmware)
-push_bot   = push_lift + card_t / 2;   // plate's lower edge: catches the bottom card's edge halfway
+push_lift  = div_top + push_step;      // lift plate top while pushing (firmware) = the plate's lower edge
+push_rest  = 0.3;            // notch floor below push_lift: the plate starts level with the lift, never above it
 push_h     = 35;
-push_t     = right_wall[1] - right_wall[0];   // home = flush with the wall's inner face, against the mount
-push_y     = [-144, riser_y - 1];             // plate: front end clears the coupling, back end the riser
-push_end   = card[0] + 3;    // plate face at the end of the stroke: pile at x 3..66, inside H's chute
+push_t     = right_wall[1] - right_wall[0];   // home = in the wall, face flush with its inner face
+push_y     = [-146.5, riser_y - 1];
+push_cham  = [0.8, 1.5];     // lower edge, push side / return side: ramps over the lift's and the notch's edges
+push_end   = divider_x;      // plate face at the end: plate on the divider, pile at x 9..72 over H's chute
 push_stroke = right_wall[0] - push_end;
 
-// bought: 17HS4401 (42 x 42 x 40), flexible coupling 5 -> 8, TR8x8 lead screw + brass nut, 2 rods
+// bought: 17HS4401 with integrated TR8x8 lead screw + brass nut (as Dev drew the lift's)
 m44_sq     = 42.3;
 m44_body   = 40;
 m44_boss   = [22, 2];
-m44_shaft  = [5, 24];        // from the face
 m44_holes  = 31;
-coupling   = [19, 25];       // diameter, length
-nut_d      = 10.2;           // TR8 brass nut: body, length incl. flange, flange, screw circle (as Dev's lift nut)
+m44_tail   = 3.8;            // screw end out of the motor's back
+nut_d      = 10.2;           // TR8 brass nut: body, length incl. flange, flange, screw circle
 nut_len    = 15;
 nut_flange = [22, 3.5];
 nut_pcd    = 16;
 lead       = 8;
 
-// layout: rods and screw on one vertical line in the front strip
-pu_y      = -156.5;
-pu_bar    = [19, 11];        // carriage bar around each rod (y, z); lower bar's bottom = plate's bottom
-mount_t   = 6;
-m44_face  = right_wall[1] + mount_t;
-shaft_tip = m44_face - m44_shaft[1];
-coup_x    = [shaft_tip - 13, shaft_tip + 12];   // 12 mm on the shaft, 12 on the screw
-nut_x     = [coup_x[0] - 1.5 - nut_len, coup_x[0] - 1.5];   // at home; flange on the right (push side)
-web_x     = [nut_x[1] - nut_flange[1] - 6, nut_x[1] - nut_flange[1]];
-bar_x     = [nut_x[0] - 2.5, right_wall[1]];
-screw_x   = [nut_x[0] - push_stroke - 4, shaft_tip - 1];   // cut the 200 mm screw to this length
-// heights as push_bot + exact offsets: sums in another order differ by 1e-14 and leave slivers in the STL
-pu_bar_z0  = [0, pu_bar[1] + 1 + nut_flange[0] + 1];   // bar bottoms above push_bot: flange between the bars
-pu_screw_z = push_bot + pu_bar[1] + 1 + nut_flange[0] / 2;
-pu_rod_z   = [for (o = pu_bar_z0) push_bot + (o + pu_bar[1] / 2)];
-pu_rod_x  = [-3, right_wall[1] + 4];     // blind 3 mm into the left wall, 4 into the mount
-bush      = [5.4, 10, 6.4];  // bushing bore, length at each bar end, relief between
+// layout: screw axis in the front strip, high enough that the motor clears the plate's home and its cradle's
+// support (45° from the wall) clears the carriage bar
+pu_y       = -156.5;
+pu_screw_z = push_lift + 61;
+m44_face   = right_wall[0] - 20;   // motor half in the box, half out (x 125..165)
+bar_h      = 10;
+bar_y      = [box_front, push_y[0]];
+tab_t      = 5;
+fl_t       = 4;                     // cradle flange (the motor's face plate)
+nut_x      = [m44_face - fl_t - 0.5 - nut_len, m44_face - fl_t - 0.5];   // at home; flange on the right
+tab_x      = [nut_x[1] - nut_flange[1] - tab_t, nut_x[1] - nut_flange[1]];
+bar_x      = [tab_x[0], right_wall[1]];
+screw_x    = [left_wall[0] + 1, m44_face];   // cut the screw to this length from the motor face
 
-// Dev's cuts in the box: a notch at the front of the right wall (the plate's pocket), 8 screw holes
-// around it for the mount, 2 rod holes in the left wall
-notch_y  = [box_front - 1, push_y[1] + 1];
-notch_z  = [push_bot - 1, push_bot + (pu_bar_z0[1] + pu_bar[1] + 1)];
-mount_y  = [pu_y - m44_sq / 2 - 2, -42];
-mount_z  = [notch_z[0] - 8, notch_z[1] + 8];
-mount_screws = concat([for (y = [-155, -100, -60], z = [notch_z[0] - 4, notch_z[1] + 4]) [y, z]],
-                      [for (z = [104, 136]) [-48, z]]);
+// cradle (Dev adds it to the box): flange + slab + back wall, on a support growing 45° out of the right wall
+cr_in   = m44_sq + 0.6;
+cr_wall = 3;
+cr_y    = [pu_y - cr_in / 2, pu_y + cr_in / 2];
+cr_z    = [pu_screw_z - cr_in / 2, pu_screw_z + cr_in / 2];   // inner: the motor's square
+cr_bot  = cr_z[0] - cr_wall;
+cr_x    = [m44_face - fl_t, right_wall[0]];
+cr_sup  = cr_x[1] - cr_x[0];        // support height: 45° over the slab's length
+
+// Dev's cuts in the box: notch for the carriage at home (open to the front), motor passage, screw hole
+notch_lo = [[box_front - 1, riser_y], [push_lift - push_rest, push_lift + (bar_h + 0.5)]];
+notch_hi = [[push_y[0] - 0.5, riser_y], [push_lift - push_rest, push_lift + (push_h + 1)]];
+screw_hole = 8.6;

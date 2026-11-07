@@ -173,73 +173,70 @@ module belts() for (y = cord_ys) translate([0, y + cord_s / 2, 0]) rotate([90, 0
 module motor_4023() motor_tf() translate([-35, 25, -28.4]) import("ref/m4023.stl");
 
 // === Pusher ======================================================================================
-// Hole along X from x0 to x1, centre (y, z). The pusher's parts print with X vertical: round holes.
-module hole_x(y, z, d, x0, x1) translate([x0, y, z]) rotate([0, 90, 0]) cylinder(d = d, h = x1 - x0);
+// Hole along X from x0 to x1, centre (y, z); tip = 1: teardrop pointing up (+Z).
+module hole_x(y, z, d, x0, x1, tip = 0)
+  translate([x0, y, z]) rotate([0, 90, 0]) linear_extrude(x1 - x0) rotate(90) teardrop2d(d, tip);
 
-pu_bar_y = [pu_y - pu_bar[0] / 2, pu_y + pu_bar[0] / 2];
-function pu_bar_z(i) = [push_bot + pu_bar_z0[i], push_bot + (pu_bar_z0[i] + pu_bar[1])];
+// Plate side profile (x, z): chamfered lower edge, sharp-ish on the push side to catch the bottom card
+function pu_profile(h = push_h) = let(b = push_lift, t = push_lift + h, x0 = right_wall[0], x1 = right_wall[1],
+                            c = push_cham)
+  [[x0, b + c[0]], [x0 + c[0], b], [x1 - c[1], b], [x1, b + c[1]], [x1, t], [x0, t]];
 
-// Plate outline (y, z): push face over the cards, two tabs at the front onto the bars. The gap between the
-// tabs lets the plate pass the coupling; the ear above the face carries the upper tab.
-function pu_outline() = let(b = push_bot, t = push_bot + push_h, lo = pu_bar_z(0), hi = pu_bar_z(1), f = push_y[0],
-                            y0 = pu_bar_y[1] - 1, i = 0.5)   // tabs: 1 mm into the bars, 0.5 inside their faces
-  [[f, b], [push_y[1], b], [push_y[1], t], [f + 16, t], [f + 5, hi[1] - i], [y0, hi[1] - i], [y0, hi[0] + i],
-   [f, hi[0] + i], [f, lo[1] - i], [y0, lo[1] - i], [y0, b + i], [f, b + i]];
-
-// Carriage at home (push = 0) .. end of stroke (push = 1). Rides on 2 rods, the TR8 nut only drives.
-// Print: right face (x 150) on the bed.
+// Carriage at home (push = 0) .. end of stroke (push = 1): plate + bar + nut tab, like the lift turned 90°.
+// Print: as placed, bottom down.
 module pusher(push = 0) translate([-push * push_stroke, 0, 0]) difference() {
+  b = push_lift;
+  c = push_cham[1];
+  // front strip: bar, tab and gusset as one side profile (x, z), so no coplanar faces meet in the union
+  front = [[tab_x[0], b], [bar_x[1] - c, b], [bar_x[1], b + c], [bar_x[1], b + bar_h], [tab_x[1] + 15, b + bar_h],
+           [tab_x[1], b + (bar_h + 15)], [tab_x[1], pu_screw_z + (nut_flange[0] / 2 + 1)],
+           [tab_x[0], pu_screw_z + (nut_flange[0] / 2 + 1)]];
   union() {
-    translate([right_wall[0], 0, 0]) rotate([90, 0, 90]) linear_extrude(push_t) polygon(pu_outline());
-    for (i = [0, 1]) box(bar_x, pu_bar_y, pu_bar_z(i));
-    box(web_x, pu_bar_y, [pu_bar_z(0)[1] - eps, pu_bar_z(1)[0] + eps]);   // nut web, bridges the bars
+    for (r = [[push_y[0], push_y[1], pu_profile()], [bar_y[0], bar_y[1], front]])
+      translate([0, r[0], 0]) mirror([0, 1, 0]) rotate([90, 0, 0]) linear_extrude(r[1] - r[0]) polygon(r[2]);
+    box([right_wall[0] + 1, right_wall[1] - 1], [push_y[0] - 1, push_y[0] + 1], [b + 2, b + (bar_h - 1)]);  // joint
   }
-  // bushings: bore at both ends, relief between (less friction, forgives a slightly bent rod)
-  for (z = pu_rod_z) {
-    hole_x(pu_y, z, bush[0], bar_x[0] - eps, bar_x[1] + eps);
-    hole_x(pu_y, z, bush[2], bar_x[0] + bush[1], bar_x[1] - bush[1]);
-  }
-  // nut through the web, flange bolted to its right face (pushing presses the flange onto the web)
-  hole_x(pu_y, pu_screw_z, nut_d + 0.4, web_x[0] - eps, web_x[1] + eps);
-  for (s = [-1, 1]) hole_x(pu_y, pu_screw_z + s * nut_pcd / 2, screw_pilot, web_x[0] - eps, web_x[1] + eps);
+  // nut through the tab, flange screwed to its right face (pushing presses the flange onto the tab)
+  hole_x(pu_y, pu_screw_z, nut_d + 0.4, tab_x[0] - eps, tab_x[1] + eps, 1);
+  for (s = [-1, 1]) hole_x(pu_y, pu_screw_z + s * nut_pcd / 2, screw_pilot, tab_x[0] - eps, tab_x[1] + eps);
 }
 
-// Mount: motor plate on the wall's outer face, closes the pocket (the plate's home stop).
-// M3 countersunk from inside the box through the wall into its pilots. Print: inner face (x 150) down.
-m44_hole_offs = [for (a = [-1, 1], b = [-1, 1]) [a, b] * m44_holes / 2];
-module pusher_mount() difference() {
-  box([right_wall[1], m44_face], mount_y, mount_z);
-  hole_x(pu_y, pu_screw_z, m44_boss[0] + 0.6, m44_face - m44_boss[1] - 0.3, m44_face + eps);
-  hole_x(pu_y, pu_screw_z, 8, right_wall[1] - eps, m44_face + eps);
-  // motor screws from the inside, heads sunk: the plate and the bars rest on this face
-  for (o = m44_hole_offs) {
-    hole_x(pu_y + o[0], pu_screw_z + o[1], screw_clear, right_wall[1] - eps, m44_face + eps);
-    hole_x(pu_y + o[0], pu_screw_z + o[1], screw_head, right_wall[1] - eps, right_wall[1] + 3.2);
+// Cradle Dev adds to the box: flange (the motor's face plate, 3x M3) and a slab under the motor's front part, on a
+// support that grows 45° out of the right wall's inner face. Everything under the motor stays in the front strip
+// (y < -147.5): behind it runs the plate. The flange's underside rises 45° over the plate's path, so it prints
+// upright with the box, no supports.
+cr_yb = push_y[0] - 1;   // back edge of slab and support
+m44_hole_offs = [for (a = [-1, 1], b = [-1, 1]) if (a < 0 || b > 0) [a, b] * m44_holes / 2];   // back-lower skipped
+module case_add() difference() {
+  zt = cr_z[1] + cr_wall;
+  f = cr_y[0] - 0.5;   // flange 0.5 proud of the slab, 1 mm below it: no coplanar faces with the support
+  fb = cr_bot - 1;
+  union() {
+    hull() {   // slab + support
+      box([cr_x[0] + 1, cr_x[1] - 0.5], [cr_y[0], cr_yb], [cr_bot, cr_z[0]]);
+      box([cr_x[1] - 0.5, cr_x[1]], [box_front, cr_yb], [cr_bot - cr_sup, cr_bot]);
+    }
+    translate([cr_x[0], 0, 0]) rotate([90, 0, 90]) linear_extrude(fl_t)
+      polygon([[f, fb], [cr_yb - 0.5, fb], [cr_y[1], fb + (cr_y[1] - (cr_yb - 0.5))], [cr_y[1], zt], [f, zt]]);
   }
-  for (z = pu_rod_z) hole_x(pu_y, z, rod_hole, right_wall[1] - eps, pu_rod_x[1]);
-  for (p = mount_screws) hole_x(p[0], p[1], screw_pilot, right_wall[1] - eps, right_wall[1] + 5);
+  hole_x(pu_y, pu_screw_z, m44_boss[0] + 0.6, cr_x[0] - 1, m44_face + 1, 1);
+  for (o = m44_hole_offs) hole_x(pu_y + o[0], pu_screw_z + o[1], screw_clear, cr_x[0] - 1, m44_face + 1, 1);
 }
 
 // Dev's cuts in the box (Onshape), here for the preview and the combined STL.
 module box_cuts() {
-  box([right_wall[0] - 1, right_wall[1] + 1], notch_y, notch_z);
-  for (p = mount_screws) {
-    hole_x(p[0], p[1], screw_clear, right_wall[0] - 1, right_wall[1] + 1);
-    translate([right_wall[0] - eps, p[0], p[1]]) rotate([0, 90, 0]) cylinder(d1 = 6.5, d2 = 6.5 - 2 * 1.7, h = 1.7);
-  }
-  for (z = pu_rod_z) hole_x(pu_y, z, rod_hole, pu_rod_x[0], 1);
+  for (n = [notch_lo, notch_hi]) box([right_wall[0] - eps, right_wall[1] + 1], n[0], n[1]);
+  box([right_wall[0] - 1, right_wall[1] + 1], [box_front - 1, cr_y[1]], cr_z);   // motor passage
+  hole_x(pu_y, pu_screw_z, screw_hole, left_wall[0] - 1, left_wall[1] + 1, 1);
 }
 
-// Bought parts of the pusher
+// Bought parts of the pusher: motor (its screw is separate here), screw incl. the tail out of the back, nut
 module m4401() translate([m44_face, pu_y, pu_screw_z]) rotate([0, 90, 0]) {
   linear_extrude(m44_body) offset(r = 3) offset(delta = -3) square(m44_sq, center = true);
   translate([0, 0, -m44_boss[1]]) cylinder(d = m44_boss[0], h = m44_boss[1] + eps);
-  translate([0, 0, -m44_shaft[1]]) cylinder(d = m44_shaft[0], h = m44_shaft[1]);
 }
-module pu_coupling() hole_x(pu_y, pu_screw_z, coupling[0], coup_x[0], coup_x[1]);
-module pu_screw() hole_x(pu_y, pu_screw_z, 8, screw_x[0], screw_x[1]);
+module pu_screw() hole_x(pu_y, pu_screw_z, 8, screw_x[0], m44_face + m44_body + m44_tail);
 module pu_nut(push = 0) translate([-push * push_stroke, 0, 0]) {
   hole_x(pu_y, pu_screw_z, nut_d, nut_x[0], nut_x[1] - nut_flange[1] + eps);
   hole_x(pu_y, pu_screw_z, nut_flange[0], nut_x[1] - nut_flange[1], nut_x[1]);
 }
-module pu_rods() for (z = pu_rod_z) hole_x(pu_y, z, rod_d, pu_rod_x[0], pu_rod_x[1]);

@@ -4,9 +4,9 @@
 
 1. Writes ref/{box,lift,m4023}.stl from dispenser.stl: the context assembly.scad imports.
 2. Removes the upright 4023, the box and the spare 17HS4401 + screw + nut parked outside the box from a copy of
-   dispenser.stl and appends every placed piece of assembly.scad as separate bodies: the box with Dev's cuts
-   (pusher notch, holes), the roller (frame, drums, gears, gates, turned 4023, rods, O-rings) and the pusher
-   at home (carriage, mount, 17HS4401, coupling, cut screw, nut, rods).
+   dispenser.stl and appends every placed piece of assembly.scad as separate bodies: the box with Dev's changes
+   (motor cradle, pusher notch, screw hole), the roller (frame, drums, gears, gates, turned 4023, rods, O-rings) and
+   the pusher at home (carriage, 17HS4401, cut screw, nut).
 """
 
 from __future__ import annotations
@@ -24,8 +24,7 @@ HERE = Path(__file__).resolve().parent
 SRC = HERE / "dispenser.stl"
 OUT = HERE / "dispenser-roller.stl"
 PIECES = ["box-cut", "frame", "front-plate", "drive-drum", "idler-drum", "motor-gear", "gate-left", "gate-right", "motor",
-          "rods", "belts", "pusher", "pusher-mount", "pusher-motor", "pusher-coupling", "pusher-screw", "pusher-nut",
-          "pusher-rods"]
+          "rods", "belts", "pusher", "pusher-motor", "pusher-screw", "pusher-nut"]
 
 # Bodies of dispenser.stl, found by their bounding boxes (mm, min corner, max corner).
 REF = {

@@ -8,6 +8,10 @@ Tick a box by changing `[ ]` to `[x]`.
 
 ## Lead-screw lifts (2 sets)
 
+> ⚠️ The pusher (`parts/dispenser`) has no coupling, and Dev's lift model has none either: both need the 17HS4401
+> **with integrated TR8x8 lead screw** (sold as "17HS4401S-T8x8", usually 300 mm and up, cut to length). That
+> replaces motor + coupling + screw below. Not found at Bastelgarage (searched 2026-11-07).
+
 | ✓ | Part | Qty | Each (CHF) | Total (CHF) | Link | Notes | 
 |---|---|---|---|---|---|---|
 | [ ] | NEMA17 17HS4401, 42×42×40 mm | 2 | 14.90 | 29.80 | [Bastelgarage](https://www.bastelgarage.ch/components/stepper-motors/stepper-motors-1-124/42x42x40mm-stepper-motor-nema-17-17hs4401-1-7a-0-45nm) | Standard printer-size motor | 

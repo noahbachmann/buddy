@@ -8,4 +8,3 @@ assembly = "assembly.scad"
 [parts.motor-gear]
 [parts.gate]
 [parts.pusher]
-[parts.pusher-mount]

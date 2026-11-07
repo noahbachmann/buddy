@@ -18,13 +18,11 @@ module piece(name) {
   else if (name == "rods")       rods();
   else if (name == "belts")      belts();
   else if (name == "pusher")     pusher(push);
-  else if (name == "pusher-mount") pusher_mount();
+  else if (name == "case-add")   difference() { case_add(); box_cuts(); }
   else if (name == "pusher-motor") m4401();
-  else if (name == "pusher-coupling") pu_coupling();
   else if (name == "pusher-screw") pu_screw();
   else if (name == "pusher-nut") pu_nut(push);
-  else if (name == "pusher-rods") pu_rods();
-  else if (name == "box-cut")    difference() { import("ref/box.stl"); box_cuts(); }
+  else if (name == "box-cut")    difference() { union() { import("ref/box.stl"); case_add(); } box_cuts(); }
   else if (name == "lift")       translate([0, 0, lift_top - lift_top0]) import("ref/lift.stl");
 }
 
@@ -38,9 +36,10 @@ else {
   color("dimgray") piece("motor");
   color("silver") piece("rods");
   color("black") piece("belts");
-  color("tomato") { piece("pusher"); piece("pusher-mount"); }
+  color("tomato") piece("pusher");
+  color("lightsteelblue") piece("case-add");
   color("dimgray") piece("pusher-motor");
-  color("silver") { piece("pusher-rods"); piece("pusher-screw"); piece("pusher-coupling"); }
+  color("silver") piece("pusher-screw");
   color("goldenrod") piece("pusher-nut");
   // card on the belts, centred between the gates
   color("white", 0.6) translate([(divider_x - card[0]) / 2 - 2, card_yc - card[1] / 2, belt_top]) cube([card[0], card[1], card_t]);
