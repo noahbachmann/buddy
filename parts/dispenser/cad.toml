@@ -1,0 +1,9 @@
+# cad build dispenser / cad render dispenser (parts/CLAUDE.md). make_copy.py: dispenser-roller.stl
+assembly = "assembly.scad"
+
+[parts.roller-frame]
+[parts.front-plate]
+[parts.drive-drum]
+[parts.idler-drum]
+[parts.motor-gear]
+[parts.gate]

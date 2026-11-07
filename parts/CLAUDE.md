@@ -1,6 +1,6 @@
 # parts/ – printable parts
 
-Parametric OpenSCAD, one folder per module (`arm/`, later `neck/`, `body/`, `head/`). A module is a folder with a
+Parametric OpenSCAD, one folder per module (`arm/`, `dispenser/`, later `neck/`, `body/`, `head/`). A module is a folder with a
 `cad.toml`. The CAD environment is built in #54: toolchain, `cad build` and `cad render` exist; `cad check/sweep/slice`
 come next.
 
@@ -53,6 +53,8 @@ section through every fit (bearing seat, slot, channel). Numbers can't see a mis
 - STLs are committed already in print orientation (+Z up = build direction), binary.
 - Every dimension in the module's `params.scad`; design rules and fits from `docs/3d-printing.md`.
 - `tray/` has no source (Dev's own): leave it alone.
+- `dispenser/dispenser.stl` is Dev's Onshape box: never modify it. The roller is built in its coordinates;
+  `make_copy.py` writes `ref/` (box, lift, 4023 cut out of it) and the combined copy `dispenser-roller.stl`.
 
 ## Gotchas
 

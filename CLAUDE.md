@@ -236,7 +236,7 @@ buddy/
 │   ├── tools/voice/         ← commands.tsv (corpus) + buddy_voice (record/train/eval, runs on the PC)
 │   ├── firmware/pico-motion/ ← Pico 2 firmware: all servos (separate CMake project, D17)
 │   └── deploy/              ← PC scripts; pi/ = scripts that run on the Pi; config/ = units, env example, PipeWire
-└── parts/                   ← printable parts: one folder per module (arm/ parametric OpenSCAD), lib/ (BOSL2,
+└── parts/                   ← printable parts: one folder per module (arm/, dispenser/ card roller: parametric OpenSCAD), lib/ (BOSL2,
                                 NopSCADlib submodules), tools/ (setup.sh, CAD checks, #54)
 ```
 

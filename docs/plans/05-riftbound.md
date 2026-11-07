@@ -637,6 +637,8 @@ a login comes before the table drives motion (5.7).
 - **Taking the bottom card** is a hard grasp for a hobby-servo arm. Card dealer machines do exactly "eject the bottom
   card" with one friction roller. A roller-fed tray, with the arm only placing cards, is probably far easier than
   pinching a card off the bottom of a pile. The pile ops above fit either design.
+- **Dispenser (Dev's design, 2026-11-07):** hand pile H on a belt roller over the camera, B on a lift, both in one
+  box: `parts/dispenser/` (roller done, feed into B still stops 15 mm short: README → Open).
 - **Dev's cards:** for now Dev taps them on the panel. Reading Dev's cards on the table with the camera is an optional
   extra later.
 
