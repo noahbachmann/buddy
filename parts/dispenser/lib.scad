@@ -82,8 +82,12 @@ peg = [gate_w, 3, 4];             // full bar width: prints on the bed
 peg_fit = 0.15;
 module gate(right = false) {
   bar_z = belt_top + gate_gap;
-  box([0, gate_w], [front_y[0], back_y[1]], [bar_z, gate_top]);
-  for (yr = [back_y, front_y]) box([0, gate_w], yr, [bed_top, gate_top]);
+  if (!right) box([0, gate_w], [front_y[0], back_y[1]], [bar_z, gate_top]);
+  // right: bar + the wedge on it (pile H's border at the divider): inner face from the bar's inner top edge up to the
+  // divider's top, so a pile dropping off the divider at x 72 is led onto the belts; it comes out with the gate
+  else translate([0, back_y[1], 0]) rotate([90, 0, 0]) linear_extrude(back_y[1] - front_y[0])
+    polygon([[0, bar_z], [gate_w, bar_z], [gate_w, gate_top], [0.5, div_top], [0, div_top]]);
+  for (yr = [back_y, front_y]) box([0, gate_w], yr, [bed_top, right ? bar_z + 1 : gate_top]);   // right: into the bar only
   for (y = plate_cy) translate([0, y - peg[1] / 2, bed_top - peg[2]]) cube(peg + [0, 0, eps]);
   if (right) mirror([1, 0, 0]) translate([-gate_xr, 0, 0]) gate_lip();   // built in box coordinates
 }
@@ -251,7 +255,7 @@ module pusher(push = 0) translate([-push * push_stroke, 0, 0]) difference() {
 // Dev's change to the box: the right wall extended forward around the motor face (45° underneath, prints upright),
 // the boss's hole and the motor's 4 screw holes through it.
 m44_hole_offs = [for (a = [-1, 1], b = [-1, 1]) [a, b] * m44_holes / 2];
-module case_add() difference() {   // Dev's additions to the box: wall extension, slot ends, motor holds, front border
+module case_add() difference() {   // Dev's additions to the box: wall extension, slot ends, motor holds, borders
   dy = ext_y[1] - ext_y[0];
   union() {
     hull() {
@@ -262,6 +266,7 @@ module case_add() difference() {   // Dev's additions to the box: wall extension
     roller_hold();
     pusher_hold();
     front_border();
+    h_borders();
   }
   wall_holes();
 }
@@ -283,6 +288,13 @@ module pusher_hold() {
   translate([0, pu_y + pu_hold[0] / 2, 0]) rotate([90, 0, 0]) linear_extrude(pu_hold[0])
     polygon([[x0, top - (x1 - x0) - pu_hold[1]], [x0, top], [x1, top], [x1, top - pu_hold[1]]]);
 }
+// Pile H's front and back borders: left wall .. 0.5 before the right gate (it comes out upwards), from just above the
+// left wall's lower edge to the divider top; inner faces 0.5 off the cards, leaning out like the lift's slope
+module h_borders() for (s = [0, 1]) let(zb = left_wall_bottom + 0.5, zt = div_top, lean = (zt - zb) * stop_lean / stop_h,
+                                        y1 = s == 0 ? card_yc - card[1] / 2 - 0.5 : card_yc + card[1] / 2 + 0.5,
+                                        d = s == 0 ? -1 : 1)
+  translate([left_wall[1] - 1, 0, 0]) rotate([90, 0, 90]) linear_extrude(gate_xr - gate_w - 0.5 - (left_wall[1] - 1))
+    polygon([[y1, zb], [y1 + d * lean, zt], [y1 + d * (lean + border_t), zt], [y1 + d * (lean + border_t), zb]]);
 // Pile B's front border: wall in front of the lift plate, divider .. right wall, floor .. slot_bot
 // inner face vertical up to the lift plate's lowest top, then leaning forward like the riser's front face
 module front_border() let(y1 = lift_front - 0.5, lean = (slot_bot - lift_min) * stop_lean / stop_h,

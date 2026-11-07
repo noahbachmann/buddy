@@ -103,8 +103,12 @@ stand-ins (motors, rods, screw, nut, O-rings). `make_copy.py` regenerates it.
   pile lies at x 9…72, fully over H's chute, and drops. Then back home with the lift still up: a 1.5 mm chamfer on the
   plate's return side ramps it back over the lift's edge. Then lower the lift.
 - **Direction:** the TR8x8 is right-handed. Which way "positive steps" turn depends on the wiring: set DIR in the firmware.
-- ⚠️ The pile drops 30 mm (z 97 → H's top at ~66). It lands between the left wall and the divider, 9 mm wider than a
-  card. Test with a real pile; if it lands skewed, try a slower push first.
+- **Into H:** the pile leaves the divider at x 9…72 and drops 30 mm (z 97 → H's top at ~66). Pile H has borders like
+  pile B: front and back (box, left wall to x 66, z 70.5…96) with inner faces 0.5 mm off the cards at the bottom,
+  leaning out ~10° to 4.4 mm at the top. On the divider side, a wedge on the right gate runs from the gate bar's inner
+  edge (x 66.5, z 69.6) up to the divider's top edge (x 71.5, z 96). It leads the pile 5.5 mm to the left, onto the
+  belts between the gates. It belongs to the gate, not the box, because the gate comes out upwards for swapping.
+  ⚠️ Test with a real pile; if it lands skewed, try a slower push first.
 
 ## Lift
 
@@ -142,7 +146,7 @@ STLs and `parts/cad render dispenser` for the sheets (`parts/CLAUDE.md`).
 | `idler-drum.scad` | 3 grooves, 2 bearing seats | standing |
 | `motor-gear.scad` | 20T, D-bore for the 4023's shaft, M3 set screw + nut slot | gear down |
 | `gate-left.scad` | Left gate | on its side |
-| `gate-right.scad` | Right gate with the lip under the card path | on its side, divider side down |
+| `gate-right.scad` | Right gate with the lip under the card path and pile H's wedge at the divider | on its side, divider side down |
 | `pusher.scad` | Pusher carriage: plate, bar, nut tab | as placed, bottom down |
 | `lift.scad` | Lift: plate, slope, Dev's nut tab (replaces Dev's lift) | as placed, plate down, support under the tab |
 | `make_copy.py` | `ref/` (box, lift, 4023 from `dispenser.stl`) + `dispenser-roller.stl` (box with Dev's changes, roller, pusher, lift, lift motor under the floor) | – |
@@ -235,6 +239,9 @@ coupling, tighten the 8 mm side.
 
 - **Box 13.6 mm shorter:** front edge at y −151.4 instead of −165 (floor, side walls, divider).
 - **Lift:** delete yours; the printed one from `lift.scad` replaces it.
+- **Pile H's front and back borders:** x −1…66 (from inside the left wall to 0.5 before the right gate), z 70.5…96.04.
+  Front: inner face from y −128.9 at the bottom leaning forward to y −133.25 at the top, outer face at y −137.25. Back:
+  inner face from y −39.9 leaning back to y −35.55, outer face at y −31.55.
 - **Front border for pile B:** x 77…145 (divider to right wall), z 5…65. Inner face at y −132.9 up to z 29.56, then
   leaning forward to y −138.93 at z 65; outer face vertical at y −142.93.
 - **4023 in the back wall:** window through the wall at x 28.55…71.45, z 22.46…65.06 (the motor + 0.3, its floor
