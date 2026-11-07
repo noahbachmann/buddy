@@ -98,6 +98,18 @@ module gate_placed(i) {
 lip_top = belt_top - lip_drop;
 lip_r   = cord_out + lip_clear;
 lip_y   = [front_y[1], gear_y[0] - 0.5];   // front plate .. the drum gear (it reaches above the belts)
+// x-y region outside the slit's funnel on side s (0 front, 1 back), wide enough for gate and divider
+slit_x1 = divider_x + divider_t;
+function slit_edge(s, x) = s == 0 ? card_yc - card[1] / 2 - slit_play - (slit_x1 - x)
+                                  : card_yc + card[1] / 2 + slit_play + (slit_x1 - x);
+module slit_end(s) let(x0 = gate_xr - gate_w - 1, far = s == 0 ? slot_y[0] - 10 : slot_y[1] + 10)
+  polygon([[x0, slit_edge(s, x0)], [slit_x1, slit_edge(s, slit_x1)], [slit_x1, far], [x0, far]]);
+// Dev's change: the divider slot filled outside the funnel (its upper block was held only by the back wall)
+module slot_ends() for (s = [0, 1]) intersection() {
+  translate([0, 0, slot_bot - 0.5]) linear_extrude(slot_top - slot_bot + 1) slit_end(s);
+  box([divider_x, slit_x1], [slot_y[0], slot_y[1] + 0.5], [slot_bot - 1, slot_top + 1]);
+}
+
 module gate_lip() {
   a0 = atan2(lip_top - lip_edge - drum_z, sqrt(lip_r ^ 2 - (lip_top - lip_edge - drum_z) ^ 2));
   x45 = drive_x + lip_r * cos(45);
@@ -105,7 +117,6 @@ module gate_lip() {
   arc = [for (a = [45 : (a0 - 45) / 16 : a0]) [drive_x + lip_r * cos(a), drum_z + lip_r * sin(a)]];
   edge = arc[16][0];
   bar_z = belt_top + gate_gap;
-  card_y = [card_yc - card[1] / 2 - slit_play, card_yc + card[1] / 2 + slit_play];
   difference() {
     union() {
       // into the front leg by 1 mm, above the front plate only
@@ -114,16 +125,10 @@ module gate_lip() {
           polygon(concat([[edge, lip_top], [gate_xr, lip_top], [gate_xr, z45 - (gate_xr - x45)]], arc));
         box([gate_xr - gate_w - 1, gate_xr + 1], [lip_y[0] - 2, lip_y[0]], [0, bed_top]);
       }
-      // slit ends: fill lip..bar outside the card, closing in at 45° towards the exit (+X)
-      for (s = [0, 1]) {
-        e = card_y[s];
-        far = s == 0 ? lip_y[0] - 1 : lip_y[1];
-        d = s == 0 ? -gate_w : gate_w;
-        intersection() {
-          translate([0, 0, lip_top - 0.5]) linear_extrude(bar_z - lip_top + 1)
-            polygon([[gate_xr, e], [gate_xr - gate_w, e + d], [gate_xr - gate_w, far + (s == 0 ? -gate_w : 0)], [gate_xr, far]]);
-          box([gate_xr - gate_w, gate_xr], [lip_y[0] - 1, lip_y[1]], [0, gate_top]);
-        }
+      // slit ends: fill lip..bar outside the funnel (front: the funnel is wider than the leg's gap here, nothing)
+      for (s = [0, 1]) intersection() {
+        translate([0, 0, lip_top - 0.5]) linear_extrude(bar_z - lip_top + 1) slit_end(s);
+        box([gate_xr - gate_w, gate_xr], [lip_y[0] - 1, lip_y[1]], [0, gate_top]);
       }
     }
     translate([drive_x, lip_y[1] + 1, drum_z]) rotate([90, 0, 0]) cylinder(r = lip_r - 0.02, h = lip_y[1] - lip_y[0] + 3);   // just inside the arc: no coincident faces
@@ -243,11 +248,14 @@ module pusher(push = 0) translate([-push * push_stroke, 0, 0]) difference() {
 // Dev's change to the box: the right wall extended forward around the motor face (45° underneath, prints upright),
 // the boss's hole and the motor's 4 screw holes through it.
 m44_hole_offs = [for (a = [-1, 1], b = [-1, 1]) [a, b] * m44_holes / 2];
-module case_add() difference() {
+module case_add() difference() {   // Dev's additions to the box: wall extension, slot ends
   dy = ext_y[1] - ext_y[0];
-  hull() {
-    box(right_wall, [ext_y[0], ext_y[1] + 1], ext_z);
-    box(right_wall, [ext_y[1], ext_y[1] + 1], [ext_z[0] - dy, ext_z[0]]);
+  union() {
+    hull() {
+      box(right_wall, [ext_y[0], ext_y[1] + 1], ext_z);
+      box(right_wall, [ext_y[1], ext_y[1] + 1], [ext_z[0] - dy, ext_z[0]]);
+    }
+    slot_ends();
   }
   wall_holes();
 }

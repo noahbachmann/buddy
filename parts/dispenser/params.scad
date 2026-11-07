@@ -13,6 +13,9 @@ back_wall        = -5;       // inner face of the back wall
 divider_x        = 72;       // left face of the divider
 left_wall_bottom = 70;       // left wall ends here, open below
 slot_top         = 66.04;    // underside of the divider's upper block = top of the card slot
+slot_bot         = 65;       // top of the divider's lower part
+divider_t        = 5;
+slot_y           = [-165, -5];   // the slot runs the full depth: open front .. back wall
 
 // --- Card ------------------------------------------------------------------------------
 card    = [63, 88];          // X (travel) x Y
@@ -91,8 +94,9 @@ gate_w    = 5;               // bar thickness in X; legs over the plates, pegs i
 gate_top  = left_wall_bottom - 0.4;   // left gate sits under the left wall
 gate_xs   = [-gate_w, divider_x - 0.5 - gate_w];   // left gate bar x0, right gate bar x0
 // right gate only: lip under the card path between the drive drum and the divider (the card's leading edge would
-// droop into that 10 mm gap and hit the divider under the slot), joined to the bar at both card ends; there the slit
-// closes in at 45° from the entry side to the card's width
+// droop into that 10 mm gap and hit the divider under the slot), joined to the bar beside the card.
+// Slit ends (gate + divider slot, Dev's change): one 45° funnel, card width + slit_play per side at the divider's right
+// face, wider towards the gate's entry side: an offset card is led to the middle
 lip_drop  = 0.5;             // lip top below belt_top, 0.06 above the divider under the slot (z 65): a card left
                              // lying on the lip sits below the next one's path, which slides over it, not into its edge
 lip_edge  = 0.8;             // thinnest the lip gets at its drum-side edge

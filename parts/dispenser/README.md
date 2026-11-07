@@ -34,9 +34,12 @@ stand-ins (motors, rods, screw, nut, O-rings). `make_copy.py` regenerates it.
 - **Right gate's lip:** between the drive drum's top (x 62) and the divider (x 72) the card has 10 mm without support,
   and its leading edge would droop into the gap and hit the divider under the slot. The right gate has a lip under the
   card path there: flat top 0.5 mm below the belt top (z 65.06, just above the divider's lower part at z 65), drum
-  side following the belts at 0.6 mm clearance. Beside the card the lip is joined to the bar, so the slit is only the
-  card's width + 1 mm per side (y −143…−53). Its ends close in at 45° from the entry side, so a card up to ~3 mm (front)
-  or ~5 mm (back) off centre is led into it. The lip stops at y −43.5, in front of the drum gear.
+  side following the belts at 0.6 mm clearance. It stops at y −43.5, in front of the drum gear, and is held by the front
+  leg and a small block joining it to the bar at the back.
+- **Slit ends:** the divider's slot is filled at both ends (Dev's change, below). The fill and the gate's back block
+  form one 45° funnel. It narrows from the gate's entry side to the card's width + 1 mm per side at the divider's
+  right face (y −143…−53). A card up to ~3 mm (front: the gate's front leg) or ~10 mm (back) off centre is led
+  into it.
 - **Bed:** the belts slide on a flat bed. One O-ring strand carries only ~2.5 N, so a pile of 20 cards would sag a free
   span by ~1.4 mm and the cards would sit on the bed instead of the rubber.
 - **Drive:** the 4023 is turned 90° (shaft to the front, connector to the left) and sits behind the back plate. A 20T
@@ -202,6 +205,10 @@ Screws go into 2.5 mm pilot holes (self-tapping into PETG).
 
 - **4 holes Ø3.4 in the box floor** at (x, y) = (20, −32), (60, −32), (20, −149), (60, −149).
 - Keep free for the camera: the bed has a window at x 10…46, y −74…−56 (between the back edge of the card and the first belt).
+- **Divider slot filled at both ends** (z 65…66.04, x 72…77), leaving the card's width open. Each fill ends in a 45°
+  face toward the card. Front: from the front edge (y −165) to the line (72, −148)→(77, −143). Back: from the back
+  wall (y −5) to the line (72, −48)→(77, −53). Seen from above, the opening is 100 mm wide at x 72 and 90 mm at x 77.
+  This also ties the divider's upper block to the lower part.
 - **Pusher notch** in the right wall, 4 mm deep from the inside (1 mm of wall stays), open to the front edge:
   y −165…−54 at z 96.74…107.54 (bar), plus y −147…−54 up to z 133.04 (plate).
 - **Right wall extended forward** around the pusher motor: x 145…150, to y −179.65, z 130.89…177.19, the underside
