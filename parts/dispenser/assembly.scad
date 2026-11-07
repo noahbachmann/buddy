@@ -20,7 +20,11 @@ module piece(name) {
   else if (name == "pusher")     pusher(push);
   else if (name == "case-add")   difference() { case_add(); box_cuts(); }
   else if (name == "pusher-motor") m4401();
+  else if (name == "pusher-coupling") pu_coupling();
   else if (name == "pusher-screw") pu_screw();
+  else if (name == "lift-motor") lift_motor();
+  else if (name == "lift-coupling") lift_coupling();
+  else if (name == "lift-screw") lift_screw();
   else if (name == "pusher-nut") pu_nut(push);
   else if (name == "box-cut")    difference() { union() { import("ref/box.stl"); case_add(); } box_cuts(); }
   else if (name == "lift")       translate([0, 0, lift_top - lift_top0]) import("ref/lift.stl");
@@ -37,12 +41,13 @@ else {
   color("silver") piece("rods");
   color("black") piece("belts");
   color("tomato") piece("pusher");
-  color("lightsteelblue") piece("case-add");
+  color("lightsteelblue") piece("case-add");   // wall extension
   color("dimgray") piece("pusher-motor");
-  color("silver") piece("pusher-screw");
+  color("silver") { piece("pusher-screw"); piece("pusher-coupling"); piece("lift-screw"); piece("lift-coupling"); }
+  color("dimgray") piece("lift-motor");
   color("goldenrod") piece("pusher-nut");
   // card on the belts, centred between the gates
   color("white", 0.6) translate([(divider_x - card[0]) / 2 - 2, card_yc - card[1] / 2, belt_top]) cube([card[0], card[1], card_t]);
-  // pile B on the lift, squared against the right wall
-  color("white", 0.6) translate([right_wall[0] - card[0], card_yc - card[1] / 2, lift_top]) cube([card[0], card[1], 10 * card_t]);
+  // pile B on the lift, squared against the right wall, full height
+  color("white", 0.6) translate([right_wall[0] - card[0], card_yc - card[1] / 2, lift_top]) cube([card[0], card[1], pile_max]);
 }

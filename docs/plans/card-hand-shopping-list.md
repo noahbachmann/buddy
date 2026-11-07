@@ -8,15 +8,14 @@ Tick a box by changing `[ ]` to `[x]`.
 
 ## Lead-screw lifts (2 sets)
 
-> ⚠️ The pusher (`parts/dispenser`) has no coupling, and Dev's lift model has none either: both need the 17HS4401
-> **with integrated TR8x8 lead screw** (sold as "17HS4401S-T8x8", usually 300 mm and up, cut to length). That
-> replaces motor + coupling + screw below. Not found at Bastelgarage (searched 2026-11-07).
+> The two sets are the lift and the pusher (`parts/dispenser`). Both use the coupling: the lift's motor moves under
+> the box floor for it (see the dispenser README).
 
 | ✓ | Part | Qty | Each (CHF) | Total (CHF) | Link | Notes | 
 |---|---|---|---|---|---|---|
 | [ ] | NEMA17 17HS4401, 42×42×40 mm | 2 | 14.90 | 29.80 | [Bastelgarage](https://www.bastelgarage.ch/components/stepper-motors/stepper-motors-1-124/42x42x40mm-stepper-motor-nema-17-17hs4401-1-7a-0-45nm) | Standard printer-size motor | 
 | [ ] | Cable 6p PH2.0 → 4p XH2.54, 1 m | 2 | 2.90 | 5.80 | [Bastelgarage](https://www.bastelgarage.ch/components/stepper-motors/stepper-motors-1-124/6p-ph2-0-to-4p-xh2-54-stepper-motor-cable-1m-nema17) | connects 17hs4401 to skr pico. |
-| [ ] | Flexible coupling 8 mm / 5 mm | 2 | 3.90 | 7.80 | [Bastelgarage](https://www.bastelgarage.ch/components/stepper-motors/stepper-motors-1-124/8mm-5mm-flexible-aluminium-coupling-with-dowel-screws) | Motor shaft (5 mm) → lead screw (8 mm) |
+| [ ] | Flexible coupling 8 mm / 5 mm (Purecrea) | 2 | 3.90 | 7.80 | [Bastelgarage](https://www.bastelgarage.ch/components/stepper-motors/stepper-motors-1-124/8mm-5mm-flexible-aluminium-coupling-with-dowel-screws) | Motor shaft (5 mm) → lead screw (8 mm) |
 | [ ] | TR8 lead screw 200 mm, pitch 8 mm | 2 | 9.90 | 19.80 | [Bastelgarage](https://www.bastelgarage.ch/mechanical-components/guides-spindles/tr8-200mm-trapezoidal-threaded-spindle-pitch-8mm) | Shortest length available |
 | [ ] | TR8 brass nut, pitch 8 mm | 2 | 4.90 | 9.80 | [Bastelgarage](https://www.bastelgarage.ch/mechanical-components/guides-spindles/tr8-trapezoidal-nut-brass-pitch-8mm) | ⚠️ Must be the **8 mm** nut to match the screw, not the 2 mm one |
 | [ ] | KFL08 bearing (optional) | 2 | 3.90 | 7.80 | [Bastelgarage](https://www.bastelgarage.ch/mechanical-components/guides-spindles/kfl08-8mm-ball-bearing-with-horizontal-bracket) | Supports the top end of the screw |

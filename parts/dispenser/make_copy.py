@@ -3,10 +3,11 @@
     cd parts/tools && uv run python ../dispenser/make_copy.py
 
 1. Writes ref/{box,lift,m4023}.stl from dispenser.stl: the context assembly.scad imports.
-2. Removes the upright 4023, the box and the spare 17HS4401 + screw + nut parked outside the box from a copy of
-   dispenser.stl and appends every placed piece of assembly.scad as separate bodies: the box with Dev's changes
-   (motor cradle, pusher notch, screw hole), the roller (frame, drums, gears, gates, turned 4023, rods, O-rings) and
-   the pusher at home (carriage, 17HS4401, cut screw, nut).
+2. Removes the upright 4023, the box, the lift's motor and screw and the spare 17HS4401 + screw + nut parked outside
+   the box from a copy of dispenser.stl and appends every placed piece of assembly.scad as separate bodies: the box
+   with Dev's changes (wall extension, pusher notch, holes), the roller (frame, drums, gears, gates, turned 4023,
+   rods, O-rings), the pusher at home (carriage, 17HS4401, coupling, cut screw, nut) and the lift's motor under the
+   floor with its coupling and screw.
 """
 
 from __future__ import annotations
@@ -24,7 +25,8 @@ HERE = Path(__file__).resolve().parent
 SRC = HERE / "dispenser.stl"
 OUT = HERE / "dispenser-roller.stl"
 PIECES = ["box-cut", "frame", "front-plate", "drive-drum", "idler-drum", "motor-gear", "gate-left", "gate-right", "motor",
-          "rods", "belts", "pusher", "pusher-motor", "pusher-screw", "pusher-nut"]
+          "rods", "belts", "pusher", "pusher-motor", "pusher-coupling", "pusher-screw", "pusher-nut",
+          "lift-motor", "lift-coupling", "lift-screw"]
 
 # Bodies of dispenser.stl, found by their bounding boxes (mm, min corner, max corner).
 REF = {
@@ -32,8 +34,11 @@ REF = {
     "box": ([-5, -165, 0], [150, 0, 200]),
     "lift": ([77.44, -146, 16], [144.44, -14.9, 66]),
 }
-# Dropped from the copy, not written to ref/: the pusher's motor, screw and nut as Dev parked them.
+# Dropped from the copy, not written to ref/: the lift's motor and screw (placed anew, with a coupling) and the
+# pusher's motor, screw and nut as Dev parked them.
 SPARE = {
+    "lift motor": ([91, -47, 5], [133, -5, 69]),
+    "lift screw": ([107.9, -30, 1.2], [115.9, -22, 201.2]),
     "m4401": ([354, -47, 5], [396, -5, 69]),
     "screw": ([370.9, -30, 1.2], [378.9, -22, 201.2]),
     "nut": ([363.8, -36.4, 47.5], [385.8, -14.4, 62.54]),

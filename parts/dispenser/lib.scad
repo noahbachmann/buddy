@@ -178,7 +178,7 @@ module hole_x(y, z, d, x0, x1, tip = 0)
   translate([x0, y, z]) rotate([0, 90, 0]) linear_extrude(x1 - x0) rotate(90) teardrop2d(d, tip);
 
 // Plate side profile (x, z): chamfered lower edge, sharp-ish on the push side to catch the bottom card
-function pu_profile(h = push_h) = let(b = push_lift, t = push_lift + h, x0 = right_wall[0], x1 = right_wall[1],
+function pu_profile(h = push_h) = let(b = push_lift, t = push_lift + h, x0 = right_wall[0], x1 = right_wall[0] + push_t,
                             c = push_cham)
   [[x0, b + c[0]], [x0 + c[0], b], [x1 - c[1], b], [x1, b + c[1]], [x1, t], [x0, t]];
 
@@ -194,49 +194,58 @@ module pusher(push = 0) translate([-push * push_stroke, 0, 0]) difference() {
   union() {
     for (r = [[push_y[0], push_y[1], pu_profile()], [bar_y[0], bar_y[1], front]])
       translate([0, r[0], 0]) mirror([0, 1, 0]) rotate([90, 0, 0]) linear_extrude(r[1] - r[0]) polygon(r[2]);
-    box([right_wall[0] + 1, right_wall[1] - 1], [push_y[0] - 1, push_y[0] + 1], [b + 2, b + (bar_h - 1)]);  // joint
+    box([right_wall[0] + 1, right_wall[0] + (push_t - 1)], [push_y[0] - 1, push_y[0] + 1], [b + 2, b + (bar_h - 1)]);  // joint
   }
   // nut through the tab, flange screwed to its right face (pushing presses the flange onto the tab)
   hole_x(pu_y, pu_screw_z, nut_d + 0.4, tab_x[0] - eps, tab_x[1] + eps, 1);
   for (s = [-1, 1]) hole_x(pu_y, pu_screw_z + s * nut_pcd / 2, screw_pilot, tab_x[0] - eps, tab_x[1] + eps);
 }
 
-// Cradle Dev adds to the box: flange (the motor's face plate, 3x M3) and a slab under the motor's front part, on a
-// support that grows 45° out of the right wall's inner face. Everything under the motor stays in the front strip
-// (y < -147.5): behind it runs the plate. The flange's underside rises 45° over the plate's path, so it prints
-// upright with the box, no supports.
-cr_yb = push_y[0] - 1;   // back edge of slab and support
-m44_hole_offs = [for (a = [-1, 1], b = [-1, 1]) if (a < 0 || b > 0) [a, b] * m44_holes / 2];   // back-lower skipped
+// Dev's change to the box: the right wall extended forward around the motor face (45° underneath, prints upright),
+// the boss's hole and the motor's 4 screw holes through it.
+m44_hole_offs = [for (a = [-1, 1], b = [-1, 1]) [a, b] * m44_holes / 2];
 module case_add() difference() {
-  zt = cr_z[1] + cr_wall;
-  f = cr_y[0] - 0.5;   // flange 0.5 proud of the slab, 1 mm below it: no coplanar faces with the support
-  fb = cr_bot - 1;
-  union() {
-    hull() {   // slab + support
-      box([cr_x[0] + 1, cr_x[1] - 0.5], [cr_y[0], cr_yb], [cr_bot, cr_z[0]]);
-      box([cr_x[1] - 0.5, cr_x[1]], [box_front, cr_yb], [cr_bot - cr_sup, cr_bot]);
-    }
-    translate([cr_x[0], 0, 0]) rotate([90, 0, 90]) linear_extrude(fl_t)
-      polygon([[f, fb], [cr_yb - 0.5, fb], [cr_y[1], fb + (cr_y[1] - (cr_yb - 0.5))], [cr_y[1], zt], [f, zt]]);
+  dy = ext_y[1] - ext_y[0];
+  hull() {
+    box(right_wall, [ext_y[0], ext_y[1] + 1], ext_z);
+    box(right_wall, [ext_y[1], ext_y[1] + 1], [ext_z[0] - dy, ext_z[0]]);
   }
-  hole_x(pu_y, pu_screw_z, m44_boss[0] + 0.6, cr_x[0] - 1, m44_face + 1, 1);
-  for (o = m44_hole_offs) hole_x(pu_y + o[0], pu_screw_z + o[1], screw_clear, cr_x[0] - 1, m44_face + 1, 1);
+  wall_holes();
+}
+module wall_holes() {
+  hole_x(pu_y, pu_screw_z, m44_boss[0] + 0.6, right_wall[0] - 1, right_wall[1] + 1, 1);
+  for (o = m44_hole_offs) hole_x(pu_y + o[0], pu_screw_z + o[1], screw_clear, right_wall[0] - 1, right_wall[1] + 1, 1);
 }
 
 // Dev's cuts in the box (Onshape), here for the preview and the combined STL.
 module box_cuts() {
-  for (n = [notch_lo, notch_hi]) box([right_wall[0] - eps, right_wall[1] + 1], n[0], n[1]);
-  box([right_wall[0] - 1, right_wall[1] + 1], [box_front - 1, cr_y[1]], cr_z);   // motor passage
+  for (n = [notch_lo, notch_hi]) box([right_wall[0] - 1, right_wall[0] + push_t], n[0], n[1]);
+  wall_holes();
   hole_x(pu_y, pu_screw_z, screw_hole, left_wall[0] - 1, left_wall[1] + 1, 1);
+  // lift motor under the floor: boss hole + 4 screw holes
+  translate([lift_axis[0], lift_axis[1], -1]) {
+    cylinder(d = m44_boss[0] + 0.6, h = floor_t + 2);
+    for (o = m44_hole_offs) translate(o) cylinder(d = screw_clear, h = floor_t + 2);
+  }
 }
 
-// Bought parts of the pusher: motor (its screw is separate here), screw incl. the tail out of the back, nut
-module m4401() translate([m44_face, pu_y, pu_screw_z]) rotate([0, 90, 0]) {
-  linear_extrude(m44_body) offset(r = 3) offset(delta = -3) square(m44_sq, center = true);
-  translate([0, 0, -m44_boss[1]]) cylinder(d = m44_boss[0], h = m44_boss[1] + eps);
+// Bought parts. 17HS4401 in its own frame: face at z 0, body below, shaft up; coupling on the shaft.
+module m44_local() {
+  translate([0, 0, -m44_body]) linear_extrude(m44_body) offset(r = 3) offset(delta = -3) square(m44_sq, center = true);
+  translate([0, 0, -eps]) cylinder(d = m44_boss[0], h = m44_boss[1] + eps);
+  cylinder(d = m44_shaft[0], h = m44_shaft[1]);
 }
-module pu_screw() hole_x(pu_y, pu_screw_z, 8, screw_x[0], m44_face + m44_body + m44_tail);
+module coupling_local() translate([0, 0, m44_shaft[1] - coupling[1] / 2]) cylinder(d = coupling[0], h = coupling[1]);
+module pu_tf() translate([m44_face, pu_y, pu_screw_z]) rotate([0, -90, 0]) children();
+module lift_tf() translate([lift_axis[0], lift_axis[1], lift_face]) children();
+
+module m4401() pu_tf() m44_local();
+module pu_coupling() pu_tf() coupling_local();
+module pu_screw() hole_x(pu_y, pu_screw_z, 8, screw_x[0], screw_x[1]);
 module pu_nut(push = 0) translate([-push * push_stroke, 0, 0]) {
   hole_x(pu_y, pu_screw_z, nut_d, nut_x[0], nut_x[1] - nut_flange[1] + eps);
   hole_x(pu_y, pu_screw_z, nut_flange[0], nut_x[1] - nut_flange[1], nut_x[1]);
 }
+module lift_motor() lift_tf() m44_local();
+module lift_coupling() lift_tf() coupling_local();
+module lift_screw() lift_tf() translate([0, 0, m44_shaft[1]]) cylinder(d = 8, h = lift_screw_top - m44_shaft[1]);
