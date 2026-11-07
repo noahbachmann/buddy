@@ -26,7 +26,7 @@ SRC = HERE / "dispenser.stl"
 OUT = HERE / "dispenser-roller.stl"
 PIECES = ["box-cut", "frame", "front-plate", "drive-drum", "idler-drum", "motor-gear", "gate-left", "gate-right", "motor",
           "rods", "belts", "pusher", "pusher-motor", "pusher-coupling", "pusher-screw", "pusher-nut",
-          "lift", "lift-motor", "lift-coupling", "lift-screw"]
+          "lift", "lift-nut", "lift-motor", "lift-coupling", "lift-screw"]
 
 # Bodies of dispenser.stl, found by their bounding boxes (mm, min corner, max corner).
 REF = {

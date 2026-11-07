@@ -4,7 +4,7 @@ include <lib.scad>
 
 part = "all";
 push = 0;
-lift_top = lift_top0;
+lift_top = lift_min;
 
 module piece(name) {
   if (name == "frame")           frame();
@@ -27,13 +27,15 @@ module piece(name) {
   else if (name == "lift-screw") lift_screw();
   else if (name == "pusher-nut") pu_nut(push);
   else if (name == "box-cut")    difference() { union() { box_trimmed(); case_add(); } box_cuts(); }
-  else if (name == "lift")       translate([0, shift, lift_top - lift_top0]) import("ref/lift.stl");   // moved back
+  else if (name == "lift")       lift_part(lift_top);
+  else if (name == "lift-nut")   lift_nut(lift_top);
 }
 
 if (part != "all") piece(part);
 else {
   %piece("box-cut");
-  %piece("lift");
+  color("plum") piece("lift");
+  color("goldenrod") piece("lift-nut");
   color("orange") { piece("frame"); piece("front-plate"); }
   color("teal") { piece("drive-drum"); piece("idler-drum"); piece("motor-gear"); }
   color("gold") { piece("gate-left"); piece("gate-right"); }

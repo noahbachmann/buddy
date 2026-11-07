@@ -97,7 +97,8 @@ module gate_placed(i) {
 // 45° tangent down to the gate's outer face (prints on that face: no overhang).
 lip_top = belt_top - lip_drop;
 lip_r   = cord_out + lip_clear;
-lip_y   = [front_y[1], gear_y[0] - 0.5];   // front plate .. the drum gear (it reaches above the belts)
+lip_y   = [front_y[1], back_y[0] + 1];   // front leg .. back leg, 1 mm into each
+gear_r  = gear_mod * (drum_teeth + 2) / 2 + lip_clear;   // over the drum gear (its tips reach 0.6 above the belts)
 // x-y region outside the slit's funnel on side s (0 front, 1 back), wide enough for gate and divider
 slit_x1 = divider_x + divider_t;
 function slit_edge(s, x) = s == 0 ? card_yc - card[1] / 2 - slit_play - (slit_x1 - x)
@@ -124,6 +125,7 @@ module gate_lip() {
         translate([0, lip_y[1], 0]) rotate([90, 0, 0]) linear_extrude(lip_y[1] - lip_y[0] + 1)
           polygon(concat([[edge, lip_top], [gate_xr, lip_top], [gate_xr, z45 - (gate_xr - x45)]], arc));
         box([gate_xr - gate_w - 1, gate_xr + 1], [lip_y[0] - 2, lip_y[0]], [0, bed_top]);
+        box([gate_xr - gate_w - 1, gate_xr + 1], [drum_y[0], lip_y[1] + 1], [0, bed_top]);   // bed behind the drum
       }
       // slit ends: fill lip..bar outside the funnel (front: the funnel is wider than the leg's gap here, nothing)
       for (s = [0, 1]) intersection() {
@@ -131,7 +133,8 @@ module gate_lip() {
         box([gate_xr - gate_w, gate_xr], [lip_y[0] - 1, lip_y[1]], [0, gate_top]);
       }
     }
-    translate([drive_x, lip_y[1] + 1, drum_z]) rotate([90, 0, 0]) cylinder(r = lip_r - 0.02, h = lip_y[1] - lip_y[0] + 3);   // just inside the arc: no coincident faces
+    translate([drive_x, gear_y[0] - 0.5, drum_z]) rotate([90, 0, 0]) cylinder(r = lip_r - 0.02, h = gear_y[0] - lip_y[0] + 2);   // just inside the arc: no coincident faces
+    translate([drive_x, lip_y[1] + 1, drum_z]) rotate([90, 0, 0]) cylinder(r = gear_r, h = lip_y[1] + 1 - (gear_y[0] - 0.5));
   }
 }
 function gate_x(i) = i == 0 ? gate_xs[0] + gate_w / 2 : divider_x - 0.5 - gate_w / 2;   // peg centre
@@ -248,7 +251,7 @@ module pusher(push = 0) translate([-push * push_stroke, 0, 0]) difference() {
 // Dev's change to the box: the right wall extended forward around the motor face (45° underneath, prints upright),
 // the boss's hole and the motor's 4 screw holes through it.
 m44_hole_offs = [for (a = [-1, 1], b = [-1, 1]) [a, b] * m44_holes / 2];
-module case_add() difference() {   // Dev's additions to the box: wall extension, slot ends, motor holds
+module case_add() difference() {   // Dev's additions to the box: wall extension, slot ends, motor holds, front border
   dy = ext_y[1] - ext_y[0];
   union() {
     hull() {
@@ -258,6 +261,7 @@ module case_add() difference() {   // Dev's additions to the box: wall extension
     slot_ends();
     roller_hold();
     pusher_hold();
+    front_border();
   }
   wall_holes();
 }
@@ -279,7 +283,12 @@ module pusher_hold() {
   translate([0, pu_y + pu_hold[0] / 2, 0]) rotate([90, 0, 0]) linear_extrude(pu_hold[0])
     polygon([[x0, top - (x1 - x0) - pu_hold[1]], [x0, top], [x1, top], [x1, top - pu_hold[1]]]);
 }
-// Dev's box as drawn, its front cut back by `shift`
+// Pile B's front border: wall in front of the lift plate, divider .. right wall, floor .. slot_bot, ^ ridge on top
+module front_border() let(y1 = card_yc - card[1] / 2 - 4.5, y0 = y1 - border_t)
+  translate([slit_x1 - 1, 0, 0]) rotate([90, 0, 90]) linear_extrude(right_wall[0] + 1 - (slit_x1 - 1))
+    polygon([[y0, floor_top - 1], [y1, floor_top - 1], [y1, slot_bot - border_t / 2], [(y0 + y1) / 2, slot_bot],
+             [y0, slot_bot - border_t / 2]]);
+// Dev's box as drawn, its front cut back
 module box_trimmed() difference() {
   import("ref/box.stl");
   box([left_wall[0] - 1, right_wall[1] + 1], [box_front - 20, box_front], [-1, 201]);
@@ -321,3 +330,45 @@ module pu_nut(push = 0) translate([-push * push_stroke, 0, 0]) {
 module lift_motor() lift_tf() m44_local();
 module lift_coupling() lift_tf() coupling_local();
 module lift_screw() lift_tf() translate([0, 0, m44_shaft[1]]) cylinder(d = 8, h = lift_screw_top - m44_shaft[1]);
+
+// --- Lift (printed): plate + back stop + nut tab. Plate top at `top`. Print: as placed, plate down. -----------------
+// Plate and stop = (side profile along X) ∩ (front profile along Y): one solid, the stop full width at the plate and
+// narrowing upwards along concave quarter ellipses to stop_w at the top.
+assert(card_yc + card[1] / 2 <= gear_y[0] - 1, "cards reach the drum gear");
+module lift_part(top) {
+  b = top - lift_t;
+  ys = [riser_y, riser_y + stop_t];
+  y0 = card_yc - card[1] / 2 - 4;   // plate front
+  ax = lift_axis;
+  sx = [ax[0] - stop_w / 2, ax[0] + stop_w / 2];
+  tz = [top + lift_tab - tab_t, top + lift_tab];
+  st = top + stop_h;
+  // front profile 1 mm beyond the side profile everywhere: only the side profile makes the outer faces
+  xo = [lift_x[0] - 1, lift_x[1] + 1];
+  rx = [sx[0] - xo[0], xo[1] - sx[1]];
+  rz = st + 1 - top;
+  arc_r = [for (a = [0 : 5 : 90]) [xo[1] - rx[1] * sin(a), st + 1 - rz * cos(a)]];
+  arc_l = [for (a = [90 : -5 : 0]) [xo[0] + rx[0] * sin(a), st + 1 - rz * cos(a)]];
+  difference() {
+    union() {
+      intersection() {
+        translate([lift_x[0], 0, 0]) rotate([90, 0, 90]) linear_extrude(lift_x[1] - lift_x[0])
+          polygon([[y0, b], [ys[1], b], [ys[1], st], [ys[0], st], [ys[0], top], [y0, top]]);
+        translate([0, ys[1] + 1, 0]) rotate([90, 0, 0]) linear_extrude(ys[1] + 1 - (y0 - 1))
+          polygon(concat([[xo[0], b - 1], [xo[1], b - 1]], arc_r, arc_l));
+      }
+      box(sx, [ys[1] - 1, lift_tab_y], tz);   // tab
+      // 2 gussets under it (45°), 0.5 in from its sides, bottom 0.5 above the bed: no faces shared with tab or plate
+      for (x = [sx[0] + 0.5, sx[1] - 3.5]) translate([x, 0, 0]) rotate([90, 0, 90]) linear_extrude(3)
+        polygon([[ys[1] - 1, b + 0.5], [lift_tab_y - 1 - (tz[0] - b), b + 0.5], [lift_tab_y - 1, tz[0] + 0.5],
+                 [lift_tab_y - 1, tz[0] + 1], [ys[1] - 1, tz[0] + 1]]);   // slope ends inside the tab: no shared edge
+    }
+    // nut body through the tab, flange on top (the lift hangs on it), 2 screws beside the screw
+    translate([ax[0], ax[1], tz[0] - 1]) cylinder(d = nut_d + 0.4, h = tab_t + 2);
+    for (s = [-1, 1]) translate([ax[0] + s * nut_pcd / 2, ax[1], tz[0] - 1]) cylinder(d = screw_pilot, h = tab_t + 2);
+  }
+}
+module lift_nut(top) translate([lift_axis[0], lift_axis[1], top + lift_tab]) {
+  cylinder(d = nut_flange[0], h = nut_flange[1]);
+  translate([0, 0, -(nut_len - nut_flange[1])]) cylinder(d = nut_d, h = nut_len - nut_flange[1] + eps);
+}

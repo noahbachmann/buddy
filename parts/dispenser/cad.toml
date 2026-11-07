@@ -9,3 +9,4 @@ assembly = "assembly.scad"
 [parts.gate-left]
 [parts.gate-right]
 [parts.pusher]
+[parts.lift]
