@@ -209,7 +209,7 @@ cd parts/tools && uv run python ../dispenser/check_pusher.py # after a pusher, l
 | 4 | MR105ZZ bearing, 5 × 10 × 4 | Pressed into the drum ends |
 | 2 | Steel rod Ø5 mm, 119.9 mm | Silver steel, cut and deburred. Fixed: the drums turn on their bearings |
 | 3 | M3×6 socket head | 4023 to the back plate (the 4th hole would cut into the drive rod's hole) |
-| 1 | M3×4 set screw + M3 nut | Motor gear onto the shaft's flat |
+| 1 | M3×5 set screw + M3 nut | Motor gear onto the shaft's flat (5 mm from the flat to the hub surface: flush) |
 | 2 | M3×6 + M3 washer | Rod keepers on the front plate (the washer covers the rod end) |
 | 3 | M3×12 | Front plate into the rib ends |
 | 4 | M3×12 | Frame to the box floor, from below |
