@@ -281,19 +281,19 @@ module wall_holes() {
 }
 // Rails under the floor along the left and right edges, back wall to front edge: the box stands on them, the lift
 // motor hangs between them. Open front and back: cables, and the motor reaches past the back wall.
-module feet() for (x = [0, right_wall[0]]) box([x, x + feet_t], [box_front, back_out], [-feet_h, 0.5]);
+module feet() for (x = [0, right_wall[0]]) box([x, x + feet_t], [box_front, back_out], [lift_face - feet_h, floor_bot + 0.5]);
 
 // Dev's cuts in the box (Onshape), here for the preview and the combined STL.
 // 4023: the hold carries the motor from below, from the frame's back plate through the wall to the motor's back end
 m23_box = [[motor_x - motor_sq / 2, motor_x + motor_sq / 2], [motor_face_y, motor_face_y + motor_body],
            [motor_z - motor_sq / 2, motor_z + motor_sq / 2]];
 // It ends at the wall's outer face (the case prints on it): the motor's last 3 mm overhang.
-module roller_hold() box(m23_box[0], [m23_box[1][0] + hold_gap, min(m23_box[1][1], back_out)], [0, m23_box[2][0]]);
+module roller_hold() box(m23_box[0], [m23_box[1][0] + hold_gap, min(m23_box[1][1], back_out)], [floor_bot, m23_box[2][0]]);
 // 17HS4401 on the right wall: a wedge under its body, 45° underside, and 45° along the wall towards the back (the case
 // prints on its back, -Y up: a flat back face would overhang)
 module pusher_hold() {
   top = pu_screw_z - m44_sq / 2;
-  x0 = right_wall[1] - 1;
+  x0 = right_wall[0] + wall_t - 1;   // into the wall where it's thinned (below the motor pad)
   x1 = right_wall[1] + m44_body;
   y1 = pu_y + pu_hold[0] / 2;
   hull() {
@@ -333,7 +333,7 @@ module h_insert() {
 // Inner face vertical 0.5 in front of the lift plate up to its lowest top, then leaning forward like the slope.
 function b_insert_profile() = let(y1 = lift_front - 0.5, lean = (div_low - lift_min) * stop_lean / stop_h,
                                   bf = box_front)
-  [[bf - 2, 0.5], [bf, 0.5], [bf, floor_top], [y1, floor_top], [y1, lift_min], [y1 - lean, div_low], [bf, div_low],
+  [[bf - 2, floor_bot + 0.5], [bf, floor_bot + 0.5], [bf, floor_top], [y1, floor_top], [y1, lift_min], [y1 - lean, div_low], [bf, div_low],
    [bf, floor_top + 5], [bf - 2, floor_top + 5]];
 module b_insert() {
   f = insert_fit;
@@ -343,10 +343,32 @@ module b_insert() {
     for (s = insert_screws_b) translate([s[0], s[1], floor_top - eps]) cylinder(d = screw_pilot, h = 10);
   }
 }
-// Dev's box as drawn, its front cut back
+// Dev's box as drawn, its front cut back, walls and floor thinned to wall_t
 module box_trimmed() difference() {
   import("ref/box.stl");
   box([left_wall[0] - 1, right_wall[1] + 1], [box_front - 20, box_front], [-1, 201]);
+  wall_thinning();
+}
+// From the outside: floor from below, back wall from behind, the side walls from their outer faces. Pads stay 5 thick
+// where something needs the depth: the pusher screw's bearing hole in the left wall, the pusher's notch (4 deep + 1 skin)
+// and motor face in the right wall. Their back ends are 45° (the case prints on its back: a step facing the back wall
+// would overhang).
+module wall_thinning() {
+  xs = [left_wall[0] - 1, right_wall[1] + 1];
+  box(xs, [box_front - 1, back_out + 2], [-1, floor_bot]);
+  box(xs, [back_out, back_out + 3], [-1, 201]);
+  // side: thin wall's outer face at xi, outward direction d; the pad (to the old face) ends at y1 on the outside,
+  // 45° back to the wall, over zr
+  module side(xi, d, y1, zr) difference() {
+    box(d < 0 ? [xi - 3, xi] : [xi, xi + 3], [box_front - 1, back_out + 1], [-1, 201]);
+    intersection() {
+      box(d < 0 ? [xi - 4, xi + 1] : [xi - 1, xi + 4], [box_front - 2, back_out + 1], zr);
+      translate([0, 0, -1]) linear_extrude(203)
+        polygon([[xi, box_front - 2], [xi + 3 * d, box_front - 2], [xi + 3 * d, y1], [xi, y1 + 3]]);
+    }
+  }
+  side(left_wall[1] - wall_t, -1, pu_y + 10, [pu_screw_z - 10, pu_screw_z + 10]);
+  side(right_wall[0] + wall_t, 1, riser_y + 2, [notch_lo[1][0] - 2, ext_z[1]]);
 }
 
 module box_cuts() {
@@ -391,7 +413,7 @@ module pu_nut(push = 0) translate([-push * push_stroke, 0, 0]) {
 }
 module lift_motor() lift_tf() m44_local();
 module lift_coupling() lift_tf() coupling_local();
-module lift_screw() lift_tf() translate([0, 0, m44_shaft[1]]) cylinder(d = 8, h = lift_screw_top - m44_shaft[1]);
+module lift_screw() lift_tf() translate([0, 0, m44_shaft[1]]) cylinder(d = 8, h = lift_screw_top - lift_face - m44_shaft[1]);
 
 // --- Lift (printed): plate + slope + Dev's nut tab. Plate top at `top`. Print: as placed, plate down; the tab needs
 // support (Dev's design). One intersection, no unions: side profile (along X) ∩ front profile (along Y: straight sides

@@ -10,7 +10,10 @@ $fn = 96;
 // --- Dev's box (measured in dispenser.stl; change there, then here) ------------------
 floor_top        = 5;
 back_wall        = -5;       // inner face of the back wall
-back_out         = 0;        // its outer face: the case prints on it (case.scad)
+wall_t           = 3;        // case walls and floor, thinned from Dev's 5 at their outer faces (the divider stays 5:
+                             // gate, slot and the lift's guide)
+back_out         = back_wall + wall_t;   // back wall's outer face: the case prints on it (case.scad)
+floor_bot        = floor_top - wall_t;   // floor's underside
 divider_x        = 72;       // left face of the divider
 left_wall_bottom = 70;       // left wall ends here, open below
 slot_top         = 66.04;    // underside of the divider's upper block = top of the card slot
@@ -180,8 +183,7 @@ screw_hole = 8.6;
 // flange under it, its spigot up in the hole. The plate's edges against the divider and the right wall keep it from
 // turning.
 lift_axis  = [111.8, -25.4 + shift];   // Dev's nut and tab centre (his screw was drawn 0.6 off)
-floor_t    = 5;
-lift_face  = 0;
+lift_face  = floor_bot;      // motor face against the floor's underside
 lift_screw_top = 200;        // ends at the box top
 lift_x     = [77.44, 144.44];   // plate: 0.44 to the divider, 0.56 to the right wall (as Dev's)
 lift_t     = 4;              // plate thickness
