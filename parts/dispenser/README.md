@@ -360,8 +360,8 @@ but then two cards sit in the slot. No roller left of the divider can push furth
 
 ## ⚠️ Untested assumptions
 
-- `card_t` = 0.32 mm is a guess for a bare card; sleeved cards are thicker. Measure before printing the frame: the right
-  gate's gap can't be tuned by swapping anymore.
+- `card_t` = 0.32 mm is a guess for a bare card; sleeved cards are thicker. Measure before printing the case and the
+  frame: the right gate's gap and lip are part of the case and can't be tuned by swapping.
 - Pile H's back edge is 5.9 mm in front of the drum gear, whose tips reach 0.6 mm above the belts (y −34.5…−27.5,
   x ~59…65). Nothing positions H in Y: a card placed more than 5.9 mm toward the back rubs on the turning gear.
 - The MR105 press fit (`press`), the 5.2 mm rod holes and the printed gear mesh (`gear_slack`, `gear_backlash`) need a test print.
