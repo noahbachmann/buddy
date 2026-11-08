@@ -20,6 +20,8 @@ module teardrop2d(d, tip = 0) {
   if (tip == 0) circle(d = d);
   else rotate(tip < 0 ? 180 : 0) hull() { circle(d = d); rotate(45) square(d / 2); }
 }
+// Hole along Z from z0 to z1 at (x, y), teardrop towards -Y: up when the case prints on its back.
+module hole_z(x, y, d, z0, z1) translate([x, y, z0]) linear_extrude(z1 - z0) rotate(180) teardrop2d(d, 1);
 // Hole along Y from y1 down to y0, centre (x, z).
 module hole_y(x, z, d, y0, y1, tip = 0)
   translate([x, y1, z]) rotate([90, 0, 0]) linear_extrude(y1 - y0) teardrop2d(d, tip);
@@ -118,8 +120,9 @@ module right_gate() {
   leg_z = bed_top + 0.3;   // over the frame plates (they slide in under the legs)
   difference() {
     union() {
-      // bar + wedge, 1 into the divider block above its underside
-      translate([0, back_y[1], 0]) rotate([90, 0, 0]) linear_extrude(back_y[1] - front_y[0])
+      // bar + wedge, 1 into the divider block above its underside, from the front leg into the back wall (the case
+      // prints on its back: a free back end would overhang)
+      translate([0, back_wall + 0.5, 0]) rotate([90, 0, 0]) linear_extrude(back_wall + 0.5 - front_y[0])
         polygon([[gate_in, bar_z], [dx, bar_z], [dx, bar_z + 0.3], [dx + 1, bar_z + 0.3], [dx + 1, div_top - 0.5],
                  [dx - 0.2, div_top - 0.5], [gate_in, gate_top]]);
       for (yr = [back_y, front_y]) box([gate_in, dx], yr, [leg_z, bar_z + 1.5]);
@@ -222,9 +225,10 @@ module belts() for (y = cord_ys) translate([0, y + cord_s / 2, 0]) rotate([90, 0
 module motor_4023() motor_tf() translate([-35, 25, -28.4]) import("ref/m4023.stl");
 
 // === Pusher ======================================================================================
-// Hole along X from x0 to x1, centre (y, z); tip = 1: teardrop pointing up (+Z).
-module hole_x(y, z, d, x0, x1, tip = 0)
-  translate([x0, y, z]) rotate([0, 90, 0]) linear_extrude(x1 - x0) rotate(90) teardrop2d(d, tip);
+// Hole along X from x0 to x1, centre (y, z); tip = 1: teardrop pointing up (+Z), front: to -Y instead (the case's
+// print direction).
+module hole_x(y, z, d, x0, x1, tip = 0, front = false)
+  translate([x0, y, z]) rotate([0, 90, 0]) linear_extrude(x1 - x0) rotate(front ? 180 : 90) teardrop2d(d, front ? 1 : tip);
 
 // Plate side profile (x, z): chamfered lower edge, sharp-ish on the push side to catch the bottom card
 function pu_profile(h = push_h) = let(b = push_lift, t = push_lift + h, x0 = right_wall[0], x1 = right_wall[0] + push_t,
@@ -253,7 +257,7 @@ module pusher(push = 0) translate([-push * push_stroke, 0, 0]) difference() {
 // Dev's change to the box: the right wall extended forward around the motor face (45° underneath, prints upright),
 // the boss's hole and the motor's 4 screw holes through it.
 m44_hole_offs = [for (a = [-1, 1], b = [-1, 1]) [a, b] * m44_holes / 2];
-module case_add() difference() {   // Dev's additions to the box: wall extension, slot ends, motor holds, borders, right gate
+module case_add() difference() {   // additions to Dev's box: wall extension, slot ends, motor holds, borders, right gate, feet
   dy = ext_y[1] - ext_y[0];
   union() {
     hull() {
@@ -263,43 +267,81 @@ module case_add() difference() {   // Dev's additions to the box: wall extension
     slot_ends();
     roller_hold();
     pusher_hold();
-    front_border();
-    h_borders();
+    h_back_border();
     right_gate();
+    feet();
   }
   wall_holes();
 }
 module wall_holes() {
-  hole_x(pu_y, pu_screw_z, m44_boss[0] + 0.6, right_wall[0] - 1, right_wall[1] + 1, 1);
-  for (o = m44_hole_offs) hole_x(pu_y + o[0], pu_screw_z + o[1], screw_clear, right_wall[0] - 1, right_wall[1] + 1, 1);
+  hole_x(pu_y, pu_screw_z, m44_boss[0] + 0.6, right_wall[0] - 1, right_wall[1] + 1, front = true);
+  for (o = m44_hole_offs)
+    hole_x(pu_y + o[0], pu_screw_z + o[1], screw_clear, right_wall[0] - 1, right_wall[1] + 1, front = true);
 }
+// Rails under the floor along the left and right edges, back wall to front edge: the box stands on them, the lift
+// motor hangs between them. Open front and back: cables, and the motor reaches past the back wall.
+module feet() for (x = [0, right_wall[0]]) box([x, x + feet_t], [box_front, back_out], [-feet_h, 0.5]);
 
 // Dev's cuts in the box (Onshape), here for the preview and the combined STL.
 // 4023: the hold carries the motor from below, from the frame's back plate through the wall to the motor's back end
 m23_box = [[motor_x - motor_sq / 2, motor_x + motor_sq / 2], [motor_face_y, motor_face_y + motor_body],
            [motor_z - motor_sq / 2, motor_z + motor_sq / 2]];
-module roller_hold() box(m23_box[0], [m23_box[1][0] + hold_gap, m23_box[1][1]], [0, m23_box[2][0]]);
-// 17HS4401 on the right wall: a wedge under its body, 45° underside (the box prints upright)
+// It ends at the wall's outer face (the case prints on it): the motor's last 3 mm overhang.
+module roller_hold() box(m23_box[0], [m23_box[1][0] + hold_gap, min(m23_box[1][1], back_out)], [0, m23_box[2][0]]);
+// 17HS4401 on the right wall: a wedge under its body, 45° underside, and 45° along the wall towards the back (the case
+// prints on its back, -Y up: a flat back face would overhang)
 module pusher_hold() {
   top = pu_screw_z - m44_sq / 2;
   x0 = right_wall[1] - 1;
   x1 = right_wall[1] + m44_body;
-  translate([0, pu_y + pu_hold[0] / 2, 0]) rotate([90, 0, 0]) linear_extrude(pu_hold[0])
-    polygon([[x0, top - (x1 - x0) - pu_hold[1]], [x0, top], [x1, top], [x1, top - pu_hold[1]]]);
+  y1 = pu_y + pu_hold[0] / 2;
+  hull() {
+    translate([0, y1, 0]) rotate([90, 0, 0]) linear_extrude(pu_hold[0])
+      polygon([[x0, top - (x1 - x0) - pu_hold[1]], [x0, top], [x1, top], [x1, top - pu_hold[1]]]);
+    box([x0, x0 + 0.01], [y1, y1 + (x1 - x0)], [top - (x1 - x0) - pu_hold[1], top]);
+  }
 }
-// Pile H's front and back borders: left wall .. divider (through the right gate's wedge), from just above the left
-// wall's lower edge to the divider top; inner faces 0.5 off the cards, leaning out like the lift's slope
-module h_borders() for (s = [0, 1]) let(zb = left_wall_bottom + 0.5, zt = div_top, lean = (zt - zb) * stop_lean / stop_h,
-                                        y1 = s == 0 ? card_yc - card[1] / 2 - 0.5 : card_yc + card[1] / 2 + 0.5,
-                                        d = s == 0 ? -1 : 1)
+// Pile H's borders: left wall .. divider, from just above the left wall's lower edge to the divider top; inner faces
+// 0.5 off the cards, leaning out like the lift's slope.
+h_bord_z = [left_wall_bottom + 0.5, div_top];
+h_lean   = (h_bord_z[1] - h_bord_z[0]) * stop_lean / stop_h;
+// Back: part of the case, solid back to the wall (through the right gate's wedge): the case prints on its back, a
+// free outer face would overhang.
+module h_back_border() let(zb = h_bord_z[0], zt = h_bord_z[1], y1 = card_yc + card[1] / 2 + 0.5)
   translate([left_wall[1] - 1, 0, 0]) rotate([90, 0, 90]) linear_extrude(divider_x - (left_wall[1] - 1))
-    polygon([[y1, zb], [y1 + d * lean, zt], [y1 + d * (lean + border_t), zt], [y1 + d * (lean + border_t), zb]]);
-// Pile B's front border: wall in front of the lift plate, divider .. right wall, floor .. slot_bot
-// inner face vertical up to the lift plate's lowest top, then leaning forward like the riser's front face
-module front_border() let(y1 = lift_front - 0.5, lean = (slot_bot - lift_min) * stop_lean / stop_h,
-                          y0 = y1 - lean - border_t)
-  translate([slit_x1 - 1, 0, 0]) rotate([90, 0, 90]) linear_extrude(right_wall[0] + 1 - (slit_x1 - 1))
-    polygon([[y0, floor_top - 1], [y1, floor_top - 1], [y1, lift_min], [y1 - lean, slot_bot], [y0, slot_bot]]);
+    polygon([[y1, zb], [y1 + h_lean, zt], [back_wall + 0.5, zt], [back_wall + 0.5, zb]]);
+
+// Front borders of both piles: slide-in parts (their card faces would overhang with the case on its back). Each fills
+// the front strip in front of its pile, flush with the box front. Profiles (y, z), extruded along X.
+// H: left wall .. the right gate's wedge; the step beside the gate's front face is its stop, 2 M3 through the left wall.
+function h_insert_profile() = let(zb = h_bord_z[0], zt = h_bord_z[1], y1 = card_yc - card[1] / 2 - 0.5)
+  [[box_front, zb], [y1, zb], [y1 - h_lean, zt], [box_front, zt]];
+module h_insert() {
+  f = insert_fit;
+  difference() {
+    translate([left_wall[1] + f, 0, 0]) rotate([90, 0, 90]) linear_extrude(divider_x - f - (left_wall[1] + f))
+      polygon(h_insert_profile());
+    // the right gate's bar and wedge (inner face from (gate_in, gate_top) to (divider_x - 0.2, div_top - 0.5)), + fit
+    translate([0, back_wall, 0]) rotate([90, 0, 0]) linear_extrude(back_wall - (front_y[0] - f))
+      polygon([[gate_in - f, h_bord_z[0] - 1], [gate_in - f, gate_top], [divider_x - 0.2 - f, div_top - 0.5],
+               [divider_x - 0.2 - f, div_top + 1], [divider_x + 1, div_top + 1], [divider_x + 1, h_bord_z[0] - 1]]);
+    for (s = insert_screws_h) hole_x(s[0], s[1], screw_pilot, left_wall[1], left_wall[1] + 10);
+  }
+}
+// B: divider .. right wall, on the floor; a lip over the floor's front edge is its stop, 2 M3 from below.
+// Inner face vertical 0.5 in front of the lift plate up to its lowest top, then leaning forward like the slope.
+function b_insert_profile() = let(y1 = lift_front - 0.5, lean = (slot_bot - lift_min) * stop_lean / stop_h,
+                                  bf = box_front)
+  [[bf - 2, 0.5], [bf, 0.5], [bf, floor_top], [y1, floor_top], [y1, lift_min], [y1 - lean, slot_bot], [bf, slot_bot],
+   [bf, floor_top + 5], [bf - 2, floor_top + 5]];
+module b_insert() {
+  f = insert_fit;
+  difference() {
+    translate([slit_x1 + f, 0, 0]) rotate([90, 0, 90]) linear_extrude(right_wall[0] - f - (slit_x1 + f))
+      polygon(b_insert_profile());
+    for (s = insert_screws_b) translate([s[0], s[1], floor_top - eps]) cylinder(d = screw_pilot, h = 10);
+  }
+}
 // Dev's box as drawn, its front cut back
 module box_trimmed() difference() {
   import("ref/box.stl");
@@ -314,13 +356,17 @@ module box_cuts() {
       [m23_box[1][1] - m23_conn[2] - cable_slot[1], m23_box[1][1] + 1], [-1, m23_box[2][0] + 1]);
   for (n = [notch_lo, notch_hi]) box([right_wall[0] - 1, right_wall[0] + push_t], n[0], n[1]);
   wall_holes();
-  hole_x(pu_y, pu_screw_z, screw_hole, left_wall[0] - 1, left_wall[1] + 1, 1);
-  // lift motor under the floor: boss hole + 4 screw holes
-  translate([lift_axis[0], lift_axis[1], -1]) {
-    cylinder(d = m44_boss[0] + 0.6, h = floor_t + 2);
-    for (o = m44_hole_offs) if (o[1] < 0) translate(o) cylinder(d = screw_clear, h = floor_t + 2);   // back 2: under the wall
-  }
+  hole_x(pu_y, pu_screw_z, screw_hole, left_wall[0] - 1, left_wall[1] + 1, front = true);
+  // lift motor under the floor: boss hole + the 2 front screw holes (the back 2 are under the wall)
+  hole_z(lift_axis[0], lift_axis[1], m44_boss[0] + 0.6, -1, floor_top + 1);
+  for (o = m44_hole_offs) if (o[1] < 0) hole_z(lift_axis[0] + o[0], lift_axis[1] + o[1], screw_clear, -1, floor_top + 1);
+  // frame to the floor, border inserts
+  for (p = floor_screws) hole_z(p[0], p[1], screw_clear, -1, floor_top + 1);
+  for (s = insert_screws_b) hole_z(s[0], s[1], screw_clear, -1, floor_top + 1);
+  for (s = insert_screws_h) hole_x(s[0], s[1], screw_clear, left_wall[0] - 1, left_wall[1] + 1, front = true);
 }
+// The printed case: Dev's box with every change, as it sits (case.scad turns it onto its back)
+module case() difference() { union() { box_trimmed(); case_add(); } box_cuts(); }
 
 // Bought parts. 17HS4401 in its own frame: face at z 0, body below, shaft up; coupling on the shaft.
 module m44_local() {

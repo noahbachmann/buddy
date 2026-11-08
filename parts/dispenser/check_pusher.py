@@ -3,7 +3,7 @@
     cd parts/tools && uv run python ../dispenser/check_pusher.py
 
 Exports the placed pieces from assembly.scad, intersects the carriage and its nut (9 positions) with everything fixed
-(box with its changes, lift at push height, roller, motor, screw, a full pile (pile_max) on the lift), and the lift with
+(case with the border inserts, lift at push height, roller, motor, screw, a full pile (pile_max) on the lift), and the lift with
 its nut (lowest, 2 between, push height) and the pile with the box, the wall extension, motors, couplings, screw and
 the carriage at home. Exit 1 on any overlap.
 """
@@ -24,10 +24,10 @@ from cad import scad
 
 HERE = Path(__file__).resolve().parent
 PUSHES = [0, 0.1, 0.25, 0.4, 0.5, 0.6, 0.75, 0.9, 1.0]
-FIXED = ["box-cut", "frame", "front-plate", "gate-left", "drive-drum", "idler-drum",
+FIXED = ["case", "border-h", "border-b", "frame", "front-plate", "gate-left", "drive-drum", "idler-drum",
          "pusher-motor", "pusher-coupling", "pusher-screw"]
 # what the lift passes: the pusher at home and the lift's own motor and coupling (its screw runs through the nut)
-HOME = ["box-cut", "case-add", "pusher-motor", "pusher-coupling", "pusher-screw", "pusher", "pusher-nut", "lift-motor",
+HOME = ["case", "border-h", "border-b", "pusher-motor", "pusher-coupling", "pusher-screw", "pusher", "pusher-nut", "lift-motor",
         "lift-coupling"]
 LIFT_BETWEEN = [50, 75]   # + lift_min and push_lift
 

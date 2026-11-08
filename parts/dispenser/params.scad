@@ -10,6 +10,7 @@ $fn = 96;
 // --- Dev's box (measured in dispenser.stl; change there, then here) ------------------
 floor_top        = 5;
 back_wall        = -5;       // inner face of the back wall
+back_out         = 0;        // its outer face: the case prints on it (case.scad)
 divider_x        = 72;       // left face of the divider
 left_wall_bottom = 70;       // left wall ends here, open below
 slot_top         = 66.04;    // underside of the divider's upper block = top of the card slot
@@ -199,3 +200,10 @@ m23_window = 0.3;            // clearance around the 4023 in the back wall's win
 cable_slot = [20, 2];        // channel under the connector down through the floor: width, clearance in Y
 hold_gap   = 0.3;            // between the roller hold and the frame's back plate
 pu_hold    = [16, 3];        // pusher motor hold: width (Y), top thickness; 45° underside
+
+// --- Case print (case.scad): one piece on its back, borders in front of the piles as slide-in parts ---------------
+feet_h     = m44_body + 2;   // rails under the floor, left and right edge: the lift motor hangs 40 below it
+feet_t     = 5;
+insert_fit = 0.2;            // per side, border inserts against walls, divider and gate
+insert_screws_h = [[-146, 78], [-146, 89]];   // border H: (y, z), M3 through the left wall
+insert_screws_b = [[95, -146], [127, -146]];  // border B: (x, y), M3 from below through the floor

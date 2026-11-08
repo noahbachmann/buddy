@@ -1,4 +1,4 @@
-// Roller + pusher in Dev's box. Preview only (F5). part = one placed piece for make_copy.py and the checks.
+// Roller + pusher in the case (Dev's box + changes). Preview only (F5). part = one placed piece for make_copy.py and the checks.
 // Poses: push = 0 (home) .. 1 (end of stroke), lift_top = lift plate top (push_lift while pushing).
 include <lib.scad>
 
@@ -25,14 +25,17 @@ module piece(name) {
   else if (name == "lift-coupling") lift_coupling();
   else if (name == "lift-screw") lift_screw();
   else if (name == "pusher-nut") pu_nut(push);
-  else if (name == "box-cut")    difference() { union() { box_trimmed(); case_add(); } box_cuts(); }
+  else if (name == "case")       case();
+  else if (name == "border-h")   h_insert();
+  else if (name == "border-b")   b_insert();
   else if (name == "lift")       lift_part(lift_top);
   else if (name == "lift-nut")   lift_nut(lift_top);
 }
 
 if (part != "all") piece(part);
 else {
-  %piece("box-cut");
+  %piece("case");
+  color("lightsteelblue") { piece("border-h"); piece("border-b"); }
   color("plum") piece("lift");
   color("goldenrod") piece("lift-nut");
   color("orange") { piece("frame"); piece("front-plate"); }
@@ -42,7 +45,7 @@ else {
   color("silver") piece("rods");
   color("black") piece("belts");
   color("tomato") piece("pusher");
-  color("lightsteelblue") piece("case-add");   // wall extension
+  color("lightsteelblue") piece("case-add");   // changes to Dev's box
   color("dimgray") piece("pusher-motor");
   color("silver") { piece("pusher-screw"); piece("pusher-coupling"); piece("lift-screw"); piece("lift-coupling"); }
   color("dimgray") piece("lift-motor");
