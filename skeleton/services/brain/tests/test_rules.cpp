@@ -59,6 +59,17 @@ TEST(RuleParser, SpokenNumbersInSpeakerNames) {  // whisper writes "desktop one"
     EXPECT_EQ(parser.parse("Skip this one.")->name, "next");
 }
 
+TEST(RuleParser, BareInBeforeSpeaker) {  // live 2026-11-08: went to the default speaker as a search
+    const buddy::brain::RuleParser parser;
+    const auto i = parser.parse("Play Spotify in bathroom speaker.");
+    ASSERT_TRUE(i);
+    EXPECT_EQ(i->name, "play");
+    EXPECT_EQ(i->query, "");
+    EXPECT_EQ(i->device, "bathroom speaker");
+    EXPECT_EQ(parser.parse("Play Daft Punk in main speaker.")->device, "main speaker");
+    EXPECT_EQ(parser.parse("Play Love in Paris.")->device, "");  // bare "in" elsewhere: part of the title
+}
+
 TEST(RuleParser, WholeSentenceMustMatch) {
     const buddy::brain::RuleParser parser;
     EXPECT_EQ(parser.parse("Pause.")->name, "pause");

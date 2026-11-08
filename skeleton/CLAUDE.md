@@ -135,6 +135,8 @@ gates: ~75 s under ASan), skipped by default; only them: `deploy/test.sh --riftb
   Headless WirePlumber needs `monitor.bluez.seat-monitoring = disabled`, else no Bluetooth audio.
 - Nests: no stored pairing key (`Paired: no` while disconnected) → list `devices Trusted`; they reset their volume right
   after connecting (set ours 3 s later); a full disconnect takes 2.5–3 s, `bluetoothctl disconnect <mac> <A2DP uuid>` 15 ms.
+- bluetoothd (5.82): a failed connect can leave a Nest's a2dp-sink in "connecting"; every later Connect fails at once
+  with `InProgress br-connection-busy` (no HCI traffic) until a Disconnect: speakers' `connect()` disconnects before its retry.
 - Config defaults live in the config struct (`RouterConfig`, `PlayerConfig`); `main.cpp` reads env with the struct's
   value as fallback, never a second literal.
 - game fixture `services/game/tests/data/cards.json`: every printing of the two decks' cards, text removed except a

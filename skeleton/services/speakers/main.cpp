@@ -140,13 +140,26 @@ Snapshot read_pipewire(const std::vector<Speaker>& speakers) {
     return snap;
 }
 
+// Last "Failed to …" line of bluetoothctl's output, for the log
+std::string failure_reason(const std::string& out) {
+    const auto at = out.rfind("Failed to");
+    if (at == std::string::npos) return "no answer";
+    return out.substr(at, out.find('\n', at) - at);
+}
+
 bool connect(const std::string& mac) {
-    // Right after a PipeWire restart the first try fails (no A2DP endpoint yet): one retry
+    // Right after a PipeWire restart the first try fails (no A2DP endpoint yet): one retry.
+    // Before it a Disconnect: a failed connect can leave bluetoothd's a2dp-sink stuck in "connecting", every later
+    // Connect then fails with InProgress (br-connection-busy) without touching the radio, for hours (2026-11-08).
     for (int attempt = 0; attempt < 2; ++attempt) {
-        if (attempt) std::this_thread::sleep_for(2s);
+        if (attempt) {
+            run({"bluetoothctl", "disconnect", mac}, 10s);
+            std::this_thread::sleep_for(2s);
+        }
         systemd::notify_watchdog();
-        if (run({"bluetoothctl", "connect", mac}, 15s).out.find("Connection successful") != std::string::npos)
-            return true;
+        const auto out = run({"bluetoothctl", "connect", mac}, 15s).out;
+        if (out.find("Connection successful") != std::string::npos) return true;
+        std::cout << "[speakers] connect " << mac << ": " << failure_reason(out) << std::endl;
     }
     return false;
 }

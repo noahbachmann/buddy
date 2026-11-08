@@ -136,6 +136,7 @@ train	Play Daft Punk on the bathroom speaker.	play	daft punk	bathroom speaker
 train	Play music in the bathroom.	play		bathroom
 train	Move the music to the bathroom speaker.	play		bathroom speaker
 test	Play my chill playlist on the bathroom speaker.	play_playlist	chill	bathroom speaker
+extra	Play Spotify in bathroom speaker.	play		bathroom speaker
 test	Put on some music in the bathroom.	play		bathroom
 train	Play Kanye West on my Pixel 8.	play	kanye west	pixel 8
 train	Play my liked songs on the Pixel 8.	play_liked		pixel 8

@@ -227,11 +227,11 @@ std::optional<Intent> RuleParser::parse_room(const std::string& t) const {
 }
 
 // "move the music to the tv", "play daft punk on the bathroom speaker", "play my liked songs in the kitchen".
-// Splits at the last "on"/"in the"; the speaker name itself is matched by the skill.
+// Splits at the last "on"/"in the"/"in my", or a bare "in" before "… speaker"; the skill matches the name itself.
 std::optional<Intent> RuleParser::parse_device(const std::string& t) const {
     static const std::regex transfer(
         R"((move|switch|transfer|send|put)( the music| it| this| the song| playback| the playback| spotify)?( back)? to (the |my )?(.+))");
-    static const std::regex suffix(R"((.+) (on|in the|in my) (the |my )?(.+))");
+    static const std::regex suffix(R"((.+) (on|in the|in my|in(?= [a-z0-9 ]*speaker$)) (the |my )?(.+))");  // bare "in": live 2026-11-08
     static const std::regex not_a_device(R"(spotify|repeat|shuffle|loop)");
     std::smatch m;
     if (std::regex_match(t, m, transfer)) {
