@@ -10,7 +10,7 @@ $fn = 96;
 // --- Dev's box (measured in dispenser.stl; change there, then here) ------------------
 floor_top        = 5;
 back_wall        = -5;       // inner face of the back wall
-wall_t           = 3;        // case walls and floor, thinned from Dev's 5 at their outer faces (the divider stays 5:
+wall_t           = 4;        // case walls and floor, thinned from Dev's 5 at their outer faces (the divider stays 5:
                              // gate, slot and the lift's guide)
 back_out         = back_wall + wall_t;   // back wall's outer face: the case prints on it (case.scad)
 floor_bot        = floor_top - wall_t;   // floor's underside

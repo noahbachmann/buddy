@@ -53,7 +53,7 @@ the lift in place and the 4023 turned. It also holds bought parts as stand-ins (
 - **Bed:** the belts slide on a flat bed. One O-ring strand carries only ~2.5 N, so a pile of 20 cards would sag a free
   span by ~1.4 mm and the cards would sit on the bed instead of the rubber.
 - **Drive:** the 4023 is turned 90° (shaft to the front, connector down) and sits behind the back plate, in a window
-  through the back wall (y −20.5…3, 5 mm out at the back). It rests on a block of the case (the hold) under it, and
+  through the back wall (y −20.5…3, 4 mm out at the back). It rests on a block of the case (the hold) under it, and
   its connector hangs in a 20 mm channel through the hold and the floor: the cable leaves under the box. A 20T
   gear on its shaft drives the 16T gear on the drum: 1.25 drum turns per motor turn, 54.6 mm of belt per motor turn,
   0.27 mm per full step. With the gear pair the drum can sit right at the divider (1 mm gap). A drum directly on the
@@ -124,7 +124,7 @@ the lift in place and the 4023 turned. It also holds bought parts as stand-ins (
   has to go. So the motor sits under the box: face against the floor's underside, boss in the floor's hole, M3 from
   inside. Its axis is at (111.8, −16.9) (Dev's nut centre), so it reaches under the back wall and its 2 back screw holes are out of reach. It's
   held by the 2 front screws and the boss (the load is the lift's few hundred grams). The coupling sits at z
-  13.5…38.5. The motor hangs 40 mm below the floor: the case stands on two rails 42 mm high (below).
+  12.5…37.5. The motor hangs 40 mm below the floor: the case stands on two rails 42 mm high (below).
 - **Lift (printed, `lift.scad`):** seen from the side, Dev's nut tab around the screw at the top (47 mm above the plate
   top), then one slope down to the plate. Plate 67 × 107 × 4 mm (x 77.44…144.44, 0.44 / 0.56 to the
   divider and the right wall: that keeps it from turning), its top 95 mm from the front edge to the slope's foot: the
@@ -143,8 +143,8 @@ the lift in place and the 4023 turned. It also holds bought parts as stand-ins (
 
 - **One piece.** The gate gap (0.65 mm) is set by a chain: floor → frame → belt top, and floor → divider → the
   divider block's underside (the right gate). A joint anywhere in that chain adds its tolerance to the gap, and every
-  split plane through the box crosses it or the walls that carry the motors. It fits the X2D: 195 × 240 mm on the plate,
-  167 mm high (256 × 256 × 260; also the 235.5 mm width in dual-nozzle mode).
+  split plane through the box crosses it or the walls that carry the motors. It fits the X2D: 195 × 241 mm on the plate,
+  168 mm high (256 × 256 × 260; also the 235.5 mm width in dual-nozzle mode).
 - **On its back** (back wall's outer face on the plate, the front edge up). Upright it can't be printed: the slot's roof
   (the divider block's underside) is a 103 mm bridge 1 mm above the divider; it would sag shut, and support can't come
   out of a 1 mm slit. On its back, walls, divider, slot, gate and lip are all extruded along the print direction: the
@@ -152,21 +152,25 @@ the lift in place and the 4023 turned. It also holds bought parts as stand-ins (
   more than 45°. No supports.
 - **What that changed** (all in "Changes to Dev's box"): faces towards the back wall would print in mid-air, so the
   right gate's bar runs into the back wall, pile H's back border is solid back to the wall, the pusher motor's hold has
-  a 45° back, and the 4023's hold stops at the wall's outer face (the motor's last 5 mm overhang it). Holes across the
+  a 45° back, and the 4023's hold stops at the wall's outer face (the motor's last 4 mm overhang it). Holes across the
   print direction are teardrops pointing to the front edge (up).
 - **Front borders as slide-in parts** (`border-h`, `border-b`): their card faces point at the back wall, so on its back
   each would be a 68 mm roof with nothing under it. Supporting them would need 90–130 mm tall trees through the piles'
   space, H's standing on its back border's card face. Printed separately on their ends, the card face is a plain wall. Each fills the
   front strip in front of its pile, flush with the box front, and has a stop: border H's step against the right gate's
   front face (y −141.4), border B's lip over the floor's front edge. 0.2 mm play per side; 2 M3 each hold them.
-- **Walls 3 mm** (Dev's are 5), thinned from the outside so every inner face stays where it was; the floor too (its
-  underside at z 2). The divider stays 5: gate, slot and the lift's guide. Pads stay 5 thick, their back ends at 45°:
+- **Walls 4 mm** (Dev's are 5), thinned from the outside so every inner face stays where it was; the floor too (its
+  underside at z 1). The divider stays 5: gate, slot and the lift's guide. Pads stay 5 thick, their back ends at 45°:
   around the pusher screw's bearing hole in the left wall (Ø8.6, 20 × 20), and on the right wall around the pusher's
   notch (4 deep + 1 mm skin) and its motor face (z 94.7…177.2, front to y −38.4). Printed with 4 walls a 5 mm wall is
-  mostly perimeters anyway, so this saves only ~40 g (~0.56 → ~0.52 kg); the solid volume drops 732 → 550 cm³.
+  mostly perimeters anyway, so this saves only ~20 g (~0.56 → ~0.54 kg); the solid volume drops 732 → 640 cm³.
+- **Solid-looking blocks** (pile H's back border, the 4023's hold, the border inserts) are not printed solid: the
+  slicer fills them with the infill (15 %). Hollowing them in CAD would replace that infill with walls of their own
+  and save next to nothing (pile H's back border: ~23 g as a block, ~23 g as a card wall + top + 4 ribs). The lever
+  is the infill: 10 % for the case changes nothing that carries load.
 - **Feet:** two rails under the floor along the left and right edges, 42 mm (the lift motor hangs 40 below the floor),
-  front and back open for the cables and the lift motor, which reaches 6.25 mm past the back wall. The roller frame's
-  left part now hangs 40 mm above the table instead of standing on it: it's held by its step against the floor's left
+  front and back open for the cables and the lift motor, which reaches 5.25 mm past the back wall. The roller frame's
+  left part now hangs 41 mm above the table instead of standing on it: it's held by its step against the floor's left
   edge and the 4 floor screws (the loads are a few newtons).
 
 ## Files
@@ -217,13 +221,13 @@ cd parts/tools && uv run python ../dispenser/check_pusher.py # after a pusher, l
 |---|---|---|
 | 2 | 17HS4401 + Purecrea flexible coupling 8/5 + TR8x8 lead screw + TR8x8 brass nut | The two sets on the shopping list: pusher and lift |
 | 4 | M3×8 socket head | Through the right wall's 5 mm pad into the pusher motor's face (holes ~4.5 deep), from inside |
-| 2 | M3×6 socket head | Through the 3 mm floor into the lift motor's face, from inside (M3×8 would bottom out) |
+| 2 | M3×8 socket head | Through the 4 mm floor into the lift motor's face (holes ~4.5 deep), from inside |
 | 2 | M3×8 | Pusher nut flange to its tab (only the 2 holes beside the screw) |
 | 4 | M3×12 + nut | Lift nut flange to the tab (Dev's 4 Ø4 holes) |
 
 ⚠️ **Cut the pusher's screw to 130 mm** (hacksaw, then file a chamfer so the nut starts cleanly). It reaches from the
 middle of the coupling to 1 mm inside the left wall's outer face. Cut the end that goes into the coupling. The lift's
-screw runs from the coupling to the box top: 174 mm.
+screw runs from the coupling to the box top: 175 mm.
 
 Screws go into 2.5 mm pilot holes (self-tapping into PETG).
 
@@ -237,8 +241,8 @@ Screws go into 2.5 mm pilot holes (self-tapping into PETG).
   and `gap` 0.65. The belts sit at `66.04 − gap`, the right gate's lip a card + 0.2 below them, the slot's bottom just
   under the lip. If the gap needs changing, the printed case stays and only the frame moves the belts ("Tuning the
   gap"); the legs leave 0.5 above the plates for that.
-- **Case:** the STL is already on its back; place it as it comes, the long side (240) along the plate's Y. ~0.52 kg
-  PETG by my estimate (550 cm³ solid); the slicer gives the real time and weight. Textured PEI, no brim: the whole
+- **Case:** the STL is already on its back; place it as it comes, the long side (241) along the plate's Y. ~0.54 kg
+  PETG by my estimate (640 cm³ solid); the slicer gives the real time and weight. Textured PEI, no brim: the whole
   back wall is on the plate. Check the 4023 window's edges after the first layers (elephant foot: keep Bambu's
   compensation on, the window has only 0.3 mm play). Why one piece and on its back: "Case" above.
 - **Borders:** as the STLs come, on their ends, 0.2 mm. Border H is 72 mm tall on a 25 × 22 mm foot: a brim if it
@@ -270,8 +274,8 @@ from the left, and everything else follows from behind and from the front.
 7. **Front plate:** rod ends into its holes, 3× M3×12 into the rib ends, 2 keeper screws with washers, 2× M3×12 from
    below through the floor.
 
-**Lift:** motor under the floor (boss into the floor's hole, 2× M3×6 from inside), coupling on the shaft inside the
-box (z 13.5…38.5), tighten the 5 mm side. Nut under the lift's tab, spigot up into the tab's hole, flange against
+**Lift:** motor under the floor (boss into the floor's hole, 2× M3×8 from inside), coupling on the shaft inside the
+box (z 12.5…37.5), tighten the 5 mm side. Nut under the lift's tab, spigot up into the tab's hole, flange against
 the tab, 4× M3×12 + nuts. Outside the box, turn the
 screw through the nut (the lift can't turn once it's in). Lower lift and screw in together, screw end into the
 coupling, tighten the 8 mm side.
@@ -320,11 +324,11 @@ them, `case_add()` / `box_cuts()` have to stop adding them, or they're added twi
     beside the right gate (y > −141.6) it stops 0.2 short of the gate's bar and wedge. 2 pilot holes from the left
     face at (y, z) = (−146, 78), (−146, 89).
   - B: x 77.2…144.8, z 5…65, inner face at y −135.9 up to z 29.19, then leaning forward to y −142.0 at z 65; a lip
-    2 mm thick down the floor's front edge (z 2.5…10). 2 pilot holes from below at (x, y) = (95, −146), (127, −146).
+    2 mm thick down the floor's front edge (z 1.5…10). 2 pilot holes from below at (x, y) = (95, −146), (127, −146).
 - **4023 in the back wall:** window through the wall at x 28.55…71.45, z 22.29…64.89 (the motor + 0.3, its floor
-  flush with the motor's underside). Hold under the motor: a block x 28.85…71.15, y −20.2…−2 (from 0.3 behind the
-  frame's back plate to the wall's outer face; the motor's last 5 mm stick out behind it), z 2…22.29. Cable channel
-  x 40…60, y −6.6…−2 (open at the back), from the hold's top down through the floor.
+  flush with the motor's underside). Hold under the motor: a block x 28.85…71.15, y −20.2…−1 (from 0.3 behind the
+  frame's back plate to the wall's outer face; the motor's last 4 mm stick out behind it), z 1…22.29. Cable channel
+  x 40…60, y −6.6…−1 (open at the back), from the hold's top down through the floor.
 - **Holes Ø3.4 in the box floor:** frame at (x, y) = (20, −23.5), (60, −23.5), (20, −138.4), (60, −138.4); border B at
   (95, −146), (127, −146). **Through the left wall:** 2× Ø3.4 at (y, z) = (−146, 78), (−146, 89) for border H.
 - Keep free for the camera: the bed has a window at x 10…46, y −61.9…−43.9 (between the back edge of the card and the first belt).
@@ -344,9 +348,9 @@ them, `case_add()` / `box_cuts()` have to stop adding them, or they're added twi
   (−161.4, 138.54), (−130.4, 138.54), (−161.4, 169.54), (−130.4, 169.54).
 - **Screw hole Ø8.6 through the left wall** at (y, z) = (−145.9, 154.04).
 - **Lift motor under the floor:** in the floor at (x, y) = (111.8, −16.9) a hole Ø22.6 for the boss and 2× Ø3.4 at
-  (96.3, −32.4), (127.3, −32.4) (the back 2 would be under the wall). The motor reaches 6.25 mm past the back wall.
-- **Walls and floor 3 mm** (outer faces at x −3, x 148, y −2, z 2) with 5 mm pads ("Case").
-- **Feet:** 2 rails under the floor, x 0…5 and 145…150, z −40…2, back wall to front edge.
+  (96.3, −32.4), (127.3, −32.4) (the back 2 would be under the wall). The motor reaches 5.25 mm past the back wall.
+- **Walls and floor 4 mm** (outer faces at x −4, x 149, y −1, z 1) with 5 mm pads ("Case").
+- **Feet:** 2 rails under the floor, x 0…5 and 145…150, z −41…1, back wall to front edge.
 - Horizontal holes (in the case's print direction) are teardrops pointing to the front edge.
 - The spare 17HS4401 + screw + nut at x 354…396 are now the pusher's, and the lift's motor and screw move under the
   floor: the copy drops them and places its own.
