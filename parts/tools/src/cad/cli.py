@@ -1,6 +1,6 @@
 """`cad` command line. Run via the `parts/cad` wrapper.
 
-    cad build <module> [part…]                         STLs into <module>/stl, strict (warnings fail)
+    cad build <module> [part…] [-D name=value]         STLs into <module>/stl, strict (warnings fail)
     cad render <module|file.scad|file.stl> [part…]     PNG sheets into <dir>/renders, paths printed
         --section z=40 --section x=0                   2D cuts per part
         -D elbow=60                                    OpenSCAD defines (poses, variants)
@@ -32,7 +32,7 @@ def cmd_build(a: argparse.Namespace) -> int:
     mod = config.load(config.resolve(a.module))
     parts = mod.select(a.parts)
     try:
-        built = _build(parts, mod.stl_dir, {})
+        built = _build(parts, mod.stl_dir, dict(scad.parse_define(d) for d in a.define))
     except scad.ScadError as e:
         print(f"FAIL {e}", file=sys.stderr)
         return 1
@@ -111,6 +111,7 @@ def main(argv: list[str] | None = None) -> int:
     b = sub.add_parser("build", help="render STLs of a module")
     b.add_argument("module")
     b.add_argument("parts", nargs="*")
+    b.add_argument("-D", dest="define", action="append", default=[], metavar="NAME=VALUE")
     b.set_defaults(fn=cmd_build)
 
     r = sub.add_parser("render", help="PNG contact sheets, sections, assembly views")

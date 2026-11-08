@@ -226,6 +226,10 @@ Screws go into 2.5 mm pilot holes (self-tapping into PETG).
   frame, front plate, case and borders at 0.2.
 - **No supports** (except under the lift's tab). Horizontal holes are teardrops, the drum grooves are teardrop-shaped
   and the lower bearing seat ends in a 45° cone.
+- ⚠️ **Not before `card_t` is measured** (sleeved, 20 cards ÷ 20). The case depends on it: the belts sit at
+  `66.04 − 1.5 card_t`, and the right gate's lip and legs follow them. The lip must stay above the divider's lower part
+  (z 65); with `lip_drop` 0.5 that only holds up to `card_t` 0.35, and sleeved cards are thicker. The build fails
+  (assert) when it doesn't hold; then the slot and the lip need changing for the real thickness.
 - **Case:** the STL is already on its back; place it as it comes, the long side (242) along the plate's Y. ~0.55 kg
   PETG by my estimate (732 cm³ solid); the slicer gives the real time and weight. Textured PEI, no brim: the whole
   back wall is on the plate. Check the 4023 window's edges after the first layers (elephant foot: keep Bambu's
@@ -278,8 +282,9 @@ coupling, tighten the 8 mm side.
 
 ## Tuning the gap
 
-1. Measure `card_t` with the sleeves on (20 cards ÷ 20) and set it in `params.scad` before printing the frame. The
-   belt height follows from it (`66.04 − gap`), and the right gate's gap with it: the right gate is part of the box.
+1. Measure `card_t` with the sleeves on (20 cards ÷ 20) and set it in `params.scad` before printing the case and the
+   frame. The belt height follows from it (`66.04 − gap`), and the right gate's gap and lip with it: the right gate is
+   part of the case.
 2. **Take** (left gate): if 2 cards pass or the bottom card jams, reprint only the left gate, e.g.
    `parts/cad build dispenser gate-left -D gate_gap=0.4`, and swap it.
 3. **Feed** (right gate): its gap = the box's divider block underside − the belt top. Changing it means a new frame

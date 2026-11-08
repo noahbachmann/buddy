@@ -97,6 +97,9 @@ module gate_placed() translate([gate_xs[0], 0, 0]) gate();
 lip_top = belt_top - lip_drop;
 lip_r   = gear_mod * (drum_teeth + 2) / 2 + lip_clear;   // the drum gear's tips (they reach 0.6 above the belts)
 lip_y   = [front_y[1] - 1, back_y[0] + 1];   // into both legs by 1
+// a card left on the lip must sit above the divider's lower part, or the next card's edge hits the divider under the
+// slot: thick cards (gap = 1.5 card_t) push the belts and the lip down, then lower lip_drop
+assert(lip_top >= slot_bot + 0.05, str("lip top ", lip_top, " not above the divider (z ", slot_bot, "): card_t too big for lip_drop"));
 // x-y region outside the slit's funnel on side s (0 front, 1 back), wide enough for gate and divider
 slit_x1 = divider_x + divider_t;
 function slit_edge(s, x) = s == 0 ? card_yc - card[1] / 2 - slit_play - (slit_x1 - x)
