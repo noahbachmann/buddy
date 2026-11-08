@@ -28,7 +28,7 @@ box_front = card_yc - card[1] / 2 - 23;   // open front edge, 23 in front of the
 slot_y    = [box_front, back_wall];       // the divider slot runs the full depth: open front .. back wall
 card_t  = 0.5;               // sleeved, pressed flat (Dev: < 0.5 pressed, > 1 loose: bow and air in the sleeve). Upper
                              // bound: the gates and the pile flatten the card. ⚠️ exact value: 10 cards pressed / 10
-gap     = 1.5 * card_t;      // gate opening above the belt: 1 card passes, 2 don't
+gap     = 0.65;              // gate opening above the belt (Dev): 1 pressed card (<= 0.5) passes, 2 do not
 belt_top = slot_top - gap;   // underside of the bottom card
 
 // --- O-ring belts (NBR, bought) ---------------------------------------------------------
