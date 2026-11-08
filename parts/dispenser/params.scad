@@ -14,7 +14,7 @@ back_out         = 0;        // its outer face: the case prints on it (case.scad
 divider_x        = 72;       // left face of the divider
 left_wall_bottom = 70;       // left wall ends here, open below
 slot_top         = 66.04;    // underside of the divider's upper block = top of the card slot
-slot_bot         = 65;       // top of the divider's lower part
+div_low          = 65;       // top of the divider's lower part (the case cuts it lower under the slot: slot_bot)
 divider_t        = 5;
 // The roller's back plate and the lift's screw sit `shift` further back than in dispenser.stl (4023 in the back wall,
 // lift nut flange 0.9 mm from the wall).
@@ -26,7 +26,8 @@ card_x0 = 0.5;               // card's left edge on the roller: 0.5 from the lef
 card_yc = -85.9;             // card centre in Y: back edge (y -40.4) = the foot of the lift's slope, as far back as its nut allows (lib asserts)
 box_front = card_yc - card[1] / 2 - 23;   // open front edge, 23 in front of the cards (pusher's strip) as drawn
 slot_y    = [box_front, back_wall];       // the divider slot runs the full depth: open front .. back wall
-card_t  = 0.32;              // ⚠️ measure: thickness of 20 cards / 20
+card_t  = 0.5;               // sleeved, pressed flat (Dev: < 0.5 pressed, > 1 loose: bow and air in the sleeve). Upper
+                             // bound: the gates and the pile flatten the card. ⚠️ exact value: 10 cards pressed / 10
 gap     = 1.5 * card_t;      // gate opening above the belt: 1 card passes, 2 don't
 belt_top = slot_top - gap;   // underside of the bottom card
 
@@ -105,8 +106,10 @@ gate_in   = card_x0 + card[0] + 0.5;   // right gate's inner face (box), 0.5 bes
 // droop into that 10 mm gap and hit the divider under the slot), joined to the bar beside the card.
 // Slit ends (gate + divider slot, Dev's change): one 45° funnel, card width + slit_play per side at the divider's right
 // face, wider towards the gate's entry side: an offset card is led to the middle
-lip_drop  = 0.5;             // lip top below belt_top, 0.06 above the divider under the slot (z 65): a card left
-                             // lying on the lip sits below the next one's path, which slides over it, not into its edge
+lip_drop  = card_t + 0.2;    // lip top below belt_top: a card left lying on the lip sits below the next one's path,
+                             // which slides over it, not into its edge
+lip_top   = belt_top - lip_drop;
+slot_bot  = lip_top - 0.06;  // the divider's lower part, cut down under the slot to just below the lip
 lip_edge  = 0.8;             // thinnest the lip gets at its drum-side edge
 lip_clear = open_clear;      // around the drum gear's tips: the drums slide onto their rods under the lip
 slit_play = 1;               // per side, beside the card at the slit's exit
@@ -192,7 +195,7 @@ lift_holes = [10.2, 4, 8];   // Dev's tab: nut spigot hole, 4 screw holes at ±8
 nut_spigot = 1.54;           // TR8 nut: body above the flange (Dev's), up in the tab's hole
 lift_min   = (belt_top - lip_drop) - pile_max - 0.5;   // lowest plate top: a full pile under the slot
 lift_tab_y = lift_axis[1] + lift_tab_r;   // tab's back edge (Dev's), 1.4 to the back wall
-border_t   = 4;              // front border of pile B (box) at the top, floor .. slot_bot
+border_t   = 4;              // front border of pile B (box) at the top, floor .. div_low
 
 // --- Holds: the motors rest on the case, not only on their screws ------------------------------------------
 m23_conn   = [16, 4, 7.6];   // 4023 connector: width, out of the body, along the axis from the back end

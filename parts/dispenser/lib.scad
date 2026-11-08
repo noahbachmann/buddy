@@ -94,12 +94,10 @@ module gate_placed() translate([gate_xs[0], 0, 0]) gate();
 // gate_gap above the belts) with pile H's wedge on it (inner face from the bar's top up to the divider's top edge),
 // legs over the frame plates, the lip under the card path between the drive drum and the divider, and the slit's ends.
 // Lip profile (x-z): flat top, drum side = clearance arc, then the arc's 45° tangent down to the divider.
-lip_top = belt_top - lip_drop;
 lip_r   = gear_mod * (drum_teeth + 2) / 2 + lip_clear;   // the drum gear's tips (they reach 0.6 above the belts)
 lip_y   = [front_y[1] - 1, back_y[0] + 1];   // into both legs by 1
-// a card left on the lip must sit above the divider's lower part, or the next card's edge hits the divider under the
-// slot: thick cards (gap = 1.5 card_t) push the belts and the lip down, then lower lip_drop
-assert(lip_top >= slot_bot + 0.05, str("lip top ", lip_top, " not above the divider (z ", slot_bot, "): card_t too big for lip_drop"));
+// the slot's bottom follows the lip down (the case cuts the divider); thinner cards would need the divider higher
+assert(slot_bot <= div_low, str("slot bottom ", slot_bot, " above the divider's lower part (", div_low, "): card_t too small"));
 // x-y region outside the slit's funnel on side s (0 front, 1 back), wide enough for gate and divider
 slit_x1 = divider_x + divider_t;
 function slit_edge(s, x) = s == 0 ? card_yc - card[1] / 2 - slit_play - (slit_x1 - x)
@@ -120,7 +118,7 @@ module right_gate() {
   edge = arc[16][0];
   bar_z = belt_top + gate_gap;
   dx = divider_x;
-  leg_z = bed_top + 0.3;   // over the frame plates (they slide in under the legs)
+  leg_z = bed_top + 0.5;   // over the frame plates (they slide in under the legs; room to raise the belts 0.4 when tuning)
   difference() {
     union() {
       // bar + wedge, 1 into the divider block above its underside, from the front leg into the back wall (the case
@@ -333,9 +331,9 @@ module h_insert() {
 }
 // B: divider .. right wall, on the floor; a lip over the floor's front edge is its stop, 2 M3 from below.
 // Inner face vertical 0.5 in front of the lift plate up to its lowest top, then leaning forward like the slope.
-function b_insert_profile() = let(y1 = lift_front - 0.5, lean = (slot_bot - lift_min) * stop_lean / stop_h,
+function b_insert_profile() = let(y1 = lift_front - 0.5, lean = (div_low - lift_min) * stop_lean / stop_h,
                                   bf = box_front)
-  [[bf - 2, 0.5], [bf, 0.5], [bf, floor_top], [y1, floor_top], [y1, lift_min], [y1 - lean, slot_bot], [bf, slot_bot],
+  [[bf - 2, 0.5], [bf, 0.5], [bf, floor_top], [y1, floor_top], [y1, lift_min], [y1 - lean, div_low], [bf, div_low],
    [bf, floor_top + 5], [bf - 2, floor_top + 5]];
 module b_insert() {
   f = insert_fit;
@@ -360,6 +358,9 @@ module box_cuts() {
   for (n = [notch_lo, notch_hi]) box([right_wall[0] - 1, right_wall[0] + push_t], n[0], n[1]);
   wall_holes();
   hole_x(pu_y, pu_screw_z, screw_hole, left_wall[0] - 1, left_wall[1] + 1, front = true);
+  // divider's lower part down to slot_bot inside the slit's funnel (its ends stay filled: slot_ends)
+  translate([0, 0, slot_bot]) linear_extrude(div_low + 0.5 - slot_bot)
+    polygon([for (s = [0, 1], x = s == 0 ? [divider_x, slit_x1 + 1] : [slit_x1 + 1, divider_x]) [x, slit_edge(s, x)]]);
   // lift motor under the floor: boss hole + the 2 front screw holes (the back 2 are under the wall)
   hole_z(lift_axis[0], lift_axis[1], m44_boss[0] + 0.6, -1, floor_top + 1);
   for (o = m44_hole_offs) if (o[1] < 0) hole_z(lift_axis[0] + o[0], lift_axis[1] + o[1], screw_clear, -1, floor_top + 1);

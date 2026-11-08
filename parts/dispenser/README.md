@@ -28,21 +28,22 @@ the lift in place and the 4023 turned. It also holds bought parts as stand-ins (
             left gate (x −5…0, under the left wall)      right gate (x 67.5…72, box)  divider slot
                  │  pile H (x 0.5…67)                          │                  │
    ──────────────▼────────────────────────────────────────────▼─────────────────▼──────── z 66.04
-   ═══════════════════════ belts (3 O-rings), top at z 65.56 ══════════════════   lift / B
+   ═══════════════════════ belts (3 O-rings), top at z 65.29 ══════════════════   lift / B
   (idler drum x −55.7)          bed: belts slide on it            (drive drum x 62) ◄─ 20:16 ◄─ 4023
 ```
 
 - **Belts:** three NBR O-rings (80 × 3 mm) at y −65.9 / −85.9 / −105.9, running on a printed drive drum and idler drum. They are
   stretched 7 % (279.0 mm path, 260.8 mm free), which gives tension without a tensioner. The pile rests on the belts,
   rubber on card, so only the bottom card moves.
-- **Gates:** a bar across the card path, `gap` = 1.5 card thicknesses (0.48 mm) above the belt top. The bottom card fits
+- **Gates:** a bar across the card path, `gap` = 1.5 card thicknesses (0.75 mm) above the belt top. The bottom card fits
   under it, the second one doesn't. One gate stands on each side of the pile. Both sit at the height of the divider's
   upper block (z 66.04), so the belt top is `66.04 − gap`. The left gate is printed and swappable. The right gate is
   part of the case: the divider's upper block extended 4.5 mm to the left (x 67.5…72), so its
   gap is fixed by the box and the frame (see "Tuning the gap").
 - **Right gate's lip:** between the drive drum's top (x 62) and the divider (x 72) the card has 10 mm without support,
   and its leading edge would droop into the gap and hit the divider under the slot. The right gate has a lip under the
-  card path there: flat top 0.5 mm below the belt top (z 65.06, just above the divider's lower part at z 65), drum
+  card path there: flat top a card + 0.2 below the belt top (z 64.59; the case cuts the divider's lower part down to
+  z 64.53 under the slot, Dev's is at 65), drum
   side clear of the drum gear's tips by 0.6 mm (r 9.6, the drums slide onto their rods under it). It runs between the
   frame plates and hangs from the gate's legs above them.
 - **Slit ends:** the divider's slot is filled at both ends (case). The fill and the right gate's blocks
@@ -131,16 +132,16 @@ the lift in place and the 4023 turned. It also holds bought parts as stand-ins (
   edge (y −40.4) and leans back 8 mm up to the tab (~10°), so a card dropping onto a low lift slides down into place;
   from the front it narrows upwards along straight sides from the plate's full width to the tab's 28 mm. The nut
   connection is Dev's as drawn: 5 mm tab with a round end (r 10.5), Ø10.2 hole for the nut's spigot, 4× Ø4 on a
-  16 mm square, the nut's flange against the tab's underside. Lowest plate position z 29.56 (a 35 mm pile under the
-  slot); the nut is then at z 56.6…71.6, far above the coupling.
+  16 mm square, the nut's flange against the tab's underside. Lowest plate position z 29.09 (a 35 mm pile under the
+  lip); the nut is then at z 57.6…72.6, far above the coupling.
 - **Front border (`border-b`, slides in):** in front of the lift plate, from the divider to the right wall, floor to
   z 65, filling the front strip to the box front. Its inner face is vertical 0.5 mm in front of the plate (y −135.9) up
-  to the plate's lowest top (z 29.56), then leans forward at the slope's angle to y −141.9 at z 65. It keeps pile B from
+  to the plate's lowest top (z 29.09), then leans forward at the slope's angle to y −142.0 at z 65. It keeps pile B from
   sliding out of the open front, and like the lift's slope it leads dropping cards into place.
 
 ## Case
 
-- **One piece.** The gate gap (0.48 mm) is set by a chain: floor → frame → belt top, and floor → divider → the
+- **One piece.** The gate gap (0.75 mm) is set by a chain: floor → frame → belt top, and floor → divider → the
   divider block's underside (the right gate). A joint anywhere in that chain adds its tolerance to the gap, and every
   split plane through the box crosses it or the walls that carry the motors. It fits the X2D: 195 × 242 mm on the plate,
   169 mm high (256 × 256 × 260; also the 235.5 mm width in dual-nozzle mode).
@@ -226,10 +227,10 @@ Screws go into 2.5 mm pilot holes (self-tapping into PETG).
   frame, front plate, case and borders at 0.2.
 - **No supports** (except under the lift's tab). Horizontal holes are teardrops, the drum grooves are teardrop-shaped
   and the lower bearing seat ends in a 45° cone.
-- ⚠️ **Not before `card_t` is measured** (sleeved, 20 cards ÷ 20). The case depends on it: the belts sit at
-  `66.04 − 1.5 card_t`, and the right gate's lip and legs follow them. The lip must stay above the divider's lower part
-  (z 65); with `lip_drop` 0.5 that only holds up to `card_t` 0.35, and sleeved cards are thicker. The build fails
-  (assert) when it doesn't hold; then the slot and the lip need changing for the real thickness.
+- **Card thickness:** the case is built for `card_t` 0.5 (sleeved, pressed flat; loose, bow and air make it > 1 mm).
+  The belts sit at `66.04 − 1.5 card_t`, the right gate's lip a card + 0.2 below them, the slot's bottom just under
+  the lip. 0.5 is the upper bound: if the real value is smaller, the printed case stays and only the frame moves the
+  belts up ("Tuning the gap"); the legs leave 0.5 above the plates for that.
 - **Case:** the STL is already on its back; place it as it comes, the long side (242) along the plate's Y. ~0.55 kg
   PETG by my estimate (732 cm³ solid); the slicer gives the real time and weight. Textured PEI, no brim: the whole
   back wall is on the plate. Check the 4023 window's edges after the first layers (elephant foot: keep Bambu's
@@ -282,13 +283,14 @@ coupling, tighten the 8 mm side.
 
 ## Tuning the gap
 
-1. Measure `card_t` with the sleeves on (20 cards ÷ 20) and set it in `params.scad` before printing the case and the
-   frame. The belt height follows from it (`66.04 − gap`), and the right gate's gap and lip with it: the right gate is
-   part of the case.
+1. `card_t` = 0.5 is the sleeved card pressed flat (upper bound). Measure it exactly: 10 sleeved cards squeezed
+   together in the calipers ÷ 10. Keep the case as printed (built for 0.5: its lip and slot are right for anything
+   thinner); a different value only changes the frame, front plate and left gate.
 2. **Take** (left gate): if 2 cards pass or the bottom card jams, reprint only the left gate, e.g.
-   `parts/cad build dispenser gate-left -D gate_gap=0.4`, and swap it.
-3. **Feed** (right gate): its gap = the box's divider block underside − the belt top. Changing it means a new frame
-   (belts higher or lower, e.g. `-D gate_gap=…` for the frame and the left gate together) or shims under the frame.
+   `parts/cad build dispenser gate-left -D gate_gap=0.6`, and swap it.
+3. **Feed** (right gate): its gap = the divider block's underside (z 66.04) − the belt top. Changing it means new belts
+   heights: `parts/cad build dispenser roller-frame front-plate gate-left -D gap=0.6` (never the case: it stays at
+   0.75, its legs leave room to raise the belts by 0.4), or shims under the frame to lower them.
 
 ## Changes to Dev's box (`case.scad`)
 
@@ -301,9 +303,9 @@ them, `case_add()` / `box_cuts()` have to stop adding them, or they're added twi
 - **Right gate** (the divider's upper block extended to the left):
   - bar x 67.5…72, y −141.4 to the back wall, underside at z 66.04 (= the block's underside), inner face vertical up
     to z 69.6, then the wedge: a straight face from (x 67.5, z 69.6) to (x 71.8, z 95.54), meeting the divider's top;
-  - legs x 67.5…72 over the frame plates, y −141.4…−135.4 and −26.5…−20.5, from z 62.96 up into the bar;
-  - lip x 68.46…72 under the card path, y −136.4…−25.5 (into both legs), top at z 65.06, underside a circle r 9.6 around
-    the drive drum's axis (x 62, z 57.16) down to its 45° point, then a 45° face down to the divider; the circle also
+  - legs x 67.5…72 over the frame plates, y −141.4…−135.4 and −26.5…−20.5, from z 62.89 up into the bar;
+  - lip x 68.67…72 under the card path, y −136.4…−25.5 (into both legs), top at z 64.59, underside a circle r 9.6 around
+    the drive drum's axis (x 62, z 56.89) down to its 45° point, then a 45° face down to the divider; the circle also
     cuts the front leg, so the drive drum slides through;
   - slit ends between lip and bar outside the funnel (45° lines below).
 - **Pile H's back border:** x −1…72 (from inside the left wall to the divider), z 70.5…96.04, inner face from
@@ -312,16 +314,17 @@ them, `case_add()` / `box_cuts()` have to stop adding them, or they're added twi
   - H: x 0.2…71.8, z 70.5…96.04, inner face from y −131.9 at the bottom leaning forward to y −136.25 at the top;
     beside the right gate (y > −141.6) it stops 0.2 short of the gate's bar and wedge. 2 pilot holes from the left
     face at (y, z) = (−146, 78), (−146, 89).
-  - B: x 77.2…144.8, z 5…65, inner face at y −135.9 up to z 29.56, then leaning forward to y −141.93 at z 65; a lip
+  - B: x 77.2…144.8, z 5…65, inner face at y −135.9 up to z 29.09, then leaning forward to y −142.01 at z 65; a lip
     2 mm thick down the floor's front edge (z 0.5…10). 2 pilot holes from below at (x, y) = (95, −146), (127, −146).
-- **4023 in the back wall:** window through the wall at x 28.55…71.45, z 22.46…65.06 (the motor + 0.3, its floor
+- **4023 in the back wall:** window through the wall at x 28.55…71.45, z 22.19…64.79 (the motor + 0.3, its floor
   flush with the motor's underside). Hold under the motor: a block x 28.85…71.15, y −20.2…0 (from 0.3 behind the
-  frame's back plate to the wall's outer face; the motor's last 3 mm stick out behind it), z 0…22.46. Cable channel
+  frame's back plate to the wall's outer face; the motor's last 3 mm stick out behind it), z 0…22.19. Cable channel
   x 40…60, y −6.6…0 (open at the back), from the hold's top down through the floor.
 - **Holes Ø3.4 in the box floor:** frame at (x, y) = (20, −23.5), (60, −23.5), (20, −138.4), (60, −138.4); border B at
   (95, −146), (127, −146). **Through the left wall:** 2× Ø3.4 at (y, z) = (−146, 78), (−146, 89) for border H.
 - Keep free for the camera: the bed has a window at x 10…46, y −61.9…−43.9 (between the back edge of the card and the first belt).
-- **Divider slot filled at both ends** (z 65…66.04, x 72…77), leaving the card's width open. Each fill ends in a 45°
+- **Divider slot 1.51 mm tall:** the divider's lower part cut down from z 65 to 64.53 inside the funnel below.
+- **Divider slot filled at both ends** (z 64.53…66.04, x 72…77), leaving the card's width open. Each fill ends in a 45°
   face toward the card. Front: from the front edge (y −154.4) to the line (72, −137.4)→(77, −132.4). Back: from
   the back wall (y −5) to the line (72, −34.4)→(77, −39.4). Seen from above, the opening is 103 mm wide at x 72 and 93 mm
   at x 77. This also ties the divider's upper block to the lower part.
@@ -347,7 +350,7 @@ them, `case_add()` / `box_cuts()` have to stop adding them, or they're added twi
 
 A fed card is driven only while it sits on the belt. Its trailing edge stops over the drive drum (x 62), so the card
 ends at x 62…128.5, while the divider ends at x 77. The last 15 mm still sit in the slot and under the right gate, on
-the lip. The lip keeps them 0.5 mm below the belt top, so the next card slides over them instead of into their edge,
+the lip. The lip keeps them a card + 0.2 mm below the belt top, so the next card slides over them instead of into their edge,
 but then two cards sit in the slot. No roller left of the divider can push further. Options:
 
 1. **Software, test first:** feed fast so the card slides on over pile B until it hits the right wall (x 145). It then
@@ -360,8 +363,11 @@ but then two cards sit in the slot. No roller left of the divider can push furth
 
 ## ⚠️ Untested assumptions
 
-- `card_t` = 0.32 mm is a guess for a bare card; sleeved cards are thicker. Measure before printing the case and the
-  frame: the right gate's gap and lip are part of the case and can't be tuned by swapping.
+- `card_t` = 0.5 mm is Dev's upper bound for a sleeved card pressed flat (< 0.5); loose it's > 1 mm (bow, air in the
+  sleeve). The gates rely on the pile and the bar flattening it. Exact value: "Tuning the gap".
+- `pile_max` = 35 mm for 30 cards assumes they settle to ~1.2 mm each in a pile. Sleeved cards loose are > 1 mm each:
+  stack 30 sleeved cards loosely and measure the height. If it's over 35, the pusher plate, the lift's lowest
+  position and the pusher's screw height change (all from `pile_max`).
 - Pile H's back edge is 5.9 mm in front of the drum gear, whose tips reach 0.6 mm above the belts (y −34.5…−27.5,
   x ~59…65). Nothing positions H in Y: a card placed more than 5.9 mm toward the back rubs on the turning gear.
 - The MR105 press fit (`press`), the 5.2 mm rod holes and the printed gear mesh (`gear_slack`, `gear_backlash`) need a test print.
