@@ -20,8 +20,9 @@ divider_t        = 5;
 shift            = 8.5;
 
 // --- Card ------------------------------------------------------------------------------
-card    = [63, 88];          // X (travel) x Y
-card_yc = -84.4;             // card centre in Y: back edge = the foot of the lift's slope, as far back as its nut allows (lib asserts)
+card    = [66.5, 91];        // X (travel) x Y, sleeved
+card_x0 = 0.5;               // card's left edge on the roller: 0.5 from the left gate
+card_yc = -85.9;             // card centre in Y: back edge (y -40.4) = the foot of the lift's slope, as far back as its nut allows (lib asserts)
 box_front = card_yc - card[1] / 2 - 23;   // open front edge, 23 in front of the cards (pusher's strip) as drawn
 slot_y    = [box_front, back_wall];       // the divider slot runs the full depth: open front .. back wall
 card_t  = 0.32;              // ⚠️ measure: thickness of 20 cards / 20
@@ -97,7 +98,8 @@ open_clear  = 0.6;           // around drums and gears in the bed
 gate_gap  = gap;
 gate_w    = 5;               // bar thickness in X; legs over the plates, pegs into the plates
 gate_top  = left_wall_bottom - 0.4;   // left gate sits under the left wall
-gate_xs   = [-gate_w, divider_x - 0.5 - gate_w];   // left gate bar x0, right gate bar x0
+gate_xs   = [-gate_w];        // left gate bar x0 (printed); the right gate is part of the box
+gate_in   = card_x0 + card[0] + 0.5;   // right gate's inner face (box), 0.5 beside the card
 // right gate only: lip under the card path between the drive drum and the divider (the card's leading edge would
 // droop into that 10 mm gap and hit the divider under the slot), joined to the bar beside the card.
 // Slit ends (gate + divider slot, Dev's change): one 45° funnel, card width + slit_play per side at the divider's right
@@ -105,7 +107,7 @@ gate_xs   = [-gate_w, divider_x - 0.5 - gate_w];   // left gate bar x0, right ga
 lip_drop  = 0.5;             // lip top below belt_top, 0.06 above the divider under the slot (z 65): a card left
                              // lying on the lip sits below the next one's path, which slides over it, not into its edge
 lip_edge  = 0.8;             // thinnest the lip gets at its drum-side edge
-lip_clear = open_clear;      // around the belts on the drum
+lip_clear = open_clear;      // around the drum gear's tips: the drums slide onto their rods under the lip
 slit_play = 1;               // per side, beside the card at the slit's exit
 screw_pilot = 2.5;           // M3 self-tapping into PETG
 screw_clear = 3.4;

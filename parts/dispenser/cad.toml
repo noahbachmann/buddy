@@ -7,6 +7,5 @@ assembly = "assembly.scad"
 [parts.idler-drum]
 [parts.motor-gear]
 [parts.gate-left]
-[parts.gate-right]
 [parts.pusher]
 [parts.lift]

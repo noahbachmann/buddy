@@ -80,34 +80,26 @@ module motor_gear() {
 // to tune the gap takes seconds (the left one sits under the left wall, no tool reaches there).
 peg = [gate_w, 3, 4];             // full bar width: prints on the bed
 peg_fit = 0.15;
-module gate(right = false) {
+module gate() {
   bar_z = belt_top + gate_gap;
-  if (!right) box([0, gate_w], [front_y[0], back_y[1]], [bar_z, gate_top]);
-  // right: bar + the wedge on it (pile H's border at the divider): inner face from the bar's inner top edge up to the
-  // divider's top, so a pile dropping off the divider at x 72 is led onto the belts; it comes out with the gate
-  else translate([0, back_y[1], 0]) rotate([90, 0, 0]) linear_extrude(back_y[1] - front_y[0])
-    polygon([[0, bar_z], [gate_w, bar_z], [gate_w, gate_top], [0.5, div_top], [0, div_top]]);
-  for (yr = [back_y, front_y]) box([0, gate_w], yr, [bed_top, right ? bar_z + 1 : gate_top]);   // right: into the bar only
+  box([0, gate_w], [front_y[0], back_y[1]], [bar_z, gate_top]);
+  for (yr = [back_y, front_y]) box([0, gate_w], yr, [bed_top, gate_top]);
   for (y = plate_cy) translate([0, y - peg[1] / 2, bed_top - peg[2]]) cube(peg + [0, 0, eps]);
-  if (right) mirror([1, 0, 0]) translate([-gate_xr, 0, 0]) gate_lip();   // built in box coordinates
 }
-gate_xr = divider_x - 0.5;   // right gate's outer face
-module gate_placed(i) {
-  if (i == 0) translate([gate_xs[0], 0, 0]) gate();
-  else translate([gate_xr, 0, 0]) mirror([1, 0, 0]) gate(true);
-}
+module gate_placed() translate([gate_xs[0], 0, 0]) gate();
 
-// Right gate's lip + slit ends, box coordinates. Lip profile (x-z): flat top, drum side = clearance arc, then the arc's
-// 45° tangent down to the gate's outer face (prints on that face: no overhang).
+// Right gate, part of the box (Dev's change), x gate_in .. the divider: bar (underside = the divider block's underside,
+// gate_gap above the belts) with pile H's wedge on it (inner face from the bar's top up to the divider's top edge),
+// legs over the frame plates, the lip under the card path between the drive drum and the divider, and the slit's ends.
+// Lip profile (x-z): flat top, drum side = clearance arc, then the arc's 45° tangent down to the divider.
 lip_top = belt_top - lip_drop;
-lip_r   = cord_out + lip_clear;
-lip_y   = [front_y[1], back_y[0] + 1];   // front leg .. back leg, 1 mm into each
-gear_r  = gear_mod * (drum_teeth + 2) / 2 + lip_clear;   // over the drum gear (its tips reach 0.6 above the belts)
+lip_r   = gear_mod * (drum_teeth + 2) / 2 + lip_clear;   // the drum gear's tips (they reach 0.6 above the belts)
+lip_y   = [front_y[1] - 1, back_y[0] + 1];   // into both legs by 1
 // x-y region outside the slit's funnel on side s (0 front, 1 back), wide enough for gate and divider
 slit_x1 = divider_x + divider_t;
 function slit_edge(s, x) = s == 0 ? card_yc - card[1] / 2 - slit_play - (slit_x1 - x)
                                   : card_yc + card[1] / 2 + slit_play + (slit_x1 - x);
-module slit_end(s) let(x0 = gate_xr - gate_w - 1, far = s == 0 ? slot_y[0] - 10 : slot_y[1] + 10)
+module slit_end(s) let(x0 = gate_in - 1, far = s == 0 ? slot_y[0] - 10 : slot_y[1] + 10)
   polygon([[x0, slit_edge(s, x0)], [slit_x1, slit_edge(s, slit_x1)], [slit_x1, far], [x0, far]]);
 // Dev's change: the divider slot filled outside the funnel (its upper block was held only by the back wall)
 module slot_ends() for (s = [0, 1]) intersection() {
@@ -115,33 +107,39 @@ module slot_ends() for (s = [0, 1]) intersection() {
   box([divider_x, slit_x1], [slot_y[0], slot_y[1] + 0.5], [slot_bot - 1, slot_top + 1]);
 }
 
-module gate_lip() {
+module right_gate() {
   a0 = atan2(lip_top - lip_edge - drum_z, sqrt(lip_r ^ 2 - (lip_top - lip_edge - drum_z) ^ 2));
   x45 = drive_x + lip_r * cos(45);
   z45 = drum_z + lip_r * sin(45);
   arc = [for (a = [45 : (a0 - 45) / 16 : a0]) [drive_x + lip_r * cos(a), drum_z + lip_r * sin(a)]];
   edge = arc[16][0];
   bar_z = belt_top + gate_gap;
+  dx = divider_x;
+  leg_z = bed_top + 0.3;   // over the frame plates (they slide in under the legs)
   difference() {
     union() {
-      // into the front leg by 1 mm, above the front plate only
-      difference() {
-        translate([0, lip_y[1], 0]) rotate([90, 0, 0]) linear_extrude(lip_y[1] - lip_y[0] + 1)
-          polygon(concat([[edge, lip_top], [gate_xr, lip_top], [gate_xr, z45 - (gate_xr - x45)]], arc));
-        box([gate_xr - gate_w - 1, gate_xr + 1], [lip_y[0] - 2, lip_y[0]], [0, bed_top]);
-        box([gate_xr - gate_w - 1, gate_xr + 1], [drum_y[0], lip_y[1] + 1], [0, bed_top]);   // bed behind the drum
+      // bar + wedge, 1 into the divider block above its underside
+      translate([0, back_y[1], 0]) rotate([90, 0, 0]) linear_extrude(back_y[1] - front_y[0])
+        polygon([[gate_in, bar_z], [dx, bar_z], [dx, bar_z + 0.3], [dx + 1, bar_z + 0.3], [dx + 1, div_top - 0.5],
+                 [dx - 0.2, div_top - 0.5], [gate_in, gate_top]]);
+      for (yr = [back_y, front_y]) box([gate_in, dx], yr, [leg_z, bar_z + 1.5]);
+      difference() {   // lip, into both legs above the plates
+        translate([0, lip_y[1], 0]) rotate([90, 0, 0]) linear_extrude(lip_y[1] - lip_y[0])
+          polygon(concat([[edge, lip_top], [dx, lip_top], [dx, z45 - (dx - x45)]], arc));
+        // below the legs' underside: over the front plate, and over the bed behind the drum and the back plate
+        for (y = [[lip_y[0] - 1, front_y[1]], [drum_y[0], lip_y[1] + 1]]) box([gate_in - 1, dx + 1], y, [0, leg_z]);
       }
-      // slit ends: fill lip..bar outside the funnel (front: the funnel is wider than the leg's gap here, nothing)
+      // slit ends: fill lip..bar outside the funnel
       for (s = [0, 1]) intersection() {
         translate([0, 0, lip_top - 0.5]) linear_extrude(bar_z - lip_top + 1) slit_end(s);
-        box([gate_xr - gate_w, gate_xr], [lip_y[0] - 1, lip_y[1]], [0, gate_top]);
+        box([gate_in, dx], [lip_y[0], lip_y[1]], [0, gate_top]);
       }
     }
-    translate([drive_x, gear_y[0] - 0.5, drum_z]) rotate([90, 0, 0]) cylinder(r = lip_r - 0.02, h = gear_y[0] - lip_y[0] + 2);   // just inside the arc: no coincident faces
-    translate([drive_x, lip_y[1] + 1, drum_z]) rotate([90, 0, 0]) cylinder(r = gear_r, h = lip_y[1] + 1 - (gear_y[0] - 0.5));
+    // the drums slide on from the front: clearance for the gear's tips along the whole way
+    translate([drive_x, lip_y[1], drum_z]) rotate([90, 0, 0]) cylinder(r = lip_r - 0.02, h = lip_y[1] - (front_y[0] - 1));
   }
 }
-function gate_x(i) = i == 0 ? gate_xs[0] + gate_w / 2 : divider_x - 0.5 - gate_w / 2;   // peg centre
+function gate_x() = gate_xs[0] + gate_w / 2;   // left gate's peg centre
 
 // --- Frame: back plate (holds the 4023) + bed + ribs. Prints upside down: bed on the build plate. ---
 module plate_profile(top) {
@@ -153,7 +151,7 @@ module xz_plate(yr, top = bed_top)
   translate([0, yr[1], 0]) rotate([90, 0, 0]) linear_extrude(yr[1] - yr[0]) plate_profile(top);
 // gate peg sockets in a plate's top
 module peg_sockets(y)
-  for (i = [0, 1]) translate([gate_x(i), y, bed_top - peg[2] - 0.5]) linear_extrude(peg[2] + 1.5)
+  translate([gate_x(), y, bed_top - peg[2] - 0.5]) linear_extrude(peg[2] + 1.5)
     square([peg[0] + 2 * peg_fit, peg[1] + 2 * peg_fit], center = true);
 // rib i, y range: the right rib stops short of the gear pair
 function rib_y(i) = [front_y[1], i == 2 ? gear_y[0] - 0.5 : back_y[0] + eps];
@@ -255,7 +253,7 @@ module pusher(push = 0) translate([-push * push_stroke, 0, 0]) difference() {
 // Dev's change to the box: the right wall extended forward around the motor face (45° underneath, prints upright),
 // the boss's hole and the motor's 4 screw holes through it.
 m44_hole_offs = [for (a = [-1, 1], b = [-1, 1]) [a, b] * m44_holes / 2];
-module case_add() difference() {   // Dev's additions to the box: wall extension, slot ends, motor holds, borders
+module case_add() difference() {   // Dev's additions to the box: wall extension, slot ends, motor holds, borders, right gate
   dy = ext_y[1] - ext_y[0];
   union() {
     hull() {
@@ -267,6 +265,7 @@ module case_add() difference() {   // Dev's additions to the box: wall extension
     pusher_hold();
     front_border();
     h_borders();
+    right_gate();
   }
   wall_holes();
 }
@@ -288,12 +287,12 @@ module pusher_hold() {
   translate([0, pu_y + pu_hold[0] / 2, 0]) rotate([90, 0, 0]) linear_extrude(pu_hold[0])
     polygon([[x0, top - (x1 - x0) - pu_hold[1]], [x0, top], [x1, top], [x1, top - pu_hold[1]]]);
 }
-// Pile H's front and back borders: left wall .. 0.5 before the right gate (it comes out upwards), from just above the
-// left wall's lower edge to the divider top; inner faces 0.5 off the cards, leaning out like the lift's slope
+// Pile H's front and back borders: left wall .. divider (through the right gate's wedge), from just above the left
+// wall's lower edge to the divider top; inner faces 0.5 off the cards, leaning out like the lift's slope
 module h_borders() for (s = [0, 1]) let(zb = left_wall_bottom + 0.5, zt = div_top, lean = (zt - zb) * stop_lean / stop_h,
                                         y1 = s == 0 ? card_yc - card[1] / 2 - 0.5 : card_yc + card[1] / 2 + 0.5,
                                         d = s == 0 ? -1 : 1)
-  translate([left_wall[1] - 1, 0, 0]) rotate([90, 0, 90]) linear_extrude(gate_xr - gate_w - 0.5 - (left_wall[1] - 1))
+  translate([left_wall[1] - 1, 0, 0]) rotate([90, 0, 90]) linear_extrude(divider_x - (left_wall[1] - 1))
     polygon([[y1, zb], [y1 + d * lean, zt], [y1 + d * (lean + border_t), zt], [y1 + d * (lean + border_t), zb]]);
 // Pile B's front border: wall in front of the lift plate, divider .. right wall, floor .. slot_bot
 // inner face vertical up to the lift plate's lowest top, then leaning forward like the riser's front face

@@ -24,7 +24,7 @@ from cad import scad
 HERE = Path(__file__).resolve().parent
 SRC = HERE / "dispenser.stl"
 OUT = HERE / "dispenser-roller.stl"
-PIECES = ["box-cut", "frame", "front-plate", "drive-drum", "idler-drum", "motor-gear", "gate-left", "gate-right", "motor",
+PIECES = ["box-cut", "frame", "front-plate", "drive-drum", "idler-drum", "motor-gear", "gate-left", "motor",
           "rods", "belts", "pusher", "pusher-motor", "pusher-coupling", "pusher-screw", "pusher-nut",
           "lift", "lift-nut", "lift-motor", "lift-coupling", "lift-screw"]
 
