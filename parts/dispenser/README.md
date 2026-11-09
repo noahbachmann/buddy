@@ -124,9 +124,9 @@ the lift in place and the 4023 turned. It also holds bought parts as stand-ins (
   plate's return side ramps it back over the lift's edge. Then lower the lift.
 - **Direction:** the TR8x8 is right-handed. Which way "positive steps" turn depends on the wiring: set DIR in the firmware.
 - **Into H:** the pile leaves the divider at x 5.5…72 and drops 30 mm (z 97 → H's top at ~66). Pile H has borders like
-  pile B: front and back (left wall to the divider, z 70.5…96) with inner faces 0.5 mm off the
-  cards at the bottom, leaning out ~10° to 4.4 mm at the top (the back one solid to the back wall, the front one the
-  slide-in `border-h`); on the divider side, a wedge on the right gate from its
+  pile B: front and back (left wall to the divider, z 65.09…96: from 0.4 under the belt top, so no card slides out
+  under them to the front or back) with inner faces 0.5 mm off the cards at the bottom, leaning out ~10° by 5.3 mm
+  to the top (the back one solid to the back wall, the front one the slide-in `border-h`); on the divider side, a wedge on the right gate from its
   inner face (x 67.5, z 69.6) up to the divider's top edge. It leads the pile 4.5 mm to the left, onto the belts
   between the gates. ⚠️ Test with a real pile; if it lands skewed, try a slower push first.
 
@@ -180,7 +180,7 @@ the lift in place and the 4023 turned. It also holds bought parts as stand-ins (
   left with it, so pile B's compartment and the lift plate keep Dev's 67 mm. No pads: the pusher screw turns in the 3 mm left
   wall (Ø8.6), the pusher motor sits on the 3 mm right wall (M3×6). The pusher's notch goes through the right wall, so
   a 2 mm skin covers it from outside (z 94.74…134.54, front edge to y −36.4, back end at 45°); the motor's underside
-  rests on its top. With the top cut (below) the solid volume drops 732 → 455 cm³.
+  rests on its top. With the top cut (below) the solid volume drops 732 → 466 cm³.
 - **Solid-looking blocks** (pile H's back border, the 4023's hold, the border inserts) are not printed solid: the
   slicer fills them with the infill (15 %). Hollowing them in CAD would replace that infill with walls of their own
   and save next to nothing (pile H's back border: ~23 g as a block, ~23 g as a card wall + top + 4 ribs). The lever
@@ -314,7 +314,7 @@ Why these settings:
   and `gap` 0.55. The belts sit at `66.04 − gap`, the right gate's lip a card + 0.2 below them, the slot's bottom just
   under the lip. If the gap needs changing, the printed case stays and only the frame moves the belts ("Tuning the
   gap"); the legs leave 0.5 above the plates for that.
-- **Case:** on its back as the STL comes, the long side (217) along the plate's Y. ~0.5 kg PETG by my estimate (493 cm³
+- **Case:** on its back as the STL comes, the long side (217) along the plate's Y. ~0.5 kg PETG by my estimate (466 cm³
   solid). Textured PEI, no brim: the whole back wall is on the plate. Check the 4023 window's edges after the first
   layers (elephant foot: keep Bambu's compensation on, the window has only 0.3 mm play). Why one piece and on its
   back: "Case" above.
@@ -343,10 +343,9 @@ Why these settings:
 The 4023 sits in the back wall and the right gate (case) is above the frame's right end, so the frame goes in first,
 from the left, and everything else follows from behind and from the front.
 
-0. **Borders** (any time): border B over the floor from the front until its lip stops at the floor's front edge,
-   2 border pins from below through the floor's holes, pressed in by thumb. Border H from the front between the left
-   wall and the right gate until its step stops at the gate's front face, 2 border pins through the left wall from
-   outside. To take a border out, pull its pins by the heads (pliers).
+0. **Border B** (any time): over the floor from the front until its lip stops at the floor's front edge, 2 border
+   pins from below through the floor's holes, pressed in by thumb. To take a border out, pull its pins by the heads
+   (pliers).
 
 1. **Bearings:** press 2 685ZZ into each drum, pushing only on the outer race.
 2. **Frame into the box:** left gate pressed into its sockets first. Slide the frame in from the open left side, under
@@ -361,8 +360,11 @@ from the left, and everything else follows from behind and from the front.
 6. **Belts:** slide the 3 O-rings over both drums from the front, into the grooves. They pass over the bed and the ribs.
 7. **Front plate:** its 3 pegs into the rib ends, 2× M3×12 from below through the floor. Then push the 2 front pins
    through its holes into the front bearings until flush with the plate's outer face (firm hand pressure: the plate
-   holds them by press fit; never hammer through a bearing). For new O-rings: floor screws out, pull the plate off,
-   the pins come with it.
+   holds them by press fit; never hammer through a bearing). For new O-rings: border H out (step 8), floor screws
+   out, pull the plate off, the pins come with it.
+8. **Border H**, last: it reaches down to under the belt top, so the drum gear and the O-rings can't pass under it.
+   From the front between the left wall and the right gate until its step stops at the gate's front face, 2 border
+   pins through the left wall from outside.
 
 **Lift:** motor under the floor (boss into the floor's hole, 2× M3×6 from inside), coupling on the shaft inside the
 box (z 13.5…38.5), tighten the 5 mm side. Nut under the lift's tab, flange up, its 4 pegs pressed into the tab's holes, body
@@ -410,10 +412,13 @@ them, `case_add()` / `box_cuts()` have to stop adding them, or they're added twi
     the drive drum's axis (x 62, z 57.09) down to its 45° point, then a 45° face down to the divider; the circle also
     cuts the front leg, so the drive drum slides through;
   - slit ends between lip and bar outside the funnel (45° lines below).
-- **Pile H's back border:** x −1…72 (from inside the left wall to the divider), z 70.5…96.04, inner face from
-  y −39.9 at the bottom leaning back to y −35.55 at the top, solid back to the back wall.
+- **Pile H's back border:** x −1…72 (from inside the left wall to the divider), z 65.09…96.04, inner face from
+  y −39.9 at the bottom leaning back to y −34.63 at the top, solid back to the back wall. Below the left wall's
+  edge (z 70.5) only x 0.2…67.5: the left gate and the funnel's mouth at the right gate stay free. A channel r 9.6
+  around the drive drum's axis (y −40.9…−25.5) for its gear, which slides in under it from the front. Its underside
+  clears the bed by 2.5, the drum's rim by 0.76 and the 4023 by 0.4 (the window's top is 64.99).
 - **Front borders: separate parts** (`border-h`, `border-b`), each filling the front strip to the box front:
-  - H: x 0.2…71.8, z 70.5…96.04, inner face from y −131.9 at the bottom leaning forward to y −136.25 at the top;
+  - H: x 0.2…71.8, z 65.09…96.04, inner face from y −131.9 at the bottom leaning forward to y −137.17 at the top;
     beside the right gate (y > −141.6) it stops 0.2 short of the gate's bar and wedge. 2 pin holes from the left
     face at (y, z) = (−146, 78), (−146, 89).
   - B: x 75.2…142.8, z 5…96.04, inner face at y −135.9 up to z 29.29, then leaning forward to y −142.0 at z 65,
@@ -479,8 +484,6 @@ but then two cards sit in the slot. No roller left of the divider can push furth
 - `pile_max` = 35 mm for 30 cards assumes they settle to ~1.2 mm each in a pile. Sleeved cards loose are > 1 mm each:
   stack 30 sleeved cards loosely and measure the height. If it's over 35, the pusher plate, the lift's lowest
   position and the pusher's screw height change (all from `pile_max`).
-- Pile H's back edge is 5.9 mm in front of the drum gear, whose tips reach 0.6 mm above the belts (y −34.5…−27.5,
-  x ~59…65). Nothing positions H in Y: a card placed more than 5.9 mm toward the back rubs on the turning gear.
 - The 685ZZ press fit (`press`; only 1.7 mm wall at the idler's ends, ~1.2 mm under the drive drum's gear roots: if the gear ring cracks or the mesh binds after pressing, lower `press`), the 5.2 mm pin holes and the printed gear mesh (`gear_slack`, `gear_backlash`) need a test print.
 - Printed joints (#63): every hole fit is a guess until the fit test is in `params.scad`. The lift nut's pegs only
   stop it turning: if the lift ever sticks while going down, the nut leaves the tab, and once the pegs are out

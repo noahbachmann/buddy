@@ -354,15 +354,26 @@ module pusher_hold() {
     box([x0, x0 + 0.01], [y1, y1 + (x1 - x0)], [top - (x1 - x0) - pu_hold[1], top]);
   }
 }
-// Pile H's borders: left wall .. divider, from just above the left wall's lower edge to the divider top; inner faces
-// 0.5 off the cards, leaning out like the lift's slope.
-h_bord_z = [left_wall_bottom + 0.5, div_top];
+// Pile H's borders: left wall .. divider, from just under the belt top to the divider top: no card leaves H to the
+// front or back. Inner faces 0.5 off the cards at the bottom, leaning out like the lift's slope.
+h_bord_z = [belt_top - h_bord_drop, div_top];
 h_lean   = (h_bord_z[1] - h_bord_z[0]) * stop_lean / stop_h;
-// Back: part of the case, solid back to the wall (through the right gate's wedge): the case prints on its back, a
-// free outer face would overhang.
+// what passes under them: the frame's bed (slides in from the left), the drive drum's rim (slides in from the front;
+// its gear gets a channel), the 4023's top (in from behind, through the back wall's window)
+assert(h_bord_z[0] - (drum_z + rim_r) >= 0.3 && h_bord_z[0] - (motor_z + motor_sq / 2) >= 0.3
+       && h_bord_z[0] - bed_top >= 0.5, "pile H's borders: too low over drum, 4023 or bed");
+h_wall_z = left_wall_bottom + 0.5;   // above it the back border reaches into the left wall and through the right gate
+// Back: part of the case, solid back to the wall: the case prints on its back, a free outer face would overhang.
+// Below h_wall_z only between the gates: the left gate (x < 0) sits there, and right of gate_in is the funnel's mouth.
 module h_back_border() let(zb = h_bord_z[0], zt = h_bord_z[1], y1 = card_yc + card[1] / 2 + 0.5)
-  translate([left_wall[1] - 1, 0, 0]) rotate([90, 0, 90]) linear_extrude(divider_x - (left_wall[1] - 1))
-    polygon([[y1, zb], [y1 + h_lean, zt], [back_wall + 0.5, zt], [back_wall + 0.5, zb]]);
+  difference() {
+    translate([left_wall[1] - 1, 0, 0]) rotate([90, 0, 90]) linear_extrude(divider_x - (left_wall[1] - 1))
+      polygon([[y1, zb], [y1 + h_lean, zt], [back_wall + 0.5, zt], [back_wall + 0.5, zb]]);
+    for (x = [[left_wall[1] - 2, left_wall[1] + insert_fit], [gate_in, divider_x + 1]])
+      box(x, [y1 - 1, back_wall + 1], [zb - 1, h_wall_z]);
+    // the drive drum's gear slides in from the front and runs under it (as the right gate's lip)
+    translate([drive_x, drum_y[0] + 2, drum_z]) rotate([90, 0, 0]) cylinder(r = lip_r, h = drum_y[0] + 2 - (y1 - 1));
+  }
 
 // Front borders of both piles: slide-in parts (their card faces would overhang with the case on its back). Each fills
 // the front strip in front of its pile, flush with the box front. Profiles (y, z), extruded along X.

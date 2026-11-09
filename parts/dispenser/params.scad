@@ -228,6 +228,7 @@ sup_wall   = 0.84;           // grid walls: 2 lines of a 0.4 nozzle
 sup_pitch  = 6;              // grid cell; the tab's first layer bridges ≤ 5.2 mm
 sup_base   = 0.6;            // solid pad on the bed (3 layers) so the thin grid sticks
 border_t   = 4;              // front border of pile B (box) at the top, floor .. div_low
+h_bord_drop = 0.4;           // pile H's borders: bottom this far under the belt top, so the bottom card hits them
 
 // --- Holds: the motors rest on the case, not only on their screws ------------------------------------------
 m23_conn   = [16, 4, 7.6];   // 4023 connector: width, out of the body, along the axis from the back end
