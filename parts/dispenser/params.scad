@@ -175,7 +175,8 @@ tab_t      = thin;           // nut tabs (pusher and lift); pushing / the lift's
 nut_x      = [coup_x[0] - 1.5 - nut_len, coup_x[0] - 1.5];   // at home; flange on the right
 tab_x      = [nut_x[1] - nut_flange[1] - tab_t, nut_x[1] - nut_flange[1]];
 bar_x      = [tab_x[0], right_wall[0] + push_t];
-screw_x    = [left_wall[1] - wall_t + 0.5, shaft_tip];   // cut the screw to this length; turns in the 3 mm left wall
+lead_len   = 200;            // both screws: stock length, not cut (Dev can't cut metal), end in the coupling at the shaft tip
+screw_x    = [shaft_tip - lead_len, shaft_tip];   // turns in the left wall's hole, sticks out of the box's left side
 
 // Guide against turning: a ridge along X on the front strip's tops (border H, divider, border B) runs in a groove in the
 // bar's underside. Turning the plate's far end up moves the bar (57 below the screw) back (+Y): the ridge's front face
@@ -207,7 +208,7 @@ screw_hole = 8.6;
 // turning.
 lift_axis  = [111.8 - b_shift, -25.4 + shift];   // Dev's nut and tab centre (his screw was drawn 0.6 off)
 lift_face  = floor_bot;      // motor face against the floor's underside
-lift_screw_top = box_top;    // ends at the box top
+lift_screw_top = lift_face + m44_shaft[1] + lead_len;   // sticks out above the box top
 lift_x     = [divider_x + divider_t + 0.44, right_wall[0] - 0.56];   // plate: 0.44 to the divider, 0.56 to the right wall (as Dev's)
 lift_t     = thin;           // plate thickness
 lift_front = card_yc - card[1] / 2 - 4;   // plate's front edge: plate top 92 long to the slope's foot (Dev's)

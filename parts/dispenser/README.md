@@ -112,7 +112,8 @@ the lift in place and the 4023 turned. It also holds bought parts as stand-ins (
 - **Motor:** a 17HS4401 screwed flat onto the right wall's outer face (4× M3 from inside the box). The wall is
   extended 15 mm forward around it, because the motor is wider than the front strip. A wedge under the motor (16 mm
   wide, 45° underside) carries it, so it doesn't hang on its screws alone. The coupling (Ø19 × 25)
-  joins the 5 mm shaft and the screw inside the box; the screw runs to the left wall and turns in a plain hole there.
+  joins the 5 mm shaft and the screw inside the box; the screw runs to the left wall, turns in a plain hole there and,
+  200 mm and uncut, sticks 75 mm out of the box's left side.
 - **Home:** the plate sits in a notch in the right wall, face flush with the inner face (x 143), resting on the notch
   floor 0.3 below the lift's push height, so it can only step *down* onto the lift. The notch is 3 mm deep, through the
   3 mm wall; a 2 mm skin outside it is the home stop. Home against it at low current (TMC2209 StallGuard, if the board has it, still
@@ -237,15 +238,16 @@ cd parts/tools && uv run python ../dispenser/check_pusher.py # after a pusher, l
 
 | Qty | Part | Note |
 |---|---|---|
-| 2 | 17HS4401 + Purecrea flexible coupling 8/5 + TR8x8 lead screw | The two sets on the shopping list: pusher and lift. Nuts printed (`tr8-nut.scad`) |
+| 2 | 17HS4401 + Purecrea flexible coupling 8/5 + TR8x8 lead screw 200 mm | The two sets on the shopping list: pusher and lift. Screws uncut, nuts printed (`tr8-nut.scad`) |
 | 4 | M3×6 socket head | Through the 3 mm right wall into the pusher motor's face, from inside (M3×8 would bottom out) |
 | 2 | M3×6 socket head | Through the 3 mm floor into the lift motor's face, from inside (M3×8 would bottom out) |
 | 2 | M3×8 | Pusher nut flange to its 3 mm tab (only the 2 holes beside the screw; the tips stick out ~1.5 mm beside the nut) |
 | 4 | M3×12 + nut | Lift nut flange to the tab (Dev's 4 Ø4 holes) |
 
-⚠️ **Cut the pusher's screw to 124.5 mm** (hacksaw, then file a chamfer so the nut starts cleanly). It reaches from the
-middle of the coupling to 0.5 mm inside the left wall's outer face. Cut the end that goes into the coupling. The lift's
-screw runs from the coupling to the box top: 152.8 mm.
+**Both screws are 200 mm, not cut** (stock length). Each goes into its coupling up to the motor shaft's tip. The
+pusher's then sticks out of the left wall by 75 mm (x −78…−3, at y −145.9, z 155.69), the lift's 47 mm above the box
+top (z 178.8…226, at x 109.8, y −16.9). ⚠️ Both turn while the dispenser runs: keep cables, hair and fingers away from
+the ends; nothing may be mounted there.
 
 Screws go into 2.5 mm pilot holes (self-tapping). In the PLA pusher tab drive them by hand and stop when snug: the
 upper hole is 2.75 mm from the tab's top edge.
