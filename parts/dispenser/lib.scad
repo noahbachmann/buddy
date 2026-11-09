@@ -347,11 +347,19 @@ module b_insert() {
   }
 }
 // Dev's box as drawn, its front and top cut back, walls and floor thinned to wall_t, divider to divider_t
+// Divider: the part right of it moves left by b_shift. The right piece starts 0.5 inside the divider: the two overlap
+// by 0.5 with the same section (floor, back wall, divider), no touching faces.
+module box_dev() {
+  intersection() { import("ref/box.stl"); box([left_wall[0] - 1, slit_x1], [-200, 10], [-1, 201]); }
+  translate([-b_shift, 0, 0]) intersection() {
+    import("ref/box.stl");
+    box([divider_x1_dev - 0.5, 160], [-200, 10], [-1, 201]);
+  }
+}
 module box_trimmed() difference() {
-  import("ref/box.stl");
+  box_dev();
   box([left_wall[0] - 1, right_wall[1] + 1], [box_front - 20, box_front], [-1, 201]);
   box([left_wall[0] - 1, right_wall[1] + 1], [box_front - 1, 1], [box_top, 201]);
-  box([slit_x1, divider_x1_dev + 0.5], [box_front - 1, back_wall], [floor_top, div_top + 1]);
   wall_thinning();
 }
 // From the outside: floor from below, back wall from behind, the side walls from their outer faces. Pads stay 5 thick

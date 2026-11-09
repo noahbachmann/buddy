@@ -18,7 +18,9 @@ left_wall_bottom = 70;       // left wall ends here, open below
 slot_top         = 66.04;    // underside of the divider's upper block = top of the card slot
 div_low          = 65;       // top of the divider's lower part (the case cuts it lower under the slot: slot_bot)
 divider_t        = 3;        // thinned from Dev's 5 at its right face: shorter slot; gates and roller stay put
-divider_x1_dev   = 77;       // the divider's right face as drawn (the case cuts it back to divider_x + divider_t)
+divider_x1_dev   = 77;       // the divider's right face as drawn
+b_shift          = divider_x1_dev - (divider_x + divider_t);   // everything right of the divider (pile B, lift, right
+                             // wall, pusher) moves left by what the divider lost: B's width stays Dev's
 // The roller's back plate and the lift's screw sit `shift` further back than in dispenser.stl (4023 in the back wall,
 // lift nut flange 0.9 mm from the wall).
 shift            = 8.5;
@@ -126,7 +128,7 @@ screw_head  = 6.2;           // counterbore
 // divider) by its own weight, and that weight keeps the nut from turning.
 // Everything but the plate stays in the front strip (in front of the cards and the lift) or above the pile.
 div_top    = 96.04;          // top of the divider block (z 66..96, full depth)
-right_wall = [145, 150];
+right_wall = [145, 150] - [b_shift, b_shift];
 left_wall  = [-5, 0];
 riser_y    = card_yc + card[1] / 2;   // front face of the lift's back stop
 pile_max   = 35;             // 30 loose cards, not pressed together
@@ -183,10 +185,10 @@ screw_hole = 8.6;
 // sides. The nut connection is Dev's as drawn: 5 mm tab with a round end, Ø10.2 + 4x Ø4 on a 16 mm square, the nut's
 // flange under it, its spigot up in the hole. The plate's edges against the divider and the right wall keep it from
 // turning.
-lift_axis  = [111.8, -25.4 + shift];   // Dev's nut and tab centre (his screw was drawn 0.6 off)
+lift_axis  = [111.8 - b_shift, -25.4 + shift];   // Dev's nut and tab centre (his screw was drawn 0.6 off)
 lift_face  = floor_bot;      // motor face against the floor's underside
 lift_screw_top = box_top;    // ends at the box top
-lift_x     = [divider_x + divider_t + 0.44, 144.44];   // plate: 0.44 to the divider, 0.56 to the right wall (as Dev's)
+lift_x     = [divider_x + divider_t + 0.44, right_wall[0] - 0.56];   // plate: 0.44 to the divider, 0.56 to the right wall (as Dev's)
 lift_t     = 4;              // plate thickness
 lift_front = card_yc - card[1] / 2 - 4;   // plate's front edge: plate top 92 long to the slope's foot (Dev's)
 stop_t     = 4;              // slope wall, measured along Y
@@ -212,4 +214,4 @@ feet_h     = m44_body + 2;   // rails under the floor, left and right edge: the 
 feet_t     = 5;
 insert_fit = 0.2;            // per side, border inserts against walls, divider and gate
 insert_screws_h = [[-146, 78], [-146, 89]];   // border H: (y, z), M3 through the left wall
-insert_screws_b = [[95, -146], [127, -146]];  // border B: (x, y), M3 from below through the floor
+insert_screws_b = [[95 - b_shift, -146], [127 - b_shift, -146]];  // border B: (x, y), M3 from below through the floor

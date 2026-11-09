@@ -11,7 +11,7 @@ Everything to buy for `parts/dispenser` (roller, lift, pusher). Screw counts are
 | [x] | Stepper NEMA 17 pancake 17HS4023, 42×42×23 | 1 | [Bastelgarage](https://www.bastelgarage.ch/components/stepper-motors/stepper-motors-1-124/42x42x23mm-stepper-motor-nema-17-pancake-17hs4023-0-7a-0-15nm) | Roller |
 | [ ] | Cable 6p PH2.0 → 4p XH2.54, 1 m | 3 | [Bastelgarage](https://www.bastelgarage.ch/6p-ph2-0-to-4p-xh2-54-stepper-motor-cable-1m-nema17) | Motor → SKR Pico. The motors' own cables end in a 4-pin plug that may not be XH |
 | [x] | Flexible coupling 8 / 5 mm | 2 | [Bastelgarage](https://www.bastelgarage.ch/components/stepper-motors/stepper-motors-1-124/8mm-5mm-flexible-aluminium-coupling-with-dowel-screws) | |
-| [ ] | TR8 lead screw 200 mm, pitch 8 | 2 | [Bastelgarage](https://www.bastelgarage.ch/tr8-200mm-trapezoidal-threaded-spindle-pitch-8mm) | Cut: pusher 130 mm, lift 151 mm |
+| [ ] | TR8 lead screw 200 mm, pitch 8 | 2 | [Bastelgarage](https://www.bastelgarage.ch/tr8-200mm-trapezoidal-threaded-spindle-pitch-8mm) | Cut: pusher 128 mm, lift 151 mm |
 | [x] | TR8 brass nut, pitch 8 | 2 | [Bastelgarage](https://www.bastelgarage.ch/tr8-trapezoidal-nut-brass-pitch-8mm) | Same pitch as the screw (not the 2 mm nut) |
 | [x] | Mechanical limit switch with cable | 4 | [Bastelgarage](https://www.bastelgarage.ch/mechanical-limit-switch-with-cable) | Lift home + spares (the pusher can home by stall detection). Check the plug fits the SKR Pico |
 | [x] | KFL08 bearing with bracket | 2 | [Bastelgarage](https://www.bastelgarage.ch/mechanical-components/guides-spindles/kfl08-8mm-ball-bearing-with-horizontal-bracket) | Not used by the design: can go |

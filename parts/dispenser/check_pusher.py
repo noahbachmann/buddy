@@ -65,7 +65,8 @@ def main() -> int:
         fixed = {n: piece(n) for n in FIXED}
         fixed["lift"] = lift(push_lift)
         pile_max = param(tmp, "pile_max")
-        pile = solid(trimesh.creation.box(bounds=[[82, card_y[0], push_lift], [145, card_y[1], push_lift + pile_max]]))
+        rw = param(tmp, "right_wall[0]")
+        pile = solid(trimesh.creation.box(bounds=[[rw - 63, card_y[0], push_lift], [rw, card_y[1], push_lift + pile_max]]))
         hits = []
         for push in PUSHES:
             moving = {"pusher": piece("pusher", push=push), "pusher-nut": piece("pusher-nut", push=push)}
