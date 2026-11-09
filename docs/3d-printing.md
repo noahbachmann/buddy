@@ -13,8 +13,10 @@ My notes for the X2D. ⚠️ = not tested by me yet.
 
 ## Materials
 
-- **PETG**: anything functional, with a fit, or near heat.
-- **PLA**: support interface under PETG, mock-ups, jigs. Soft at ~55 °C ⚠️.
+- **PETG**: structure, real load (brackets, servo mounts, arm links), anything near heat (motors, Pi, drivers).
+- **PLA**: low-load functional parts away from heat (stiffer and more accurate than PETG: fits, sliding edges, e.g.
+  the dispenser's lift and pusher), support interface under PETG, mock-ups, jigs. Soft at ~55 °C ⚠️. Self-tapping
+  screws: by hand, stop when snug (cracks more easily than PETG).
 
 | | PETG | PLA |
 |---|---|---|

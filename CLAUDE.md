@@ -307,7 +307,7 @@ Pi paths: `~/buddy/{dev,src,build-release,build-pico,bin,venv,models,config,voic
 - **Step guides** (`docs/guides/XX-YY-name.md`): Goal → Prerequisites → Parts/Tools → Steps (copy-pasteable commands with expected output) → Verify → Troubleshooting → Notes for later phases. Mark untested assumptions with ⚠️.
 - **Code:** C++ with CMake, or Python with uv (D5). MQTT topics live in `shared/topics.json`. Broker address and other host-specific values come from config/env.
 - **CAD/printing** (Onshape or parametric OpenSCAD, Bambu X2D + AMS): dimensions with clearance offsets, print orientation, supports.
-  Filament: PETG for structure and every part that carries load, sits near heat or has a fit; PLA only for support interfaces under PETG (second nozzle), jigs, mock-ups and cosmetic parts away from heat. No TPU.
+  Filament: PETG for structure, real load (brackets, servo mounts, arm links) and anything near heat (motors, Pi, drivers); PLA for low-load functional parts away from heat, where its stiffness and accuracy help (fits, sliding edges, e.g. the dispenser's lift and pusher), plus support interfaces under PETG (second nozzle), jigs, mock-ups and cosmetic parts. PLA softens from ~55 °C: nothing PLA touching a motor body or within a few mm of one. No TPU.
 - **Style:** concise, no filler. Tables for BOMs and pinouts, code blocks for commands.
 
 ## Maintenance
