@@ -211,7 +211,7 @@ cd parts/tools && uv run python ../dispenser/check_pusher.py # after a pusher, l
 |---|---|---|
 | 3 | NBR O-ring 80 × 3 mm (ID × cord), 70 Shore A | The belts. ⚠️ Different size: change `oring_id`, the drum distance follows |
 | 4 | 685ZZ bearing, 5 × 11 × 5 | Pressed into the drum ends (#59; MR105 5 × 10 × 4 fits too with `bearing` changed back) |
-| 4 | Dowel pin Ø5 × 28 mm, ISO 8734 (hardened, m6), RS PRO | One per bearing, bought ready-made: nothing to cut (#57). Fixed: the drums turn on their bearings |
+| 4 | Dowel pin Ø5 × 20 mm, ISO 8734 (hardened, m6), RS PRO | One per bearing, bought ready-made: nothing to cut (#57). Fixed: the drums turn on their bearings |
 | 3 | M3×6 socket head | 4023 to the back plate (the 4th hole would cut into the drive pin's hole) |
 | 1 | M3×5 set screw + M3 nut | Motor gear onto the shaft's flat (5 mm from the flat to the hub surface: flush) |
 | 2 | M3×6 + M3 washer | Pin keepers on the front plate (the washer covers the pin end) |
