@@ -184,6 +184,8 @@ module frame() {
       xz_plate(back_y, bed_bot + 1);   // ends inside the bed: no coplanar top faces
       box([frame_x[0] + 1, frame_x[1]], [front_y[1], back_y[1]], [bed_bot, bed_top]);   // 1 mm short: no coplanar end face
       for (i = [0 : 2]) box([rib_xs[i], rib_xs[i] + rib_t], rib_y(i), [rib_bot, bed_bot + eps]);
+      // screw bosses at the rib ends: teardrop tip into the bed (the frame prints upside down)
+      for (i = [0 : 2]) hole_y(rib_screw(i)[0], rib_screw(i)[1], rib_boss[0], front_y[1], front_y[1] + rib_boss[1], 1);
       // bosses: touch only the bearings' inner races
       for (x = axle_xs) translate([x, back_y[0] + eps, drum_z]) rotate([90, 0, 0]) cylinder(d = boss_d, h = boss + eps);
     }
@@ -298,8 +300,8 @@ module case_add() difference() {   // additions to Dev's box: wall extension, sl
   dy = ext_y[1] - ext_y[0];
   union() {
     hull() {
-      box(right_wall, [ext_y[0], ext_y[1] + 1], ext_z);
-      box(right_wall, [ext_y[1], ext_y[1] + 1], [ext_z[0] - dy, ext_z[0]]);
+      box([right_wall[0], m44_face], [ext_y[0], ext_y[1] + 1], ext_z);
+      box([right_wall[0], m44_face], [ext_y[1], ext_y[1] + 1], [ext_z[0] - dy, ext_z[0]]);
     }
     slot_ends();
     roller_hold();
@@ -330,8 +332,8 @@ module roller_hold() box(m23_box[0], [m23_box[1][0] + hold_gap, min(m23_box[1][1
 // prints on its back, -Y up: a flat back face would overhang)
 module pusher_hold() {
   top = pu_screw_z - m44_sq / 2;
-  x0 = right_wall[0] + wall_t - 1;   // into the wall where it's thinned (below the motor pad)
-  x1 = right_wall[1] + m44_body;
+  x0 = m44_face - 1;   // into the wall
+  x1 = m44_face + m44_body;
   y1 = pu_y + pu_hold[0] / 2;
   hull() {
     translate([0, y1, 0]) rotate([90, 0, 0]) linear_extrude(pu_hold[0])
@@ -397,33 +399,32 @@ module box_dev() {
     box([divider_x1_dev - 0.5, 160], [-200, 10], [-1, 201]);
   }
 }
+// The notch's skin joins before the front cut: one cut makes its front face and the wall's (added later, flush, the
+// two faces miss by an ulp and the STL isn't watertight).
 module box_trimmed() difference() {
-  box_dev();
+  union() {
+    difference() { box_dev(); wall_thinning(); }
+    notch_skin();
+  }
   box([left_wall[0] - 1, right_wall[1] + 1], [box_front - 20, box_front], [-1, 201]);
   box([left_wall[0] - 1, right_wall[1] + 1], [box_front - 1, 1], [box_top, 201]);
-  wall_thinning();
 }
-// From the outside: floor from below, back wall from behind, the side walls from their outer faces. Pads stay 5 thick
-// where something needs the depth: the pusher screw's bearing hole in the left wall, the pusher's notch (4 deep + 1 skin)
-// and motor face in the right wall. Their back ends are 45° (the case prints on its back: a step facing the back wall
-// would overhang).
+// From the outside: floor from below, back wall from behind, the side walls from their outer faces: all 3 thick, no pads
+// (the pusher's notch gets its own skin: notch_skin)
 module wall_thinning() {
   xs = [left_wall[0] - 1, right_wall[1] + 1];
+  ys = [box_front - 1, back_out + 1];
   box(xs, [box_front - 1, back_out + 2], [-1, floor_bot]);
   box(xs, [back_out, back_out + 3], [-1, 201]);
-  // side: thin wall's outer face at xi, outward direction d; the pad (to the old face) ends at y1 on the outside,
-  // 45° back to the wall, over zr
-  module side(xi, d, y1, zr) difference() {
-    box(d < 0 ? [xi - 3, xi] : [xi, xi + 3], [box_front - 1, back_out + 1], [-1, 201]);
-    intersection() {
-      box(d < 0 ? [xi - 4, xi + 1] : [xi - 1, xi + 4], [box_front - 2, back_out + 1], zr);
-      translate([0, 0, -1]) linear_extrude(203)
-        polygon([[xi, box_front - 2], [xi + 3 * d, box_front - 2], [xi + 3 * d, y1], [xi, y1 + 3]]);
-    }
-  }
-  side(left_wall[1] - wall_t, -1, pu_y + 10, [pu_screw_z - 10, pu_screw_z + 10]);
-  side(right_wall[0] + wall_t, 1, riser_y + 2, [notch_lo[1][0] - 2, ext_z[1]]);
+  box([left_wall[0] - 1, left_wall[1] - wall_t], ys, [-1, 201]);
+  box([right_wall[0] + wall_t, right_wall[1] + 1], ys, [-1, 201]);
 }
+// Skin behind the pusher's notch, which goes through the 3 mm right wall: notch_skin behind it and around it, the
+// pusher motor sitting on its top (same z as the hold's top). Back end 45° (the case prints on its back, -Y up).
+module notch_skin() let(x0 = m44_face - 1, x1 = m44_face + notch_skin, y1 = riser_y + notch_skin,
+                        z0 = notch_lo[1][0] - notch_skin, z1 = pu_screw_z - m44_sq / 2)
+  translate([0, 0, z0]) linear_extrude(z1 - z0)
+    polygon([[x0, box_front - 1], [x1, box_front - 1], [x1, y1], [m44_face, y1 + notch_skin], [x0, y1 + notch_skin]]);
 
 module box_cuts() {
   // 4023: window through the back wall, its floor = the hold's top; channel for the connector and cable, out below

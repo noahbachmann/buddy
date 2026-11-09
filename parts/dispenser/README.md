@@ -72,14 +72,14 @@ the lift in place and the 4023 turned. It also holds bought parts as stand-ins (
 
 ```
   seen from the front (−Y), carriage at home
-                                                                   right wall x 143…148
-  z 154 ●══════ screw (TR8x8) ══════════╪coupling╪═ shaft ═│17HS4401 (x 148…188, on the wall's outer face)
-        │nut│tab                        x 111…136          │
+                                                                   right wall x 143…146
+  z 156 ●══════ screw (TR8x8) ══════════╪coupling╪═ shaft ═│17HS4401 (x 146…186, on the wall's outer face)
+        │nut│tab                        x 110…134          │
         │   │◣ gusset                                 ┌────┤
   z 132 │   │                                         │    │ plate: 35 high, rests on the lift, face pushes B
   z 107 │   └──────────── bar ─────────────────────── │    │
-  z  97 └─────────────────────────────────────────────┴────┘ ← in the wall's notch at home (3 deep, 2 mm skin)
-        x 100.5                                      143  147
+  z  97 └─────────────────────────────────────────────┴────┘ ← in the wall's notch at home (through the wall, 2 mm skin)
+        x 101.5                                      143  146
 ```
 
 - **The carriage is the lift turned 90°:** the plate (35 × 94.5 × 3) is the lift's plate, the bar along the front
@@ -93,7 +93,7 @@ the lift in place and the 4023 turned. It also holds bought parts as stand-ins (
 - **Guide against turning:** a ridge along X under the bar (front face y −150.4, z 96.04…99.04, flat 1 mm top, back at
   45°) on the tops of border H, the divider and border B, inside the bar's U (y −150.6…−138.9, 7 high; under the tab
   and the end wall a groove y −150.6…−145.2, 3.5 deep). Turning the plate's far end up moves the bar back (+Y): the groove's front wall meets the ridge 0.2 mm
-  later, 56 mm below the screw, so the far end (104 mm behind it) rises ≤ ~0.4 mm (~0.5 with the borders' print
+  later, 58 mm below the screw, so the far end (104 mm behind it) rises ≤ ~0.4 mm (~0.5 with the borders' print
   tolerance) however hard the screw drags. Turning the other way is what stepping onto the divider does (the bar moves
   ~0.6 forward): 1.2 mm behind the ridge. Free in Z: the plate still rests on the lift by its weight, the guide only
   stops the rise. Each ridge's front face is set back 0.6 mm at its ends, so the groove passes the joints between the
@@ -108,14 +108,14 @@ the lift in place and the 4023 turned. It also holds bought parts as stand-ins (
   sit behind the cards. The cards cover y −131.4…−40.4, and the arm drops cards onto H from above. So the screw, the
   coupling, the tab and the bar run in the **front strip** (bar y −153.6…−135.9); only the plate crosses the card area.
 - **Pile height:** up to 35 mm (30 loose cards). The plate is as high as that pile; the motor and its lower screw
-  holes sit above it, which sets the screw at z 154.
+  sits on the notch's skin above it (plate top + 0.5 + 2), which sets the screw at z 155.69.
 - **Motor:** a 17HS4401 screwed flat onto the right wall's outer face (4× M3 from inside the box). The wall is
   extended 15 mm forward around it, because the motor is wider than the front strip. A wedge under the motor (16 mm
   wide, 45° underside) carries it, so it doesn't hang on its screws alone. The coupling (Ø19 × 25)
   joins the 5 mm shaft and the screw inside the box; the screw runs to the left wall and turns in a plain hole there.
 - **Home:** the plate sits in a notch in the right wall, face flush with the inner face (x 143), resting on the notch
-  floor 0.3 below the lift's push height, so it can only step *down* onto the lift. The notch is 3 mm deep: the last
-  2 mm of wall are the home stop. Home against it at low current (TMC2209 StallGuard, if the board has it, still
+  floor 0.3 below the lift's push height, so it can only step *down* onto the lift. The notch is 3 mm deep, through the
+  3 mm wall; a 2 mm skin outside it is the home stop. Home against it at low current (TMC2209 StallGuard, if the board has it, still
   undecided) or with one of the 4 limit switches on the shopping list.
 - **Push:** lift plate top to **z 97.04** (`push_lift` = divider top + 1). The plate travels **71 mm** (x 143 → 72,
   ~9 screw turns), stepping down 1 mm from the lift onto the divider; at the end it stands on the divider and the
@@ -175,16 +175,16 @@ the lift in place and the 4023 turned. It also holds bought parts as stand-ins (
 - **Walls 3 mm** (Dev's are 5), thinned from the outside so every inner face stays where it was; the floor too (its
   underside at z 2). The divider is 3 (Dev, x 72…75), cut back at its right face: the slot a card runs through is 2 mm
   shorter, and the left face (gates, lip, roller) stays put; everything right of it (right wall, lift, both motors, pusher, border B) moves 2 mm
-  left with it, so pile B's compartment and the lift plate keep Dev's 67 mm. Pads stay 5 thick, their back ends at 45°:
-  around the pusher screw's bearing hole in the left wall (Ø8.6, 20 × 20), and on the right wall around the pusher's
-  notch (3 deep + 2 mm skin) and its motor face (z 94.7…177.2, front to y −38.4). Printed with 4 walls a 5 mm wall is
-  mostly perimeters anyway, so this saves only ~40 g; with the top cut (below) the solid volume drops 732 → 493 cm³.
+  left with it, so pile B's compartment and the lift plate keep Dev's 67 mm. No pads: the pusher screw turns in the 3 mm left
+  wall (Ø8.6), the pusher motor sits on the 3 mm right wall (M3×6). The pusher's notch goes through the right wall, so
+  a 2 mm skin covers it from outside (z 94.74…134.54, front edge to y −36.4, back end at 45°); the motor's underside
+  rests on its top. With the top cut (below) the solid volume drops 732 → 455 cm³.
 - **Solid-looking blocks** (pile H's back border, the 4023's hold, the border inserts) are not printed solid: the
   slicer fills them with the infill (15 %). Hollowing them in CAD would replace that infill with walls of their own
   and save next to nothing (pile H's back border: ~23 g as a block, ~23 g as a card wall + top + 4 ribs). The lever
   is the infill: 10 % for the case changes nothing that carries load.
-- **Top cut at z 177.19** (Dev's box went to 200): the top of the pusher motor's pad, the highest thing the case
-  carries. The pusher reaches z 166, the lift's tab at push height z 144.
+- **Top cut at z 178.84** (Dev's box went to 200): the top of the pusher motor's wall extension, the highest thing the
+  case carries. The pusher reaches z 167.7, the lift's tab at push height z 144.
 - **Feet:** two rails under the floor along the left and right edges, 42 mm (the lift motor hangs 40 below the floor),
   front and back open for the cables and the lift motor, which reaches 6.25 mm past the back wall. The roller frame's
   left part now hangs 40 mm above the table instead of standing on it: it's held by its step against the floor's left
@@ -200,7 +200,7 @@ STLs and `parts/cad render dispenser` for the sheets (`parts/CLAUDE.md`).
 | `params.scad` | Box measurements, card, belts, drums, gears, layout | |
 | `lib.scad` | Geometry of every piece, placed in the box frame | |
 | `assembly.scad` | Preview in the box (cut box, lift, turned 4023, card, pile B); `part=` exports one placed piece; poses `-D push=0…1 -D lift_top=97.04` | – |
-| `roller-frame.scad` | Back plate (holds the 4023), bed, 3 ribs | bed down (upside down) |
+| `roller-frame.scad` | Back plate (holds the 4023), bed, 3 ribs (3 mm, a Ø6 boss at each front end for the front plate's screw) | bed down (upside down) |
 | `front-plate.scad` | Front plate: front pins, keeper screws, access holes for the motor screws | outer face down |
 | `drive-drum.scad` | 16T gear + 3 grooves, 2 bearing seats, solid between the pin pockets | standing, gear down |
 | `idler-drum.scad` | 3 grooves, 2 bearing seats, solid between the pin pockets | standing |
@@ -237,14 +237,14 @@ cd parts/tools && uv run python ../dispenser/check_pusher.py # after a pusher, l
 | Qty | Part | Note |
 |---|---|---|
 | 2 | 17HS4401 + Purecrea flexible coupling 8/5 + TR8x8 lead screw + TR8x8 brass nut | The two sets on the shopping list: pusher and lift |
-| 4 | M3×8 socket head | Through the right wall's 5 mm pad into the pusher motor's face (holes ~4.5 deep), from inside |
+| 4 | M3×6 socket head | Through the 3 mm right wall into the pusher motor's face, from inside (M3×8 would bottom out) |
 | 2 | M3×6 socket head | Through the 3 mm floor into the lift motor's face, from inside (M3×8 would bottom out) |
 | 2 | M3×8 | Pusher nut flange to its 3 mm tab (only the 2 holes beside the screw; the tips stick out ~1.5 mm beside the nut) |
 | 4 | M3×12 + nut | Lift nut flange to the tab (Dev's 4 Ø4 holes) |
 
-⚠️ **Cut the pusher's screw to 128 mm** (hacksaw, then file a chamfer so the nut starts cleanly). It reaches from the
-middle of the coupling to 1 mm inside the left wall's outer face. Cut the end that goes into the coupling. The lift's
-screw runs from the coupling to the box top: 151 mm.
+⚠️ **Cut the pusher's screw to 124.5 mm** (hacksaw, then file a chamfer so the nut starts cleanly). It reaches from the
+middle of the coupling to 0.5 mm inside the left wall's outer face. Cut the end that goes into the coupling. The lift's
+screw runs from the coupling to the box top: 152.8 mm.
 
 Screws go into 2.5 mm pilot holes (self-tapping). In the PLA pusher tab drive them by hand and stop when snug: the
 upper hole is 2.75 mm from the tab's top edge.
@@ -373,25 +373,27 @@ them, `case_add()` / `box_cuts()` have to stop adding them, or they're added twi
   at x 75. This also ties the divider's upper block to the lower part.
 - **Pusher guide ridge** (see "How the pusher works") on the divider's top, x 72.1…74.9 (its front face set back
   0.6 at both ends over 1.2 mm), and on both borders' tops, x 0.2…71.8 and 75.2…142.8 (set back over 2 mm).
-- **Pusher notch** in the right wall, 4 mm deep from the inside (1 mm of wall stays), open to the front edge:
-  y −154.4…−40.4 at z 96.74…107.54 (bar), plus y −136.4…−40.4 up to z 133.04 (plate).
-- **Right wall extended forward** around the pusher motor: x 143…148, to y −169.05, z 130.89…177.19, the underside
+- **Pusher notch** through the 3 mm right wall, open to the front edge, a 2 mm skin outside it (x 146…148, z
+  94.74…134.54, to y −36.4, back end 45°): y −154.4…−40.4 at z 96.74…107.54 (bar), plus y −136.4…−40.4 up to z
+  132.54 (plate).
+- **Right wall extended forward** around the pusher motor: x 143…146, to y −169.05, z 133.04…178.84, the underside
   at 45° back to the wall's front edge.
-- **Pusher motor hold:** a wedge on the right wall's outer face under the motor: y −153.9…−137.9, top at z 132.89 (the
-  motor's underside) from x 148 to 188, 3 mm thick there, underside at 45° down to the wall at z 88.89; its back face
+- **Pusher motor hold:** a wedge on the right wall's outer face under the motor: y −153.9…−137.9, top at z 134.54 (the
+  motor's underside, level with the notch skin's top) from x 146 to 186, 3 mm thick there, underside at 45° down to
+  the wall at z 90.54; its back face
   runs at 45° back along the wall to y −96.9.
-- **Holes through the right wall** for the pusher motor: Ø22.6 for the boss at (y, z) = (−145.9, 154.04), 4× Ø3.4 at
-  (−161.4, 138.54), (−130.4, 138.54), (−161.4, 169.54), (−130.4, 169.54).
-- **Screw hole Ø8.6 through the left wall** at (y, z) = (−145.9, 154.04).
+- **Holes through the right wall** for the pusher motor: Ø22.6 for the boss at (y, z) = (−145.9, 155.69), 4× Ø3.4 at
+  (−161.4, 140.19), (−130.4, 140.19), (−161.4, 171.19), (−130.4, 171.19).
+- **Screw hole Ø8.6 through the left wall** at (y, z) = (−145.9, 155.69).
 - **Lift motor under the floor:** in the floor at (x, y) = (109.8, −16.9) a hole Ø22.6 for the boss and 2× Ø3.4 at
   (94.3, −32.4), (125.3, −32.4) (the back 2 would be under the wall). The motor reaches 6.25 mm past the back wall.
-- **Box top cut at z 177.19** (the pusher motor pad's top).
-- **Walls and floor 3 mm** (outer faces at x −3, x 146, y −2, z 2) with 5 mm pads ("Case").
-- **Feet:** 2 rails under the floor, x 0…5 and 143…148, z −40…2, back wall to front edge.
+- **Box top cut at z 178.84** (the pusher motor's wall extension's top).
+- **Walls and floor 3 mm** (outer faces at x −3, x 146, y −2, z 2), no pads ("Case").
+- **Feet:** 2 rails under the floor, 3 mm, x 0…3 and 143…146, z −40…2, back wall to front edge.
 - Horizontal holes (in the case's print direction) are teardrops pointing to the front edge.
 - The spare 17HS4401 + screw + nut at x 354…396 are now the pusher's, and the lift's motor and screw move under the
   floor: the copy drops them and places its own.
-- The pusher motor sticks out 40 mm to the right (x 188) and 13 mm in front of the box (y −167.05), the wall extension 15 mm.
+- The pusher motor sticks out 40 mm to the right (x 186) and 13 mm in front of the box (y −167.05), the wall extension 15 mm.
 
 ## ⚠️ Open: feed stops short
 

@@ -99,7 +99,8 @@ bed_t       = 3;
 frame_x     = [idler_x - 10.5, divider_x - 0.5];
 step_x      = -0.3;          // left of this the frame stands on the table (box floor starts at x 0)
 rib_xs      = [-38, 3, 48];  // ribs under the bed (left faces), along Y; the right one clears drum and belts
-rib_t       = 5;
+rib_t       = thin;
+rib_boss    = [6, 11];       // d, length: around the front plate's screw at each rib's front end (teardrop, merges into the bed)
 cam_window  = [[10, 46], [card_yc + 24, card_yc + 42]];   // keep free: camera looks up at the bottom card
 open_clear  = 0.6;           // around drums and gears in the bed
 
@@ -138,7 +139,9 @@ push_step  = 1;              // lift plate top above the divider top while pushi
 push_lift  = div_top + push_step;      // lift plate top while pushing (firmware) = the plate's lower edge
 push_rest  = 0.3;            // notch floor below push_lift: the plate starts level with the lift, never above it
 push_h     = pile_max;
-push_t     = thin;           // the notch is 3 deep: 2 mm of the wall stay outside, the plate's home stop
+push_t     = thin;           // the notch is 3 deep, through the 3 mm wall: a skin behind it is the plate's home stop
+notch_skin = 2;              // behind the notch, outside the wall; also its rim above, where the motor sits on it
+notch_play = 0.5;            // notch above the plate's top
 push_y     = [card_yc - card[1] / 2 - 4.5, riser_y - 1];   // 0.5 over the lift plate's front edge
 push_cham  = [0.8, 1.5];     // lower edge, push side / return side: ramps over the lift's and the notch's edges
 push_end   = divider_x;      // plate face at the end: plate on the divider, pile at x 9..72 over H's chute
@@ -157,10 +160,10 @@ nut_flange = [22, 3.5];
 nut_pcd    = 16;
 lead       = 8;
 
-// layout: screw axis in the front strip, high enough that the motor's lower screw holes clear the plate's notch
+// layout: screw axis in the front strip; the motor sits on the notch's skin, above the plate
 pu_y       = box_front + 8.5;
-pu_screw_z = push_lift + (pile_max + 22);
-m44_face   = right_wall[1];
+pu_screw_z = push_lift + (push_h + notch_play) + notch_skin + m44_sq / 2;   // motor sits on the notch's skin
+m44_face   = right_wall[0] + wall_t;   // on the thinned wall's outer face
 shaft_tip  = m44_face - m44_shaft[1];
 coup_x     = [shaft_tip - coupling[1] / 2, shaft_tip + coupling[1] / 2];
 bar_h      = 10;
@@ -168,7 +171,7 @@ tab_t      = thin;           // nut tabs (pusher and lift); pushing / the lift's
 nut_x      = [coup_x[0] - 1.5 - nut_len, coup_x[0] - 1.5];   // at home; flange on the right
 tab_x      = [nut_x[1] - nut_flange[1] - tab_t, nut_x[1] - nut_flange[1]];
 bar_x      = [tab_x[0], right_wall[0] + push_t];
-screw_x    = [left_wall[0] + 1, shaft_tip];   // cut the screw to this length
+screw_x    = [left_wall[1] - wall_t + 0.5, shaft_tip];   // cut the screw to this length; turns in the 3 mm left wall
 
 // Guide against turning: a ridge along X on the front strip's tops (border H, divider, border B) runs in a groove in the
 // bar's underside. Turning the plate's far end up moves the bar (57 below the screw) back (+Y): the ridge's front face
@@ -182,13 +185,13 @@ groove_play = [0.2, 1.2];    // front (contact), back: stepping onto the divider
 groove_d    = guide_h + 0.5; // the bar still clears the ridge if it sits 1 lower (on the divider)
 bar_y      = [guide_yf - groove_play[0] - thin, push_y[0]];   // front leg `thin` in front of the groove
 
-// Dev's changes to the box: notch for the carriage at home (open to the front, 4 deep), the wall extended forward
+// Dev's changes to the box: notch for the carriage at home (open to the front, through the wall), the wall extended forward
 // around the motor face, the screw's hole in the left wall
 notch_lo = [[box_front - 1, riser_y], [push_lift - push_rest, push_lift + (bar_h + 0.5)]];
-notch_hi = [[push_y[0] - 0.5, riser_y], [push_lift - push_rest, push_lift + (push_h + 1)]];
+notch_hi = [[push_y[0] - 0.5, riser_y], [push_lift - push_rest, push_lift + (push_h + notch_play)]];
 ext_y    = [pu_y - m44_sq / 2 - 2, box_front];
-ext_z    = [pu_screw_z - m44_sq / 2 - 2, pu_screw_z + m44_sq / 2 + 2];
-box_top  = ext_z[1];         // Dev's box (z 200) cut down to the pusher motor's pad: nothing above it
+ext_z    = [pu_screw_z - m44_sq / 2 - 1.5, pu_screw_z + m44_sq / 2 + 2];   // 1.5 under: 2 would land on the notch top (slivers)
+box_top  = ext_z[1];         // Dev's box (z 200) cut down to the pusher motor's wall extension: nothing above it
 screw_hole = 8.6;
 
 // --- Lift (printed, replaces Dev's) ----------------------------------------------------------------
@@ -224,7 +227,7 @@ pu_hold    = [16, 3];        // pusher motor hold: width (Y), top thickness; 45Â
 
 // --- Case print (case.scad): one piece on its back, borders in front of the piles as slide-in parts ---------------
 feet_h     = m44_body + 2;   // rails under the floor, left and right edge: the lift motor hangs 40 below it
-feet_t     = 5;
+feet_t     = thin;
 insert_fit = 0.2;            // per side, border inserts against walls, divider and gate
 insert_screws_h = [[-146, 78], [-146, 89]];   // border H: (y, z), M3 through the left wall
 insert_screws_b = [[95 - b_shift, -146], [127 - b_shift, -146]];  // border B: (x, y), M3 from below through the floor
