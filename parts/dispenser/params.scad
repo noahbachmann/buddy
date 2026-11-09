@@ -10,15 +10,15 @@ $fn = 96;
 // --- Dev's box (measured in dispenser.stl; change there, then here) ------------------
 floor_top        = 5;
 back_wall        = -5;       // inner face of the back wall
-wall_t           = 4;        // case walls and floor, thinned from Dev's 5 at their outer faces (the divider stays 5:
-                             // gate, slot and the lift's guide)
+wall_t           = 3;        // case walls and floor, thinned from Dev's 5 at their outer faces
 back_out         = back_wall + wall_t;   // back wall's outer face: the case prints on it (case.scad)
 floor_bot        = floor_top - wall_t;   // floor's underside
 divider_x        = 72;       // left face of the divider
 left_wall_bottom = 70;       // left wall ends here, open below
 slot_top         = 66.04;    // underside of the divider's upper block = top of the card slot
 div_low          = 65;       // top of the divider's lower part (the case cuts it lower under the slot: slot_bot)
-divider_t        = 5;
+divider_t        = 3;        // thinned from Dev's 5 at its right face: shorter slot; gates and roller stay put
+divider_x1_dev   = 77;       // the divider's right face as drawn (the case cuts it back to divider_x + divider_t)
 // The roller's back plate and the lift's screw sit `shift` further back than in dispenser.stl (4023 in the back wall,
 // lift nut flange 0.9 mm from the wall).
 shift            = 8.5;
@@ -31,7 +31,7 @@ box_front = card_yc - card[1] / 2 - 23;   // open front edge, 23 in front of the
 slot_y    = [box_front, back_wall];       // the divider slot runs the full depth: open front .. back wall
 card_t  = 0.5;               // sleeved, pressed flat (Dev: < 0.5 pressed, > 1 loose: bow and air in the sleeve). Upper
                              // bound: the gates and the pile flatten the card. ⚠️ exact value: 10 cards pressed / 10
-gap     = 0.65;              // gate opening above the belt (Dev): 1 pressed card (<= 0.5) passes, 2 do not
+gap     = 0.55;              // gate opening above the belt (Dev): 1 pressed card (<= 0.5) passes, 2 do not
 belt_top = slot_top - gap;   // underside of the bottom card
 
 // --- O-ring belts (NBR, bought) ---------------------------------------------------------
@@ -173,6 +173,7 @@ notch_lo = [[box_front - 1, riser_y], [push_lift - push_rest, push_lift + (bar_h
 notch_hi = [[push_y[0] - 0.5, riser_y], [push_lift - push_rest, push_lift + (push_h + 1)]];
 ext_y    = [pu_y - m44_sq / 2 - 2, box_front];
 ext_z    = [pu_screw_z - m44_sq / 2 - 2, pu_screw_z + m44_sq / 2 + 2];
+box_top  = ext_z[1];         // Dev's box (z 200) cut down to the pusher motor's pad: nothing above it
 screw_hole = 8.6;
 
 // --- Lift (printed, replaces Dev's) ----------------------------------------------------------------
@@ -184,8 +185,8 @@ screw_hole = 8.6;
 // turning.
 lift_axis  = [111.8, -25.4 + shift];   // Dev's nut and tab centre (his screw was drawn 0.6 off)
 lift_face  = floor_bot;      // motor face against the floor's underside
-lift_screw_top = 200;        // ends at the box top
-lift_x     = [77.44, 144.44];   // plate: 0.44 to the divider, 0.56 to the right wall (as Dev's)
+lift_screw_top = box_top;    // ends at the box top
+lift_x     = [divider_x + divider_t + 0.44, 144.44];   // plate: 0.44 to the divider, 0.56 to the right wall (as Dev's)
 lift_t     = 4;              // plate thickness
 lift_front = card_yc - card[1] / 2 - 4;   // plate's front edge: plate top 92 long to the slope's foot (Dev's)
 stop_t     = 4;              // slope wall, measured along Y

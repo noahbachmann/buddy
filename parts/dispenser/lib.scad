@@ -126,10 +126,13 @@ module right_gate() {
       translate([0, back_wall + 0.5, 0]) rotate([90, 0, 0]) linear_extrude(back_wall + 0.5 - front_y[0])
         polygon([[gate_in, bar_z], [dx, bar_z], [dx, bar_z + 0.3], [dx + 1, bar_z + 0.3], [dx + 1, div_top - 0.5],
                  [dx - 0.2, div_top - 0.5], [gate_in, gate_top]]);
-      for (yr = [back_y, front_y]) box([gate_in, dx], yr, [leg_z, bar_z + 1.5]);
+      // front leg 0.2 short of the plate's back face: with slit_play + divider_t = 4 the funnel's edge would pass
+      // exactly through its corner at the divider (non-manifold)
+      for (yr = [back_y, [front_y[0], front_y[1] - 0.2]]) box([gate_in, dx], yr, [leg_z, bar_z + 1.5]);
       difference() {   // lip, into both legs above the plates
         translate([0, lip_y[1], 0]) rotate([90, 0, 0]) linear_extrude(lip_y[1] - lip_y[0])
-          polygon(concat([[edge, lip_top], [dx, lip_top], [dx, z45 - (dx - x45)]], arc));
+          // 0.5 into the divider (the slot cut trims it there): its end face would meet the divider's on x = dx
+          polygon(concat([[edge, lip_top], [dx + 0.5, lip_top], [dx + 0.5, z45 - (dx + 0.5 - x45)]], arc));
         // below the legs' underside: over the front plate, and over the bed behind the drum and the back plate
         for (y = [[lip_y[0] - 1, front_y[1]], [drum_y[0], lip_y[1] + 1]]) box([gate_in - 1, dx + 1], y, [0, leg_z]);
       }
@@ -343,10 +346,12 @@ module b_insert() {
     for (s = insert_screws_b) translate([s[0], s[1], floor_top - eps]) cylinder(d = screw_pilot, h = 10);
   }
 }
-// Dev's box as drawn, its front cut back, walls and floor thinned to wall_t
+// Dev's box as drawn, its front and top cut back, walls and floor thinned to wall_t, divider to divider_t
 module box_trimmed() difference() {
   import("ref/box.stl");
   box([left_wall[0] - 1, right_wall[1] + 1], [box_front - 20, box_front], [-1, 201]);
+  box([left_wall[0] - 1, right_wall[1] + 1], [box_front - 1, 1], [box_top, 201]);
+  box([slit_x1, divider_x1_dev + 0.5], [box_front - 1, back_wall], [floor_top, div_top + 1]);
   wall_thinning();
 }
 // From the outside: floor from below, back wall from behind, the side walls from their outer faces. Pads stay 5 thick
