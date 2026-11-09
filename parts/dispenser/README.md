@@ -143,9 +143,9 @@ the lift in place and the 4023 turned. It also holds bought parts as stand-ins (
   edge (y −40.4) and leans back 8 mm up to the tab (~10°), so a card dropping onto a low lift slides down into place;
   it is a 3 mm wall (along Y), its back face leaning like the front;
   from the front it narrows upwards along straight sides from the plate's full width to the tab's 28 mm. The nut
-  connection is Dev's as drawn, but the tab is 3 mm (his: 5): round end (r 10.5), Ø10.2 hole for the nut's spigot, 4× Ø4 on a
-  16 mm square, the nut's flange against the tab's underside. Lowest plate position z 29.29 (a 35 mm pile under the
-  lip); the nut is then at z 59.8…74.8, far above the coupling.
+  connection is Dev's as drawn, but the tab is 3 mm (his: 5): round end (r 10.5), Ø10.2 hole for the screw, 4× Ø4 on a
+  16 mm square, the printed nut's flange against the tab's underside, body hanging below. Lowest plate position z 29.29
+  (a 35 mm pile under the lip); the nut is then at z 58.3…73.3, far above the coupling.
 - **Front border (`border-b`, slides in):** in front of the lift plate, from the divider to the right wall, floor to
   the divider's top (z 96.04), filling the front strip to the box front. Its inner face is vertical 0.5 mm in front of
   the plate (y −135.9) up to the plate's lowest top (z 29.29), then leans forward at the slope's angle to y −142.0 at
@@ -210,6 +210,7 @@ STLs and `parts/cad render dispenser` for the sheets (`parts/CLAUDE.md`).
 | `border-h.scad`, `border-b.scad` | Front borders of piles H and B, slide in from the front | on their end (as in the file) |
 | `pusher.scad` | Pusher carriage: plate, bar, nut tab | as placed, bottom down |
 | `lift.scad` | Lift: plate, slope, Dev's nut tab (replaces Dev's lift) | as placed, plate down, support under the tab |
+| `tr8-nut.scad` | TR8x8 nut (4 starts), 2×: pusher and lift. Brass nut's flange and bolt circle, flange at one end, body Ø11 | flange down |
 | `make_copy.py` | `ref/` (box, lift, 4023 from `dispenser.stl`) + `dispenser-roller.stl` (case, roller, pusher, lift, lift motor under the floor) | – |
 | `check_pusher.py` | Collisions over the pusher's stroke with the lift at push height and a full pile, and of the lift with its nut (lowest, 2 between, push height) with the box, the pusher at home and its own motor and coupling | – |
 
@@ -236,7 +237,7 @@ cd parts/tools && uv run python ../dispenser/check_pusher.py # after a pusher, l
 
 | Qty | Part | Note |
 |---|---|---|
-| 2 | 17HS4401 + Purecrea flexible coupling 8/5 + TR8x8 lead screw + TR8x8 brass nut | The two sets on the shopping list: pusher and lift |
+| 2 | 17HS4401 + Purecrea flexible coupling 8/5 + TR8x8 lead screw | The two sets on the shopping list: pusher and lift. Nuts printed (`tr8-nut.scad`) |
 | 4 | M3×6 socket head | Through the 3 mm right wall into the pusher motor's face, from inside (M3×8 would bottom out) |
 | 2 | M3×6 socket head | Through the 3 mm floor into the lift motor's face, from inside (M3×8 would bottom out) |
 | 2 | M3×8 | Pusher nut flange to its 3 mm tab (only the 2 holes beside the screw; the tips stick out ~1.5 mm beside the nut) |
@@ -275,8 +276,12 @@ upper hole is 2.75 mm from the tab's top edge.
   47 mm up). Auto support catches only the tab. Every other side down either stands the 3 mm plate on its edge or
   turns the slope's sides past 45°.
 - Pusher carriage: as it sits in the box, bottom down: the plate's lower edge, the one that slides, comes out of the
-  bed flat, and the chamfers take the elephant foot. No supports, the nut hole is a teardrop. Every other side down puts
-  the tab or the plate in mid-air.
+  bed flat, and the chamfers take the elephant foot. No supports, the nut hole is a teardrop with its tip cut flat (a
+  full tip would cut into the upper screw hole). Every other side down puts the tab or the plate in mid-air.
+- **TR8 nuts (2×): PETG**, flange down, 0.12 mm, 4 walls (the 1.3 mm under the thread root is all perimeters), no
+  supports. PETG, not PLA: it wears less on the steel screw. Test on the screw by hand before assembly: it should turn
+  along the whole screw without binding and without wobble. Binds → `nut_slop` + 0.05, wobbles → − 0.05 (per side,
+  `params.scad`) ⚠️ untested. A printed nut drags more than brass: set the pusher's StallGuard threshold with these nuts.
 
 ## Assembly
 
@@ -303,15 +308,15 @@ from the left, and everything else follows from behind and from the front.
    bearing) and fit the 2 keeper screws with washers.
 
 **Lift:** motor under the floor (boss into the floor's hole, 2× M3×6 from inside), coupling on the shaft inside the
-box (z 13.5…38.5), tighten the 5 mm side. Nut under the lift's tab, spigot up into the tab's hole, flange against
-the tab, 4× M3×12 + nuts. Outside the box, turn the
+box (z 13.5…38.5), tighten the 5 mm side. Nut under the lift's tab, flange against the tab, body down, 4× M3×12 +
+nuts. Outside the box, turn the
 screw through the nut (the lift can't turn once it's in). Lower lift and screw in together, screw end into the
 coupling, tighten the 8 mm side.
 
 **Pusher:**
 
 1. **Motor:** coupling on the shaft (its middle at the shaft's tip, 24 mm from the face), tighten the 5 mm side.
-   Motor onto the right wall's outer face, boss in the wall's hole, 4× M3×8 from inside the box.
+   Motor onto the right wall's outer face, boss in the wall's hole, 4× M3×6 from inside the box.
 2. **Nut:** flange onto the tab's right face (towards the motor), body through the tab, 2× M3×8.
 3. **Carriage in:** borders in, lift at push height (turn its screw by hand). The ridge is in the way of sliding the
    carriage straight into the notch, so put it in halfway along instead (plate over the lift, around x 100): from the

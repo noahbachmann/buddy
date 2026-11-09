@@ -2,6 +2,7 @@
 // Part files include this and turn their piece into print orientation.
 include <BOSL2/std.scad>
 include <BOSL2/gears.scad>
+include <BOSL2/threading.scad>
 include <params.scad>
 
 eps = 0.01;
@@ -26,9 +27,13 @@ rib_bot = drum_z - cord_c + cord_s / 2 + 1.5;              // 1.5 above the belt
 
 // --- Helpers --------------------------------------------------------------------------
 // Teardrop for a horizontal hole: point towards +Z (tip = 1) or -Z (tip = -1).
-module teardrop2d(d, tip = 0) {
+// flat: tip cut off at the circle's top (short bridge), where something sits right above the hole
+module teardrop2d(d, tip = 0, flat = false) {
   if (tip == 0) circle(d = d);
-  else rotate(tip < 0 ? 180 : 0) hull() { circle(d = d); rotate(45) square(d / 2); }
+  else rotate(tip < 0 ? 180 : 0) intersection() {
+    hull() { circle(d = d); rotate(45) square(d / 2); }
+    if (flat) translate([-d, -d]) square([2 * d, 1.5 * d]);
+  }
 }
 // Hole along Z from z0 to z1 at (x, y), teardrop towards -Y: up when the case prints on its back.
 module hole_z(x, y, d, z0, z1) translate([x, y, z0]) linear_extrude(z1 - z0) rotate(180) teardrop2d(d, 1);
@@ -246,8 +251,8 @@ module motor_4023() motor_tf() translate([-35, 25, -28.4]) import("ref/m4023.stl
 // === Pusher ======================================================================================
 // Hole along X from x0 to x1, centre (y, z); tip = 1: teardrop pointing up (+Z), front: to -Y instead (the case's
 // print direction).
-module hole_x(y, z, d, x0, x1, tip = 0, front = false)
-  translate([x0, y, z]) rotate([0, 90, 0]) linear_extrude(x1 - x0) rotate(front ? 180 : 90) teardrop2d(d, front ? 1 : tip);
+module hole_x(y, z, d, x0, x1, tip = 0, front = false, flat = false)
+  translate([x0, y, z]) rotate([0, 90, 0]) linear_extrude(x1 - x0) rotate(front ? 180 : 90) teardrop2d(d, front ? 1 : tip, flat);
 
 // Plate side profile (x, z): chamfered lower edge, sharp-ish on the push side to catch the bottom card
 function pu_profile(h = push_h) = let(b = push_lift, t = push_lift + h, x0 = right_wall[0], x1 = right_wall[0] + push_t,
@@ -288,7 +293,8 @@ module pusher(push = 0) translate([-push * push_stroke, 0, 0]) difference() {
   box([bar_x[0] - 1, bar_x[1] + 1], [hy[0], guide_yb() + groove_play[1]], [b - 1, b + groove_d]);   // groove under tab, end
   box([tab_x[1], tab_x[1] + 16], hy, [b + bar_h, b + (bar_h + 16)]);
   // nut through the tab, flange screwed to its right face (pushing presses the flange onto the tab)
-  hole_x(pu_y, pu_screw_z, nut_d + 0.4, tab_x[0] - eps, tab_x[1] + eps, 1);
+  hole_x(pu_y, pu_screw_z, nut_d + 0.4, tab_x[0] - eps, tab_x[1] + eps, 1, flat = true);   // full tip would cut into the upper pilot
+  assert(nut_pcd / 2 - 1.5 - (nut_d + 0.4) / 2 >= 0.75, "pusher tab: too little between the nut hole and the M3 threads");
   for (s = [-1, 1]) hole_x(pu_y, pu_screw_z + s * nut_pcd / 2, screw_pilot, tab_x[0] - eps, tab_x[1] + eps);
 }
 
@@ -513,8 +519,21 @@ module lift_part(top) {
       translate([ax[0] + o[0], ax[1] + o[1], zt - 1]) cylinder(d = lift_holes[1], h = tab_t + 2);
   }
 }
-// Dev's nut position: flange against the tab's underside, spigot up in its hole, body hanging below
-module lift_nut(top) translate([lift_axis[0], lift_axis[1], top + stop_h - tab_t]) {
-  translate([0, 0, -nut_flange[1]]) cylinder(d = nut_flange[0], h = nut_flange[1]);
-  translate([0, 0, -(nut_len - nut_spigot)]) cylinder(d = nut_d, h = nut_len);
+// flange against the tab's underside, body hanging below (the tab's Ø10.2 hole stays empty: the screw centres the nut)
+module lift_nut(top) translate([lift_axis[0], lift_axis[1], top + stop_h - tab_t]) mirror([0, 0, 1]) nut_outside();
+
+// --- TR8x8 nut, printed: flange at z 0..3.5, body up to nut_len, axis = Z. Flange down on the bed. ---------
+// Outside only (stand-in for the checks: no thread, no holes)
+module nut_outside() {
+  cylinder(d = nut_flange[0], h = nut_flange[1]);
+  cylinder(d = nut_d, h = nut_len);
+}
+module tr8_nut() difference() {
+  nut_outside();
+  // internal thread: BOSL2 adds 4 $slop to the diameter, so nut_slop / 2 = nut_slop per side; bevel = lead-in
+  translate([0, 0, nut_len / 2]) let($slop = nut_slop / 2)
+    trapezoidal_threaded_rod(d = 8, l = nut_len + 2 * eps, pitch = lead / nut_starts, thread_angle = 30,
+                             starts = nut_starts, internal = true, bevel = true, $fn = 64);
+  // 4 × M3 on the bolt circle: pusher uses the 2 beside the screw (z ±8), lift all 4 (x/y ±8)
+  for (a = [0 : 90 : 270]) rotate(a) translate([nut_pcd / 2, 0, -eps]) cylinder(d = screw_clear, h = nut_flange[1] + 2 * eps);
 }

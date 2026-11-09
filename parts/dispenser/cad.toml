@@ -12,3 +12,4 @@ assembly = "assembly.scad"
 [parts.case]
 [parts.border-h]
 [parts.border-b]
+[parts.tr8-nut]

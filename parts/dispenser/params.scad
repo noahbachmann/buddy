@@ -147,17 +147,21 @@ push_cham  = [0.8, 1.5];     // lower edge, push side / return side: ramps over 
 push_end   = divider_x;      // plate face at the end: plate on the divider, pile at x 9..72 over H's chute
 push_stroke = right_wall[0] - push_end;
 
-// bought: 17HS4401 (42 x 42 x 40), Purecrea flexible coupling 8/5, TR8x8 lead screw + brass nut
+// bought: 17HS4401 (42 x 42 x 40), Purecrea flexible coupling 8/5, TR8x8 lead screw. Nut printed (tr8-nut.scad):
+// the brass nut's flange and bolt circle, flange at one end (no spigot), body 11 (brass 10.2: only 0.9 of PETG
+// would be left under the thread root, 11 leaves 1.3)
 m44_sq     = 42.3;
 m44_body   = 40;
 m44_boss   = [22, 2];
 m44_shaft  = [5, 24];        // from the face
 m44_holes  = 31;
 coupling   = [19, 25];       // diameter, length (half on the shaft, half on the screw)
-nut_d      = 10.2;           // TR8 brass nut: body, length incl. flange, flange, screw circle
+nut_d      = 11;             // TR8 nut: body, length incl. flange, flange, screw circle
 nut_len    = 15;
 nut_flange = [22, 3.5];
 nut_pcd    = 16;
+nut_starts = 4;              // TR8x8: pitch 2, 4 starts = 8 per turn
+nut_slop   = 0.2;            // thread gap per side, PETG on the steel screw. ⚠️ tune: binds → up, wobbles → down
 lead       = 8;
 
 // layout: screw axis in the front strip; the motor sits on the notch's skin, above the plate
@@ -213,7 +217,6 @@ stop_lean  = 8;              // the slope's front face leans back this much over
 stop_w     = 28;             // at the top (Dev's tab width), centred on the screw
 lift_tab_r = 10.5;           // Dev's tab: round end around the nut
 lift_holes = [10.2, 4, 8];   // Dev's tab: nut spigot hole, 4 screw holes at ±8 in X and Y
-nut_spigot = 1.54;           // TR8 nut: body above the flange (Dev's), up in the tab's hole
 lift_min   = (belt_top - lip_drop) - pile_max - 0.5;   // lowest plate top: a full pile under the slot
 lift_tab_y = lift_axis[1] + lift_tab_r;   // tab's back edge (Dev's), 1.4 to the back wall
 border_t   = 4;              // front border of pile B (box) at the top, floor .. div_low
