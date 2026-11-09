@@ -267,7 +267,7 @@ the frame being pulled flat onto the floor; the left wall and the gate's legs le
 | Front pins | Pushed through the front plate into the bearings by hand, flush with the outer face; the press fit holds them (no keepers). They come off with the plate | `pin_press_d` |
 | Borders H, B | 4 printed pins (`border-pin`): head outside, through the case's Ø3.4 screw holes into the border. The case is unchanged | H: `fit_press` (vertical), B: `fit_press_h` |
 
-**Fit test first** (`plates/0-fit-test.stl`, PETG 0.2 mm, ~15 min). Holes 1…6 count from the chamfered corner:
+**Fit test first** (`plates/0-fit-test.stl`, PETG 0.2 mm, 10 % infill, ~15 min). Holes 1…6 count from the chamfered corner:
 
 | Hole | 1 | 2 | 3 | 4 | 5 | 6 |
 |---|---|---|---|---|---|---|
@@ -290,7 +290,7 @@ parts (for reprints, e.g. only the left gate). `parts/cad plate dispenser` rebui
 
 | Plate | Parts | Filament | Settings (rest: Bambu's preset) |
 |---|---|---|---|
-| `0-fit-test.stl` | fit test, 2 test pins: **print first** ("Printed joints") | PETG | 0.20 mm, 4 walls, 15 %, no supports |
+| `0-fit-test.stl` | fit test, 2 test pins: **print first** ("Printed joints") | PETG | 0.20 mm, 4 walls, 10 %, no supports |
 | `1-petg-fine.stl` | drive drum, idler drum, motor gear, left gate, pusher nut, lift nut, 4 border pins | PETG | 0.12 mm, 4 walls, 15 %, no supports, **brim: outer only** (the drums stand 107 mm on Ø15–18) |
 | `2-petg.stl` | roller frame, front plate, border H, border B: **after the fit test** | PETG | 0.20 mm, 4 walls, 15 %, no supports |
 | `3-pla.stl` | pusher, lift (+ its support): **after the fit test** | PLA | 0.20 mm, 4 walls, 15 %, **no supports**: the lift's is in the file |
