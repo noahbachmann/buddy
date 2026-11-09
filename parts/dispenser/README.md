@@ -144,9 +144,9 @@ the lift in place and the 4023 turned. It also holds bought parts as stand-ins (
   edge (y −40.4) and leans back 8 mm up to the tab (~10°), so a card dropping onto a low lift slides down into place;
   it is a 3 mm wall (along Y), its back face leaning like the front;
   from the front it narrows upwards along straight sides from the plate's full width to the tab's 28 mm. The nut
-  connection is Dev's as drawn, but the tab is 3 mm (his: 5): round end (r 10.5), Ø10.2 hole for the screw, 4× Ø4 on a
-  16 mm square, the printed nut's flange against the tab's underside, body hanging below. Lowest plate position z 29.29
-  (a 35 mm pile under the lip); the nut is then at z 58.3…73.3, far above the coupling.
+  connection is Dev's as drawn, but the tab is 3 mm (his: 5): round end (r 10.5), Ø10.2 hole for the screw, the
+  printed nut's flange against the tab's underside with its 4 pegs in the tab (16 mm square), body hanging below.
+  Lowest plate position z 29.29 (a 35 mm pile under the lip); the nut is then at z 58.3…73.3, far above the coupling.
 - **Front border (`border-b`, slides in):** in front of the lift plate, from the divider to the right wall, floor to
   the divider's top (z 96.04), filling the front strip to the box front. Its inner face is vertical 0.5 mm in front of
   the plate (y −135.9) up to the plate's lowest top (z 29.29), then leans forward at the slope's angle to y −142.0 at
@@ -172,7 +172,8 @@ the lift in place and the 4023 turned. It also holds bought parts as stand-ins (
   each would be a 68 mm roof with nothing under it. Supporting them would need 90–130 mm tall trees through the piles'
   space, H's standing on its back border's card face. Printed separately on their ends, the card face is a plain wall. Each fills the
   front strip in front of its pile, flush with the box front, and has a stop: border H's step against the right gate's
-  front face (y −141.4), border B's lip over the floor's front edge. 0.2 mm play per side; 2 M3 each hold them.
+  front face (y −141.4), border B's lip over the floor's front edge. 0.2 mm play per side; 2 printed pins each hold them
+  ("Printed joints").
 - **Walls 3 mm** (Dev's are 5), thinned from the outside so every inner face stays where it was; the floor too (its
   underside at z 2). The divider is 3 (Dev, x 72…75), cut back at its right face: the slot a card runs through is 2 mm
   shorter, and the left face (gates, lip, roller) stays put; everything right of it (right wall, lift, both motors, pusher, border B) moves 2 mm
@@ -202,7 +203,7 @@ STLs and `parts/cad render dispenser` for the sheets (`parts/CLAUDE.md`).
 | `lib.scad` | Geometry of every piece, placed in the box frame | |
 | `assembly.scad` | Preview in the box (cut box, lift, turned 4023, card, pile B); `part=` exports one placed piece; poses `-D push=0…1 -D lift_top=97.04` | – |
 | `roller-frame.scad` | Back plate (holds the 4023), bed, 3 ribs (3 mm, a Ø6 boss at each front end for the front plate's screw) | bed down (upside down) |
-| `front-plate.scad` | Front plate: front pins, keeper screws, access holes for the motor screws | outer face down |
+| `front-plate.scad` | Front plate: 3 pegs into the rib ends, front pins pressed in, access holes for the motor screws | outer face down |
 | `drive-drum.scad` | 16T gear + 3 grooves, 2 bearing seats, solid between the pin pockets | standing, gear down |
 | `idler-drum.scad` | 3 grooves, 2 bearing seats, solid between the pin pockets | standing |
 | `motor-gear.scad` | 20T, D-bore for the 4023's shaft, M3 set screw + nut slot | gear down |
@@ -212,7 +213,10 @@ STLs and `parts/cad render dispenser` for the sheets (`parts/CLAUDE.md`).
 | `pusher.scad` | Pusher carriage: plate, bar, nut tab | as placed, bottom down |
 | `lift.scad` | Lift: plate, slope, Dev's nut tab (replaces Dev's lift) | as placed, plate down |
 | `lift-support.scad` | Breakaway grid under the lift's tab, in the lift's coordinates: only in plate 3 | with the lift |
-| `tr8-nut.scad` | TR8x8 nut (4 starts), 2×: pusher and lift. Brass nut's flange and bolt circle, flange at one end, body Ø11 | flange down |
+| `pusher-nut.scad` | TR8x8 nut (4 starts) of the pusher: brass nut's flange, body Ø11, 2 pegs into the tab | flange down |
+| `lift-nut.scad` | TR8x8 nut of the lift: body Ø11, 45° cone up to the flange, 4 pegs into the tab | body down |
+| `border-pin.scad` | Pin with a head, 4×: holds the borders through the case's screw holes | head down |
+| `fit-test.scad` | Fit test for the printed joints: peg holes (vertical, horizontal), steel pin holes | as in the file |
 | `plates/` | Print jobs: `cad.toml` → `[plates]`, built by `parts/cad plate dispenser` ("Print") | as in the file |
 | `make_copy.py` | `ref/` (box, lift, 4023 from `dispenser.stl`) + `dispenser-roller.stl` (case, roller, pusher, lift, lift motor under the floor) | – |
 | `check_pusher.py` | Collisions over the pusher's stroke with the lift at push height and a full pile, and of the lift with its nut (lowest, 2 between, push height) with the box, the pusher at home and its own motor and coupling | – |
@@ -231,28 +235,52 @@ cd parts/tools && uv run python ../dispenser/check_pusher.py # after a pusher, l
 | 4 | Dowel pin Ø5 × 20 mm, ISO 8734 (hardened, m6), RS PRO | One per bearing, bought ready-made: nothing to cut (#57). Fixed: the drums turn on their bearings |
 | 3 | M3×6 socket head | 4023 to the back plate (the 4th hole would cut into the drive pin's hole) |
 | 1 | M3×5 set screw + M3 nut | Motor gear onto the shaft's flat (5 mm from the flat to the hub surface: flush) |
-| 2 | M3×6 + M3 washer | Pin keepers on the front plate (the washer covers the pin end) |
-| 3 | M3×12 | Front plate into the rib ends |
-| 4 | M3×12 | Frame to the box floor, from below |
-| 4 | M3×12 | Border inserts: 2 through the left wall into border H, 2 from below through the floor into border B |
+| 4 | M3×12 | Frame and front plate to the box floor, from below (2 each): they set the belt height, so screws, not pegs |
 
 **Pusher and lift motor**
 
 | Qty | Part | Note |
 |---|---|---|
-| 2 | 17HS4401 + Purecrea flexible coupling 8/5 + TR8x8 lead screw 200 mm | The two sets on the shopping list: pusher and lift. Screws uncut, nuts printed (`tr8-nut.scad`) |
+| 2 | 17HS4401 + Purecrea flexible coupling 8/5 + TR8x8 lead screw 200 mm | The two sets on the shopping list: pusher and lift. Screws uncut, nuts printed (`pusher-nut.scad`, `lift-nut.scad`) |
 | 4 | M3×6 socket head | Through the 3 mm right wall into the pusher motor's face, from inside (M3×8 would bottom out) |
 | 2 | M3×6 socket head | Through the 3 mm floor into the lift motor's face, from inside (M3×8 would bottom out) |
-| 2 | M3×8 | Pusher nut flange to its 3 mm tab (only the 2 holes beside the screw; the tips stick out ~1.5 mm beside the nut) |
-| 4 | M3×12 + nut | Lift nut flange to the tab (Dev's 4 Ø4 holes) |
 
 **Both screws are 200 mm, not cut** (stock length). Each goes into its coupling up to the motor shaft's tip. The
 pusher's then sticks out of the left wall by 75 mm (x −78…−3, at y −145.9, z 155.69), the lift's 47 mm above the box
 top (z 178.8…226, at x 109.8, y −16.9). ⚠️ Both turn while the dispenser runs: keep cables, hair and fingers away from
 the ends; nothing may be mounted there.
 
-Screws go into 2.5 mm pilot holes (self-tapping). In the PLA pusher tab drive them by hand and stop when snug: the
-upper hole is 2.75 mm from the tab's top edge.
+Screws into printed parts go into 2.5 mm pilot holes (self-tapping): only the 4 frame screws are left (#63).
+
+## Printed joints
+
+Instead of screws wherever a joint only locates or carries a light load (#63). Every peg is Ø3 (`peg_d`) with a
+chamfered tip; the holes take their fit from the fit test (below). Screws stay where something must be clamped: the
+motors, the motor gear's set screw, and the roller's 4 floor screws (the belt height and with it the 0.55 gap depend on
+the frame being pulled flat onto the floor; the left wall and the gate's legs leave it 0.3 mm to lift).
+
+| Joint | How | Fit |
+|---|---|---|
+| Lift nut → lift tab | 4 pegs on the flange's top into the tab (Ø3 holes at ±8). The screw pushes the nut up into the tab, the lift's weight keeps it there; the pegs only stop it turning | `fit_press` (vertical) |
+| Pusher nut → pusher tab | 2 pegs on the flange's tab side (above and below the screw). Pushing presses the flange onto the tab; the pressed pegs carry the light return stroke. No clip: a groove for one would cut into the nut's 1.3 mm wall under the thread | `fit_press_h` (horizontal, flat-topped teardrops) |
+| Front plate → rib ends | 3 pegs, 5 long, into sockets in the rib bosses. They locate the plate; its 2 floor screws hold it | `fit_slip_h` (horizontal in the frame) |
+| Front pins | Pushed through the front plate into the bearings by hand, flush with the outer face; the press fit holds them (no keepers). They come off with the plate | `pin_press_d` |
+| Borders H, B | 4 printed pins (`border-pin`): head outside, through the case's Ø3.4 screw holes into the border. The case is unchanged | H: `fit_press` (vertical), B: `fit_press_h` |
+
+**Fit test first** (`plates/0-fit-test.stl`, PETG 0.2 mm, ~15 min). Holes 1…6 count from the chamfered corner:
+
+| Hole | 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|
+| Peg holes, gap per side (`fit_steps`) | −0.05 | 0 | +0.05 | +0.10 | +0.15 | +0.20 |
+| Steel pin holes, Ø (`pin_steps`) | 4.85 | 4.90 | 4.95 | 5.00 | 5.05 | 5.10 |
+
+Try one of the two printed pins in every hole of the 3 mm base (vertical holes) and of the standing wall (horizontal):
+- **press** = the tightest hole the pin goes into fully by thumb, and stays in when you turn the part over;
+- **slip** = the tightest hole it slides into and out of freely without wobbling.
+
+Same with a Ø5 dowel pin in the 6 mm block: the tightest hole it goes into by firm hand pressure. Tell Claude the
+five hole numbers (press and slip, vertical and horizontal; pin): they go into `params.scad`, plates 2 and 3 are
+rebuilt. Until then the values are guesses ⚠️. The pegs themselves don't change, so plate 1 can print right away.
 
 ## Print (Bambu X2D)
 
@@ -262,9 +290,10 @@ parts (for reprints, e.g. only the left gate). `parts/cad plate dispenser` rebui
 
 | Plate | Parts | Filament | Settings (rest: Bambu's preset) |
 |---|---|---|---|
-| `1-petg-fine.stl` | drive drum, idler drum, motor gear, left gate, 2× TR8 nut | PETG | 0.12 mm, 4 walls, 15 %, no supports, **brim: outer only** (the drums stand 107 mm on Ø15–18) |
-| `2-petg.stl` | roller frame, front plate, border H, border B | PETG | 0.20 mm, 4 walls, 15 %, no supports |
-| `3-pla.stl` | pusher, lift (+ its support) | PLA | 0.20 mm, 4 walls, 15 %, **no supports**: the lift's is in the file |
+| `0-fit-test.stl` | fit test, 2 test pins: **print first** ("Printed joints") | PETG | 0.20 mm, 4 walls, 15 %, no supports |
+| `1-petg-fine.stl` | drive drum, idler drum, motor gear, left gate, pusher nut, lift nut, 4 border pins | PETG | 0.12 mm, 4 walls, 15 %, no supports, **brim: outer only** (the drums stand 107 mm on Ø15–18) |
+| `2-petg.stl` | roller frame, front plate, border H, border B: **after the fit test** | PETG | 0.20 mm, 4 walls, 15 %, no supports |
+| `3-pla.stl` | pusher, lift (+ its support): **after the fit test** | PLA | 0.20 mm, 4 walls, 15 %, **no supports**: the lift's is in the file |
 | `stl/case.stl` | case (a plate of its own) | PETG | 0.20 mm, 4 walls, 15 %, no supports, textured PEI |
 
 Why these settings:
@@ -299,7 +328,11 @@ Why these settings:
 - Lift: plate down. Every other side down either stands the 3 mm plate on its edge or turns the slope's sides past 45°.
 - Pusher carriage: as it sits in the box, bottom down: the plate's lower edge, the one that slides, comes out of the
   bed flat, and the chamfers take the elephant foot. The nut hole is a teardrop with its tip cut flat (a full tip
-  would cut into the upper screw hole). Every other side down puts the tab or the plate in mid-air.
+  would cut into the upper peg hole). Every other side down puts the tab or the plate in mid-air.
+- **Lift nut: body down.** Its pegs face the tab, which is above the flange, so they have to print upward: the flange
+  sits on a 45° cone. It stands on a 26 mm² ring, 18 mm tall: plate 1's brim holds it.
+- **Fit test (plate 0) at 0.20 like plates 2 and 3**, whose holes it tunes. The lift and pusher are PLA: their holes
+  get the PETG values, PLA prints holes a little larger ⚠️.
 - **TR8 nuts: PETG**, not PLA: it wears less on the steel screw. Test each on the screw by hand before assembly: it
   should turn along the whole screw without binding and without wobble. Binds → `nut_slop` + 0.05, wobbles → − 0.05
   (per side, `params.scad`) ⚠️ untested. A printed nut drags more than brass: set the pusher's StallGuard threshold
@@ -311,8 +344,9 @@ The 4023 sits in the back wall and the right gate (case) is above the frame's ri
 from the left, and everything else follows from behind and from the front.
 
 0. **Borders** (any time): border B over the floor from the front until its lip stops at the floor's front edge,
-   2× M3×12 from below. Border H from the front between the left wall and the right gate until its step stops at the
-   gate's front face, 2× M3×12 through the left wall from outside.
+   2 border pins from below through the floor's holes, pressed in by thumb. Border H from the front between the left
+   wall and the right gate until its step stops at the gate's front face, 2 border pins through the left wall from
+   outside. To take a border out, pull its pins by the heads (pliers).
 
 1. **Bearings:** press 2 685ZZ into each drum, pushing only on the outer race.
 2. **Frame into the box:** left gate pressed into its sockets first. Slide the frame in from the open left side, under
@@ -325,13 +359,14 @@ from the left, and everything else follows from behind and from the front.
 5. **Drums:** drop the 2 back pins into the back plate's blind holes, then slide the drums onto them from the front with
    the drive drum's gear at the back, meshing. The drive drum passes under the right gate's lip and front leg.
 6. **Belts:** slide the 3 O-rings over both drums from the front, into the grooves. They pass over the bed and the ribs.
-7. **Front plate:** onto the rib ends, 3× M3×12, 2× M3×12 from below through the floor. Then push the 2 front pins
-   through its holes into the front bearings (an m6 pin can be snug in the bearing: press it in, never hammer through a
-   bearing) and fit the 2 keeper screws with washers.
+7. **Front plate:** its 3 pegs into the rib ends, 2× M3×12 from below through the floor. Then push the 2 front pins
+   through its holes into the front bearings until flush with the plate's outer face (firm hand pressure: the plate
+   holds them by press fit; never hammer through a bearing). For new O-rings: floor screws out, pull the plate off,
+   the pins come with it.
 
 **Lift:** motor under the floor (boss into the floor's hole, 2× M3×6 from inside), coupling on the shaft inside the
-box (z 13.5…38.5), tighten the 5 mm side. Nut under the lift's tab, flange against the tab, body down, 4× M3×12 +
-nuts. Outside the box, turn the
+box (z 13.5…38.5), tighten the 5 mm side. Nut under the lift's tab, flange up, its 4 pegs pressed into the tab's holes, body
+down. Outside the box, turn the
 screw through the nut (the lift can't turn once it's in). Lower lift and screw in together, screw end into the
 coupling, tighten the 8 mm side.
 
@@ -339,7 +374,7 @@ coupling, tighten the 8 mm side.
 
 1. **Motor:** coupling on the shaft (its middle at the shaft's tip, 24 mm from the face), tighten the 5 mm side.
    Motor onto the right wall's outer face, boss in the wall's hole, 4× M3×6 from inside the box.
-2. **Nut:** flange onto the tab's right face (towards the motor), body through the tab, 2× M3×8.
+2. **Nut:** body through the tab from the right (motor side), its 2 pegs pressed into the tab's holes above and below.
 3. **Carriage in:** borders in, lift at push height (turn its screw by hand). The ridge is in the way of sliding the
    carriage straight into the notch, so put it in halfway along instead (plate over the lift, around x 100): from the
    front, held ~3 mm high, then set down with the groove over the ridge and the plate on the lift. Hold it there.
@@ -379,11 +414,11 @@ them, `case_add()` / `box_cuts()` have to stop adding them, or they're added twi
   y −39.9 at the bottom leaning back to y −35.55 at the top, solid back to the back wall.
 - **Front borders: separate parts** (`border-h`, `border-b`), each filling the front strip to the box front:
   - H: x 0.2…71.8, z 70.5…96.04, inner face from y −131.9 at the bottom leaning forward to y −136.25 at the top;
-    beside the right gate (y > −141.6) it stops 0.2 short of the gate's bar and wedge. 2 pilot holes from the left
+    beside the right gate (y > −141.6) it stops 0.2 short of the gate's bar and wedge. 2 pin holes from the left
     face at (y, z) = (−146, 78), (−146, 89).
   - B: x 75.2…142.8, z 5…96.04, inner face at y −135.9 up to z 29.29, then leaning forward to y −142.0 at z 65,
     vertical above; a lip
-    2 mm thick down the floor's front edge (z 2.5…10). 2 pilot holes from below at (x, y) = (93, −146), (125, −146).
+    2 mm thick down the floor's front edge (z 2.5…10). 2 pin holes from below at (x, y) = (93, −146), (125, −146).
 - **4023 in the back wall:** window through the wall at x 28.55…71.45, z 22.39…64.99 (the motor + 0.3, its floor
   flush with the motor's underside). Hold under the motor: a block x 28.85…71.15, y −20.2…−2 (from 0.3 behind the
   frame's back plate to the wall's outer face; the motor's last 5 mm stick out behind it), z 2…22.39. Cable channel
@@ -447,6 +482,10 @@ but then two cards sit in the slot. No roller left of the divider can push furth
 - Pile H's back edge is 5.9 mm in front of the drum gear, whose tips reach 0.6 mm above the belts (y −34.5…−27.5,
   x ~59…65). Nothing positions H in Y: a card placed more than 5.9 mm toward the back rubs on the turning gear.
 - The 685ZZ press fit (`press`; only 1.7 mm wall at the idler's ends, ~1.2 mm under the drive drum's gear roots: if the gear ring cracks or the mesh binds after pressing, lower `press`), the 5.2 mm pin holes and the printed gear mesh (`gear_slack`, `gear_backlash`) need a test print.
+- Printed joints (#63): every hole fit is a guess until the fit test is in `params.scad`. The lift nut's pegs only
+  stop it turning: if the lift ever sticks while going down, the nut leaves the tab, and once the pegs are out
+  (2.7 mm) it turns with the screw and the lift stays up. The lift home switch would then never trigger: treat a
+  homing timeout as "lift stuck". The front pins' press fit has to hold against the bearing's drag only.
 - Pins instead of a through rod (#57): the printed drum carries the belt tension (~15 N) between its bearings itself.
   Estimate ~0.3 mm sideways bend toward the other drum, more as PETG creeps; belt height and gate gap don't change, the
   belts lose a little of their ~18 mm stretch. If they go slack: a through rod Ø5 × 119.9 needs only the drum's bore back.

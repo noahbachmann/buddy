@@ -42,6 +42,11 @@ module hole_y(x, z, d, y0, y1, tip = 0)
   translate([x, y1, z]) rotate([90, 0, 0]) linear_extrude(y1 - y0) teardrop2d(d, tip);
 // Box from corner ranges.
 module box(xr, yr, zr) translate([xr[0], yr[0], zr[0]]) cube([xr[1] - xr[0], yr[1] - yr[0], zr[1] - zr[0]]);
+// Printed peg along +Z from z 0, chamfered tip (prints upward).
+module peg_z(h, d = peg_d) {
+  cylinder(d = d, h = h - peg_cham);
+  translate([0, 0, h - peg_cham - eps]) cylinder(d1 = d, d2 = d - 2 * peg_cham, h = peg_cham + eps);
+}
 
 // --- Placement --------------------------------------------------------------------------
 // Drum local frame: axis +Z, z 0 = back end (gear end of the drive drum).
@@ -189,7 +194,7 @@ module frame() {
       xz_plate(back_y, bed_bot + 1);   // ends inside the bed: no coplanar top faces
       box([frame_x[0] + 1, frame_x[1]], [front_y[1], back_y[1]], [bed_bot, bed_top]);   // 1 mm short: no coplanar end face
       for (i = [0 : 2]) box([rib_xs[i], rib_xs[i] + rib_t], rib_y(i), [rib_bot, bed_bot + eps]);
-      // screw bosses at the rib ends: teardrop tip into the bed (the frame prints upside down)
+      // bosses at the rib ends for the front plate's pegs: teardrop tip into the bed (the frame prints upside down)
       for (i = [0 : 2]) hole_y(rib_screw(i)[0], rib_screw(i)[1], rib_boss[0], front_y[1], front_y[1] + rib_boss[1], 1);
       // bosses: touch only the bearings' inner races
       for (x = axle_xs) translate([x, back_y[0] + eps, drum_z]) rotate([90, 0, 0]) cylinder(d = boss_d, h = boss + eps);
@@ -213,27 +218,27 @@ module frame() {
       }
     }
     peg_sockets(plate_cy[0]);
-    // front plate screws into the rib ends, floor screws from below
-    for (i = [0 : 2]) hole_y(rib_screw(i)[0], rib_screw(i)[1], screw_pilot, front_y[1] - eps, front_y[1] + 10);
+    // sockets for the front plate's pegs (horizontal in print, tip up = world -Z), floor screws from below
+    for (i = [0 : 2]) translate([rib_screw(i)[0], front_y[1] - eps, rib_screw(i)[1]]) rotate([-90, 0, 0])
+      linear_extrude(plate_peg_h + 0.5) rotate(180) teardrop2d(peg_d + 2 * fit_slip_h, -1, flat = true);
     for (p = floor_screws) if (p[1] > -90) translate([p[0], p[1], floor_top - eps]) cylinder(d = screw_pilot, h = 10);
   }
 }
 
 // --- Front plate: separate so the closed O-rings slide on from the front. Prints flat. --------------
+// Pegs into the rib ends locate it, the 2 floor screws hold it. The front pins are pushed in by hand and stay in it
+// (press fit, no keepers): the plate comes off with them.
 module front_plate() {
   difference() {
     union() {
       xz_plate(front_y);
       for (x = axle_xs) translate([x, front_y[1] - eps, drum_z]) rotate([-90, 0, 0]) cylinder(d = boss_d, h = boss + eps);
+      for (i = [0 : 2]) translate([rib_screw(i)[0], front_y[1] - eps, rib_screw(i)[1]]) rotate([-90, 0, 0])
+        peg_z(plate_peg_h + eps);
     }
-    for (x = axle_xs) {
-      hole_y(x, drum_z, pin_hole, front_y[0] - eps, front_y[1] + boss + eps);
-      // keeper: M3 screw + washer beside the pin end holds the pin in
-      hole_y(x + (x < 0 ? 5 : -5), drum_z, screw_pilot, front_y[0] - eps, front_y[1] + eps);
-    }
+    for (x = axle_xs) hole_y(x, drum_z, pin_press_d, front_y[0] - eps, front_y[1] + boss + eps);
     // screwdriver access to the motor screws
     for (o = motor_hole_offs) hole_y(motor_x + o[0], motor_z + o[1], 7, front_y[0] - eps, front_y[1] + eps);
-    for (i = [0 : 2]) hole_y(rib_screw(i)[0], rib_screw(i)[1], screw_clear, front_y[0] - eps, front_y[1] + eps);
     peg_sockets(plate_cy[1]);
     for (p = floor_screws) if (p[1] < -90) translate([p[0], p[1], floor_top - eps]) cylinder(d = screw_pilot, h = 10);
   }
@@ -292,10 +297,12 @@ module pusher(push = 0) translate([-push * push_stroke, 0, 0]) difference() {
   box([tab_x[1], right_wall[0]], hy, [b - 1, b + (bar_h - thin)]);
   box([bar_x[0] - 1, bar_x[1] + 1], [hy[0], guide_yb() + groove_play[1]], [b - 1, b + groove_d]);   // groove under tab, end
   box([tab_x[1], tab_x[1] + 16], hy, [b + bar_h, b + (bar_h + 16)]);
-  // nut through the tab, flange screwed to its right face (pushing presses the flange onto the tab)
-  hole_x(pu_y, pu_screw_z, nut_d + 0.4, tab_x[0] - eps, tab_x[1] + eps, 1, flat = true);   // full tip would cut into the upper pilot
-  assert(nut_pcd / 2 - 1.5 - (nut_d + 0.4) / 2 >= 0.75, "pusher tab: too little between the nut hole and the M3 threads");
-  for (s = [-1, 1]) hole_x(pu_y, pu_screw_z + s * nut_pcd / 2, screw_pilot, tab_x[0] - eps, tab_x[1] + eps);
+  // nut through the tab, flange on its right face (pushing presses the flange onto the tab), its 2 pegs pressed into
+  // the tab (they also carry the light return stroke)
+  hole_x(pu_y, pu_screw_z, nut_d + 0.4, tab_x[0] - eps, tab_x[1] + eps, 1, flat = true);   // full tip would cut into the upper peg hole
+  ph = peg_d + 2 * fit_press_h;
+  assert(nut_pcd / 2 - ph / 2 - (nut_d + 0.4) / 2 >= 0.7, "pusher tab: too little between the nut hole and a peg hole");
+  for (s = [-1, 1]) hole_x(pu_y, pu_screw_z + s * nut_pcd / 2, ph, tab_x[0] - eps, tab_x[1] + eps, 1, flat = true);
 }
 
 // Dev's change to the box: the right wall extended forward around the motor face (45° underneath, prints upright),
@@ -359,7 +366,8 @@ module h_back_border() let(zb = h_bord_z[0], zt = h_bord_z[1], y1 = card_yc + ca
 
 // Front borders of both piles: slide-in parts (their card faces would overhang with the case on its back). Each fills
 // the front strip in front of its pile, flush with the box front. Profiles (y, z), extruded along X.
-// H: left wall .. the right gate's wedge; the step beside the gate's front face is its stop, 2 M3 through the left wall.
+// H: left wall .. the right gate's wedge; the step beside the gate's front face is its stop, 2 printed pins through
+// the left wall.
 function h_insert_profile() = let(zb = h_bord_z[0], zt = h_bord_z[1], y1 = card_yc - card[1] / 2 - 0.5)
   [[box_front, zb], [y1, zb], [y1 - h_lean, zt], [box_front, zt]];
 module h_insert() {
@@ -374,10 +382,11 @@ module h_insert() {
     translate([0, back_wall, 0]) rotate([90, 0, 0]) linear_extrude(back_wall - (front_y[0] - f))
       polygon([[gate_in - f, h_bord_z[0] - 1], [gate_in - f, gate_top], [divider_x - 0.2 - f, div_top - 0.5],
                [divider_x - 0.2 - f, div_top + 1], [divider_x + 1, div_top + 1], [divider_x + 1, h_bord_z[0] - 1]]);
-    for (s = insert_screws_h) hole_x(s[0], s[1], screw_pilot, left_wall[1], left_wall[1] + 10);
+    // border pins through the left wall (vertical in print: the border stands on its left end)
+    for (s = insert_screws_h) hole_x(s[0], s[1], peg_d + 2 * fit_press, left_wall[1], left_wall[1] + bpin_depth + 1);
   }
 }
-// B: divider .. right wall, on the floor; a lip over the floor's front edge is its stop, 2 M3 from below.
+// B: divider .. right wall, on the floor; a lip over the floor's front edge is its stop, 2 printed pins from below.
 // Inner face vertical 0.5 in front of the lift plate up to its lowest top, then leaning forward like the slope up to
 // div_low, then vertical up to the divider's top: it carries the pusher's guide ridge like border H.
 function b_insert_profile() = let(y1 = lift_front - 0.5, lean = (div_low - lift_min) * stop_lean / stop_h,
@@ -392,7 +401,9 @@ module b_insert() {
         polygon(b_insert_profile());
       guide_ridge(slit_x1 + f, right_wall[0] - f);
     }
-    for (s = insert_screws_b) translate([s[0], s[1], floor_top - eps]) cylinder(d = screw_pilot, h = 10);
+    // border pins from below (horizontal in print: the border stands on its divider end, +X up)
+    for (s = insert_screws_b) translate([s[0], s[1], floor_top - eps]) linear_extrude(bpin_depth + 1)
+      rotate(-90) teardrop2d(peg_d + 2 * fit_press_h, 1, flat = true);
   }
 }
 // Dev's box as drawn, its front and top cut back, walls and floor thinned to wall_t, divider to divider_t
@@ -516,8 +527,8 @@ module lift_part(top) {
       }
     }
     translate([ax[0], ax[1], zt - 1]) cylinder(d = lift_holes[0], h = tab_t + 2);
-    for (o = [[-1, 0], [1, 0], [0, -1], [0, 1]] * lift_holes[2])
-      translate([ax[0] + o[0], ax[1] + o[1], zt - 1]) cylinder(d = lift_holes[1], h = tab_t + 2);
+    for (o = [[-1, 0], [1, 0], [0, -1], [0, 1]] * lift_holes[1])   // the nut's pegs, pressed in
+      translate([ax[0] + o[0], ax[1] + o[1], zt - 1]) cylinder(d = peg_d + 2 * fit_press, h = tab_t + 2);
   }
 }
 // Breakaway support for the lift's tab (plate file only): the tab's outline 0.4 inside, behind the slope's back face at
@@ -550,20 +561,69 @@ module lift_support(top) {
 }
 
 // flange against the tab's underside, body hanging below (the tab's Ø10.2 hole stays empty: the screw centres the nut)
-module lift_nut(top) translate([lift_axis[0], lift_axis[1], top + stop_h - tab_t]) mirror([0, 0, 1]) nut_outside();
+// Lift nut in place: flange top against the tab's underside, pegs up in the tab, body down (the screw pushes it up into
+// the tab, the lift's weight keeps it there)
+module lift_nut(top) translate([lift_axis[0], lift_axis[1], top + stop_h - tab_t - nut_len]) lift_nut_outside();
 
-// --- TR8x8 nut, printed: flange at z 0..3.5, body up to nut_len, axis = Z. Flange down on the bed. ---------
-// Outside only (stand-in for the checks: no thread, no holes)
+// --- TR8x8 nuts, printed (#63: pegs instead of screws, a pair per nut type) -----------------------------------
+// Pusher nut: flange at z 0..nut_flange[1] on the bed, body up; 2 pegs on the flange's top face go into the tab.
+// Lift nut: body on the bed, 45° cone up to the flange at the top, 4 pegs up into the tab. Axis = Z for both.
+// Outside only (stand-ins for the checks: no thread, no pegs)
 module nut_outside() {
   cylinder(d = nut_flange[0], h = nut_flange[1]);
   cylinder(d = nut_d, h = nut_len);
 }
-module tr8_nut() difference() {
-  nut_outside();
-  // internal thread: BOSL2 adds 4 $slop to the diameter, so nut_slop / 2 = nut_slop per side; bevel = lead-in
-  translate([0, 0, nut_len / 2]) let($slop = nut_slop / 2)
-    trapezoidal_threaded_rod(d = 8, l = nut_len + 2 * eps, pitch = lead / nut_starts, thread_angle = 30,
-                             starts = nut_starts, internal = true, bevel = true, $fn = 64);
-  // 4 × M3 on the bolt circle: pusher uses the 2 beside the screw (z ±8), lift all 4 (x/y ±8)
-  for (a = [0 : 90 : 270]) rotate(a) translate([nut_pcd / 2, 0, -eps]) cylinder(d = screw_clear, h = nut_flange[1] + 2 * eps);
+lift_cone = (nut_flange[0] - nut_d) / 2;   // 45°: prints without support
+module lift_nut_outside() {
+  cylinder(d = nut_d, h = nut_len);
+  translate([0, 0, nut_len - nut_flange[1] - lift_cone]) cylinder(d1 = nut_d, d2 = nut_flange[0], h = lift_cone + eps);
+  translate([0, 0, nut_len - nut_flange[1]]) cylinder(d = nut_flange[0], h = nut_flange[1]);
+}
+// internal thread: BOSL2 adds 4 $slop to the diameter, so nut_slop / 2 = nut_slop per side; bevel = lead-in
+module tr8_thread() translate([0, 0, nut_len / 2]) let($slop = nut_slop / 2)
+  trapezoidal_threaded_rod(d = 8, l = nut_len + 2 * eps, pitch = lead / nut_starts, thread_angle = 30,
+                           starts = nut_starts, internal = true, bevel = true, $fn = 64);
+module pusher_nut() difference() {
+  union() {
+    nut_outside();
+    for (s = [-1, 1]) translate([s * nut_pcd / 2, 0, nut_flange[1] - eps]) peg_z(nut_peg_h + eps);
+  }
+  tr8_thread();
+}
+module lift_nut_part() difference() {
+  union() {
+    lift_nut_outside();
+    for (a = [0 : 90 : 270]) rotate(a) translate([nut_pcd / 2, 0, nut_len - eps]) peg_z(nut_peg_h + eps);
+  }
+  tr8_thread();
+}
+
+// --- Border pin: replaces an M3 screw; through the case's Ø3.4 hole into the border, pressed. Head down. ---------
+module border_pin() {
+  cylinder(d = bpin_head[0], h = bpin_head[1]);
+  translate([0, 0, bpin_head[1] - eps]) peg_z(wall_t + bpin_depth - 0.5 + eps);
+}
+
+// --- Fit test (plate 0): the hole steps every printed joint uses ------------------------------------------------
+// Base 3 thick (the tabs): row of vertical peg holes; block 6 thick (the front plate): holes for the Ø5 steel pin;
+// standing 3 mm wall: horizontal teardrop peg holes. Step 1 at the chamfered corner (x 0). Test with a border pin.
+module fit_test() {
+  n = len(fit_steps);
+  p = 9;
+  w = n * p + 2;
+  difference() {
+    union() {
+      box([0, w], [0, 9], [0, 3]);              // vertical peg holes
+      box([0, w], [9, 19], [0, plate_t]);       // steel pin holes
+      box([0, w], [19, 22], [0, 12]);           // horizontal peg holes (wall)
+    }
+    for (i = [0 : n - 1]) {
+      x = 1 + p / 2 + i * p;
+      translate([x, 4.5, -1]) cylinder(d = peg_d + 2 * fit_steps[i], h = 5);
+      translate([x, 14, -1]) cylinder(d = pin_steps[i], h = plate_t + 2);
+      translate([x, 18, 9]) rotate([-90, 0, 0]) linear_extrude(5) rotate(180) teardrop2d(peg_d + 2 * fit_steps[i], 1, flat = true);   // tip up
+    }
+    // marker: chamfered corner at step 1
+    translate([0, 0, -1]) linear_extrude(14) polygon([[-1, -1], [4, -1], [-1, 4]]);
+  }
 }

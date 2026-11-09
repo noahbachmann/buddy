@@ -54,7 +54,7 @@ cord_out    = groove_root + cord_s;         // top of the cord on the drum
 bearing     = [5, 11, 5];    // 685ZZ: id, od, width (#59; idler end wall 1.7)
 press       = 0.1;           // bearing seat oversize (as arm/), tune with a test print
 pin         = [5, 20];       // dowel pin ISO 8734 (RS PRO 5 x 20), bought: no cutting (#57, #60)
-pin_hole    = 5.2;           // slip fit in the plates
+pin_hole    = 5.2;           // slip fit in the back plate (front plate: pin_press_d)
 pin_pocket  = [5.6, 1];      // drum: pocket behind each bearing for the pin tip (d, clearance past the tip)
 boss        = 1;             // plate boss on the pin: touches only the inner race (685 ~7 mm)
 boss_d      = 7;
@@ -203,8 +203,8 @@ screw_hole = 8.6;
 // Motor under the floor, face against its underside: coupling z 11.5..36.5. Side view: the nut tab around the screw at
 // the top, from its front edge one slope (leaning ~10°) down to the plate; the front border (box) leans the same way, so
 // a card dropping onto a low lift slides into place. Seen from the front the slope narrows upwards along straight
-// sides. The nut connection is Dev's as drawn but 3 thick (his: 5): tab with a round end, Ø10.2 + 4x Ø4 on a 16 mm square, the nut's
-// flange under it, its spigot up in the hole. The plate's edges against the divider and the right wall keep it from
+// sides. The nut connection is Dev's as drawn but 3 thick (his: 5): tab with a round end, Ø10.2 for the screw, the
+// printed nut's flange under it with 4 pegs up into the tab on a 16 mm square (#63). The plate's edges against the divider and the right wall keep it from
 // turning.
 lift_axis  = [111.8 - b_shift, -25.4 + shift];   // Dev's nut and tab centre (his screw was drawn 0.6 off)
 lift_face  = floor_bot;      // motor face against the floor's underside
@@ -217,7 +217,7 @@ stop_h     = 47;             // plate top .. tab top (Dev's)
 stop_lean  = 8;              // the slope's front face leans back this much over stop_h (~10°)
 stop_w     = 28;             // at the top (Dev's tab width), centred on the screw
 lift_tab_r = 10.5;           // Dev's tab: round end around the nut
-lift_holes = [10.2, 4, 8];   // Dev's tab: nut spigot hole, 4 screw holes at ±8 in X and Y
+lift_holes = [10.2, 8];      // Dev's tab: centre hole (screw passes), the nut's 4 peg holes at ±8 in X and Y
 lift_min   = (belt_top - lip_drop) - pile_max - 0.5;   // lowest plate top: a full pile under the slot
 lift_tab_y = lift_axis[1] + lift_tab_r;   // tab's back edge (Dev's), 1.4 to the back wall
 // Breakaway support under the tab, printed with the lift (plate file only, not in the box): a loose grid, so the
@@ -240,5 +240,22 @@ pu_hold    = [16, 3];        // pusher motor hold: width (Y), top thickness; 45�
 feet_h     = m44_body + 2;   // rails under the floor, left and right edge: the lift motor hangs 40 below it
 feet_t     = thin;
 insert_fit = 0.2;            // per side, border inserts against walls, divider and gate
-insert_screws_h = [[-146, 78], [-146, 89]];   // border H: (y, z), M3 through the left wall
-insert_screws_b = [[95 - b_shift, -146], [127 - b_shift, -146]];  // border B: (x, y), M3 from below through the floor
+insert_screws_h = [[-146, 78], [-146, 89]];   // border H: (y, z), printed pin through the left wall
+insert_screws_b = [[95 - b_shift, -146], [127 - b_shift, -146]];  // border B: (x, y), printed pin from below through the floor
+
+// --- Printed joints instead of screws (#63) ------------------------------------------------------------------
+// Fits per side, hole vs. a printed Ø peg_d peg. "vertical" / "horizontal" = the hole's axis in its own part's print.
+// ⚠️ Guesses until the fit test (fit-test.scad, plate 0) is printed: put the measured steps here, then rebuild.
+peg_d       = 3;             // every printed peg and pin shank
+fit_steps   = [-0.05, 0, 0.05, 0.1, 0.15, 0.2];   // fit test: hole 1..6 (per side), from the chamfered end
+pin_steps   = [4.85, 4.9, 4.95, 5.0, 5.05, 5.1];  // fit test: holes for the Ø5 steel pin (diameters)
+fit_slip    = 0.1;           // vertical hole: peg slides in without play
+fit_press   = 0;             // vertical hole: peg pushed in by hand, holds
+fit_slip_h  = 0.15;          // horizontal (teardrop) hole: slip
+fit_press_h = 0.05;          // horizontal hole: press
+pin_press_d = 4.95;          // front plate: Ø5 steel pin pushed in by hand (firm), stays in when the plate comes off
+peg_cham    = 0.4;           // lead-in at every peg tip
+nut_peg_h   = tab_t - 0.3;   // nut pegs: into the tab, not through it
+plate_peg_h = 5;             // front plate pegs into the rib ends
+bpin_head   = [6, 1.2];      // border pin: head d, h
+bpin_depth  = 6;             // shank in the border (beyond the case's wall or floor)

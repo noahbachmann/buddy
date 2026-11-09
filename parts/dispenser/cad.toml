@@ -12,14 +12,22 @@ assembly = "assembly.scad"
 [parts.case]
 [parts.border-h]
 [parts.border-b]
-[parts.tr8-nut]
+[parts.pusher-nut]
+[parts.lift-nut]
+[parts.border-pin]
+[parts.fit-test]
 [parts.lift-support]          # plate 3 only: breakaway support under the lift's tab
 
 # Print plates (`parts/cad plate dispenser` → plates/): one STL per print job, drag into Bambu Studio and print.
 # The case prints alone from stl/case.stl. Settings per plate: dispenser README → Print.
+[plates.0-fit-test]
+note = "PETG · 0.20 mm · 4 walls · 15 % · no supports · print first, fits → params.scad, rebuild plates 2 and 3"
+parts = ["fit-test", "border-pin", "border-pin"]
+
 [plates.1-petg-fine]
 note = "PETG · 0.12 mm · 4 walls · 15 % · no supports · outer brim"
-parts = ["drive-drum", "idler-drum", "motor-gear", "gate-left", "tr8-nut", "tr8-nut"]
+parts = ["drive-drum", "idler-drum", "motor-gear", "gate-left", "pusher-nut", "lift-nut",
+         "border-pin", "border-pin", "border-pin", "border-pin"]
 
 [plates.2-petg]
 note = "PETG · 0.20 mm · 4 walls · 15 % · no supports"

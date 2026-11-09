@@ -38,6 +38,6 @@ later (another step).
 
 | Status | Part | Qty | Link | Note |
 |---|---|---|---|---|
-| ordered | M3 screw assortment, 340 pcs, stainless | 1 | Bastelgarage | Needs 7 × M3×6, 6 × M3×8, 15 × M3×12, 5 nuts, 2 washers: check the ×12 count |
+| ordered | M3 screw assortment, 340 pcs, stainless | 1 | Bastelgarage | Needs 9 × M3×6, 4 × M3×12, 1 nut (the rest are printed joints since #63) |
 | later | [ruthex M3 threaded inserts, M3×5.7, 100 pcs](https://www.3djake.ch/en-CH/ruthex/threaded-insert-m3-100-pieces) | 1 | 3DJake | Not for the dispenser (self-tapping pilot holes): head and body (2.5, 2.6) use them everywhere |
 | later | [CNC Kitchen soldering tips + TS100 adapter](https://3djake.ch/en-CH/cnc-kitchen/melting-aids-ts100-adapter) | 1 | 3DJake | Insert tips M2–M8 for a Pinecil/TS100 (the iron itself: not at 3DJake) |
