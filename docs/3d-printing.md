@@ -68,15 +68,15 @@ Change things for one part only: right-click it → Add settings. Keeps the pres
 
 ## Fits
 
-Gap per side, PETG.
+Gap per side between flat walls (lid rim in box). Round holes print smaller: their fits come from the fit-test plate.
 
-| Fit | Gap | Result |
-|---|---|---|
-| Tray lid in box | 0.15 mm | Slightly too loose |
-| Tray lid in box | 0.10 mm | Still too loose |
-| Tray lid in box | 0.07 mm | ? |
-| Slides freely | ? | |
-| Press fit | ? | |
+| Fit | Material | Gap | Result |
+|---|---|---|---|
+| Tray lid in box | PETG | 0.15 mm | Slightly too loose |
+| Tray lid in box | PETG | 0.10 mm | Still too loose |
+| Tray lid in box | PLA | 0.07 mm | Press fit, good. 0.065 at most would be a touch tighter, never looser than 0.07 |
+| Slides freely | | ? | |
+| **Press fit** | PLA | **0.07 mm** | From the tray lid |
 
 ## Problems
 
@@ -92,3 +92,4 @@ Gap per side, PETG.
 | # | Date | Part | Changes | Result | Notes |
 |---|---|---|---|---|---|
 | 1 | 2026-11 | Desiccant tray | walls 4, layers 8 | Lid slightly too loose (0.15 per side) | Lid rim widened to 0.10, then 0.07 per side |
+| 2 | 2026-11 | Desiccant trays (PLA) | lid rim 0.07 per side | Press fit, holds | Keep 0.07 for PLA press fits |
