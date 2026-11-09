@@ -1,6 +1,7 @@
 """`cad` command line. Run via the `parts/cad` wrapper.
 
     cad build <module> [part…] [-D name=value]         STLs into <module>/stl, strict (warnings fail)
+    cad plate <module> [plate…]                        print plates ([plates] in cad.toml) into <module>/plates
     cad render <module|file.scad|file.stl> [part…]     PNG sheets into <dir>/renders, paths printed
         --section z=40 --section x=0                   2D cuts per part
         -D elbow=60                                    OpenSCAD defines (poses, variants)
@@ -14,6 +15,8 @@ import sys
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+
+import trimesh
 
 from . import config, mesh, scad
 
@@ -42,6 +45,54 @@ def cmd_build(a: argparse.Namespace) -> int:
         bad += not st.watertight
         print(f"{name:20} {st.line()}")
     return 1 if bad else 0
+
+
+def cmd_plate(a: argparse.Namespace) -> int:
+    from . import plate
+
+    mod = config.load(config.resolve(a.module))
+    unknown = [n for n in a.plates if n not in mod.plates]
+    if not mod.plates or unknown:
+        raise SystemExit(f"{mod.name}: " + (f"unknown plate(s) {', '.join(unknown)}; have {', '.join(mod.plates)}"
+                                            if unknown else f"no [plates] in {config.CONFIG}"))
+    plates = [mod.plates[n] for n in a.plates] if a.plates else list(mod.plates.values())
+    names = sorted({n for p in plates for i in p.items for n in i})
+    mod.plate_dir.mkdir(exist_ok=True)
+    if not a.plates:   # full run: drop files of plates that no longer exist
+        for old in mod.plate_dir.glob("*.stl"):
+            if old.stem not in mod.plates:
+                old.unlink()
+    bad = 0
+    with tempfile.TemporaryDirectory() as tmp:
+        try:
+            built = _build(mod.select(names), Path(tmp), dict(scad.parse_define(d) for d in a.define))
+        except scad.ScadError as e:
+            print(f"FAIL {e}", file=sys.stderr)
+            return 1
+        meshes = {n: mesh.load(p) for n, p in built.items()}
+        for p in plates:
+            items = [trimesh.util.concatenate([meshes[n] for n in i]) for i in p.items]
+            try:
+                m = plate.pack(items)
+            except ValueError as e:
+                print(f"FAIL {p.name}: {e}", file=sys.stderr)
+                return 1
+            out = mod.plate_dir / f"{p.name}.stl"
+            m.export(out)
+            st = mesh.stats(m)
+            bad += not st.watertight
+            sx, sy, sz = st.size
+            print(f"{p.name}: {p.note}\n  {_count(p.items)}\n  {sx:.0f} × {sy:.0f} × {sz:.0f} mm · "
+                  f"{st.volume_cm3:.1f} cm³ solid" + ("" if st.watertight else " · NOT WATERTIGHT") + f"\n  {out}")
+    return 1 if bad else 0
+
+
+def _count(items: list[list[str]]) -> str:
+    seen: dict[str, int] = {}
+    for i in items:
+        k = " + ".join(i)
+        seen[k] = seen.get(k, 0) + 1
+    return ", ".join(f"{n}× {k}" if n > 1 else k for k, n in seen.items())
 
 
 def _sections(specs: list[str]) -> list[tuple[str, float]]:
@@ -113,6 +164,12 @@ def main(argv: list[str] | None = None) -> int:
     b.add_argument("parts", nargs="*")
     b.add_argument("-D", dest="define", action="append", default=[], metavar="NAME=VALUE")
     b.set_defaults(fn=cmd_build)
+
+    p = sub.add_parser("plate", help="print plates: parts packed per print job, one STL each")
+    p.add_argument("module")
+    p.add_argument("plates", nargs="*")
+    p.add_argument("-D", dest="define", action="append", default=[], metavar="NAME=VALUE")
+    p.set_defaults(fn=cmd_plate)
 
     r = sub.add_parser("render", help="PNG contact sheets, sections, assembly views")
     r.add_argument("target")

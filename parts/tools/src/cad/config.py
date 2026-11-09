@@ -6,6 +6,10 @@
     [parts.couplers]
     file = "couplers.scad"
     defines = { n = 2 }             # optional -D overrides for this part
+
+    [plates.1-petg]                 # optional: one print job = one STL in <module>/plates (`cad plate`)
+    note = "PETG · 0.2 mm"          # material and slicer settings, printed with the plate
+    parts = ["a", "b", "b", ["c", "c-support"]]   # repeat = more copies; a list = one group in its own frame
 """
 
 from __future__ import annotations
@@ -31,10 +35,18 @@ class Part:
 
 
 @dataclass
+class Plate:
+    name: str
+    note: str
+    items: list[list[str]]       # each item: part names merged in their common coordinates
+
+
+@dataclass
 class Module:
     dir: Path
     parts: dict[str, Part]
     assembly: Path | None
+    plates: dict[str, Plate] = field(default_factory=dict)
 
     @property
     def name(self) -> str:
@@ -43,6 +55,10 @@ class Module:
     @property
     def stl_dir(self) -> Path:
         return self.dir / "stl"
+
+    @property
+    def plate_dir(self) -> Path:
+        return self.dir / "plates"
 
     @property
     def render_dir(self) -> Path:
@@ -86,5 +102,12 @@ def load(d: Path) -> Module:
         if not file.is_file():
             raise SystemExit(f"{d / CONFIG}: part {name}: {file.name} missing")
         parts[name] = Part(name, file, dict(spec.get("defines", {})))
+    plates = {}
+    for name, spec in raw.get("plates", {}).items():
+        items = [[i] if isinstance(i, str) else list(i) for i in spec.get("parts", [])]
+        unknown = sorted({n for i in items for n in i} - parts.keys())
+        if not items or unknown:
+            raise SystemExit(f"{d / CONFIG}: plate {name}: " + (f"unknown part(s) {', '.join(unknown)}" if unknown else "no parts"))
+        plates[name] = Plate(name, spec.get("note", ""), items)
     asm = raw.get("assembly")
-    return Module(d, parts, d / asm if asm else None)
+    return Module(d, parts, d / asm if asm else None, plates)
