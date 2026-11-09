@@ -210,7 +210,7 @@ cd parts/tools && uv run python ../dispenser/check_pusher.py # after a pusher, l
 | Qty | Part | Note |
 |---|---|---|
 | 3 | NBR O-ring 80 × 3 mm (ID × cord), 70 Shore A | The belts. ⚠️ Different size: change `oring_id`, the drum distance follows |
-| 4 | MR105ZZ bearing, 5 × 10 × 4 | Pressed into the drum ends |
+| 4 | 685ZZ bearing, 5 × 11 × 5 | Pressed into the drum ends (#59; MR105 5 × 10 × 4 fits too with `bearing` changed back) |
 | 4 | Dowel pin Ø5 × 28 mm, ISO 8734 (hardened, m6), RS PRO | One per bearing, bought ready-made: nothing to cut (#57). Fixed: the drums turn on their bearings |
 | 3 | M3×6 socket head | 4023 to the back plate (the 4th hole would cut into the drive pin's hole) |
 | 1 | M3×5 set screw + M3 nut | Motor gear onto the shaft's flat (5 mm from the flat to the hub surface: flush) |
@@ -264,7 +264,7 @@ from the left, and everything else follows from behind and from the front.
    2× M3×12 from below. Border H from the front between the left wall and the right gate until its step stops at the
    gate's front face, 2× M3×12 through the left wall from outside.
 
-1. **Bearings:** press 2 MR105 into each drum, pushing only on the outer race.
+1. **Bearings:** press 2 685ZZ into each drum, pushing only on the outer race.
 2. **Frame into the box:** left gate pressed into its sockets first. Slide the frame in from the open left side, under
    the left wall and the right gate's legs, until its step sits against the left edge of the box floor. 2× M3×12 from
    below into the back plate.
@@ -389,7 +389,7 @@ but then two cards sit in the slot. No roller left of the divider can push furth
   position and the pusher's screw height change (all from `pile_max`).
 - Pile H's back edge is 5.9 mm in front of the drum gear, whose tips reach 0.6 mm above the belts (y −34.5…−27.5,
   x ~59…65). Nothing positions H in Y: a card placed more than 5.9 mm toward the back rubs on the turning gear.
-- The MR105 press fit (`press`), the 5.2 mm pin holes and the printed gear mesh (`gear_slack`, `gear_backlash`) need a test print.
+- The 685ZZ press fit (`press`; only 1.7 mm wall at the idler's ends, ~1.2 mm under the drive drum's gear roots: if the gear ring cracks or the mesh binds after pressing, lower `press`), the 5.2 mm pin holes and the printed gear mesh (`gear_slack`, `gear_backlash`) need a test print.
 - Pins instead of a through rod (#57): the printed drum carries the belt tension (~15 N) between its bearings itself.
   Estimate ~0.3 mm sideways bend toward the other drum, more as PETG creeps; belt height and gate gap don't change, the
   belts lose a little of their ~18 mm stretch. If they go slack: a through rod Ø5 × 119.9 needs only the drum's bore back.

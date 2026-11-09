@@ -43,18 +43,18 @@ stretch  = 1.07;             // fitted length / free length: tension without a t
 cord_ys  = [for (o = [-20, 0, 20]) card_yc + o];
 cord_s   = cord / sqrt(stretch);   // stretched cord gets thinner
 
-// --- Drums (printed solid, run on 2x MR105ZZ each, one fixed steel pin per bearing) --------
+// --- Drums (printed solid, run on 2x 685ZZ each, one fixed steel pin per bearing) --------
 groove_root = 5.5;           // groove bottom radius
 groove_r    = cord / 2 + 0.1;
 rim_r       = groove_root + 0.6 * cord_s;   // cord sits above its centre line in the groove
 cord_c      = groove_root + cord_s / 2;     // cord centre line radius
 cord_out    = groove_root + cord_s;         // top of the cord on the drum
-bearing     = [5, 10, 4];    // MR105ZZ: id, od, width
+bearing     = [5, 11, 5];    // 685ZZ: id, od, width (#59; idler end wall 1.7)
 press       = 0.1;           // bearing seat oversize (as arm/), tune with a test print
 pin         = [5, 28];       // dowel pin ISO 8734 (RS PRO 5 x 28), bought: no cutting (#57, #58)
 pin_hole    = 5.2;           // slip fit in the plates
 pin_pocket  = [5.6, 1];      // drum: pocket behind each bearing for the pin tip (d, clearance past the tip)
-boss        = 1;             // plate boss on the pin: touches only the inner race (MR105 ~7 mm)
+boss        = 1;             // plate boss on the pin: touches only the inner race (685 ~7 mm)
 boss_d      = 7;
 
 // --- Gears (printed, module 1) -------------------------------------------------------------
