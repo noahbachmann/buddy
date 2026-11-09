@@ -23,6 +23,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pyvista as pv  # noqa: E402
+import shapely.ops  # noqa: E402
 import trimesh  # noqa: E402
 from matplotlib.patches import PathPatch  # noqa: E402
 from matplotlib.path import Path as MplPath  # noqa: E402
@@ -137,7 +138,13 @@ def section(m: trimesh.Trimesh, axis: str, value: float, title: str, out: Path) 
         to2d[:3, :3] = np.eye(3)[keep + [a]]
         to2d[2, 3] = -value
         planar, _ = sec.to_2D(to_2D=to2d)
-        for poly in planar.polygons_full:
+        # polygons_full can come back empty for valid closed rings (seen: a cut exactly through a peg's axis in its
+        # socket): fall back to the closed rings, nesting resolved by shapely
+        polys = list(planar.polygons_full)
+        if not polys and len(planar.polygons_closed):
+            u = shapely.ops.unary_union([p for p in planar.polygons_closed if p is not None])
+            polys = list(getattr(u, "geoms", [u]))
+        for poly in polys:
             rings = [np.asarray(poly.exterior.coords)] + [np.asarray(r.coords) for r in poly.interiors]
             verts = np.vstack(rings)
             codes = np.concatenate([[MplPath.MOVETO] + [MplPath.LINETO] * (len(r) - 2) + [MplPath.CLOSEPOLY]
