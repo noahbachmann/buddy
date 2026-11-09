@@ -66,5 +66,7 @@ section through every fit (bearing seat, slot, channel). Numbers can't see a mis
 - OpenSCAD's eye/centre `--camera` picks its own up vector (top view came out rotated): use the gimbal form.
 - The same height reached by two different sums (`a + b + c` vs `(a + b) + c`) differs by 1e-14; where two such faces
   meet, the STL gets zero-area slivers and isn't watertight. Derive touching faces from one base + exact offsets.
+  `box()` is translate + size, so its far face lands at `lo + (hi − lo)`, not `hi`. A part that must end flush with a
+  cut face: union it before the cut and let the one cut make both faces (`box_trimmed()` + `notch_skin()`).
 - Manifold booleans need watertight input: an open reference mesh (e.g. `dispenser/ref/lift.stl`) silently intersects
   as 0. Check `is_watertight` before trusting an overlap volume.
