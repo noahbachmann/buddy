@@ -233,11 +233,12 @@ cd parts/tools && uv run python ../dispenser/check_pusher.py # after a pusher, l
 middle of the coupling to 1 mm inside the left wall's outer face. Cut the end that goes into the coupling. The lift's
 screw runs from the coupling to the box top: 151 mm.
 
-Screws go into 2.5 mm pilot holes (self-tapping into PETG).
+Screws go into 2.5 mm pilot holes (self-tapping). In the PLA pusher tab drive them by hand and stop when snug: the
+upper hole is 2.75 mm from the tab's top edge.
 
 ## Print (Bambu X2D)
 
-- PETG, 4 walls, 15 % infill. Drums, motor gear and gates at 0.12–0.16 mm layers (fits, teeth, the gap step);
+- PETG, 4 walls, 15 % infill (lift and pusher: PLA, below). Drums, motor gear and gates at 0.12–0.16 mm layers (fits, teeth, the gap step);
   frame, front plate, case and borders at 0.2.
 - **No supports** (except under the lift's tab). Horizontal holes are teardrops, the drum grooves are teardrop-shaped
   and the lower bearing seat ends in a 45° cone.
@@ -252,8 +253,17 @@ Screws go into 2.5 mm pilot holes (self-tapping into PETG).
 - **Borders:** as the STLs come, on their ends, 0.2 mm. Border H is 72 mm tall on a 25 × 22 mm foot: a brim if it
   wobbles.
 - The left gate prints on its side so the gap step lies in the XY plane, where the printer is most accurate.
+- **Lift and pusher: PLA**, both on one plate (0.2 mm, 3 walls, 15 %). Neither carries more than a few newtons. PLA is
+  stiffer than PETG and holds the sliding edges and the lift's 0.44 / 0.56 mm side gaps more accurately, and its
+  support breaks off cleanly. The limit is heat: PLA softens from ~55 °C, and the pusher's nut sits 1.5 mm from the
+  coupling at home. Run both motors at moderate current with a low hold current (a 17HS4401 at its full 1.7 A gets
+  hotter than that) ⚠️.
+- Lift: plate down, as the STL comes. Tree support on the build plate only, under the tab (the nut flange's seat,
+  43 mm up). Auto support catches only the tab. Every other side down either stands the 4 mm plate on its edge or
+  turns the slope's sides past 45°.
 - Pusher carriage: as it sits in the box, bottom down: the plate's lower edge, the one that slides, comes out of the
-  bed flat. The nut hole is a teardrop. 0.2 mm layers.
+  bed flat, and the chamfers take the elephant foot. No supports, the nut hole is a teardrop. Every other side down puts
+  the tab or the plate in mid-air.
 
 ## Assembly
 
