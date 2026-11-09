@@ -220,6 +220,13 @@ lift_tab_r = 10.5;           // Dev's tab: round end around the nut
 lift_holes = [10.2, 4, 8];   // Dev's tab: nut spigot hole, 4 screw holes at ±8 in X and Y
 lift_min   = (belt_top - lip_drop) - pile_max - 0.5;   // lowest plate top: a full pile under the slot
 lift_tab_y = lift_axis[1] + lift_tab_r;   // tab's back edge (Dev's), 1.4 to the back wall
+// Breakaway support under the tab, printed with the lift (plate file only, not in the box): a loose grid, so the
+// plate needs no slicer support. sup_gap: ≥ one layer of air at 0.2 mm layers whatever the slicer's offset.
+sup_gap    = 0.25;           // grid top .. tab underside
+sup_clear  = 0.6;            // grid .. slope's back face (Y)
+sup_wall   = 0.84;           // grid walls: 2 lines of a 0.4 nozzle
+sup_pitch  = 6;              // grid cell; the tab's first layer bridges ≤ 5.2 mm
+sup_base   = 0.6;            // solid pad on the bed (3 layers) so the thin grid sticks
 border_t   = 4;              // front border of pile B (box) at the top, floor .. div_low
 
 // --- Holds: the motors rest on the case, not only on their screws ------------------------------------------

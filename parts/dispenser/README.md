@@ -210,8 +210,10 @@ STLs and `parts/cad render dispenser` for the sheets (`parts/CLAUDE.md`).
 | `case.scad` | The case: Dev's box with every change and the feet | on its back, no supports |
 | `border-h.scad`, `border-b.scad` | Front borders of piles H and B, slide in from the front | on their end (as in the file) |
 | `pusher.scad` | Pusher carriage: plate, bar, nut tab | as placed, bottom down |
-| `lift.scad` | Lift: plate, slope, Dev's nut tab (replaces Dev's lift) | as placed, plate down, support under the tab |
+| `lift.scad` | Lift: plate, slope, Dev's nut tab (replaces Dev's lift) | as placed, plate down |
+| `lift-support.scad` | Breakaway grid under the lift's tab, in the lift's coordinates: only in plate 3 | with the lift |
 | `tr8-nut.scad` | TR8x8 nut (4 starts), 2×: pusher and lift. Brass nut's flange and bolt circle, flange at one end, body Ø11 | flange down |
+| `plates/` | Print jobs: `cad.toml` → `[plates]`, built by `parts/cad plate dispenser` ("Print") | as in the file |
 | `make_copy.py` | `ref/` (box, lift, 4023 from `dispenser.stl`) + `dispenser-roller.stl` (case, roller, pusher, lift, lift motor under the floor) | – |
 | `check_pusher.py` | Collisions over the pusher's stroke with the lift at push height and a full pile, and of the lift with its nut (lowest, 2 between, push height) with the box, the pusher at home and its own motor and coupling | – |
 
@@ -254,36 +256,54 @@ upper hole is 2.75 mm from the tab's top edge.
 
 ## Print (Bambu X2D)
 
-- PETG, 4 walls, 15 % infill (lift and pusher: PLA, below). Drums, motor gear and gates at 0.12–0.16 mm layers (fits, teeth, the gap step);
-  frame, front plate, case and borders at 0.2.
-- **No supports** (except under the lift's tab). Horizontal holes are teardrops, the drum grooves are teardrop-shaped
-  and the lower bearing seat ends in a 45° cone.
+**Print from `plates/`**: one STL per print job, parts already in print orientation, laid out and spaced, centred.
+Drag one file into Bambu Studio, pick the filament and the settings in its row, slice, print. `stl/` holds the single
+parts (for reprints, e.g. only the left gate). `parts/cad plate dispenser` rebuilds the plates from `cad.toml`.
+
+| Plate | Parts | Filament | Settings (rest: Bambu's preset) |
+|---|---|---|---|
+| `1-petg-fine.stl` | drive drum, idler drum, motor gear, left gate, 2× TR8 nut | PETG | 0.12 mm, 4 walls, 15 %, no supports, **brim: outer only** (the drums stand 107 mm on Ø15–18) |
+| `2-petg.stl` | roller frame, front plate, border H, border B | PETG | 0.20 mm, 4 walls, 15 %, no supports |
+| `3-pla.stl` | pusher, lift (+ its support) | PLA | 0.20 mm, 4 walls, 15 %, **no supports**: the lift's is in the file |
+| `stl/case.stl` | case (a plate of its own) | PETG | 0.20 mm, 4 walls, 15 %, no supports, textured PEI |
+
+Why these settings:
+
+- **Plate 1 at 0.12 mm:** fits and teeth (bearing seats, gear mesh, the nut's thread, the left gate's gap step). The
+  nut needs 0.12 most: the 1.3 mm under its thread root is all perimeters. One layer height for the whole plate (a
+  plate prints as one object); the drums only cost time at 0.12, not accuracy.
+- **Brim on plate 1:** the file is one object, so Bambu's "auto" brim judges the whole plate and leaves the drums
+  without one. Outer brim, 5 mm, Bambu's 0.1 mm gap: it peels off the gear teeth.
+- **4 walls everywhere:** every wall is ≤ 3 mm, so 3 or 4 walls both print it solid; one value for all plates.
+- **No supports:** horizontal holes are teardrops, the drum grooves are teardrop-shaped and the lower bearing seat
+  ends in a 45° cone. The pusher's U and the lift's tab are bridges.
+- **Lift's support** (`lift-support.scad`, only in plate 3): a 0.84 mm grid (6 mm cells, 0.6 mm pad on the bed) under
+  the nut tab, 0.25 mm below it and 0.6 mm behind the slope, so it touches nothing: the tab's first layer sags onto
+  it. Pull it out sideways after printing; clean the tab's underside (the nut flange's seat). Slice at 0.20 mm: the
+  0.25 gap then always leaves one empty layer. At 0.28 it could fuse.
 - **Card thickness:** the case is built for `card_t` 0.5 (sleeved, pressed flat; loose, bow and air make it > 1 mm)
   and `gap` 0.55. The belts sit at `66.04 − gap`, the right gate's lip a card + 0.2 below them, the slot's bottom just
   under the lip. If the gap needs changing, the printed case stays and only the frame moves the belts ("Tuning the
   gap"); the legs leave 0.5 above the plates for that.
-- **Case:** the STL is already on its back; place it as it comes, the long side (217) along the plate's Y. ~0.5 kg
-  PETG by my estimate (493 cm³ solid); the slicer gives the real time and weight. Textured PEI, no brim: the whole
-  back wall is on the plate. Check the 4023 window's edges after the first layers (elephant foot: keep Bambu's
-  compensation on, the window has only 0.3 mm play). Why one piece and on its back: "Case" above.
-- **Borders:** as the STLs come, on their ends, 0.2 mm. Border H is 72 mm tall on a 25 × 22 mm foot: a brim if it
-  wobbles.
+- **Case:** on its back as the STL comes, the long side (217) along the plate's Y. ~0.5 kg PETG by my estimate (493 cm³
+  solid). Textured PEI, no brim: the whole back wall is on the plate. Check the 4023 window's edges after the first
+  layers (elephant foot: keep Bambu's compensation on, the window has only 0.3 mm play). Why one piece and on its
+  back: "Case" above.
+- **Borders** stand on their ends; border H is 72 mm tall on a 25 × 22 mm foot. Add a brim only if it wobbles.
 - The left gate prints on its side so the gap step lies in the XY plane, where the printer is most accurate.
-- **Lift and pusher: PLA**, both on one plate (0.2 mm, 3 walls, 15 %). Neither carries more than a few newtons. PLA is
-  stiffer than PETG and holds the sliding edges and the lift's 0.44 / 0.56 mm side gaps more accurately, and its
-  support breaks off cleanly. The limit is heat: PLA softens from ~55 °C, and at home the pusher's nut sits 1.5 mm from the
-  coupling and its plate's top corner ~2 mm under the motor (through the wall's 2 mm skin). Run both motors at moderate current with a low hold current (a 17HS4401 at its full 1.7 A gets
+- **Lift and pusher: PLA.** Neither carries more than a few newtons. PLA is stiffer than PETG and holds the sliding
+  edges and the lift's 0.44 / 0.56 mm side gaps more accurately. The limit is heat: PLA softens from ~55 °C, and at
+  home the pusher's nut sits 1.5 mm from the coupling and its plate's top corner ~2 mm under the motor (through the
+  wall's 2 mm skin). Run both motors at moderate current with a low hold current (a 17HS4401 at its full 1.7 A gets
   hotter than that) ⚠️.
-- Lift: plate down, as the STL comes. Tree support on the build plate only, under the tab (the nut flange's seat,
-  47 mm up). Auto support catches only the tab. Every other side down either stands the 3 mm plate on its edge or
-  turns the slope's sides past 45°.
+- Lift: plate down. Every other side down either stands the 3 mm plate on its edge or turns the slope's sides past 45°.
 - Pusher carriage: as it sits in the box, bottom down: the plate's lower edge, the one that slides, comes out of the
-  bed flat, and the chamfers take the elephant foot. No supports, the nut hole is a teardrop with its tip cut flat (a
-  full tip would cut into the upper screw hole). Every other side down puts the tab or the plate in mid-air.
-- **TR8 nuts (2×): PETG**, flange down, 0.12 mm, 4 walls (the 1.3 mm under the thread root is all perimeters), no
-  supports. PETG, not PLA: it wears less on the steel screw. Test on the screw by hand before assembly: it should turn
-  along the whole screw without binding and without wobble. Binds → `nut_slop` + 0.05, wobbles → − 0.05 (per side,
-  `params.scad`) ⚠️ untested. A printed nut drags more than brass: set the pusher's StallGuard threshold with these nuts.
+  bed flat, and the chamfers take the elephant foot. The nut hole is a teardrop with its tip cut flat (a full tip
+  would cut into the upper screw hole). Every other side down puts the tab or the plate in mid-air.
+- **TR8 nuts: PETG**, not PLA: it wears less on the steel screw. Test each on the screw by hand before assembly: it
+  should turn along the whole screw without binding and without wobble. Binds → `nut_slop` + 0.05, wobbles → − 0.05
+  (per side, `params.scad`) ⚠️ untested. A printed nut drags more than brass: set the pusher's StallGuard threshold
+  with these nuts.
 
 ## Assembly
 

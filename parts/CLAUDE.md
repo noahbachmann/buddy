@@ -25,6 +25,7 @@ come next.
 
 ```bash
 parts/cad build arm [part…]                        # STLs into arm/stl (binary), stats per part; any WARNING fails
+parts/cad plate dispenser [plate…]                 # print jobs from cad.toml [plates] → dispenser/plates/*.stl
 parts/cad render arm [part…]                       # PNG sheets into arm/renders/ (gitignored), paths printed
 parts/cad render arm upper-arm-top --section y=0 --section z=10   # + 2D cuts
 parts/cad render arm -D shoulder=45 -D elbow=90    # -D goes to every file rendered (poses for the assembly)
@@ -38,6 +39,10 @@ cd parts/tools && uv run pytest -q                 # tool tests (fixtures in tes
   (solid), bed/overhang/roof areas.
 - **Section**: filled 2D cut, 1 mm / 10 mm grid, world axis names kept. Use it for walls, bearing seats, nut slots,
   cable channels: anything inside.
+- **Plates** (`tools/src/cad/plate.py`): `[plates.<name>]` in `cad.toml` lists parts (repeat = copies; a list =
+  one group kept in its common frame, e.g. a part and its built-in support) and a `note` (filament, settings). Parts
+  turn only about Z, pack into rows on 230 × 230 with 8 mm gaps, centred. One STL per plate = one object in Bambu
+  Studio: settings apply to the whole plate, auto brim judges the whole plate. Dev prints from `plates/`.
 - **Assembly sheet**: OpenSCAD's own preview from 4 directions (gimbal camera), keeps `color()` and `%` ghosts.
 - Print classes (`tools/src/cad/mesh.py`): +Z = build direction, lowest Z = bed, 45° counts as fine (teardrops,
   chamfers). Numbers are surface areas, not yet judged: `cad check` (next) adds the rules.
@@ -50,7 +55,10 @@ section through every fit (bearing seat, slot, channel). Numbers can't see a mis
 ## Rules
 
 - STL only. 3MF files (e.g. `tray/tray.3mf`) are Dev's print projects: never read, write or regenerate them.
-- STLs are committed already in print orientation (+Z up = build direction), binary.
+- STLs are committed already in print orientation (+Z up = build direction), binary. So are `plates/`: rebuild
+  them (`cad plate <module>`) whenever a part on them changes.
+- Dev drags a plate in and prints: no arranging, no slicer supports. A part that needs support gets a built-in
+  breakaway one (separate body, ≥ 0.25 mm air under the part so a 0.2 layer stays empty) on its plate.
 - Every dimension in the module's `params.scad`; design rules and fits from `docs/3d-printing.md`.
 - `tray/` has no source (Dev's own): change only on request, by editing the STL directly (lid rim gap: `docs/3d-printing.md` → Fits).
 - `dispenser/dispenser.stl` is Dev's Onshape box: never modify it. Roller and pusher are built in its coordinates;

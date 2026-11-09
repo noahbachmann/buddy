@@ -477,8 +477,9 @@ module lift_coupling() lift_tf() coupling_local();
 module lift_screw() lift_tf() translate([0, 0, m44_shaft[1]]) cylinder(d = 8, h = lift_screw_top - lift_face - m44_shaft[1]);
 
 // --- Lift (printed): plate + slope + Dev's nut tab. Plate top at `top`. Print: as placed, plate down; the tab needs
-// support (Dev's design). One intersection, no unions: side profile (along X) ∩ front profile (along Y: straight sides
-// from the plate's corners to the tab's) ∩ plan (along Z: everything up to just under the tab, the tab's outline above).
+// support (Dev's design): lift_support() below. One intersection, no unions: side profile (along X) ∩ front profile
+// (along Y: straight sides from the plate's corners to the tab's) ∩ plan (along Z: everything up to just under the
+// tab, the tab's outline above).
 assert(card_yc + card[1] / 2 <= gear_y[0] - 1, "cards reach the drum gear");
 assert(lift_axis[1] - nut_flange[0] / 2 - (riser_y + stop_t + stop_lean * (stop_h - tab_t) / stop_h) >= 0.5 - 1e-9,
        "nut flange hits the slope");
@@ -519,6 +520,35 @@ module lift_part(top) {
       translate([ax[0] + o[0], ax[1] + o[1], zt - 1]) cylinder(d = lift_holes[1], h = tab_t + 2);
   }
 }
+// Breakaway support for the lift's tab (plate file only): the tab's outline 0.4 inside, behind the slope's back face at
+// the tab + sup_clear, from the bed to sup_gap under the tab. Touches nothing: the tab's first layer sags onto it.
+module lift_support(top) {
+  b = top - lift_t;
+  zt = top + stop_h - tab_t;
+  y0 = riser_y + stop_t + stop_lean * (zt - top) / stop_h + sup_clear;
+  ax = lift_axis;
+  module outline() intersection() {
+    offset(delta = -0.4) hull() {
+      translate([ax[0], ax[1]]) circle(r = lift_tab_r);
+      translate([ax[0] - stop_w / 2, riser_y - 1]) square([stop_w, stop_lean + 2]);
+    }
+    translate([ax[0] - stop_w, y0]) square([2 * stop_w, 2 * lift_tab_r]);
+  }
+  translate([0, 0, b]) {
+    linear_extrude(sup_base) outline();
+    linear_extrude(zt - sup_gap - b) intersection() {
+      outline();
+      union() {
+        difference() { outline(); offset(delta = -sup_wall) outline(); }
+        for (i = [-6:6]) {
+          translate([ax[0] + i * sup_pitch - sup_wall / 2, y0 - 1]) square([sup_wall, 3 * lift_tab_r]);
+          translate([ax[0] - stop_w, ax[1] + i * sup_pitch - sup_wall / 2]) square([2 * stop_w, sup_wall]);
+        }
+      }
+    }
+  }
+}
+
 // flange against the tab's underside, body hanging below (the tab's Ø10.2 hole stays empty: the screw centres the nut)
 module lift_nut(top) translate([lift_axis[0], lift_axis[1], top + stop_h - tab_t]) mirror([0, 0, 1]) nut_outside();
 
