@@ -83,11 +83,21 @@ the lift in place and the 4023 turned. It also holds bought parts as stand-ins (
 ```
 
 - **The carriage is the lift turned 90°:** the plate (35 × 94.5 × 4) is the lift's plate, the bar along the front
-  strip its riser, the tab with the TR8 nut its nut tab. One printed part, no rods.
+  strip its riser, the tab with the TR8 nut its nut tab. One printed part, no rods; a groove in the bar's underside
+  runs over a guide ridge.
 - **What keeps the nut from turning:** the carriage's weight. Its centre of mass hangs 26 mm behind the screw, so the
   plate presses its lower edge onto the lift (then onto the divider). That holds ~5 mNm (21 g printed). The screw's
   drag tries to lift the plate while pushing, at ~2 mNm per newton of push: the carriage only tips at ~2.5 N, and a
-  full pile (30 cards) needs ~0.2 N. If something jams, the plate rides up over it instead of stalling.
+  full pile (30 cards) needs ~0.2 N.
+- **Guide against turning:** a ridge along X under the bar (front face y −150.4, z 96.04…99.04, flat 1 mm top, back at
+  45°) on the tops of border H, the divider and border B, in a groove in the bar's underside (y −150.6…−145.2,
+  3.5 deep). Turning the plate's far end up moves the bar back (+Y): the groove's front wall meets the ridge 0.2 mm
+  later, 56 mm below the screw, so the far end (104 mm behind it) rises ≤ ~0.4 mm (~0.5 with the borders' print
+  tolerance) however hard the screw drags. Turning the other way is what stepping onto the divider does (the bar moves
+  ~0.6 forward): 1.2 mm behind the ridge. Free in Z: the plate still rests on the lift by its weight, the guide only
+  stops the rise. Each ridge's front face is set back 0.6 mm at its ends, so the groove passes the joints between the
+  three parts. At a jam the plate no longer rides up: the motor pushes into it, so keep the current moderate (needed
+  for PLA anyway) and watch the TMC2209's stall value (StallGuard over UART) as a jam alarm.
 - **Catching the bottom card:** the plate rests *on* the lift, so its lower edge sits at the lift's top, below the
   bottom card's edge. A 0.8 mm chamfer on that edge presses the card down instead of sliding over it. The lift's
   height still matters (calibrate it once, see "Untested assumptions"): if the lift is off by e, the plate tilts and
@@ -135,9 +145,10 @@ the lift in place and the 4023 turned. It also holds bought parts as stand-ins (
   16 mm square, the nut's flange against the tab's underside. Lowest plate position z 29.29 (a 35 mm pile under the
   lip); the nut is then at z 57.8…72.8, far above the coupling.
 - **Front border (`border-b`, slides in):** in front of the lift plate, from the divider to the right wall, floor to
-  z 65, filling the front strip to the box front. Its inner face is vertical 0.5 mm in front of the plate (y −135.9) up
-  to the plate's lowest top (z 29.29), then leans forward at the slope's angle to y −142.0 at z 65. It keeps pile B from
-  sliding out of the open front, and like the lift's slope it leads dropping cards into place.
+  the divider's top (z 96.04), filling the front strip to the box front. Its inner face is vertical 0.5 mm in front of
+  the plate (y −135.9) up to the plate's lowest top (z 29.29), then leans forward at the slope's angle to y −142.0 at
+  z 65, then vertical to the top, which carries the pusher's guide ridge. It keeps pile B from sliding out of the open
+  front, and like the lift's slope it leads dropping cards into place.
 
 ## Case
 
@@ -300,9 +311,11 @@ coupling, tighten the 8 mm side.
 1. **Motor:** coupling on the shaft (its middle at the shaft's tip, 24 mm from the face), tighten the 5 mm side.
    Motor onto the right wall's outer face, boss in the wall's hole, 4× M3×8 from inside the box.
 2. **Nut:** flange onto the tab's right face (towards the motor), body through the tab, 2× M3×8.
-3. **Carriage in:** lift down. Slide the carriage in from the front: plate into the notch, bar into the low part.
+3. **Carriage in:** borders in, lift at push height (turn its screw by hand). The ridge is in the way of sliding the
+   carriage straight into the notch, so put it in halfway along instead (plate over the lift, around x 100): from the
+   front, held ~3 mm high, then set down with the groove over the ridge and the plate on the lift. Hold it there.
 4. **Screw in:** through the left wall's hole from outside, thread it through the nut by turning it, into the coupling.
-   Tighten the 8 mm side through the open front.
+   Tighten the 8 mm side through the open front. Turn the screw to bring the carriage home into the notch.
 5. **Check:** turn the screw by hand with the lift at push height. The plate must slide on the lift, step down onto the
    divider, and come back over the lift's edge and into the notch without catching.
 
@@ -339,7 +352,8 @@ them, `case_add()` / `box_cuts()` have to stop adding them, or they're added twi
   - H: x 0.2…71.8, z 70.5…96.04, inner face from y −131.9 at the bottom leaning forward to y −136.25 at the top;
     beside the right gate (y > −141.6) it stops 0.2 short of the gate's bar and wedge. 2 pilot holes from the left
     face at (y, z) = (−146, 78), (−146, 89).
-  - B: x 75.2…142.8, z 5…65, inner face at y −135.9 up to z 29.29, then leaning forward to y −142.0 at z 65; a lip
+  - B: x 75.2…142.8, z 5…96.04, inner face at y −135.9 up to z 29.29, then leaning forward to y −142.0 at z 65,
+    vertical above; a lip
     2 mm thick down the floor's front edge (z 2.5…10). 2 pilot holes from below at (x, y) = (93, −146), (125, −146).
 - **4023 in the back wall:** window through the wall at x 28.55…71.45, z 22.39…64.99 (the motor + 0.3, its floor
   flush with the motor's underside). Hold under the motor: a block x 28.85…71.15, y −20.2…−2 (from 0.3 behind the
@@ -355,6 +369,8 @@ them, `case_add()` / `box_cuts()` have to stop adding them, or they're added twi
   face toward the card. Front: from the front edge (y −154.4) to the line (72, −135.4)→(75, −132.4). Back: from
   the back wall (y −5) to the line (72, −36.4)→(75, −39.4). Seen from above, the opening is 99 mm wide at x 72 and 93 mm
   at x 75. This also ties the divider's upper block to the lower part.
+- **Pusher guide ridge** (see "How the pusher works") on the divider's top, x 72.1…74.9 (its front face set back
+  0.6 at both ends over 1.2 mm), and on both borders' tops, x 0.2…71.8 and 75.2…142.8 (set back over 2 mm).
 - **Pusher notch** in the right wall, 4 mm deep from the inside (1 mm of wall stays), open to the front edge:
   y −154.4…−40.4 at z 96.74…107.54 (bar), plus y −136.4…−40.4 up to z 133.04 (plate).
 - **Right wall extended forward** around the pusher motor: x 143…148, to y −169.05, z 130.89…177.19, the underside
@@ -406,7 +422,7 @@ but then two cards sit in the slot. No roller left of the divider can push furth
 - NBR on the card back is assumed to grip better than card on card. If the second card comes along, lower the gap first.
 - The 4023's model (connector side, shaft flat at 2.0 mm from the axis) is taken from `dispenser.stl` as drawn.
 - Pusher: the plate rests on the lift by its weight (~5 mNm holding torque, estimated for 21 g printed; tips at ~2.5 N
-  push). The lift's push height has to be calibrated once: push a single card lying at the front (y ≈ −129.4), then one
+  push, then the guide ridge caps the rise at ~0.4 mm: check that a card can't slip under at a jam). The lift's push height has to be calibrated once: push a single card lying at the front (y ≈ −129.4), then one
   at the back (y ≈ −46.4), and change the height in 0.05 mm steps until both are caught. Bowed cards may still slip
   under the plate's front end; if they do, the fix is a comb (slots in the lift plate) so the plate's
   edge can dip below the lift top.

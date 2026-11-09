@@ -252,6 +252,18 @@ function pu_profile(h = push_h) = let(b = push_lift, t = push_lift + h, x0 = rig
                             c = push_cham)
   [[x0, b + c[0]], [x0 + c[0], b], [x1 - c[1], b], [x1, b + c[1]], [x1, t], [x0, t]];
 
+// Guide ridge from x0 to x1 on a top at div_top (base 0.5 inside it): front face vertical (contact), flat top, back
+// 45°; the front face set back at both ends over `taper`, so the groove slides over the step at a joint.
+function guide_yb() = guide_yf + guide_top + guide_h;   // back face's foot at div_top
+module guide_ridge(x0, x1, taper = guide_taper[1]) let(yf = guide_yf, z0 = div_top - 0.5, zt = div_top + guide_h,
+                                                       yb = guide_yb() + 0.5, d = guide_taper[0])
+  intersection() {
+    translate([x0, 0, 0]) rotate([90, 0, 90]) linear_extrude(x1 - x0)
+      polygon([[yf, z0], [yf, zt], [yf + guide_top, zt], [yb, z0]]);
+    translate([0, 0, z0 - 1]) linear_extrude(zt - z0 + 2)
+      polygon([[x0, yf + d], [x0 + taper, yf], [x1 - taper, yf], [x1, yf + d], [x1, yb + 1], [x0, yb + 1]]);
+  }
+
 // Carriage at home (push = 0) .. end of stroke (push = 1): plate + bar + nut tab, like the lift turned 90°.
 // Print: as placed, bottom down.
 module pusher(push = 0) translate([-push * push_stroke, 0, 0]) difference() {
@@ -266,6 +278,8 @@ module pusher(push = 0) translate([-push * push_stroke, 0, 0]) difference() {
       translate([0, r[0], 0]) mirror([0, 1, 0]) rotate([90, 0, 0]) linear_extrude(r[1] - r[0]) polygon(r[2]);
     box([right_wall[0] + 1, right_wall[0] + (push_t - 1)], [push_y[0] - 1, push_y[0] + 1], [b + 2, b + (bar_h - 1)]);  // joint
   }
+  // groove over the guide ridge (its roof prints as a bridge)
+  box([bar_x[0] - 1, bar_x[1] + 1], [guide_yf - groove_play[0], guide_yb() + groove_play[1]], [b - 1, b + groove_d]);
   // nut through the tab, flange screwed to its right face (pushing presses the flange onto the tab)
   hole_x(pu_y, pu_screw_z, nut_d + 0.4, tab_x[0] - eps, tab_x[1] + eps, 1);
   for (s = [-1, 1]) hole_x(pu_y, pu_screw_z + s * nut_pcd / 2, screw_pilot, tab_x[0] - eps, tab_x[1] + eps);
@@ -274,7 +288,8 @@ module pusher(push = 0) translate([-push * push_stroke, 0, 0]) difference() {
 // Dev's change to the box: the right wall extended forward around the motor face (45° underneath, prints upright),
 // the boss's hole and the motor's 4 screw holes through it.
 m44_hole_offs = [for (a = [-1, 1], b = [-1, 1]) [a, b] * m44_holes / 2];
-module case_add() difference() {   // additions to Dev's box: wall extension, slot ends, motor holds, borders, right gate, feet
+module case_add() difference() {   // additions to Dev's box: wall extension, slot ends, motor holds, borders, right gate, feet,
+                                   // guide ridge on the divider
   dy = ext_y[1] - ext_y[0];
   union() {
     hull() {
@@ -287,6 +302,7 @@ module case_add() difference() {   // additions to Dev's box: wall extension, sl
     h_back_border();
     right_gate();
     feet();
+    guide_ridge(divider_x + 0.1, slit_x1 - 0.1, 1.2);   // on the divider's top, between the borders' ridges
   }
   wall_holes();
 }
@@ -336,8 +352,11 @@ function h_insert_profile() = let(zb = h_bord_z[0], zt = h_bord_z[1], y1 = card_
 module h_insert() {
   f = insert_fit;
   difference() {
-    translate([left_wall[1] + f, 0, 0]) rotate([90, 0, 90]) linear_extrude(divider_x - f - (left_wall[1] + f))
-      polygon(h_insert_profile());
+    union() {
+      translate([left_wall[1] + f, 0, 0]) rotate([90, 0, 90]) linear_extrude(divider_x - f - (left_wall[1] + f))
+        polygon(h_insert_profile());
+      guide_ridge(left_wall[1] + f, divider_x - f);
+    }
     // the right gate's bar and wedge (inner face from (gate_in, gate_top) to (divider_x - 0.2, div_top - 0.5)), + fit
     translate([0, back_wall, 0]) rotate([90, 0, 0]) linear_extrude(back_wall - (front_y[0] - f))
       polygon([[gate_in - f, h_bord_z[0] - 1], [gate_in - f, gate_top], [divider_x - 0.2 - f, div_top - 0.5],
@@ -346,16 +365,20 @@ module h_insert() {
   }
 }
 // B: divider .. right wall, on the floor; a lip over the floor's front edge is its stop, 2 M3 from below.
-// Inner face vertical 0.5 in front of the lift plate up to its lowest top, then leaning forward like the slope.
+// Inner face vertical 0.5 in front of the lift plate up to its lowest top, then leaning forward like the slope up to
+// div_low, then vertical up to the divider's top: it carries the pusher's guide ridge like border H.
 function b_insert_profile() = let(y1 = lift_front - 0.5, lean = (div_low - lift_min) * stop_lean / stop_h,
                                   bf = box_front)
-  [[bf - 2, floor_bot + 0.5], [bf, floor_bot + 0.5], [bf, floor_top], [y1, floor_top], [y1, lift_min], [y1 - lean, div_low], [bf, div_low],
+  [[bf - 2, floor_bot + 0.5], [bf, floor_bot + 0.5], [bf, floor_top], [y1, floor_top], [y1, lift_min], [y1 - lean, div_low], [y1 - lean, div_top], [bf, div_top],
    [bf, floor_top + 5], [bf - 2, floor_top + 5]];
 module b_insert() {
   f = insert_fit;
   difference() {
-    translate([slit_x1 + f, 0, 0]) rotate([90, 0, 90]) linear_extrude(right_wall[0] - f - (slit_x1 + f))
-      polygon(b_insert_profile());
+    union() {
+      translate([slit_x1 + f, 0, 0]) rotate([90, 0, 90]) linear_extrude(right_wall[0] - f - (slit_x1 + f))
+        polygon(b_insert_profile());
+      guide_ridge(slit_x1 + f, right_wall[0] - f);
+    }
     for (s = insert_screws_b) translate([s[0], s[1], floor_top - eps]) cylinder(d = screw_pilot, h = 10);
   }
 }

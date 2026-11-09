@@ -169,6 +169,17 @@ tab_x      = [nut_x[1] - nut_flange[1] - tab_t, nut_x[1] - nut_flange[1]];
 bar_x      = [tab_x[0], right_wall[0] + push_t];
 screw_x    = [left_wall[0] + 1, shaft_tip];   // cut the screw to this length
 
+// Guide against turning: a ridge along X on the front strip's tops (border H, divider, border B) runs in a groove in the
+// bar's underside. Turning the plate's far end up moves the bar (57 below the screw) back (+Y): the ridge's front face
+// stops it. Free in Z: the plate still rests on the lift by its weight.
+guide_yf    = pu_y - 4.5;    // ridge's front face (the contact face)
+guide_h     = 3;             // above div_top: 2 into the groove with the bar on the lift
+guide_top   = 1;             // flat top; back face 45° (the case prints on its back, -Y up)
+guide_taper = [0.6, 2];      // front face set back at each segment's ends (depth, length): the groove passes the
+                             // borders' 0.2 play at the joints
+groove_play = [0.2, 1.2];    // front (contact), back: stepping onto the divider tilts the bar ~0.6 forward
+groove_d    = guide_h + 0.5; // the bar still clears the ridge if it sits 1 lower (on the divider)
+
 // Dev's changes to the box: notch for the carriage at home (open to the front, 4 deep), the wall extended forward
 // around the motor face, the screw's hole in the left wall
 notch_lo = [[box_front - 1, riser_y], [push_lift - push_rest, push_lift + (bar_h + 0.5)]];
