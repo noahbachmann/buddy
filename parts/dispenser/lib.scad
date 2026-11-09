@@ -278,8 +278,13 @@ module pusher(push = 0) translate([-push * push_stroke, 0, 0]) difference() {
       translate([0, r[0], 0]) mirror([0, 1, 0]) rotate([90, 0, 0]) linear_extrude(r[1] - r[0]) polygon(r[2]);
     box([right_wall[0] + 1, right_wall[0] + (push_t - 1)], [push_y[0] - 1, push_y[0] + 1], [b + 2, b + (bar_h - 1)]);  // joint
   }
-  // groove over the guide ridge (its roof prints as a bridge)
-  box([bar_x[0] - 1, bar_x[1] + 1], [guide_yf - groove_play[0], guide_yb() + groove_play[1]], [b - 1, b + groove_d]);
+  // hollow between `thin` legs (front leg = the groove's contact face), from the tab to a `thin` end wall at the plate:
+  // under a `thin` deck (the guide ridge runs in it, the roof prints as a bridge), open above it in the gusset
+  hy = [guide_yf - groove_play[0], push_y[0] - thin];
+  assert(hy[1] - guide_yb() >= groove_play[1], "bar's back leg on the guide ridge");
+  box([tab_x[1], right_wall[0]], hy, [b - 1, b + (bar_h - thin)]);
+  box([bar_x[0] - 1, bar_x[1] + 1], [hy[0], guide_yb() + groove_play[1]], [b - 1, b + groove_d]);   // groove under tab, end
+  box([tab_x[1], tab_x[1] + 16], hy, [b + bar_h, b + (bar_h + 16)]);
   // nut through the tab, flange screwed to its right face (pushing presses the flange onto the tab)
   hole_x(pu_y, pu_screw_z, nut_d + 0.4, tab_x[0] - eps, tab_x[1] + eps, 1);
   for (s = [-1, 1]) hole_x(pu_y, pu_screw_z + s * nut_pcd / 2, screw_pilot, tab_x[0] - eps, tab_x[1] + eps);
@@ -468,12 +473,13 @@ module lift_screw() lift_tf() translate([0, 0, m44_shaft[1]]) cylinder(d = 8, h 
 // support (Dev's design). One intersection, no unions: side profile (along X) ∩ front profile (along Y: straight sides
 // from the plate's corners to the tab's) ∩ plan (along Z: everything up to just under the tab, the tab's outline above).
 assert(card_yc + card[1] / 2 <= gear_y[0] - 1, "cards reach the drum gear");
-assert(lift_axis[1] - nut_flange[0] / 2 - (riser_y + stop_lean + stop_t) >= 0.5 - 1e-9, "nut flange hits the slope");
+assert(lift_axis[1] - nut_flange[0] / 2 - (riser_y + stop_t + stop_lean * (stop_h - tab_t) / stop_h) >= 0.5 - 1e-9,
+       "nut flange hits the slope");
 module lift_part(top) {
   b = top - lift_t;
   st = top + stop_h;
   zt = st - tab_t;                       // tab underside = nut flange top
-  yb = riser_y + stop_lean + stop_t;     // slope wall's back face (vertical, below the tab)
+  yb = function(z) riser_y + stop_t + stop_lean * (z - top) / stop_h;   // slope wall's back face, parallel to its front
   ax = lift_axis;
   sx = [ax[0] - stop_w / 2, ax[0] + stop_w / 2];
   // front profile: straight sides from just outside the plate's top corners (0.3, so they don't meet its edges) to
@@ -488,7 +494,7 @@ module lift_part(top) {
   difference() {
     intersection() {
       translate([lift_x[0], 0, 0]) rotate([90, 0, 90]) linear_extrude(lift_x[1] - lift_x[0])
-        polygon([[lift_front, b], [yb, b], [yb, zt], [lift_tab_y + 1, zt], [lift_tab_y + 1, st], [yb - stop_t, st],
+        polygon([[lift_front, b], [yb(b), b], [yb(zt), zt], [lift_tab_y + 1, zt], [lift_tab_y + 1, st], [riser_y + stop_lean, st],
                  [riser_y, top], [lift_front, top]]);
       translate([0, lift_tab_y + 2, 0]) rotate([90, 0, 0]) linear_extrude(lift_tab_y + 2 - (lift_front - 1))
         polygon([[xo[0], b - 1], [xo[1], b - 1], [xo[1], zx(1)], [side(1, zs), zs], [side(1, zs), st + 1],
@@ -497,7 +503,7 @@ module lift_part(top) {
         box([xo[0], xo[1]], [lift_front - 1, lift_tab_y + 2], [b - 1, zt - 0.5]);
         translate([0, 0, zt - 1]) linear_extrude(st - zt + 2) hull() {
           translate([ax[0], ax[1]]) circle(r = lift_tab_r);
-          translate([sx[0], riser_y - 1]) square([stop_w, yb - stop_t - riser_y + 2]);   // 1 past the slope's top edge
+          translate([sx[0], riser_y - 1]) square([stop_w, stop_lean + 2]);   // 1 past the slope's top edge
         }
       }
     }

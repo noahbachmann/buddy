@@ -59,6 +59,8 @@ Change things for one part only: right-click it → Add settings. Keeps the pres
 ## Design rules
 
 - Walls in steps of 0.4 mm.
+- Walls, plates and tabs **3 mm max** (Dev). Thicker only where a part takes real load, and say why in the model. Stiffness
+  comes from shape (U sections, ribs, side walls), not from solid blocks.
 - Overhangs max 45° ⚠️. Chamfer bottom edges, don't round them.
 - Holes ≥ 1.5 mm ⚠️.
 - Strongest along the layers: orient so it doesn't split between them.

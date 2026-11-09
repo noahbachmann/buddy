@@ -25,6 +25,8 @@ b_shift          = divider_x1_dev - (divider_x + divider_t);   // everything rig
 // lift nut flange 0.9 mm from the wall).
 shift            = 8.5;
 
+thin             = 3;       // printed walls, plates, tabs: 3 max unless the part takes real load (Dev)
+
 // --- Card ------------------------------------------------------------------------------
 card    = [66.5, 91];        // X (travel) x Y, sleeved
 card_x0 = 0.5;               // card's left edge on the roller: 0.5 from the left gate
@@ -136,7 +138,7 @@ push_step  = 1;              // lift plate top above the divider top while pushi
 push_lift  = div_top + push_step;      // lift plate top while pushing (firmware) = the plate's lower edge
 push_rest  = 0.3;            // notch floor below push_lift: the plate starts level with the lift, never above it
 push_h     = pile_max;
-push_t     = 4;              // the notch is 4 deep: 1 mm of wall stays outside, the plate's home stop
+push_t     = thin;           // the notch is 3 deep: 2 mm of the wall stay outside, the plate's home stop
 push_y     = [card_yc - card[1] / 2 - 4.5, riser_y - 1];   // 0.5 over the lift plate's front edge
 push_cham  = [0.8, 1.5];     // lower edge, push side / return side: ramps over the lift's and the notch's edges
 push_end   = divider_x;      // plate face at the end: plate on the divider, pile at x 9..72 over H's chute
@@ -162,8 +164,7 @@ m44_face   = right_wall[1];
 shaft_tip  = m44_face - m44_shaft[1];
 coup_x     = [shaft_tip - coupling[1] / 2, shaft_tip + coupling[1] / 2];
 bar_h      = 10;
-bar_y      = [box_front, push_y[0]];
-tab_t      = 5;
+tab_t      = thin;           // nut tabs (pusher and lift); pushing / the lift's weight press the flange onto them
 nut_x      = [coup_x[0] - 1.5 - nut_len, coup_x[0] - 1.5];   // at home; flange on the right
 tab_x      = [nut_x[1] - nut_flange[1] - tab_t, nut_x[1] - nut_flange[1]];
 bar_x      = [tab_x[0], right_wall[0] + push_t];
@@ -179,6 +180,7 @@ guide_taper = [0.6, 2];      // front face set back at each segment's ends (dept
                              // borders' 0.2 play at the joints
 groove_play = [0.2, 1.2];    // front (contact), back: stepping onto the divider tilts the bar ~0.6 forward
 groove_d    = guide_h + 0.5; // the bar still clears the ridge if it sits 1 lower (on the divider)
+bar_y      = [guide_yf - groove_play[0] - thin, push_y[0]];   // front leg `thin` in front of the groove
 
 // Dev's changes to the box: notch for the carriage at home (open to the front, 4 deep), the wall extended forward
 // around the motor face, the screw's hole in the left wall
@@ -193,16 +195,16 @@ screw_hole = 8.6;
 // Motor under the floor, face against its underside: coupling z 11.5..36.5. Side view: the nut tab around the screw at
 // the top, from its front edge one slope (leaning ~10°) down to the plate; the front border (box) leans the same way, so
 // a card dropping onto a low lift slides into place. Seen from the front the slope narrows upwards along straight
-// sides. The nut connection is Dev's as drawn: 5 mm tab with a round end, Ø10.2 + 4x Ø4 on a 16 mm square, the nut's
+// sides. The nut connection is Dev's as drawn but 3 thick (his: 5): tab with a round end, Ø10.2 + 4x Ø4 on a 16 mm square, the nut's
 // flange under it, its spigot up in the hole. The plate's edges against the divider and the right wall keep it from
 // turning.
 lift_axis  = [111.8 - b_shift, -25.4 + shift];   // Dev's nut and tab centre (his screw was drawn 0.6 off)
 lift_face  = floor_bot;      // motor face against the floor's underside
 lift_screw_top = box_top;    // ends at the box top
 lift_x     = [divider_x + divider_t + 0.44, right_wall[0] - 0.56];   // plate: 0.44 to the divider, 0.56 to the right wall (as Dev's)
-lift_t     = 4;              // plate thickness
+lift_t     = thin;           // plate thickness
 lift_front = card_yc - card[1] / 2 - 4;   // plate's front edge: plate top 92 long to the slope's foot (Dev's)
-stop_t     = 4;              // slope wall, measured along Y
+stop_t     = thin;           // slope wall, measured along Y, leaning like its front face
 stop_h     = 47;             // plate top .. tab top (Dev's)
 stop_lean  = 8;              // the slope's front face leans back this much over stop_h (~10°)
 stop_w     = 28;             // at the top (Dev's tab width), centred on the screw

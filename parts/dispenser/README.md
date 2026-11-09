@@ -78,20 +78,21 @@ the lift in place and the 4023 turned. It also holds bought parts as stand-ins (
         │   │◣ gusset                                 ┌────┤
   z 132 │   │                                         │    │ plate: 35 high, rests on the lift, face pushes B
   z 107 │   └──────────── bar ─────────────────────── │    │
-  z  97 └─────────────────────────────────────────────┴────┘ ← in the wall's notch at home (4 deep, 1 mm skin)
+  z  97 └─────────────────────────────────────────────┴────┘ ← in the wall's notch at home (3 deep, 2 mm skin)
         x 100.5                                      143  147
 ```
 
-- **The carriage is the lift turned 90°:** the plate (35 × 94.5 × 4) is the lift's plate, the bar along the front
-  strip its riser, the tab with the TR8 nut its nut tab. One printed part, no rods; a groove in the bar's underside
-  runs over a guide ridge.
+- **The carriage is the lift turned 90°:** the plate (35 × 94.5 × 3) is the lift's plate, the bar along the front
+  strip its riser, the tab with the TR8 nut its nut tab. One printed part, no rods, every wall 3 mm: the bar is an
+  upside-down U (two legs, a deck on top, open below, an end wall at the plate), the gusset two side walls, the tab a
+  3 mm plate. The guide ridge runs inside the U.
 - **What keeps the nut from turning:** the carriage's weight. Its centre of mass hangs 26 mm behind the screw, so the
   plate presses its lower edge onto the lift (then onto the divider). That holds ~5 mNm (21 g printed). The screw's
   drag tries to lift the plate while pushing, at ~2 mNm per newton of push: the carriage only tips at ~2.5 N, and a
   full pile (30 cards) needs ~0.2 N.
 - **Guide against turning:** a ridge along X under the bar (front face y −150.4, z 96.04…99.04, flat 1 mm top, back at
-  45°) on the tops of border H, the divider and border B, in a groove in the bar's underside (y −150.6…−145.2,
-  3.5 deep). Turning the plate's far end up moves the bar back (+Y): the groove's front wall meets the ridge 0.2 mm
+  45°) on the tops of border H, the divider and border B, inside the bar's U (y −150.6…−138.9, 7 high; under the tab
+  and the end wall a groove y −150.6…−145.2, 3.5 deep). Turning the plate's far end up moves the bar back (+Y): the groove's front wall meets the ridge 0.2 mm
   later, 56 mm below the screw, so the far end (104 mm behind it) rises ≤ ~0.4 mm (~0.5 with the borders' print
   tolerance) however hard the screw drags. Turning the other way is what stepping onto the divider does (the bar moves
   ~0.6 forward): 1.2 mm behind the ridge. Free in Z: the plate still rests on the lift by its weight, the guide only
@@ -105,7 +106,7 @@ the lift in place and the 4023 turned. It also holds bought parts as stand-ins (
 - **Where it runs:** three things fix the layout. The divider block (z 66…96) spans the full depth, so everything that
   crosses it stays above z 97. The lift's slope (from y −40.4 at the plate) rises to z 144 while pushing, so nothing may
   sit behind the cards. The cards cover y −131.4…−40.4, and the arm drops cards onto H from above. So the screw, the
-  coupling, the tab and the bar run in the **front strip** (y −154.4…−135.9); only the plate crosses the card area.
+  coupling, the tab and the bar run in the **front strip** (bar y −153.6…−135.9); only the plate crosses the card area.
 - **Pile height:** up to 35 mm (30 loose cards). The plate is as high as that pile; the motor and its lower screw
   holes sit above it, which sets the screw at z 154.
 - **Motor:** a 17HS4401 screwed flat onto the right wall's outer face (4× M3 from inside the box). The wall is
@@ -113,8 +114,8 @@ the lift in place and the 4023 turned. It also holds bought parts as stand-ins (
   wide, 45° underside) carries it, so it doesn't hang on its screws alone. The coupling (Ø19 × 25)
   joins the 5 mm shaft and the screw inside the box; the screw runs to the left wall and turns in a plain hole there.
 - **Home:** the plate sits in a notch in the right wall, face flush with the inner face (x 143), resting on the notch
-  floor 0.3 below the lift's push height, so it can only step *down* onto the lift. The notch is 4 mm deep: the last
-  1 mm of wall is the home stop. Home against it at low current (TMC2209 StallGuard, if the board has it, still
+  floor 0.3 below the lift's push height, so it can only step *down* onto the lift. The notch is 3 mm deep: the last
+  2 mm of wall are the home stop. Home against it at low current (TMC2209 StallGuard, if the board has it, still
   undecided) or with one of the 4 limit switches on the shopping list.
 - **Push:** lift plate top to **z 97.04** (`push_lift` = divider top + 1). The plate travels **71 mm** (x 143 → 72,
   ~9 screw turns), stepping down 1 mm from the lift onto the divider; at the end it stands on the divider and the
@@ -136,14 +137,15 @@ the lift in place and the 4023 turned. It also holds bought parts as stand-ins (
   held by the 2 front screws and the boss (the load is the lift's few hundred grams). The coupling sits at z
   13.5…38.5. The motor hangs 40 mm below the floor: the case stands on two rails 42 mm high (below).
 - **Lift (printed, `lift.scad`):** seen from the side, Dev's nut tab around the screw at the top (47 mm above the plate
-  top), then one slope down to the plate. Plate 67 × 107 × 4 mm (x 75.44…142.44, 0.44 / 0.56 to the
+  top), then one slope down to the plate. Plate 67 wide, 3 thick (x 75.44…142.44, 0.44 / 0.56 to the
   divider and the right wall: that keeps it from turning), its top 95 mm from the front edge to the slope's foot: the
   card + 4 mm in front, as Dev's. The slope starts at the cards' back
   edge (y −40.4) and leans back 8 mm up to the tab (~10°), so a card dropping onto a low lift slides down into place;
+  it is a 3 mm wall (along Y), its back face leaning like the front;
   from the front it narrows upwards along straight sides from the plate's full width to the tab's 28 mm. The nut
-  connection is Dev's as drawn: 5 mm tab with a round end (r 10.5), Ø10.2 hole for the nut's spigot, 4× Ø4 on a
+  connection is Dev's as drawn, but the tab is 3 mm (his: 5): round end (r 10.5), Ø10.2 hole for the nut's spigot, 4× Ø4 on a
   16 mm square, the nut's flange against the tab's underside. Lowest plate position z 29.29 (a 35 mm pile under the
-  lip); the nut is then at z 57.8…72.8, far above the coupling.
+  lip); the nut is then at z 59.8…74.8, far above the coupling.
 - **Front border (`border-b`, slides in):** in front of the lift plate, from the divider to the right wall, floor to
   the divider's top (z 96.04), filling the front strip to the box front. Its inner face is vertical 0.5 mm in front of
   the plate (y −135.9) up to the plate's lowest top (z 29.29), then leans forward at the slope's angle to y −142.0 at
@@ -175,7 +177,7 @@ the lift in place and the 4023 turned. It also holds bought parts as stand-ins (
   shorter, and the left face (gates, lip, roller) stays put; everything right of it (right wall, lift, both motors, pusher, border B) moves 2 mm
   left with it, so pile B's compartment and the lift plate keep Dev's 67 mm. Pads stay 5 thick, their back ends at 45°:
   around the pusher screw's bearing hole in the left wall (Ø8.6, 20 × 20), and on the right wall around the pusher's
-  notch (4 deep + 1 mm skin) and its motor face (z 94.7…177.2, front to y −38.4). Printed with 4 walls a 5 mm wall is
+  notch (3 deep + 2 mm skin) and its motor face (z 94.7…177.2, front to y −38.4). Printed with 4 walls a 5 mm wall is
   mostly perimeters anyway, so this saves only ~40 g; with the top cut (below) the solid volume drops 732 → 493 cm³.
 - **Solid-looking blocks** (pile H's back border, the 4023's hold, the border inserts) are not printed solid: the
   slicer fills them with the infill (15 %). Hollowing them in CAD would replace that infill with walls of their own
@@ -237,7 +239,7 @@ cd parts/tools && uv run python ../dispenser/check_pusher.py # after a pusher, l
 | 2 | 17HS4401 + Purecrea flexible coupling 8/5 + TR8x8 lead screw + TR8x8 brass nut | The two sets on the shopping list: pusher and lift |
 | 4 | M3×8 socket head | Through the right wall's 5 mm pad into the pusher motor's face (holes ~4.5 deep), from inside |
 | 2 | M3×6 socket head | Through the 3 mm floor into the lift motor's face, from inside (M3×8 would bottom out) |
-| 2 | M3×8 | Pusher nut flange to its tab (only the 2 holes beside the screw) |
+| 2 | M3×8 | Pusher nut flange to its 3 mm tab (only the 2 holes beside the screw; the tips stick out ~1.5 mm beside the nut) |
 | 4 | M3×12 + nut | Lift nut flange to the tab (Dev's 4 Ø4 holes) |
 
 ⚠️ **Cut the pusher's screw to 128 mm** (hacksaw, then file a chamfer so the nut starts cleanly). It reaches from the
@@ -267,10 +269,10 @@ upper hole is 2.75 mm from the tab's top edge.
 - **Lift and pusher: PLA**, both on one plate (0.2 mm, 3 walls, 15 %). Neither carries more than a few newtons. PLA is
   stiffer than PETG and holds the sliding edges and the lift's 0.44 / 0.56 mm side gaps more accurately, and its
   support breaks off cleanly. The limit is heat: PLA softens from ~55 °C, and at home the pusher's nut sits 1.5 mm from the
-  coupling and its plate's top corner ~1 mm under the motor (through the wall's 1 mm skin). Run both motors at moderate current with a low hold current (a 17HS4401 at its full 1.7 A gets
+  coupling and its plate's top corner ~2 mm under the motor (through the wall's 2 mm skin). Run both motors at moderate current with a low hold current (a 17HS4401 at its full 1.7 A gets
   hotter than that) ⚠️.
 - Lift: plate down, as the STL comes. Tree support on the build plate only, under the tab (the nut flange's seat,
-  43 mm up). Auto support catches only the tab. Every other side down either stands the 4 mm plate on its edge or
+  47 mm up). Auto support catches only the tab. Every other side down either stands the 3 mm plate on its edge or
   turns the slope's sides past 45°.
 - Pusher carriage: as it sits in the box, bottom down: the plate's lower edge, the one that slides, comes out of the
   bed flat, and the chamfers take the elephant foot. No supports, the nut hole is a teardrop. Every other side down puts
