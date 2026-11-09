@@ -22,7 +22,7 @@ Everything to buy for `parts/dispenser` (roller, lift, pusher). Screw counts are
 |---|---|---|---|---|
 | [ ] | NBR O-ring 80 × 3 mm, 70 Shore A | 3 | [Tameson (20 pcs)](https://tameson.com/products/s2657-x20-nbr-o-ring-80-x-3mm-od-86mm-70-shore-a-20-pieces) | The belts. 80 = inner diameter. ⚠️ Ships from the NL; no Swiss shop found |
 | [ ] | Ball bearing 5×10×4 (MR105ZZ) | 4 | [Digitec (10 pcs)](https://www.digitec.ch/en/s1/product/oem-ball-bearing-5x10x4mm-rc-model-accessories-5815058) | Drums; the spares cover the untested press fit |
-| [ ] | Dowel pin Ø5 × 12 mm, DIN 6325 / ISO 8734, hardened | 4 | [Galaxus (100 pcs)](https://www.galaxus.ch/en/s4/product/dowel-pin-din-6325-5-m6-x-12-steel-hardened-tolerance-m6-din-6325-screw-accessories-22000180) | Drum axles, one per bearing: nothing to cut (#57). ⚠️ Item seen on galaxus.at (~EUR 38), .ch page not checked. 5 × 14 also fits |
+| [ ] | Dowel pin Ø5 × 28 mm, ISO 8734, RS PRO | 4 | [Galaxus](https://www.galaxus.ch/en/s4/product/rs-pro-dowel-pins-5x28mm-screw-accessories-9815395) | Drum axles, one per bearing: nothing to cut (#57, #58). ⚠️ Pack size and minimum order not checked: look in the cart |
 | [ ] | M3 grub screw, 5 mm | 1 | [SFS (M3×5, 100 pcs)](https://www.sfs.ch/CH/en/dl/p/118668) or [RS (M3×6, 50 pcs)](https://ch.rs-online.com/web/p/gewindestifte/0137720) | Motor gear onto the 4023's shaft. Check the M3 assortment first. ⚠️ SFS may sell to businesses only; M3×6 stands 1 mm out of the hub |
 
 ## Electronics and power
