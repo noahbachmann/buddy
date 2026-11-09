@@ -255,8 +255,8 @@ upper hole is 2.75 mm from the tab's top edge.
 - The left gate prints on its side so the gap step lies in the XY plane, where the printer is most accurate.
 - **Lift and pusher: PLA**, both on one plate (0.2 mm, 3 walls, 15 %). Neither carries more than a few newtons. PLA is
   stiffer than PETG and holds the sliding edges and the lift's 0.44 / 0.56 mm side gaps more accurately, and its
-  support breaks off cleanly. The limit is heat: PLA softens from ~55 °C, and the pusher's nut sits 1.5 mm from the
-  coupling at home. Run both motors at moderate current with a low hold current (a 17HS4401 at its full 1.7 A gets
+  support breaks off cleanly. The limit is heat: PLA softens from ~55 °C, and at home the pusher's nut sits 1.5 mm from the
+  coupling and its plate's top corner ~1 mm under the motor (through the wall's 1 mm skin). Run both motors at moderate current with a low hold current (a 17HS4401 at its full 1.7 A gets
   hotter than that) ⚠️.
 - Lift: plate down, as the STL comes. Tree support on the build plate only, under the tab (the nut flange's seat,
   43 mm up). Auto support catches only the tab. Every other side down either stands the 4 mm plate on its edge or
