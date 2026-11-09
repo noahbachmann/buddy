@@ -14,7 +14,7 @@ module piece(name) {
   else if (name == "motor-gear") motor_tf() motor_gear();
   else if (name == "gate-left")  gate_placed();
   else if (name == "motor")      motor_4023();
-  else if (name == "rods")       rods();
+  else if (name == "pins")       pins();
   else if (name == "belts")      belts();
   else if (name == "pusher")     pusher(push);
   else if (name == "case-add")   difference() { case_add(); box_cuts(); }
@@ -42,7 +42,7 @@ else {
   color("teal") { piece("drive-drum"); piece("idler-drum"); piece("motor-gear"); }
   color("gold") piece("gate-left");
   color("dimgray") piece("motor");
-  color("silver") piece("rods");
+  color("silver") piece("pins");
   color("black") piece("belts");
   color("tomato") piece("pusher");
   color("lightsteelblue") piece("case-add");   // changes to Dev's box

@@ -6,7 +6,7 @@
 2. Removes the upright 4023, the box, the lift (moved back by `shift`), the lift's motor and screw and the spare 17HS4401 + screw + nut parked outside
    the box from a copy of dispenser.stl and appends every placed piece of assembly.scad as separate bodies: the box
    with Dev's changes (wall extension, pusher notch, holes), the roller (frame, drums, gears, gates, turned 4023,
-   rods, O-rings), the pusher at home (carriage, 17HS4401, coupling, cut screw, nut) and the lift's motor under the
+   pins, O-rings), the pusher at home (carriage, 17HS4401, coupling, cut screw, nut) and the lift's motor under the
    floor with its coupling and screw.
 """
 
@@ -25,7 +25,7 @@ HERE = Path(__file__).resolve().parent
 SRC = HERE / "dispenser.stl"
 OUT = HERE / "dispenser-roller.stl"
 PIECES = ["case", "border-h", "border-b", "frame", "front-plate", "drive-drum", "idler-drum", "motor-gear", "gate-left", "motor",
-          "rods", "belts", "pusher", "pusher-motor", "pusher-coupling", "pusher-screw", "pusher-nut",
+          "pins", "belts", "pusher", "pusher-motor", "pusher-coupling", "pusher-screw", "pusher-nut",
           "lift", "lift-nut", "lift-motor", "lift-coupling", "lift-screw"]
 
 # Bodies of dispenser.stl, found by their bounding boxes (mm, min corner, max corner).

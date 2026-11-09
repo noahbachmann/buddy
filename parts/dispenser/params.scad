@@ -43,7 +43,7 @@ stretch  = 1.07;             // fitted length / free length: tension without a t
 cord_ys  = [for (o = [-20, 0, 20]) card_yc + o];
 cord_s   = cord / sqrt(stretch);   // stretched cord gets thinner
 
-// --- Drums (printed, run on 2x MR105ZZ each, on a fixed 5 mm steel rod) -------------------
+// --- Drums (printed solid, run on 2x MR105ZZ each, one fixed steel pin per bearing) --------
 groove_root = 5.5;           // groove bottom radius
 groove_r    = cord / 2 + 0.1;
 rim_r       = groove_root + 0.6 * cord_s;   // cord sits above its centre line in the groove
@@ -51,10 +51,10 @@ cord_c      = groove_root + cord_s / 2;     // cord centre line radius
 cord_out    = groove_root + cord_s;         // top of the cord on the drum
 bearing     = [5, 10, 4];    // MR105ZZ: id, od, width
 press       = 0.1;           // bearing seat oversize (as arm/), tune with a test print
-rod_d       = 5;             // steel rod (silver steel), fixed in the plates
-rod_hole    = 5.2;           // slip fit in the plates
-drum_bore   = 5.6;           // clearance between the bearings
-boss        = 1;             // plate boss on the rod: touches only the inner race (MR105 ~7 mm)
+pin         = [5, 12];       // dowel pin ISO 8734 / DIN 6325, bought: no cutting (#57)
+pin_hole    = 5.2;           // slip fit in the plates
+pin_pocket  = [5.6, 1];      // drum: pocket behind each bearing for the pin tip (d, clearance past the tip)
+boss        = 1;             // plate boss on the pin: touches only the inner race (MR105 ~7 mm)
 boss_d      = 7;
 
 // --- Gears (printed, module 1) -------------------------------------------------------------
@@ -116,7 +116,7 @@ lip_drop  = card_t + 0.2;    // lip top below belt_top: a card left lying on the
 lip_top   = belt_top - lip_drop;
 slot_bot  = lip_top - 0.06;  // the divider's lower part, cut down under the slot to just below the lip
 lip_edge  = 0.8;             // thinnest the lip gets at its drum-side edge
-lip_clear = open_clear;      // around the drum gear's tips: the drums slide onto their rods under the lip
+lip_clear = open_clear;      // around the drum gear's tips: the drums slide onto their pins under the lip
 slit_play = 1;               // per side, beside the card at the slit's exit
 screw_pilot = 2.5;           // M3 self-tapping into PETG
 screw_clear = 3.4;

@@ -19,7 +19,7 @@ The pusher moves **all of B** back: **stack(B onto H)** (−X): the lift raises 
 over the divider into H's chute, where it drops onto H.
 
 `dispenser.stl` stays untouched. `dispenser-roller.stl` is the copy with the printed case, the roller, the pusher and
-the lift in place and the 4023 turned. It also holds bought parts as stand-ins (motors, rods, screw, nut, O-rings).
+the lift in place and the 4023 turned. It also holds bought parts as stand-ins (motors, pins, screw, nut, O-rings).
 `make_copy.py` regenerates it.
 
 ## How the roller works
@@ -44,7 +44,7 @@ the lift in place and the 4023 turned. It also holds bought parts as stand-ins (
   and its leading edge would droop into the gap and hit the divider under the slot. The right gate has a lip under the
   card path there: flat top a card + 0.2 below the belt top (z 64.79; the case cuts the divider's lower part down to
   z 64.73 under the slot, Dev's is at 65), drum
-  side clear of the drum gear's tips by 0.6 mm (r 9.6, the drums slide onto their rods under it). It runs between the
+  side clear of the drum gear's tips by 0.6 mm (r 9.6, the drums slide onto their pins under it). It runs between the
   frame plates and hangs from the gate's legs above them.
 - **Slit ends:** the divider's slot is filled at both ends (case). The fill and the right gate's blocks
   form one 45° funnel. It narrows from the gate's entry side to the card's width + 1 mm per side at the divider's
@@ -188,9 +188,9 @@ STLs and `parts/cad render dispenser` for the sheets (`parts/CLAUDE.md`).
 | `lib.scad` | Geometry of every piece, placed in the box frame | |
 | `assembly.scad` | Preview in the box (cut box, lift, turned 4023, card, pile B); `part=` exports one placed piece; poses `-D push=0…1 -D lift_top=97.04` | – |
 | `roller-frame.scad` | Back plate (holds the 4023), bed, 3 ribs | bed down (upside down) |
-| `front-plate.scad` | Front plate: rod ends, keeper screws, access holes for the motor screws | outer face down |
-| `drive-drum.scad` | 16T gear + 3 grooves, 2 bearing seats | standing, gear down |
-| `idler-drum.scad` | 3 grooves, 2 bearing seats | standing |
+| `front-plate.scad` | Front plate: front pins, keeper screws, access holes for the motor screws | outer face down |
+| `drive-drum.scad` | 16T gear + 3 grooves, 2 bearing seats, solid between the pin pockets | standing, gear down |
+| `idler-drum.scad` | 3 grooves, 2 bearing seats, solid between the pin pockets | standing |
 | `motor-gear.scad` | 20T, D-bore for the 4023's shaft, M3 set screw + nut slot | gear down |
 | `gate-left.scad` | Left gate (the right one is part of the case) | on its side |
 | `case.scad` | The case: Dev's box with every change and the feet | on its back, no supports |
@@ -211,10 +211,10 @@ cd parts/tools && uv run python ../dispenser/check_pusher.py # after a pusher, l
 |---|---|---|
 | 3 | NBR O-ring 80 × 3 mm (ID × cord), 70 Shore A | The belts. ⚠️ Different size: change `oring_id`, the drum distance follows |
 | 4 | MR105ZZ bearing, 5 × 10 × 4 | Pressed into the drum ends |
-| 2 | Steel rod Ø5 mm, 119.9 mm | Silver steel, cut and deburred. Fixed: the drums turn on their bearings |
-| 3 | M3×6 socket head | 4023 to the back plate (the 4th hole would cut into the drive rod's hole) |
+| 4 | Dowel pin Ø5 × 12 mm, ISO 8734 / DIN 6325 (hardened, m6) | One per bearing, bought ready-made: nothing to cut (#57). Fixed: the drums turn on their bearings |
+| 3 | M3×6 socket head | 4023 to the back plate (the 4th hole would cut into the drive pin's hole) |
 | 1 | M3×5 set screw + M3 nut | Motor gear onto the shaft's flat (5 mm from the flat to the hub surface: flush) |
-| 2 | M3×6 + M3 washer | Rod keepers on the front plate (the washer covers the rod end) |
+| 2 | M3×6 + M3 washer | Pin keepers on the front plate (the washer covers the pin end) |
 | 3 | M3×12 | Front plate into the rib ends |
 | 4 | M3×12 | Frame to the box floor, from below |
 | 4 | M3×12 | Border inserts: 2 through the left wall into border H, 2 from below through the floor into border B |
@@ -272,11 +272,12 @@ from the left, and everything else follows from behind and from the front.
    connector down in the channel, cable out under the box. Boss into the plate's recess, 3× M3×6 from the front;
    the heads sink into the plate. The drum gear will run over them.
 4. **Motor gear:** on the shaft, flush with the drum gear's plane (7 mm in front of the motor face). Tighten the set screw on the flat.
-5. **Drums:** push the rods into the back plate (blind holes), then slide the drums on from the front with the drive
-   drum's gear at the back, meshing. The drive drum passes under the right gate's lip and front leg.
+5. **Drums:** drop the 2 back pins into the back plate's blind holes, then slide the drums onto them from the front with
+   the drive drum's gear at the back, meshing. The drive drum passes under the right gate's lip and front leg.
 6. **Belts:** slide the 3 O-rings over both drums from the front, into the grooves. They pass over the bed and the ribs.
-7. **Front plate:** rod ends into its holes, 3× M3×12 into the rib ends, 2 keeper screws with washers, 2× M3×12 from
-   below through the floor.
+7. **Front plate:** onto the rib ends, 3× M3×12, 2× M3×12 from below through the floor. Then push the 2 front pins
+   through its holes into the front bearings (an m6 pin can be snug in the bearing: press it in, never hammer through a
+   bearing) and fit the 2 keeper screws with washers.
 
 **Lift:** motor under the floor (boss into the floor's hole, 2× M3×6 from inside), coupling on the shaft inside the
 box (z 13.5…38.5), tighten the 5 mm side. Nut under the lift's tab, spigot up into the tab's hole, flange against
@@ -388,7 +389,10 @@ but then two cards sit in the slot. No roller left of the divider can push furth
   position and the pusher's screw height change (all from `pile_max`).
 - Pile H's back edge is 5.9 mm in front of the drum gear, whose tips reach 0.6 mm above the belts (y −34.5…−27.5,
   x ~59…65). Nothing positions H in Y: a card placed more than 5.9 mm toward the back rubs on the turning gear.
-- The MR105 press fit (`press`), the 5.2 mm rod holes and the printed gear mesh (`gear_slack`, `gear_backlash`) need a test print.
+- The MR105 press fit (`press`), the 5.2 mm pin holes and the printed gear mesh (`gear_slack`, `gear_backlash`) need a test print.
+- Pins instead of a through rod (#57): the printed drum carries the belt tension (~15 N) between its bearings itself.
+  Estimate ~0.3 mm sideways bend toward the other drum, more as PETG creeps; belt height and gate gap don't change, the
+  belts lose a little of their ~18 mm stretch. If they go slack: a through rod Ø5 × 119.9 needs only the drum's bore back.
 - NBR on the card back is assumed to grip better than card on card. If the second card comes along, lower the gap first.
 - The 4023's model (connector side, shaft flat at 2.0 mm from the axis) is taken from `dispenser.stl` as drawn.
 - Pusher: the plate rests on the lift by its weight (~5 mNm holding torque, estimated for 21 g printed; tips at ~2.5 N
