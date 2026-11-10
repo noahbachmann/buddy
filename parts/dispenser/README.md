@@ -194,15 +194,16 @@ the lift in place and the 4023 turned. It also holds bought parts as stand-ins (
 
 ### Case spares (`case-spares.scad`)
 
-The same case with ~93 cm³ less solid volume (465.5 → 372.5 cm³, ≈ 118 g PETG: everything removed is ≤ 3 mm wall,
+The same case with ~88 cm³ less solid volume (465.5 → 377.3 cm³, ≈ 112 g PETG: everything removed is ≤ 3 mm wall,
 which prints solid). Same print: on its back, no supports. `case.scad` stays as it was; print either one.
 
 - **Rear top cut down:** behind the pusher motor the walls end at z 135.54 (3 over the pusher's notch; the highest card
   is at 132.04, the pushed pile on the lift at push height). In front of y −121.75 (motor face + 3) full height for
   the motor and the screw, 45° in between (prints as a 45° edge).
-- **Back wall windows** (on the bed, any shape): above pile H's back border (x 6…69, z 102.04…129.54), and around
-  pile B from the floor to z 129.54, with a solid post behind the lift tab's path (x 96.3…123.3 from z 70.29: the tab
-  runs 1.4 mm off the wall and must not catch an edge). The wall under pile H (4023, cable, camera) stays closed:
+- **Back wall windows** (on the bed, any shape): above pile H's back border (x 6…69, z 102.04…129.54), and behind
+  pile B: open from the floor to a crossbar at z 64.29…70.29, above it a solid post behind the lift tab's path
+  (x 96.3…123.3; the tab runs 1.4 mm off the wall, the screw on its flexible coupling can lean it that far, and it
+  must rub on a wall, not catch a window's edge), the slots beside the post X-braced (3 mm struts). The wall under pile H (4023, cable, camera) stays closed:
   no stray light under the bed.
 - **Floor under the lift:** a window pointed to the front (its roof in print), flat at the back 3 mm short of the
   lift motor's face. The lift plate never comes lower than z 26.
@@ -317,7 +318,7 @@ parts (for reprints, e.g. only the left gate). `parts/cad plate dispenser` rebui
 | `2-petg.stl` | roller frame, front plate, border H, border B: **after the fit test** | PETG | 0.20 mm, 4 walls, 15 %, no supports |
 | `3-pla.stl` | pusher, lift: **after the fit test** | PLA | 0.20 mm, 4 walls, 15 %, **supports on: tree (auto), on build plate only** |
 | `stl/case.stl` | case (a plate of its own) | PETG | 0.20 mm, 4 walls, 15 %, no supports, textured PEI |
-| `stl/case-spares.stl` | or this one instead: the case with ~118 g less PETG | PETG | as the case |
+| `stl/case-spares.stl` | or this one instead: the case with ~112 g less PETG | PETG | as the case |
 
 Why these settings:
 

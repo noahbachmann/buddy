@@ -242,6 +242,7 @@ spare_top   = notch_hi[1][1] + wall_t;     // behind the pusher motor the walls 
 spare_y     = pu_y + m44_sq / 2 + wall_t;  // full height in front of this (pusher motor face + 3), 45° down behind it
 spare_rim   = 6;             // frame left around each window
 spare_tab   = 3;             // back wall kept solid this far around the lift tab's path (tab 1.4 off the wall)
+spare_strut = 3;             // X-braces beside the post behind the lift tab
 foot_chords = [4, 3];        // feet truss: bottom chord, top chord under the floor (+ half a strut each)
 foot_strut  = 5;             // feet truss: diagonal width
 

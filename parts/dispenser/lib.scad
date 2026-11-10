@@ -490,10 +490,14 @@ module spare_cuts() {
   tab_x = [lift_axis[0] - lift_tab_r - spare_tab, lift_axis[0] + lift_tab_r + spare_tab];
   tab_z = lift_min + stop_h - tab_t - spare_tab;   // tab's underside at the lift's lowest
   b_x = [divider_x + divider_t + wall_t, right_wall[0] - r];
+  // pile B: open below a crossbar under the post; beside the post X-braced slots
   translate([0, back_out + 1, 0]) rotate([90, 0, 0]) linear_extrude(back_out - back_wall + 2) {
     translate([r, div_top + r]) square([divider_x - wall_t - r, spare_top - r - (div_top + r)]);
-    polygon([[b_x[0], floor_top + r], [b_x[1], floor_top + r], [b_x[1], spare_top - r], [tab_x[1], spare_top - r],
-             [tab_x[1], tab_z], [tab_x[0], tab_z], [tab_x[0], spare_top - r], [b_x[0], spare_top - r]]);
+    translate([b_x[0], floor_top + r]) square([b_x[1] - b_x[0], tab_z - r - (floor_top + r)]);
+    for (sx = [[b_x[0], tab_x[0]], [tab_x[1], b_x[1]]]) difference() {
+      translate([sx[0], tab_z]) square([sx[1] - sx[0], spare_top - r - tab_z]);
+      x_lattice(sx, [tab_z, spare_top - r], spare_strut);
+    }
   }
   // floor under the lift: pointed to the front (roof in print), flat at the back short of the lift motor's face
   fy = [lift_front + r, lift_axis[1] - m44_sq / 2 - wall_t];
@@ -504,6 +508,13 @@ module spare_cuts() {
   // feet: Warren truss, 45° diagonals, whole triangles only, centred
   for (x = [0, right_wall[0]]) translate([x - 1, 0, 0]) rotate([90, 0, 90]) linear_extrude(feet_t + 2) foot_windows();
 }
+// 2D: stacked X-braces over the rectangle xr × zr, cells about square, ties between them, struts s wide
+module x_lattice(xr, zr, s) let(w = xr[1] - xr[0], n = max(1, round((zr[1] - zr[0]) / w)), h = (zr[1] - zr[0]) / n)
+  for (i = [0:n - 1]) let(z0 = zr[0] + i * h) {
+    for (d = [[[xr[0], z0], [xr[1], z0 + h]], [[xr[1], z0], [xr[0], z0 + h]]])
+      hull() for (p = d) translate(p) square(s, center = true);
+    if (i > 0) translate([xr[0], z0 - s / 2]) square([w, s]);
+  }
 module foot_windows() let(za = lift_face - feet_h + foot_chords[0], zb = floor_bot - foot_chords[1], h = zb - za,
                           ya = box_front + spare_rim, yb = back_out - spare_rim, n = floor((yb - ya) / h),
                           y0 = (ya + yb - n * h) / 2, p = [for (k = [0:n]) [y0 + k * h, k % 2 == 0 ? za : zb]])
