@@ -40,7 +40,7 @@ cd parts/tools && uv run pytest -q                 # tool tests (fixtures in tes
 - **Section**: filled 2D cut, 1 mm / 10 mm grid, world axis names kept. Use it for walls, bearing seats, nut slots,
   cable channels: anything inside.
 - **Plates** (`tools/src/cad/plate.py`): `[plates.<name>]` in `cad.toml` lists parts (repeat = copies; a list =
-  one group kept in its common frame, e.g. a part and its built-in support) and a `note` (filament, settings). Parts
+  one group kept in its common frame, e.g. parts that print in one frame) and a `note` (filament, settings). Parts
   turn only about Z, pack into rows on 230 × 230 with 8 mm gaps, centred. One STL per plate = one object in Bambu
   Studio: settings apply to the whole plate, auto brim judges the whole plate. Dev prints from `plates/`.
 - **Assembly sheet**: OpenSCAD's own preview from 4 directions (gimbal camera), keeps `color()` and `%` ghosts.
@@ -57,8 +57,8 @@ section through every fit (bearing seat, slot, channel). Numbers can't see a mis
 - STL only. 3MF files (e.g. `tray/tray.3mf`) are Dev's print projects: never read, write or regenerate them.
 - STLs are committed already in print orientation (+Z up = build direction), binary. So are `plates/`: rebuild
   them (`cad plate <module>`) whenever a part on them changes.
-- Dev drags a plate in and prints: no arranging, no slicer supports. A part that needs support gets a built-in
-  breakaway one (separate body, ≥ 0.25 mm air under the part so a 0.2 layer stays empty) on its plate.
+- Dev drags a plate in and prints: no arranging. A part that needs support gets none in the file: Bambu Studio
+  generates it. Turn supports on in that plate's `note` and README row.
 - Every dimension in the module's `params.scad`; design rules and fits from `docs/3d-printing.md`.
 - `tray/` has no source (Dev's own): change only on request, by editing the STL directly (lid rim gap: `docs/3d-printing.md` → Fits).
 - `dispenser/dispenser.stl` is Dev's Onshape box: never modify it. Roller and pusher are built in its coordinates;

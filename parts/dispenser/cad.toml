@@ -16,7 +16,6 @@ assembly = "assembly.scad"
 [parts.lift-nut]
 [parts.border-pin]
 [parts.fit-test]
-[parts.lift-support]          # plate 3 only: breakaway support under the lift's tab
 
 # Print plates (`parts/cad plate dispenser` → plates/): one STL per print job, drag into Bambu Studio and print.
 # The case prints alone from stl/case.stl. Settings per plate: dispenser README → Print.
@@ -34,5 +33,5 @@ note = "PETG · 0.20 mm · 4 walls · 15 % · no supports"
 parts = ["roller-frame", "front-plate", "border-h", "border-b"]
 
 [plates.3-pla]
-note = "PLA · 0.20 mm · 4 walls · 15 % · no supports (the lift's is in the file)"
-parts = ["pusher", ["lift", "lift-support"]]
+note = "PLA · 0.20 mm · 4 walls · 15 % · supports on (tree auto, build plate only): the lift's tab"
+parts = ["pusher", "lift"]

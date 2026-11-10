@@ -220,13 +220,6 @@ lift_tab_r = 10.5;           // Dev's tab: round end around the nut
 lift_holes = [10.2, 8];      // Dev's tab: centre hole (screw passes), the nut's 4 peg holes at ±8 in X and Y
 lift_min   = (belt_top - lip_drop) - pile_max - 0.5;   // lowest plate top: a full pile under the slot
 lift_tab_y = lift_axis[1] + lift_tab_r;   // tab's back edge (Dev's), 1.4 to the back wall
-// Breakaway support under the tab, printed with the lift (plate file only, not in the box): a loose grid, so the
-// plate needs no slicer support. sup_gap: ≥ one layer of air at 0.2 mm layers whatever the slicer's offset.
-sup_gap    = 0.25;           // grid top .. tab underside
-sup_clear  = 0.6;            // grid .. slope's back face (Y)
-sup_wall   = 0.84;           // grid walls: 2 lines of a 0.4 nozzle
-sup_pitch  = 6;              // grid cell; the tab's first layer bridges ≤ 5.2 mm
-sup_base   = 0.6;            // solid pad on the bed (3 layers) so the thin grid sticks
 border_t   = 4;              // front border of pile B (box) at the top, floor .. div_low
 h_bord_drop = 0.4;           // pile H's borders: bottom this far under the belt top, so the bottom card hits them
 
@@ -246,15 +239,15 @@ insert_screws_b = [[95 - b_shift, -146], [127 - b_shift, -146]];  // border B: (
 
 // --- Printed joints instead of screws (#63) ------------------------------------------------------------------
 // Fits per side, hole vs. a printed Ø peg_d peg. "vertical" / "horizontal" = the hole's axis in its own part's print.
-// ⚠️ Guesses until the fit test (fit-test.scad, plate 0) is printed: put the measured steps here, then rebuild.
+// From the fit test (fit-test.scad, plate 0, PETG 0.2 mm, 2026-11-09). Vertical holes print smaller than horizontal.
 peg_d       = 3;             // every printed peg and pin shank
 fit_steps   = [-0.05, 0, 0.05, 0.1, 0.15, 0.2];   // fit test: hole 1..6 (per side), from the chamfered end
 pin_steps   = [4.85, 4.9, 4.95, 5.0, 5.05, 5.1];  // fit test: holes for the Ø5 steel pin (diameters)
-fit_slip    = 0.1;           // vertical hole: peg slides in without play
-fit_press   = 0;             // vertical hole: peg pushed in by hand, holds
-fit_slip_h  = 0.15;          // horizontal (teardrop) hole: slip
-fit_press_h = 0.05;          // horizontal hole: press
-pin_press_d = 4.95;          // front plate: Ø5 steel pin pushed in by hand (firm), stays in when the plate comes off
+fit_slip    = 0.1;           // vertical hole: peg slides in without play (fit test: hole 4)
+fit_press   = 0.05;          // vertical hole: peg pushed in by hand, holds (hole 3)
+fit_slip_h  = 0.05;          // horizontal (teardrop) hole: slip (hole 3)
+fit_press_h = 0;             // horizontal hole: press (hole 2)
+pin_press_d = 4.95;          // front plate: Ø5 steel pin pushed in by hand (firm), stays in when the plate comes off. ⚠️ not tested yet
 peg_cham    = 0.4;           // lead-in at every peg tip
 nut_peg_h   = tab_t - 0.3;   // nut pegs: into the tab, not through it
 plate_peg_h = 5;             // front plate pegs into the rib ends

@@ -211,8 +211,7 @@ STLs and `parts/cad render dispenser` for the sheets (`parts/CLAUDE.md`).
 | `case.scad` | The case: Dev's box with every change and the feet | on its back, no supports |
 | `border-h.scad`, `border-b.scad` | Front borders of piles H and B, slide in from the front | on their end (as in the file) |
 | `pusher.scad` | Pusher carriage: plate, bar, nut tab | as placed, bottom down |
-| `lift.scad` | Lift: plate, slope, Dev's nut tab (replaces Dev's lift) | as placed, plate down |
-| `lift-support.scad` | Breakaway grid under the lift's tab, in the lift's coordinates: only in plate 3 | with the lift |
+| `lift.scad` | Lift: plate, slope, Dev's nut tab (replaces Dev's lift) | as placed, plate down, auto supports under the tab |
 | `pusher-nut.scad` | TR8x8 nut (4 starts) of the pusher: brass nut's flange, body Ø11, 2 pegs into the tab | flange down |
 | `lift-nut.scad` | TR8x8 nut of the lift: body Ø11, 45° cone up to the flange, 4 pegs into the tab | body down |
 | `border-pin.scad` | Pin with a head, 4×: holds the borders through the case's screw holes | head down |
@@ -280,7 +279,10 @@ Try one of the two printed pins in every hole of the 3 mm base (vertical holes) 
 
 Same with a Ø5 dowel pin in the 6 mm block: the tightest hole it goes into by firm hand pressure. Tell Claude the
 five hole numbers (press and slip, vertical and horizontal; pin): they go into `params.scad`, plates 2 and 3 are
-rebuilt. Until then the values are guesses ⚠️. The pegs themselves don't change, so plate 1 can print right away.
+rebuilt. The pegs themselves don't change, so plate 1 can print right away.
+
+Result (2026-11-09): vertical press 3, slip 4; horizontal press 2, slip 3 (vertical holes print smaller). The steel
+pin is still untested: `pin_press_d` 4.95 is a guess ⚠️.
 
 ## Print (Bambu X2D)
 
@@ -293,7 +295,7 @@ parts (for reprints, e.g. only the left gate). `parts/cad plate dispenser` rebui
 | `0-fit-test.stl` | fit test, 2 test pins: **print first** ("Printed joints") | PETG | 0.20 mm, 4 walls, 10 %, no supports |
 | `1-petg-fine.stl` | drive drum, idler drum, motor gear, left gate, pusher nut, lift nut, 4 border pins | PETG | 0.12 mm, 4 walls, 15 %, no supports, **brim: outer only** (the drums stand 107 mm on Ø15–18) |
 | `2-petg.stl` | roller frame, front plate, border H, border B: **after the fit test** | PETG | 0.20 mm, 4 walls, 15 %, no supports |
-| `3-pla.stl` | pusher, lift (+ its support): **after the fit test** | PLA | 0.20 mm, 4 walls, 15 %, **no supports**: the lift's is in the file |
+| `3-pla.stl` | pusher, lift: **after the fit test** | PLA | 0.20 mm, 4 walls, 15 %, **supports on: tree (auto), on build plate only** |
 | `stl/case.stl` | case (a plate of its own) | PETG | 0.20 mm, 4 walls, 15 %, no supports, textured PEI |
 
 Why these settings:
@@ -305,11 +307,9 @@ Why these settings:
   without one. Outer brim, 5 mm, Bambu's 0.1 mm gap: it peels off the gear teeth.
 - **4 walls everywhere:** every wall is ≤ 3 mm, so 3 or 4 walls both print it solid; one value for all plates.
 - **No supports:** horizontal holes are teardrops, the drum grooves are teardrop-shaped and the lower bearing seat
-  ends in a 45° cone. The pusher's U and the lift's tab are bridges.
-- **Lift's support** (`lift-support.scad`, only in plate 3): a 0.84 mm grid (6 mm cells, 0.6 mm pad on the bed) under
-  the nut tab, 0.25 mm below it and 0.6 mm behind the slope, so it touches nothing: the tab's first layer sags onto
-  it. Pull it out sideways after printing; clean the tab's underside (the nut flange's seat). Slice at 0.20 mm: the
-  0.25 gap then always leaves one empty layer. At 0.28 it could fuse.
+  ends in a 45° cone. The pusher's U is a bridge.
+- **Supports on plate 3:** only the lift's nut tab needs them; Bambu Studio generates them ("on build plate only"
+  keeps them off the lift's own faces). Clean the tab's underside after removing them (the nut flange's seat).
 - **Card thickness:** the case is built for `card_t` 0.5 (sleeved, pressed flat; loose, bow and air make it > 1 mm)
   and `gap` 0.55. The belts sit at `66.04 − gap`, the right gate's lip a card + 0.2 below them, the slot's bottom just
   under the lip. If the gap needs changing, the printed case stays and only the frame moves the belts ("Tuning the
