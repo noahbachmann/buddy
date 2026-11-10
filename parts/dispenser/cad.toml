@@ -10,6 +10,7 @@ assembly = "assembly.scad"
 [parts.pusher]
 [parts.lift]
 [parts.case]
+[parts.case-spares]
 [parts.border-h]
 [parts.border-b]
 [parts.pusher-nut]
@@ -18,7 +19,7 @@ assembly = "assembly.scad"
 [parts.fit-test]
 
 # Print plates (`parts/cad plate dispenser` → plates/): one STL per print job, drag into Bambu Studio and print.
-# The case prints alone from stl/case.stl. Settings per plate: dispenser README → Print.
+# The case prints alone from stl/case.stl (or stl/case-spares.stl, less filament). Settings per plate: dispenser README → Print.
 [plates.0-fit-test]
 note = "PETG · 0.20 mm · 4 walls · 10 % · no supports · print first, fits → params.scad, rebuild plates 2 and 3"
 parts = ["fit-test", "border-pin", "border-pin"]

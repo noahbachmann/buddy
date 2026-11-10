@@ -237,6 +237,14 @@ insert_fit = 0.2;            // per side, border inserts against walls, divider 
 insert_screws_h = [[-146, 78], [-146, 89]];   // border H: (y, z), printed pin through the left wall
 insert_screws_b = [[95 - b_shift, -146], [127 - b_shift, -146]];  // border B: (x, y), printed pin from below through the floor
 
+// --- Case spares (case-spares.scad): the case minus material nothing needs, still no supports ---------------------
+spare_top   = notch_hi[1][1] + wall_t;     // behind the pusher motor the walls end here: 3 over the notch, above any card
+spare_y     = pu_y + m44_sq / 2 + wall_t;  // full height in front of this (pusher motor face + 3), 45° down behind it
+spare_rim   = 6;             // frame left around each window
+spare_tab   = 3;             // back wall kept solid this far around the lift tab's path (tab 1.4 off the wall)
+foot_chords = [4, 3];        // feet truss: bottom chord, top chord under the floor (+ half a strut each)
+foot_strut  = 5;             // feet truss: diagonal width
+
 // --- Printed joints instead of screws (#63) ------------------------------------------------------------------
 // Fits per side, hole vs. a printed Ø peg_d peg. "vertical" / "horizontal" = the hole's axis in its own part's print.
 // From the fit test (fit-test.scad, plate 0, PETG 0.2 mm, 2026-11-09). Vertical holes print smaller than horizontal.

@@ -477,6 +477,38 @@ module box_cuts() {
 // The printed case: Dev's box with every change, as it sits (case.scad turns it onto its back)
 module case() difference() { union() { box_trimmed(); case_add(); } box_cuts(); }
 
+// Case spares: the same case minus what carries nothing (case-spares.scad). Still on its back, still no supports:
+// back-wall windows lie on the bed; every other cut's roof (its -Y side) is 45° or vertical in print.
+module case_spares() difference() { case(); spare_cuts(); }
+module spare_cuts() {
+  // rear top: behind the pusher motor nothing needs the walls above spare_top (cards end at push_lift + pile_max)
+  translate([left_wall[0] - 1, 0, 0]) rotate([90, 0, 90]) linear_extrude(m44_face + 2 - (left_wall[0] - 1))
+    polygon([[spare_y - 1, box_top + 1], [spare_y + box_top - spare_top, spare_top], [back_out + 1, spare_top],
+             [back_out + 1, box_top + 1]]);
+  // back wall windows (on the bed): pile H above its back border; pile B around a post behind the lift tab's path
+  r = spare_rim;
+  tab_x = [lift_axis[0] - lift_tab_r - spare_tab, lift_axis[0] + lift_tab_r + spare_tab];
+  tab_z = lift_min + stop_h - tab_t - spare_tab;   // tab's underside at the lift's lowest
+  b_x = [divider_x + divider_t + wall_t, right_wall[0] - r];
+  translate([0, back_out + 1, 0]) rotate([90, 0, 0]) linear_extrude(back_out - back_wall + 2) {
+    translate([r, div_top + r]) square([divider_x - wall_t - r, spare_top - r - (div_top + r)]);
+    polygon([[b_x[0], floor_top + r], [b_x[1], floor_top + r], [b_x[1], spare_top - r], [tab_x[1], spare_top - r],
+             [tab_x[1], tab_z], [tab_x[0], tab_z], [tab_x[0], spare_top - r], [b_x[0], spare_top - r]]);
+  }
+  // floor under the lift: pointed to the front (roof in print), flat at the back short of the lift motor's face
+  fy = [lift_front + r, lift_axis[1] - m44_sq / 2 - wall_t];
+  fx = [divider_x + divider_t + r, right_wall[0] - r];
+  w2 = (fx[1] - fx[0]) / 2;
+  translate([0, 0, floor_bot - 1]) linear_extrude(wall_t + 2)
+    polygon([[fx[0], fy[1]], [fx[0], fy[0] + w2], [fx[0] + w2, fy[0]], [fx[1], fy[0] + w2], [fx[1], fy[1]]]);
+  // feet: Warren truss, 45° diagonals, whole triangles only, centred
+  for (x = [0, right_wall[0]]) translate([x - 1, 0, 0]) rotate([90, 0, 90]) linear_extrude(feet_t + 2) foot_windows();
+}
+module foot_windows() let(za = lift_face - feet_h + foot_chords[0], zb = floor_bot - foot_chords[1], h = zb - za,
+                          ya = box_front + spare_rim, yb = back_out - spare_rim, n = floor((yb - ya) / h),
+                          y0 = (ya + yb - n * h) / 2, p = [for (k = [0:n]) [y0 + k * h, k % 2 == 0 ? za : zb]])
+  for (k = [0:n - 2]) offset(delta = -foot_strut / 2) polygon([p[k], p[k + 1], p[k + 2]]);
+
 // Bought parts. 17HS4401 in its own frame: face at z 0, body below, shaft up; coupling on the shaft.
 module m44_local() {
   translate([0, 0, -m44_body]) linear_extrude(m44_body) offset(r = 3) offset(delta = -3) square(m44_sq, center = true);

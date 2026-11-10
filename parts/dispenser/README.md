@@ -192,6 +192,25 @@ the lift in place and the 4023 turned. It also holds bought parts as stand-ins (
   left part now hangs 40 mm above the table instead of standing on it: it's held by its step against the floor's left
   edge and the 4 floor screws (the loads are a few newtons).
 
+### Case spares (`case-spares.scad`)
+
+The same case with ~93 cm³ less solid volume (465.5 → 372.5 cm³, ≈ 118 g PETG: everything removed is ≤ 3 mm wall,
+which prints solid). Same print: on its back, no supports. `case.scad` stays as it was; print either one.
+
+- **Rear top cut down:** behind the pusher motor the walls end at z 135.54 (3 over the pusher's notch; the highest card
+  is at 132.04, the pushed pile on the lift at push height). In front of y −121.75 (motor face + 3) full height for
+  the motor and the screw, 45° in between (prints as a 45° edge).
+- **Back wall windows** (on the bed, any shape): above pile H's back border (x 6…69, z 102.04…129.54), and around
+  pile B from the floor to z 129.54, with a solid post behind the lift tab's path (x 96.3…123.3 from z 70.29: the tab
+  runs 1.4 mm off the wall and must not catch an edge). The wall under pile H (4023, cable, camera) stays closed:
+  no stray light under the bed.
+- **Floor under the lift:** a window pointed to the front (its roof in print), flat at the back 3 mm short of the
+  lift motor's face. The lift plate never comes lower than z 26.
+- **Feet:** Warren truss, 3 triangular windows per rail, 45° diagonals, 6.5 mm bottom chord.
+- Not cut: walls and divider wherever a card, the lift or the pusher runs along them; the floor under the roller
+  (frame screws, camera mount to come); the solid-looking blocks (they print at infill anyway, see above).
+- Stiffness: the back wall still ties both side walls up to z 135.54 and is closed under pile H; the rims are ≥ 6 mm.
+
 ## Files
 
 All dimensions are in `params.scad`, in `dispenser.stl`'s own coordinates. Run `parts/cad build dispenser` for the
@@ -209,6 +228,7 @@ STLs and `parts/cad render dispenser` for the sheets (`parts/CLAUDE.md`).
 | `motor-gear.scad` | 20T, D-bore for the 4023's shaft, M3 set screw + nut slot | gear down |
 | `gate-left.scad` | Left gate (the right one is part of the case) | on its side |
 | `case.scad` | The case: Dev's box with every change and the feet | on its back, no supports |
+| `case-spares.scad` | The case with less filament ("Case spares") | on its back, no supports |
 | `border-h.scad`, `border-b.scad` | Front borders of piles H and B, slide in from the front | on their end (as in the file) |
 | `pusher.scad` | Pusher carriage: plate, bar, nut tab | as placed, bottom down |
 | `lift.scad` | Lift: plate, slope, Dev's nut tab (replaces Dev's lift) | as placed, plate down, auto supports under the tab |
@@ -297,6 +317,7 @@ parts (for reprints, e.g. only the left gate). `parts/cad plate dispenser` rebui
 | `2-petg.stl` | roller frame, front plate, border H, border B: **after the fit test** | PETG | 0.20 mm, 4 walls, 15 %, no supports |
 | `3-pla.stl` | pusher, lift: **after the fit test** | PLA | 0.20 mm, 4 walls, 15 %, **supports on: tree (auto), on build plate only** |
 | `stl/case.stl` | case (a plate of its own) | PETG | 0.20 mm, 4 walls, 15 %, no supports, textured PEI |
+| `stl/case-spares.stl` | or this one instead: the case with ~118 g less PETG | PETG | as the case |
 
 Why these settings:
 

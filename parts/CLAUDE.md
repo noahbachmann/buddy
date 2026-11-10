@@ -63,7 +63,7 @@ section through every fit (bearing seat, slot, channel). Numbers can't see a mis
 - `tray/` has no source (Dev's own): change only on request, by editing the STL directly (lid rim gap: `docs/3d-printing.md` → Fits).
 - `dispenser/dispenser.stl` is Dev's Onshape box: never modify it. Roller and pusher are built in its coordinates;
   `make_copy.py` writes `ref/` (box, lift, 4023 cut out of it) and the combined copy `dispenser-roller.stl`. The case
-  (`case.scad`: `ref/box.stl` + `case_add()` − `box_cuts()`, prints on its back) and the lift (`lift.scad`) are ours
+  (`case.scad`: `ref/box.stl` + `case_add()` − `box_cuts()`, prints on its back) (`case-spares.scad`: the same minus `spare_cuts()`, less filament; `case.stl` stays) and the lift (`lift.scad`) are ours
   now; cards/roller/lift positions differ from `dispenser.stl` (README top). The case prints with −Y up: anything
   facing +Y (the back wall) overhangs, horizontal holes are teardrops towards −Y (`hole_z`, `hole_x(front = true)`). `check_pusher.py` checks the pusher's stroke and the lift's travel for collisions.
 
