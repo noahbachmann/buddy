@@ -78,5 +78,8 @@ section through every fit (bearing seat, slot, channel). Numbers can't see a mis
   cut face: union it before the cut and let the one cut make both faces (`box_trimmed()` + `notch_skin()`).
 - trimesh's `polygons_full` can come back empty for valid rings (a cut exactly through a peg's axis in its socket):
   `render.section` then falls back to the closed rings, so check a blank section against the mesh.
+- A param change rebuilds STLs in other parts than the one being worked on (fits are shared): commit every changed
+  `stl/`, `plates/` and `dispenser-roller.stl` with it. `git status` clean under `parts/` after a commit. Dev prints
+  from GitHub: a stale plate there printed the borders with the pre-test fits (2026-11-11).
 - Manifold booleans need watertight input: an open reference mesh (e.g. `dispenser/ref/lift.stl`) silently intersects
   as 0. Check `is_watertight` before trusting an overlap volume.

@@ -287,6 +287,12 @@ the frame being pulled flat onto the floor; the left wall and the gate's legs le
 | Front pins | Pushed through the front plate into the bearings by hand, flush with the outer face; the press fit holds them (no keepers). They come off with the plate | `pin_press_d` |
 | Borders H, B | 4 printed pins (`border-pin`): head outside, through the case's Ø3.4 screw holes into the border. The case is unchanged | H: `fit_press` (vertical), B: `fit_press_h` |
 
+**8 holes, 4 pins:** the case has 8 Ø3.4 holes along the front and under the roller. 4 take border pins (2 through the
+left wall into border H, 2 up through the floor into border B). The other 4 (floor, under the roller) take the frame's
+4× M3×12: they cut their own thread into the 2.5 mm pilot holes in the back plate's and the front plate's feet, so a
+pin doesn't fit there by design. Border B's pins hold against gravity: a pin that slides out of B means its hole is
+too big, not a pin that's too short.
+
 **Fit test first** (`plates/0-fit-test.stl`, PETG 0.2 mm, 10 % infill, ~15 min). Holes 1…6 count from the chamfered corner:
 
 | Hole | 1 | 2 | 3 | 4 | 5 | 6 |
@@ -304,6 +310,10 @@ rebuilt. The pegs themselves don't change, so plate 1 can print right away.
 
 Result (2026-11-09): vertical press 3, slip 4; horizontal press 2, slip 3 (vertical holes print smaller). The steel
 pin is still untested: `pin_press_d` 4.95 is a guess ⚠️.
+
+Checked on the borders (2026-11-11): printed from a stale plate 2 with the pre-test fits, border H's Ø3.0 vertical
+holes (= hole 2) were too tight and border B's Ø3.1 horizontal holes (= hole 3) let the pin slide out: both as the fit
+test predicts, also in 7 mm deep holes. Current: H Ø3.1, B Ø3.0.
 
 ## Print (Bambu X2D)
 

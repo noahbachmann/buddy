@@ -93,3 +93,5 @@ Gap per side between flat walls (lid rim in box). Round holes print smaller: the
 |---|---|---|---|---|---|
 | 1 | 2026-11 | Desiccant tray | walls 4, layers 8 | Lid slightly too loose (0.15 per side) | Lid rim widened to 0.10, then 0.07 per side |
 | 2 | 2026-11 | Desiccant trays (PLA) | lid rim 0.07 per side | Press fit, holds | Keep 0.07 for PLA press fits |
+| 3 | 2026-11-09 | Dispenser fit test (PETG) | Ø3 pin in holes −0.05…+0.20 per side | Vertical: press +0.05, slip +0.10. Horizontal teardrop: press 0, slip +0.05 | `fit_*` in `dispenser/params.scad` |
+| 4 | 2026-11 | Dispenser borders H, B (PETG) | Stale plate: H vertical +0 per side, B horizontal +0.05 | H too tight, B pins slide out | Fit test confirmed in 7 mm deep holes: H +0.05, B 0 |
