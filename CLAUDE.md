@@ -67,9 +67,11 @@ What's left right now, in order. Update it with the progress table; GitHub issue
 2. **Live check** for #12: "Hey Jarvis, play Spotify" ducks, plays, and Buddy answers without delay (idle loops changed).
 3. **Decisions** in `docs/plans/02-05-head-pan-tilt.md` and `02-06-head-body.md` (end of each), then fill in
    `docs/plans/02-06-cad-prompt.md` (measurements after 2.1 and the parts order).
+4. **Voice retrain** (#67): `docs/guides/voice-retrain.md`, after Claude's part.
 
 **Claude** (code and guides):
 
+1. #67 voice retrain on real-use data: brain gaps, corpus short forms, `record.sh … new`, live score.
 1. #13 voice seek ("fast-forward 30 seconds", "go back 2 minutes").
 2. 2.1 printer guide (tolerance tests for CAD offsets): the 2.5 neck module is the first print that needs them.
 3. 2.5 / 2.6 per `docs/plans/` once Dev has made their decisions: neck module CAD (prompt stage 1), joint table,
