@@ -26,7 +26,7 @@ from torch import nn
 from transformers import WhisperForConditionalGeneration, WhisperProcessor
 from transformers.modeling_outputs import BaseModelOutput
 
-from . import data
+from . import corpus, data
 from .audio import auto_audio_ctx, pad_short, read_wav
 from .convert import quantize, to_ggml
 from .score import norm, word_errors
@@ -88,8 +88,12 @@ def is_validation(sentence: str, percent: int) -> bool:
 
 def load_items(cfg: Config, proc: WhisperProcessor, vad: Vad) -> tuple[list[Item], list[Item], list[str]]:
     sources = ["aec", "raw"] if cfg.source == "both" else [cfg.source]
+    tests = {norm(c.sentence) for c in corpus.load() if c.set == "test"}
     train, val, skipped = [], [], []
     for clip in data.clips(("train",), cfg.sessions or None):
+        if norm(clip.sentence) in tests:  # a live clip labelled with a test sentence: would inflate the eval
+            skipped.append(f"{clip.id}: test sentence \"{clip.sentence}\"")
+            continue
         for source in sources:
             path = data.trimmed(clip, source, vad)
             if path is None:

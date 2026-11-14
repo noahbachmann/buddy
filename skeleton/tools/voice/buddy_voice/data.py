@@ -20,6 +20,7 @@ import numpy as np
 
 from . import corpus
 from .audio import SAMPLE_RATE, peak_db, read_wav, rms_db, write_wav
+from .score import norm
 from .vad import Vad
 
 DATA = Path(os.environ.get("BUDDY_VOICE_DIR", "~/buddy-voice")).expanduser()
@@ -63,6 +64,26 @@ def write_session(name: str, clips: list[Clip]) -> None:
 
 def clips(sets: tuple[str, ...] = ("train", "test"), sessions: list[str] | None = None) -> list[Clip]:
     return [c for s in (sessions or session_names()) for c in load_session(s) if c.set in sets]
+
+
+def unrecorded(set_: str, today: str, also: list[Clip] = ()) -> list[corpus.Command]:
+    """Corpus sentences of a set without a clip of that set in a session from before `today` (YYYY-MM-DD), here or
+    in `also` (the Pi's sessions not pulled yet). Today's sessions don't count, so a desk and a box session of the
+    new lines can follow each other. Compared normalised: "Lights off." == "lights off". deploy/record.sh … new."""
+    done = {norm(c.sentence) for c in [*clips((set_,)), *also]
+            if c.set == set_ and not c.session.startswith(today)}
+    return [c for c in corpus.load() if c.set == set_ and norm(c.sentence) not in done]
+
+
+def parse_metadata(text: str) -> list[Clip]:
+    """`grep -H '' <dir>/<session>/metadata.csv…` output → clips (header rows skipped)."""
+    out = []
+    for line in text.splitlines():
+        path, _, row = line.partition(":")
+        r = next(csv.reader([row]), [])
+        if len(r) == 3 and r[0] != "file":
+            out.append(Clip(Path(path).parent.name, r[0], r[1], r[2]))
+    return out
 
 
 def import_old(src: Path, name: str, set_: str) -> list[str]:

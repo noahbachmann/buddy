@@ -5,19 +5,22 @@
     check                    dataset report: levels, missing files, clips without speech
     eval <model>… [options]  score models on the test clips on the Pi
     install <model> [--ctx]  copy to the Pi, set BUDDY_STT_MODEL / BUDDY_STT_AUDIO_CTX, restart ears
-    history                  live commands ears saved (BUDDY_EARS_SAVE_DIR): pull, label, delete on the Pi
+    history                  live commands ears saved (BUDDY_EARS_SAVE_DIR): pull, label, delete on the Pi, live score
+    prompts <set>            train/test sentences not recorded before today (deploy/record.sh <label> new|test-new)
     import <dir> <name>      old record-voice.sh folder → session (repairs its numbering faults)
 """
 
 import argparse
+import json
 import shlex
 import shutil
 import subprocess
 import sys
+import time
 from collections import Counter
 from pathlib import Path
 
-from . import data, pi
+from . import data, pi, score
 
 
 def _live_dir() -> str:
@@ -106,8 +109,6 @@ def cmd_install(args) -> None:
     ctx = args.ctx
     sidecar = Path(args.model).expanduser().with_suffix(".json")
     if ctx is None and sidecar.exists():
-        import json  # noqa: PLC0415
-
         ctx = "auto" if json.loads(sidecar.read_text())["ctx"] == "auto" else "0"
     install(args.model, ctx or "0")
 
@@ -133,6 +134,7 @@ def cmd_history(args) -> None:
     existing = data.load_session(session) if (data.SESSIONS / session / "metadata.csv").exists() else []
     n = max([int(c.file[:5]) for c in existing], default=0)
     done: list[str] = []
+    labelled: list[tuple[str, str, str]] = []  # (clip, heard, said) for the live score
     print(f"{len(wavs)} live commands. Enter = transcript is right, type the correct sentence, "
           "d = not a command (delete), s = later, q = quit")
     try:
@@ -153,6 +155,7 @@ def cmd_history(args) -> None:
                 shutil.copy2(wav, dst)
                 existing.append(data.Clip(session, file, answer or heard, "train"))
                 data.write_session(session, existing)
+                labelled.append((f"{session}/{file}", heard, answer or heard))
             wav.unlink()
             wav.with_suffix(".txt").unlink(missing_ok=True)
             done.append(wav.stem)
@@ -164,6 +167,37 @@ def cmd_history(args) -> None:
     left = len(wavs) - len(done)
     print(f"✓ {len(existing)} clips in session '{session}', {len(done)} handled and deleted on the Pi"
           + (f", {left} left for next time" if left else ""))
+    if labelled:
+        live_score(labelled)
+
+
+def live_score(labelled: list[tuple[str, str, str]]) -> dict:
+    """How the installed model did in real use: brain on whisper's transcript vs. on the label."""
+    texts = sorted({t for _, heard, said in labelled for t in (heard, said) if t})
+    s = score.live(labelled, pi.brain(texts))
+    print(f"\nlive score ({s['clips']} commands): intent {s['intent']} / {s['understood']}, "
+          f"exact {s['exact']} / {s['clips']}, WER {s['wer']:.1%}")
+    for r in s["rows"]:
+        if r["understood"] and not r["intent_ok"]:
+            print(f"  ✗ said: {r['said']}\n   heard: {r['heard']}")
+    if s["gaps"]:
+        print("brain doesn't understand (tell Claude, or add them to commands.tsv):")
+        for said in s["gaps"]:
+            print(f"  ? {said}")
+    report = data.DATA / "evals" / f"live-{time.strftime('%Y%m%d-%H%M%S')}.json"
+    report.parent.mkdir(parents=True, exist_ok=True)
+    report.write_text(json.dumps(s, indent=2))
+    print(f"report: {report}")
+    return s
+
+
+def cmd_prompts(args) -> None:
+    """set TAB sentence per line, for deploy/record.sh. The Pi's sessions count too (recorded, not pulled yet)."""
+    pi_clips = data.parse_metadata(pi.run("grep -H '' ~/buddy/voice/*/metadata.csv 2>/dev/null", check=False))
+    todo = data.unrecorded(args.set, time.strftime("%Y-%m-%d"), pi_clips)
+    for c in todo:
+        print(f"{c.set}\t{c.sentence}")
+    print(f"{len(todo)} {args.set} sentences without a clip from before today", file=sys.stderr)
 
 
 def cmd_import(args) -> None:
@@ -220,6 +254,10 @@ def main() -> int:
     sp = sub.add_parser("history")
     sp.add_argument("--source", default="raw", choices=["raw", "aec"], help="what BUDDY_EARS_DEVICE records")
     sp.set_defaults(fn=cmd_history)
+
+    sp = sub.add_parser("prompts")
+    sp.add_argument("set", choices=["train", "test"])
+    sp.set_defaults(fn=cmd_prompts)
 
     sp = sub.add_parser("import")
     sp.add_argument("dir")

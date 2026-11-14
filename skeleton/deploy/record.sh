@@ -4,10 +4,12 @@
 # buddy@ears is stopped meanwhile (it would react to the prompts) and started again on exit.
 # deploy/train.sh pulls the sessions to the PC.
 #
-# Usage: deploy/record.sh <label> [train|test] [wake count]
+# Usage: deploy/record.sh <label> [train|test|new|test-new] [wake count]
 #   label   what's special about this session, e.g. desk, far, box, box-loud (box = music box playing)
-#   set     which sentences of tools/voice/commands.tsv: train (default) or test (rephrasings, for scoring only)
-#   wake    how many "Hey Jarvis" to record as well (default 20, 0 = none)
+#   set     which sentences of tools/voice/commands.tsv: train (default) or test (rephrasings, for scoring only);
+#           new / test-new: only the train / test sentences without a clip from before today (any session in
+#           ~/buddy-voice or still on the Pi; deploy/train.sh prompts), after the corpus grew
+#   wake    how many "Hey Jarvis" to record as well (default 20, with new / test-new 0; 0 = none)
 # Same label on the same day continues the session: sentences already recorded are skipped.
 #
 # Per sentence: Enter = start, Enter = stop (after you finished speaking), r = redo the last clip, s = skip,
@@ -15,15 +17,23 @@
 set -euo pipefail
 HOST="${BUDDY_HOST:-buddy}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-label="${1:?usage: deploy/record.sh <label> [train|test] [wake count]}"
+label="${1:?usage: deploy/record.sh <label> [train|test|new|test-new] [wake count]}"
 set="${2:-train}"
-wake="${3:-20}"
 [[ "$label" =~ ^[a-z0-9-]+$ ]] || { echo "label: lowercase letters, digits and - only" >&2; exit 2; }
-[[ "$set" == train || "$set" == test ]] || { echo "set must be train or test" >&2; exit 2; }
 session="$(date +%F)-$label"
 
 # Prompts: the set's sentences in random order (variety), then the wake word. "set<TAB>sentence" per line.
-prompts="$(awk -F'\t' -v set="$set" '$1 == set { print $1 "\t" $2 }' "$ROOT/tools/voice/commands.tsv" | shuf)"
+case "$set" in
+    train | test)
+        wake="${3:-20}"
+        prompts="$(awk -F'\t' -v set="$set" '$1 == set { print $1 "\t" $2 }' "$ROOT/tools/voice/commands.tsv" | shuf)" ;;
+    new | test-new)
+        wake="${3:-0}"
+        if [[ "$set" == new ]]; then set="train"; else set="test"; fi
+        prompts="$("$ROOT/deploy/train.sh" prompts "$set" | shuf)"
+        [[ -n "$prompts" ]] || { echo "every $set sentence has a clip already" >&2; exit 0; } ;;
+    *) echo "set must be train, test, new or test-new" >&2; exit 2 ;;
+esac
 wake_line="$(awk -F'\t' '$1 == "wake" { print $1 "\t" $2; exit }' "$ROOT/tools/voice/commands.tsv")"
 for ((i = 0; i < wake; i++)); do prompts+=$'\n'"$wake_line"; done
 

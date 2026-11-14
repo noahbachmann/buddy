@@ -45,3 +45,29 @@ def word_errors(said: str, heard: str) -> tuple[int, int]:
         for j in range(1, len(h) + 1):
             diag, row[j] = row[j], min(row[j] + 1, row[j - 1] + 1, diag + (r[i - 1] != h[j - 1]))
     return row[len(h)], len(r)
+
+
+def live(pairs: list[tuple[str, str, str]], intents: dict[str, tuple[str, str, str]]) -> dict:
+    """Live score of labelled commands: (clip, heard, said) + brain's (intent, query, device) per text.
+
+    intent  brain does the same with what whisper heard as with what was said, over the commands brain understands
+    gaps    what was said but brain doesn't understand: brain's job, not whisper's
+    """
+    unknown = ("unknown", "", "")
+    rows = []
+    for clip, heard, said in pairs:
+        want = intents.get(said, unknown)
+        errs, words = word_errors(said, heard)
+        rows.append({"clip": clip, "said": said, "heard": heard, "exact": norm(heard) == norm(said),
+                     "errors": errs, "words": words, "understood": want[0] != "unknown",
+                     "intent_ok": intents.get(heard, unknown) == want})
+    understood = [r for r in rows if r["understood"]]
+    return {
+        "clips": len(rows),
+        "exact": sum(r["exact"] for r in rows),
+        "intent": sum(r["intent_ok"] for r in understood),
+        "understood": len(understood),
+        "wer": sum(r["errors"] for r in rows) / max(1, sum(r["words"] for r in rows)),
+        "gaps": sorted({r["said"] for r in rows if not r["understood"]}),
+        "rows": rows,
+    }
