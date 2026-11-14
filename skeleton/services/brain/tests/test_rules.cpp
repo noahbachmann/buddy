@@ -1,5 +1,6 @@
 // normalize() and the whole-match rule on phrasings the corpus doesn't contain.
 #include <gtest/gtest.h>
+#include <vector>
 
 #include "rules.hpp"
 
@@ -99,4 +100,61 @@ TEST(RuleParser, DemoGesture) {  // live 2026-10-29: whisper's versions of "Andi
     }
     EXPECT_FALSE(parser.parse("Cut off the music."));
     EXPECT_FALSE(parser.parse("Cut off all of the old balls."));  // 4 words: something else
+}
+
+struct Want {
+    const char* text;
+    const char* name;
+    const char* query;
+    const char* device;
+};
+
+void expect_all(const std::vector<Want>& cases) {
+    const buddy::brain::RuleParser parser;
+    for (const auto& w : cases) {
+        const auto i = parser.parse(w.text);
+        ASSERT_TRUE(i) << w.text;
+        EXPECT_EQ(i->name, w.name) << w.text;
+        EXPECT_EQ(i->query, w.query) << w.text;
+        EXPECT_EQ(i->device, w.device) << w.text;
+    }
+}
+
+TEST(RuleParser, LiveGaps) {  // #67: Dev's saved live commands brain got wrong
+    expect_all({
+        {"Bedroom lights to white.", "color", "white", "bedroom"},
+        {"The bedroom lights too white.", "color", "white", "bedroom"},  // whisper's "too"
+        {"Turn the lights to red in the bedroom.", "color", "red", "bedroom"},
+        {"Make all lights bright.", "brightness", "100", "all"},
+        {"Move music to desktop 1.", "play", "", "desktop 1"},
+        {"Swap to bathroom speaker.", "play", "", "bathroom speaker"},
+        {"Send the music to the Pixel.", "play", "", "pixel"},
+        {"Play music in bathroom.", "play", "", "bathroom"},
+        {"Play Spotify in bathroom.", "play", "", "bathroom"},
+    });
+}
+
+TEST(RuleParser, ColourIsNotABrightnessOrARoom) {
+    expect_all({
+        {"Living room lights to 80%.", "brightness", "80", "living room"},
+        {"Make the bedroom lights brighter.", "brighter", "", "bedroom"},
+        {"Turn the lights warm white in my bedroom.", "color", "warm white", "bedroom"},
+        {"Switch to the relax scene.", "scene", "relax", ""},  // not a speaker called "relax scene"
+    });
+    const buddy::brain::RuleParser parser;
+    EXPECT_FALSE(parser.parse("Lights to up."));
+}
+
+TEST(RuleParser, LightsAreNotCalledLikeACommand) {  // live: "Turn on lights off" went off with device "turn on"
+    const buddy::brain::RuleParser parser;
+    for (const char* text : {"Turn on lights off.", "Turn on lights on.", "On lights off.", "Switch on lights off."})
+        EXPECT_FALSE(parser.parse(text)) << text;
+}
+
+TEST(RuleParser, BareInKeepsTitles) {
+    expect_all({
+        {"Play Love in Paris.", "play", "love in paris", ""},
+        {"Play music in the kitchen.", "play", "", "kitchen"},
+        {"Play my chill playlist in the bathroom.", "play_playlist", "chill", "bathroom"},
+    });
 }

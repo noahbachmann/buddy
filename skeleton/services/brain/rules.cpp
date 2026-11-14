@@ -104,9 +104,8 @@ bool generic_query(const std::string& q) {
 // <artist>" with field filters). "some strokes" stays: "Some Nights" is a song; spotify ignores the "some".
 std::string canonical_query(std::string q) {
     static const std::regex filler(R"(^((songs|music|something|anything|stuff|tracks) by|the song|the track|a song by) )");
-    q = std::regex_replace(q, filler, "");
     if (const auto from = q.rfind(" from "); from != std::string::npos && from > 0) q.replace(from, 6, " by ");
-    return q;
+    return std::regex_replace(q, filler, "");  // after "from": "something from michael jackson"
 }
 
 } // namespace
@@ -133,16 +132,18 @@ std::string normalize(std::string_view text) {
 RuleParser::RuleParser() {
     // Lights first: they need a light word, so they never take a music phrasing. {L} = what is switched: "(the)
     // (kitchen) lights", "desk lamp", "all the lights", "everything" (one capture group); {R} = a bare room ("dim
-    // bedroom to 20"); {N} = a percentage.
-    auto light = [this](std::string pattern, const char* name, int device_group, int query_group = 0) {
+    // bedroom to 20"); {N} = a percentage; {C} = a colour or white, never "… in <room>" (parse_room splits that off).
+    auto light = [this](std::string pattern, const char* name, int device_group, int query_group = 0,
+                        const char* fixed_query = "") {
         static const std::vector<std::pair<std::string, std::string>> parts = {
-            {"{L}", R"(((?!play |on |off )(?:the |my |all |all the )?(?:[a-z0-9 ]+? )?(?:lights?|lamps?)|everything))"},
+            {"{L}", R"(((?!(?:play|on|off|turn|switch|put) )(?:the |my |all |all the )?(?:[a-z0-9 ]+? )?(?:lights?|lamps?)|everything))"},
             {"{R}", R"(((?:the |my )?(?!the |my )[a-z0-9 ]+?))"},
             {"{N}", R"(([0-9]{1,3}))"},
+            {"{C}", R"(((?!(?:up|down|on|off|in)\b)[a-z]+(?: (?!in\b)[a-z]+)*))"},
         };
         for (const auto& [key, value] : parts)
             for (auto at = pattern.find(key); at != std::string::npos; at = pattern.find(key)) pattern.replace(at, key.size(), value);
-        rules_.push_back({std::regex("(?:good night |good morning )?(?:" + pattern + ")"), name, "hue", query_group, "", device_group});
+        rules_.push_back({std::regex("(?:good night |good morning )?(?:" + pattern + ")"), name, "hue", query_group, fixed_query, device_group});
     };
     // groups: the prefix above has none, so {L} in "turn on {L}" is 1
     light(R"((?:are|is) {L} (?:still )?(?:on|off))", "status", 1);
@@ -157,7 +158,9 @@ RuleParser::RuleParser() {
     light(R"(turn up {L}|turn {L} up|brighten (?:up )?{L})", "brighter", 0);
     light(R"((?:make )?(?:{L}|it|them) darker|darker)", "darker", 1);
     light(R"(turn down {L}|turn {L} down|dim {L}|dim {R})", "darker", 0);
-    light(R"((?:turn|make|set|change|switch) {L} (?:to )?(?!(?:up|down|on|off)\b)([a-z ]+))", "color", 1, 2);
+    light(R"((?:make|turn|set|put) {L} (?:to )?(?:bright|full brightness))", "brightness", 1, 0, "100");  // not colour "bright"
+    light(R"((?:turn|make|set|change|switch) {L} (?:to )?{C})", "color", 1, 2);
+    light(R"({L} (?:to|too) {C})", "color", 1, 2);  // "bedroom lights to white"; whisper writes "too" at times
 
     // Demo gesture for friends (motion "shake" on the demo servo). Whisper doesn't know "Andi's": live 2026-10-29 it
     // heard "on these", "undies", "undistballs", so any ≤ 2 words (or one glued to "balls") count. Remove in 2.5.
@@ -227,33 +230,47 @@ std::optional<Intent> RuleParser::parse_room(const std::string& t) const {
 }
 
 // "move the music to the tv", "play daft punk on the bathroom speaker", "play my liked songs in the kitchen".
-// Splits at the last "on"/"in the"/"in my", or a bare "in" before "… speaker"; the skill matches the name itself.
+// Splits at the last "on"/"in the"/"in my", or a bare "in" before "… speaker" or after music without a title; the
+// skill matches the name itself.
 std::optional<Intent> RuleParser::parse_device(const std::string& t) const {
     static const std::regex transfer(
-        R"((move|switch|transfer|send|put)( the music| it| this| the song| playback| the playback| spotify)?( back)? to (the |my )?(.+))");
+        R"((move|switch|swap|transfer|send|put)( the music| music| it| this| the song| playback| the playback| spotify)?( back)? to (the |my )?(.+))");
     static const std::regex suffix(R"((.+) (on|in the|in my|in(?= [a-z0-9 ]*speaker$)) (the |my )?(.+))");  // bare "in": live 2026-11-08
+    static const std::regex bare_in(R"((.+) in (the |my )?(.+))");
     static const std::regex not_a_device(R"(spotify|repeat|shuffle|loop)");
     std::smatch m;
     if (std::regex_match(t, m, transfer)) {
+        if (const auto whole = parse_core(t); whole && whole->skill == "hue") return std::nullopt;  // "switch to the relax scene"
         Intent intent;
         intent.name = "play";  // empty query + device: keep playing, there
         intent.skill = "spotify";
         intent.device = device_digits(m[5].str());
         return intent;
     }
-    if (!std::regex_match(t, m, suffix) || std::regex_match(m[4].str(), not_a_device)) return std::nullopt;
-    auto intent = parse_core(m[1].str());
-    if (!intent || (intent->name != "play" && intent->name != "play_playlist" && intent->name != "play_liked"))
-        return std::nullopt;
-    intent->device = device_digits(m[4].str());
-    // "play shine" + "on you crazy diamond": maybe a title. "play (it) on X", playlists, liked songs: a speaker.
-    if (intent->name == "play" && !intent->query.empty()) {
-        if (const auto whole = parse_core(t)) {
-            intent->fallback_name = whole->name;
-            intent->fallback_query = whole->query;
+    if (std::regex_match(t, m, suffix) && !std::regex_match(m[4].str(), not_a_device)) {
+        auto intent = parse_core(m[1].str());
+        if (intent && (intent->name == "play" || intent->name == "play_playlist" || intent->name == "play_liked")) {
+            intent->device = device_digits(m[4].str());
+            // "play shine" + "on you crazy diamond": maybe a title. "play (it) on X", playlists, liked songs: a speaker.
+            if (intent->name == "play" && !intent->query.empty()) {
+                if (const auto whole = parse_core(t)) {
+                    intent->fallback_name = whole->name;
+                    intent->fallback_query = whole->query;
+                }
+            }
+            return intent;
         }
     }
-    return intent;
+    // "play music in bathroom" (live 2026-11-12): any bare "in" after music without a title is a place;
+    // "play love in paris" stays a title
+    if (std::regex_match(t, m, bare_in) && !std::regex_match(m[3].str(), not_a_device)) {
+        auto intent = parse_core(m[1].str());
+        if (intent && intent->name == "play" && intent->query.empty()) {
+            intent->device = device_digits(m[3].str());
+            return intent;
+        }
+    }
+    return std::nullopt;
 }
 
 std::optional<Intent> RuleParser::parse_core(const std::string& t) const {
