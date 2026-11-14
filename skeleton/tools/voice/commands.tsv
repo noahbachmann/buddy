@@ -27,6 +27,17 @@ test	Play some Spotify.	play
 test	Put on some music.	play
 test	Keep playing.	play
 test	Buddy, can you play some music?	play
+train	Play Spotify, please.	play
+train	Buddy, play Spotify.	play
+train	Keep playing the music.	play
+train	Keep playing music.	play
+train	Buddy, keep playing.	play
+train	Can you keep playing?	play
+train	Keep playing, please.	play
+train	Put on some Spotify.	play
+train	Put on music.	play
+train	Can you put on some music?	play
+train	Play some music right now.	play
 # --- pause
 train	Pause.	pause
 train	Pause the music.	pause
@@ -36,6 +47,15 @@ train	Please pause the music.	pause
 test	Pause it.	pause
 test	Pause the song.	pause
 test	Could you pause the music, please?	pause
+train	Stop music.	pause
+train	Stop Spotify.	pause
+train	Pause Spotify.	pause
+train	Pause the track.	pause
+train	Pause this song.	pause
+train	Could you stop the music?	pause
+train	Buddy, pause.	pause
+train	Stop the music right now.	pause
+test	Stop the song.	pause
 # --- next / previous
 train	Next song.	next
 train	Skip song.	next
@@ -49,6 +69,19 @@ train	Go back.	previous
 train	Last song.	previous
 test	Play the previous song.	previous
 test	Go back one song.	previous
+train	Skip.	next
+train	Skip this track.	next
+train	Skip that one.	next
+train	Next one.	next
+train	Play the next track.	next
+train	Go to the next track.	next
+train	Could you skip this song?	next
+train	Previous track.	previous
+train	Previous one.	previous
+train	Go back one track.	previous
+train	Go back a track.	previous
+train	Play the previous track.	previous
+train	Buddy, go back.	previous
 # --- volume
 train	Louder.	volume_up
 train	Turn it up.	volume_up
@@ -74,6 +107,41 @@ train	Volume 30.	set_volume	30
 train	Set the volume to 20%.	set_volume	20
 test	Set the volume to 70%.	set_volume	70
 test	Volume to 40%.	set_volume	40
+train	Louder, please.	volume_up
+train	A little louder.	volume_up
+train	Turn the volume up a bit.	volume_up
+train	Can you make it louder?	volume_up
+train	Turn the music up.	volume_up
+train	Volume up a little.	volume_up
+train	A bit quieter.	volume_down
+train	Quieter, buddy.	volume_down
+train	Make it quieter.	volume_down
+train	Turn it down a bit.	volume_down
+train	Turn the volume down a little bit.	volume_down
+train	Could you turn the volume down?	volume_down
+train	Volume 70.	set_volume	70
+train	Set it to 70%.	set_volume	70
+train	Turn the volume to 70%.	set_volume	70
+train	Volume at 70%.	set_volume	70
+train	Set the music to 70%.	set_volume	70
+train	Volume to 80%.	set_volume	80
+train	Set the volume to 80%.	set_volume	80
+train	Turn it to 80%.	set_volume	80
+train	Volume 80.	set_volume	80
+train	Volume at 80%.	set_volume	80
+train	Set the volume to 40.	set_volume	40
+train	Volume 40%.	set_volume	40
+train	Turn the volume to 40%.	set_volume	40
+train	Volume to 20%.	set_volume	20
+train	Turn the volume to 20.	set_volume	20
+train	Volume 20.	set_volume	20
+train	Turn it up a little.	volume_up
+train	Turn the music down a little.	volume_down
+train	Even quieter.	volume_down
+train	Make it darker.	darker
+train	Go back one.	previous
+train	Previous song, please.	previous
+train	Play Spotify right now.	play
 # --- shuffle / repeat
 train	Shuffle on.	shuffle	on
 train	Turn on shuffle.	shuffle	on
@@ -84,11 +152,35 @@ train	Repeat this song.	repeat	track
 train	Repeat off.	repeat	off
 test	Play this song on repeat.	repeat	track
 test	Stop repeating.	repeat	off
+train	Stop shuffling, please.	shuffle	off
+train	Buddy, stop shuffling.	shuffle	off
+train	Please stop shuffling.	shuffle	off
+train	Can you stop shuffling?	shuffle	off
+train	Could you stop shuffling?	shuffle	off
+train	Shuffle it.	shuffle	on
+train	Shuffle this.	shuffle	on
+train	Stop repeating, please.	repeat	off
+train	Buddy, stop repeating.	repeat	off
+train	Please stop repeating.	repeat	off
+train	Can you stop repeating?	repeat	off
+train	Could you stop repeating?	repeat	off
+train	Repeat this track.	repeat	track
+train	Put this song on repeat.	repeat	track
+train	Play this track on repeat.	repeat	track
+train	Repeat the song.	repeat	track
 # --- what's playing
 train	What's playing?	now_playing
 train	What song is this?	now_playing
 test	What's playing right now?	now_playing
 test	What is this song?	now_playing
+train	What is playing?	now_playing
+train	What's playing now?	now_playing
+train	What's this song?	now_playing
+train	What is that song?	now_playing
+train	Buddy, what's playing?	now_playing
+train	What song is playing right now?	now_playing
+train	What's that?	now_playing
+train	What is this?	now_playing
 # --- artists (edit)
 train	Play The Strokes.	play	the strokes
 train	Play Daughter on Spotify.	play	daughter
@@ -105,6 +197,24 @@ test	Play some Arctic Monkeys.	play	some arctic monkeys
 test	Can you play something by Michael Jackson, please?	play	michael jackson
 train	Play something by Michael Jackson on Spotify.	play	michael jackson
 train	Play music by Lil Peep.	play	lil peep
+train	Play some Taylor Swift.	play	some taylor swift
+train	Play Taylor Swift on the main speaker.	play	taylor swift	main speaker
+train	Play something by Taylor Swift.	play	taylor swift
+train	Put on Taylor Swift.	play	taylor swift
+train	Play some Daughter.	play	some daughter
+train	Play songs by Daughter.	play	daughter
+train	Play The Strokes on Spotify.	play	the strokes
+train	Play songs by The Strokes.	play	the strokes
+train	Play Arctic Monkeys on the main speaker.	play	arctic monkeys	main speaker
+train	Put on Arctic Monkeys.	play	arctic monkeys
+train	Play songs by Arctic Monkeys.	play	arctic monkeys
+train	Play something by Arctic Monkeys.	play	arctic monkeys
+train	Play Michael Jackson.	play	michael jackson
+train	Put on Michael Jackson.	play	michael jackson
+train	Play some Michael Jackson.	play	some michael jackson
+train	Play Daft Punk.	play	daft punk
+train	Play some Daft Punk.	play	some daft punk
+train	Play some Kanye West.	play	some kanye west
 # --- songs by artists (edit)
 train	Play City Lights by James Gruntz.	play	city lights by james gruntz
 train	Play Party by Daughter.	play	party by daughter
@@ -118,6 +228,33 @@ test	Play the song Party by Daughter.	play	party by daughter
 test	Play Bound 2 from Kanye West.	play	bound 2 by kanye west
 test	Play Time from Hans Zimmer.	play	time by hans zimmer
 test	Play the song Get Lucky by Daft Punk.	play	get lucky by daft punk
+train	Play City Lights.	play	city lights
+train	Play James Gruntz.	play	james gruntz
+train	Play something by James Gruntz.	play	james gruntz
+train	Put on City Lights by James Gruntz.	play	city lights by james gruntz
+train	Play Party.	play	party
+train	Put on Party by Daughter.	play	party by daughter
+train	Play Get Lucky.	play	get lucky
+train	Put on Get Lucky.	play	get lucky
+train	Play the song Get Lucky.	play	get lucky
+train	Play Bound 2.	play	bound 2
+train	Put on Bound 2 by Kanye West.	play	bound 2 by kanye west
+train	Play the song Bound 2.	play	bound 2
+train	Play Time.	play	time
+train	Put on Time by Hans Zimmer.	play	time by hans zimmer
+train	Play the song Time by Hans Zimmer.	play	time by hans zimmer
+train	Play the song Party.	play	party
+train	Play Get Lucky from Daft Punk.	play	get lucky by daft punk
+train	Play Party from Daughter.	play	party by daughter
+train	Play Follow God from Kanye.	play	follow god by kanye
+train	Play Blinding Lights from The Weeknd.	play	blinding lights by the weeknd
+train	Play something from Michael Jackson.	play	michael jackson
+train	Play City Lights on the main speaker.	play	city lights	main speaker
+train	Put on City Lights.	play	city lights
+train	Play Bound 2 on the main speaker.	play	bound 2	main speaker
+train	Play some James Gruntz.	play	some james gruntz
+train	Put on The Strokes.	play	the strokes
+train	Put on Time.	play	time
 # --- your playlists (edit)
 train	Play my playlist.	play_playlist
 train	Play my chill playlist.	play_playlist	chill
@@ -131,6 +268,30 @@ test	Buddy, play my no singing playlist on Spotify.	play_playlist	no singing
 train	Play my liked songs.	play_liked
 train	Shuffle my liked songs.	play_liked	shuffle
 test	Put on my liked songs.	play_liked
+train	Play my playlist Mhm.	play_playlist	mhm
+train	Play my Mhm playlist.	play_playlist	mhm
+train	Put on my Mhm playlist.	play_playlist	mhm
+train	Play the Mhm playlist.	play_playlist	mhm
+train	Play my playlist Mhm on the main speaker.	play_playlist	mhm	main speaker
+train	Play my Hype playlist.	play_playlist	hype
+train	Play my playlist Hype.	play_playlist	hype
+train	Put on my Hype playlist.	play_playlist	hype
+train	Play my Hype playlist on desktop 1.	play_playlist	hype	desktop 1
+train	Play my playlist Hype, please.	play_playlist	hype
+train	Play the chill playlist.	play_playlist	chill
+train	Play my playlist chill.	play_playlist	chill
+train	Play my no singing playlist.	play_playlist	no singing
+train	Put on my playlist no singing.	play_playlist	no singing
+train	Play the no singing playlist.	play_playlist	no singing
+train	Play the sleepy playlist.	play_playlist	sleepy
+train	Put on my sleepy playlist.	play_playlist	sleepy
+train	Play my playlist sleepy.	play_playlist	sleepy
+train	Play my chill playlist on the main speaker.	play_playlist	chill	main speaker
+train	Play the chill playlist on desktop 1.	play_playlist	chill	desktop 1
+train	Play my liked songs on the main speaker.	play_liked		main speaker
+train	Play my liked songs on desktop 1.	play_liked		desktop 1
+train	Play my playlist no singing on the main speaker.	play_playlist	no singing	main speaker
+train	Play my sleepy playlist on the main speaker.	play_playlist	sleepy	main speaker
 # --- other speakers (edit: your Spotify Connect names as "buddy-spotify --cmd devices" lists them; the box needs none)
 train	Play Daft Punk on the bathroom speaker.	play	daft punk	bathroom speaker
 train	Play music in the bathroom.	play		bathroom
@@ -155,6 +316,34 @@ test	Play my liked songs on my personal TV.	play_liked		personal tv
 test	Switch the music to my personal TV.	play		personal tv
 train	Move the music back to the box.	play		box
 test	Play music on the main speaker.	play		main speaker
+train	Play music on the bathroom speaker.	play		bathroom speaker
+train	Play music on bathroom speaker.	play		bathroom speaker
+train	Swap to bathroom speaker.	play		bathroom speaker
+train	Swap to the main speaker.	play		main speaker
+train	Switch to the bathroom speaker.	play		bathroom speaker
+train	Play music in bathroom.	play		bathroom
+train	Move music to desktop 1.	play		desktop 1
+train	Play on desktop 1.	play		desktop 1
+train	Play Spotify on main speaker.	play		main speaker
+train	Move the music to the main speaker.	play		main speaker
+train	Send the music to my Pixel 8.	play		pixel 8
+train	Move it to the Pixel.	play		pixel
+train	Play music on my Pixel 8.	play		pixel 8
+train	Switch to my personal TV.	play		personal tv
+train	Move music to my personal TV.	play		personal tv
+test	Send music to the bathroom speaker.	play		bathroom speaker
+test	Swap the music to desktop 1.	play		desktop 1
+test	Play Spotify in bathroom.	play		bathroom
+test	Move music to the main speaker.	play		main speaker
+train	Play the music on the main speaker.	play		main speaker
+train	Send it to desktop 1.	play		desktop 1
+train	Send music to my personal TV.	play		personal tv
+train	Send the music to the main speaker.	play		main speaker
+train	Send Spotify to the bathroom speaker.	play		bathroom speaker
+train	Swap to desktop 1.	play		desktop 1
+train	Swap to my Pixel.	play		pixel
+train	Swap the music to the bathroom speaker.	play		bathroom speaker
+train	Move the music to the Pixel 8.	play		pixel 8
 # --- lights (hue): rooms, lights and scenes from Dev's Hue app (2026-10-30); hue's test_dev_home.cpp checks they resolve
 train	Turn on the lights.	on
 train	Turn off the lights.	off
@@ -189,6 +378,83 @@ test	Living room lights to 80%.	brightness	80	living room
 test	Turn all the lights off.	off		all
 test	Make the bedroom lights darker.	darker		bedroom
 test	Turn the lights green.	color	green
+train	All lights off.	off		all
+train	All lights on.	on		all
+train	Lights off.	off
+train	Bedroom lights on.	on		bedroom
+train	Living room lights on.	on		living room
+train	Kitchen lights on.	on		kitchen
+train	Turn all lights off.	off		all
+train	Turn all lights on.	on		all
+train	Turn off all lights.	off		all
+train	Turn on all lights.	on		all
+train	Turn bedroom lights on.	on		bedroom
+train	Turn bedroom lights off.	off		bedroom
+train	Turn living room lights on.	on		living room
+train	Turn the lights off.	off
+train	Switch the lights off.	off
+train	Switch all lights on.	on		all
+train	Switch on the bedroom lights.	on		bedroom
+train	All lights to 50%.	brightness	50	all
+train	Living room lights to 70%.	brightness	70	living room
+train	Bedroom lights to 80%.	brightness	80	bedroom
+train	Set the lights to 80%.	brightness	80
+train	Dim the living room to 20%.	brightness	20	living room
+train	Dim the bedroom lights.	darker		bedroom
+train	Dim bedroom to 40%.	brightness	40	bedroom
+train	Bedroom lights to white.	color	white	bedroom
+train	Bedroom lights to green.	color	green	bedroom
+train	Bedroom lights to warm white.	color	warm white	bedroom
+train	Lights to green.	color	green
+train	Turn the lights to white.	color	white
+train	Turn the lights to green.	color	green
+train	Turn bedroom lights to red.	color	red	bedroom
+train	Turn the lights to red in the bedroom.	color	red	bedroom
+train	Make bedroom lights green.	color	green	bedroom
+train	Make bedroom lights white.	color	white	bedroom
+train	Make the bedroom ceiling light warm white.	color	warm white	bedroom ceiling
+train	Turn the bedroom ceiling light warm white.	color	warm white	bedroom ceiling
+train	Make all lights bright.	brightness	100	all
+train	Make bedroom lights brighter.	brighter		bedroom
+train	Make living room lights brighter.	brighter		living room
+train	Make the lights darker.	darker
+train	Make living room lights darker.	darker		living room
+train	Make all lights darker.	darker		all
+train	Start the energise scene.	scene	energise
+train	Start the purple scene.	scene	purple
+train	Start the green scene.	scene	green
+train	Activate the dimmed scene.	scene	dimmed
+train	Use the dimmed scene.	scene	dimmed
+train	Dimmed scene.	scene	dimmed
+train	Switch to the dimmed scene.	scene	dimmed
+train	Set the dimmed scene, please.	scene	dimmed
+train	Start the red scene.	scene	red
+train	Start the call scene.	scene	call
+train	Is the bedroom light on?	status		bedroom
+train	Is the kitchen light on?	status		kitchen
+train	Is living room light off?	status		living room
+train	Are all lights off?	status		all
+test	Kitchen lights off.	off		kitchen
+test	All the lights on.	on		all
+test	Bedroom lights to red.	color	red	bedroom
+test	Turn the living room lights off.	off		living room
+test	Make the bedroom lights bright.	brightness	100	bedroom
+test	Lights to blue.	color	blue
+test	Turn off all the lights.	off		all
+test	Switch all lights off.	off		all
+train	Turn the bedroom lights blue.	color	blue	bedroom
+train	Bedroom lights to blue.	color	blue	bedroom
+train	Make the lights blue.	color	blue
+train	Make bedroom lights blue.	color	blue	bedroom
+train	Make bedroom lights red.	color	red	bedroom
+train	Make the bedroom lights warm white.	color	warm white	bedroom
+train	Make the lights bright.	brightness	100
+train	Make living room lights bright.	brightness	100	living room
+train	Turn all lights bright.	brightness	100	all
+train	Make the kitchen lights bright.	brightness	100	kitchen
+train	Bedroom ceiling light off.	off		bedroom ceiling
+train	Turn on the bedroom ceiling light.	on		bedroom ceiling
+train	Turn the lights off right now.	off
 # --- demo gesture (motion "shake"): brain test only, remove with the gesture in 2.5
 extra	Cut off Andi's balls.	gesture	shake
 extra	Hey Jarvis, cut off Andi's balls.	gesture	shake

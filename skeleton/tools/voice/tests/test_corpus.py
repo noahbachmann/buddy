@@ -23,3 +23,16 @@ def test_devices_only_on_playback_and_lights():
     with_device = {"play", "play_playlist", "play_liked", "on", "off", "brightness", "brighter", "darker", "color",
                    "scene", "status"}
     assert not [c.sentence for c in commands if c.device and c.intent not in with_device]
+
+
+def test_every_test_word_is_trained_5_times():
+    """whisper learns a word from Dev's clips only if train has it often enough: eval 2026-10-28 missed exactly the
+    words and names that were rare in train (CLAUDE.md → Deferred)."""
+    from collections import Counter
+
+    from buddy_voice.score import norm
+
+    commands = corpus.load()
+    trained = Counter(w for c in commands if c.set == "train" for w in norm(c.sentence).split())
+    tested = {w for c in commands if c.set == "test" for w in norm(c.sentence).split()}
+    assert not sorted(f"{w} ({trained[w]}×)" for w in tested if trained[w] < 5)
