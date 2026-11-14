@@ -6,7 +6,7 @@ whisper.cpp build. Phase 1 history and numbers: `guides/01-setup-summary.md` →
 
 ```
  PC                                          Pi
- deploy/record.sh <label> [test] ──ssh──►    records the raw Jabra mic → ~/buddy/voice/<date>-<label>/raw/
+ deploy/record.sh <label> [set] ───ssh──►    records the raw Jabra mic → ~/buddy/voice/<date>-<label>/raw/
  deploy/train.sh                              
    pull ◄──────────────────────────rsync──   sessions (+ saved live commands: train.sh history)
    check: levels, missing files, VAD trim
@@ -48,10 +48,16 @@ One list for everything: recording prompts, brain's regression test (`deploy/tes
 
 - Put your real artists, songs and playlists in; 5+ sentences per name, spread over train and test.
 - `test` sentences are rephrasings that are never recorded for training: the score on them is the honest one.
+  Training also drops any clip labelled with a `test` sentence (e.g. a live command), so the eval stays honest.
+- Every word of a `test` sentence is in `train` at least 5× (`pytest`: `test_every_test_word_is_trained_5_times`):
+  the 2026-10-28 eval missed exactly the words and names that were rare in `train`. A new test line usually needs
+  a few train lines too.
+- Write it the way you say it: short forms ("All lights off.", "Move music to desktop 1.") belong in as much as
+  full sentences. `deploy/train.sh history` lists what you said that brain doesn't understand.
 - A new phrasing → add it, run `deploy/test.sh -R Corpus`. If brain doesn't understand it, fix `services/brain/rules.cpp`.
 - Lights etc. stay in with intent `unknown`: whisper learns the words before a skill exists.
 
-## Record: `deploy/record.sh <label> [train|test] [wake count]`
+## Record: `deploy/record.sh <label> [train|test|new|test-new] [wake count]`
 
 The label says what's special about the session: `desk`, `far`, `box`, `box-loud`, `tired`. Sentences come in random
 order, then 20× "Hey Jarvis" (third argument: how many, 0 = none). Enter = start, speak, Enter = stop **after** you
@@ -62,6 +68,11 @@ finished; `r` redoes the last clip, `s` skips, `q` quits. The same label on the 
   with vocals (hardest), time of day. One condition per session, so the eval can show each one separately.
 - Only the raw mic is recorded (what ears hears, D13). Sessions up to 2026-10-28 also have an `aec/` track (`--source aec`).
 - Test sessions (`deploy/record.sh <label> test`) on another day, half of them with the box playing.
+- **After the corpus grew:** `new` / `test-new` record only the `train` / `test` sentences without a clip of that set
+  from before today (any session in `~/buddy-voice`, live labels included, and sessions still on the Pi), no wake
+  words by default. Today's sessions don't count, so `desk new` and then `box new` the same day both get every new
+  line. `deploy/train.sh prompts train|test` lists them. Label live commands first (`deploy/train.sh history`): what
+  you already said live needs no recording.
 
 ## Train: `deploy/train.sh`
 
@@ -149,6 +160,20 @@ Every week or two (at 500 unlabelled clips the oldest get lost):
 
 Kept clips are appended to the session `live` (`~/buddy-voice/sessions/live/`, numbered on), all as `train`.
 
+**Live score** at the end (deployed brain on the Pi, `buddy-brain --test`), report in `~/buddy-voice/evals/live-*.json`:
+
+```
+live score (40 commands): intent 31 / 37, exact 29 / 40, WER 12.0%
+  ✗ said: All lights off.
+   heard: on lights off.
+brain doesn't understand (tell Claude, or add them to commands.tsv):
+  ? Turn on my lights.
+```
+
+- **intent**: brain does the same with what whisper heard as with what you said, over the commands brain
+  understands. The real-use number; compare it between history runs before and after installing a model.
+- **brain doesn't understand**: what you said is fine, the rules are missing. Fix brain, not whisper.
+
 Label honestly: the label is what you *said*, not what you meant. A wrong label teaches whisper the wrong thing, so
 `d` when you can't hear it clearly. Commands whisper got wrong are the valuable ones.
 
@@ -164,7 +189,7 @@ the old clips still help, but record a fresh test session first so the eval meas
 
 ## When to retrain
 
-- New artists or playlists whisper gets wrong (add sentences to the corpus, record a short session).
+- New artists or playlists whisper gets wrong (add sentences to the corpus, `deploy/record.sh <label> new`).
 - The mic sounds different: Jabra moved into the body (Phase 2.6), another room.
 - Enough live clips labelled (~100, `deploy/train.sh history`).
 

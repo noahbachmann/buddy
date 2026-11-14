@@ -42,7 +42,7 @@ From the repo's `skeleton/` folder on the PC (or the dev VM). `buddy` is the SSH
 | Restart a service on the Pi | `ssh buddy systemctl --user restart buddy@hue` |
 | Web panel | `http://buddy.local:8080` (Android: `http://192.168.1.72:8080`) |
 | Change config | `ssh buddy micro ~/buddy/config/buddy.env`, then restart the service. All keys: `deploy/config/buddy.env.example` |
-| Record / train speech-to-text | `deploy/record.sh <label> [test]`, `deploy/train.sh` (`docs/voice-training.md`) |
+| Record / train speech-to-text | `deploy/record.sh <label> [test\|new\|test-new]`, `deploy/train.sh [history]` (`docs/voice-training.md`) |
 | Shut the Pi down (never just pull power) | `ssh buddy sudo poweroff` |
 
 ### A service on its own: `deploy/run.sh <service> …`

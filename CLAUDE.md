@@ -71,7 +71,6 @@ What's left right now, in order. Update it with the progress table; GitHub issue
 
 **Claude** (code and guides):
 
-1. #67 voice retrain on real-use data: brain gaps, corpus short forms, `record.sh … new`, live score.
 1. #13 voice seek ("fast-forward 30 seconds", "go back 2 minutes").
 2. 2.1 printer guide (tolerance tests for CAD offsets): the 2.5 neck module is the first print that needs them.
 3. 2.5 / 2.6 per `docs/plans/` once Dev has made their decisions: neck module CAD (prompt stage 1), joint table,
@@ -152,10 +151,10 @@ Speech-to-text training: `docs/voice-training.md`.
 - **Wake word CPU:** ears idles at ~8 % of one core; `embedding_model.onnx` is 3.7 of 4.2 ms per 80 ms chunk. Options
   that change behaviour: quantized embedding model, or skipping inference during silence. Needs score comparisons on the
   wake-word clips `deploy/record.sh` collects.
-- **Next voice session** (decided 2026-10-28): the eval that day showed whisper misses the phrasings and names that are
-  rare in the 90 `train` sentences, and 440 re-recordings of them gained nothing. First extend the `train` corpus
-  (every verb family and name in `test` 5×, plus commands for new features as they come), then record only the new
-  lines, ideally after 2.6 (new mic position). The installed model stays until then.
+- **Next voice session** (after #67): the 2026-10-28 eval showed whisper misses words that are rare in `train`; #67
+  grew the corpus to every `test` word 5× in `train` (pytest enforces it) plus Dev's short forms from live use. After
+  2.6 (new mic position): a fresh test session first, then `record.sh <label> new` for lines added since, and
+  `train.sh history` every ~100 live commands.
 - **Custom "Hey buddy"** (summary guide 1.6): train with box music in the negatives; the training could move into
   `tools/` like speech-to-text.
 - **LLM brain:** implement `IntentParser`; keep the rules as the fast path.
@@ -255,7 +254,7 @@ buddy/
 | Deploy | `deploy/deploy.sh [service…]` → rsync to `~/buddy/src`, Release build (C++) or uv sync (Python), install to `~/buddy/bin`, restart `buddy@<service>` |
 | Check | `deploy/logs.sh <service>`, `deploy/status.sh [-l]`, `ssh buddy "mosquitto_sub -v -t 'buddy/#'"`, panel `http://buddy.local:8080` |
 | Try one command | `deploy/run.sh <service> <flags>`: the service's offline mode on the Pi with `buddy.env` loaded (`hue --cmd list`, `brain --test "…"`; examples in `README.md`) |
-| Voice training | `deploy/record.sh <label> [test]`, `deploy/train.sh` (`docs/voice-training.md`) |
+| Voice training | `deploy/record.sh <label> [test\|new\|test-new]`, `deploy/train.sh [history]` (`docs/voice-training.md`) |
 | Pi setup | `deploy/deploy.sh --setup` (runs `deploy/pi/setup.sh`; single steps: `setup.sh <step>`, `setup.sh check`) |
 
 Pi paths: `~/buddy/{dev,src,build-release,build-pico,bin,venv,models,config,voice}`. Runtime config: `~/buddy/config/buddy.env`

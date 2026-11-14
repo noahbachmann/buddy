@@ -64,10 +64,11 @@ No unit tests on the Pico: the logic that can break (protocol) lives in the shar
 
 | File | What |
 |---|---|
-| `commands.tsv` | Corpus: set (train/test/wake/extra = brain test only), sentence, intent, query, device. Prompts, brain corpus test, intent scoring |
-| `buddy_voice/data.py` | `~/buddy-voice` layout, sessions, import of old record-voice.sh data, check, trimmed cache |
+| `commands.tsv` | Corpus: set (train/test/wake/extra = brain test only), sentence, intent, query, device. Prompts, brain corpus test, intent scoring. Every `test` word ≥ 5× in `train` (pytest) |
+| `buddy_voice/data.py` | `~/buddy-voice` layout, sessions, import of old record-voice.sh data, check, trimmed cache, `unrecorded()` (sentences without a clip from before today: `record.sh … new`) |
+| `buddy_voice/cli.py` | Subcommands (`train.sh <cmd>`); `history` labels live clips, then `live_score()` (`score.live`: brain on heard vs. label) → `evals/live-*.json` |
 | `vad.py`, `audio.py` | Silero trimming like ears; WAV I/O; `auto_audio_ctx` (= `stt.hpp`, both checked against `audio_ctx.json`) |
-| `train.py` | HF Whisper fine-tune: sentence-level validation split, short-context encoder (`short_context()`), greedy validation |
+| `train.py` | HF Whisper fine-tune: sentence-level validation split, short-context encoder (`short_context()`), greedy validation; clips labelled with a `test` sentence are dropped |
 | `convert.py` | GGML via whisper.cpp's converter (release from `third_party/whisper.json`, like CMake) + q8_0 |
 | `evaluate.py`, `pi.py` | Scores on the Pi via ssh (`buddy-ears --transcribe`, `buddy-brain --test`), install |
 
