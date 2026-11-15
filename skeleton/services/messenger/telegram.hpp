@@ -85,6 +85,9 @@ public:
     // For the long poll (CurlHttp::stream): waits up to timeout_s for something new. offset = last update_id + 1
     // confirms everything before it; 0 = whatever is waiting.
     std::string updates_url(std::int64_t offset, int timeout_s) const;
+    // Confirms everything before offset without waiting for or taking anything new (the command line's last word:
+    // what it handled mustn't reach the unit again).
+    void confirm(std::int64_t offset);
 
     // text with the token replaced: for anything that may carry a URL
     std::string redact(std::string text) const;

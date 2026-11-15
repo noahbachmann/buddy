@@ -180,4 +180,8 @@ std::string Telegram::updates_url(std::int64_t offset, int timeout_s) const {
     return url;
 }
 
+void Telegram::confirm(std::int64_t offset) {
+    call("getUpdates", {{"offset", offset}, {"limit", 1}, {"timeout", 0}});
+}
+
 } // namespace buddy::messenger

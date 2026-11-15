@@ -97,6 +97,10 @@ TEST(Telegram, SmallCalls) {
     EXPECT_EQ(me.id, 999);
     EXPECT_EQ(me.username, "my_buddy_bot");
 
+    http.on("POST /getUpdates", 200, R"({"ok": true, "result": []})");
+    telegram.confirm(42);
+    EXPECT_EQ(json::parse(http.calls.back().body), (json{{"offset", 42}, {"limit", 1}, {"timeout", 0}}));
+
     http.on("POST /setMyCommands", 200, R"({"ok": true, "result": true})");
     telegram.set_commands();
     const json commands = json::parse(http.calls.back().body)["commands"];
