@@ -49,7 +49,7 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 |---|---|---|
 | 1 – Voice | 1.1 – 1.12 Hardware, OS, audio, skeleton, wake word, STT, brain, Spotify, voice, background music, boot | ✅ |
 | 1 – Voice (extra) | 1.13 Hue lights, 1.14 web panel (#6), 1.15 Nest speakers over Bluetooth (D20, #17): done 2026-10-30 (side issue: Deferred → Bathroom Bluetooth) | ✅ |
-| 1 – Voice (extra) | 1.16 messenger: Buddy's notices and questions in Dev's Telegram chat (D22, #68): code and tests done 2026-11-15, deployed unpaired. Open: pairing (Dev, `docs/guides/messenger-pair.md`), then Verify on the Pi | 🟨 |
+| 1 – Voice (extra) | 1.16 messenger: Buddy's notices and questions in Dev's Telegram chat (D22, #68): done 2026-11-15: paired, verified on the Pi (notice, button answer across a restart, offline → back online alert) | ✅ |
 | 2 – Head | 2.1 printer: guide not written yet. 2.2 motion controller: Pi setup, firmware and flash done; wiring and servo test (guide steps 1–3, 9) open. 2.3 motion service + demo gesture ("cut off Andi's balls"): code and tests done, deployed 2026-10-29 (waits with `connected:false` while the Pico is unplugged); Verify open. 2.4 eyes: postponed (Dev, 2026-10-30). 2.5 head pan/tilt and 2.6 head & body: plans in `docs/plans/` | 🟨 |
 | 3 – Hand | 3.1 – 3.4 | ⬜ |
 | 4 – Arm & vision | 4.1 – 4.3 | ⬜ |
