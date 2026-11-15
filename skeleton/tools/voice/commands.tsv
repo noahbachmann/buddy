@@ -343,6 +343,12 @@ train	Send Spotify to the bathroom speaker.	play		bathroom speaker
 train	Swap to desktop 1.	play		desktop 1
 train	Swap to my Pixel.	play		pixel
 train	Swap the music to the bathroom speaker.	play		bathroom speaker
+train	Music to desktop 1.	play		desktop 1
+train	Music to desktop.	play		desktop
+train	Music to the bathroom speaker.	play		bathroom speaker
+train	Music to main speaker.	play		main speaker
+train	Spotify to my Pixel.	play		pixel
+test	Music to the main speaker.	play		main speaker
 train	Move the music to the Pixel 8.	play		pixel 8
 # --- lights (hue): rooms, lights and scenes from Dev's Hue app (2026-10-30); hue's test_dev_home.cpp checks they resolve
 train	Turn on the lights.	on

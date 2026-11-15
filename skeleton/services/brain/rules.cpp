@@ -235,16 +235,20 @@ std::optional<Intent> RuleParser::parse_room(const std::string& t) const {
 std::optional<Intent> RuleParser::parse_device(const std::string& t) const {
     static const std::regex transfer(
         R"((move|switch|swap|transfer|send|put)( the music| music| it| this| the song| playback| the playback| spotify)?( back)? to (the |my )?(.+))");
+    // "music to desktop" (live 2026-11-15); not "music to 70%" / "music to max": that's volume
+    static const std::regex verbless(
+        R"((?:the )?(?:music|spotify|playback)( back)? to (the |my )?((?!(?:max|maximum|full|half|zero)\b)[a-z].*))");
     static const std::regex suffix(R"((.+) (on|in the|in my|in(?= [a-z0-9 ]*speaker$)) (the |my )?(.+))");  // bare "in": live 2026-11-08
     static const std::regex bare_in(R"((.+) in (the |my )?(.+))");
     static const std::regex not_a_device(R"(spotify|repeat|shuffle|loop)");
     std::smatch m;
-    if (std::regex_match(t, m, transfer)) {
+    const bool moved = std::regex_match(t, m, transfer);
+    if (moved || std::regex_match(t, m, verbless)) {
         if (const auto whole = parse_core(t); whole && whole->skill == "hue") return std::nullopt;  // "switch to the relax scene"
         Intent intent;
         intent.name = "play";  // empty query + device: keep playing, there
         intent.skill = "spotify";
-        intent.device = device_digits(m[5].str());
+        intent.device = device_digits(m[m.size() - 1].str());
         return intent;
     }
     if (std::regex_match(t, m, suffix) && !std::regex_match(m[4].str(), not_a_device)) {

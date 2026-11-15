@@ -131,7 +131,16 @@ TEST(RuleParser, LiveGaps) {  // #67: Dev's saved live commands brain got wrong
         {"Send the music to the Pixel.", "play", "", "pixel"},
         {"Play music in bathroom.", "play", "", "bathroom"},
         {"Play Spotify in bathroom.", "play", "", "bathroom"},
+        {"Music to desktop.", "play", "", "desktop"},
+        {"Music to the bathroom speaker.", "play", "", "bathroom speaker"},
+        {"Spotify to my Pixel 8.", "play", "", "pixel 8"},
+        {"Music back to the main speaker.", "play", "", "main speaker"},
     });
+    const buddy::brain::RuleParser parser;
+    for (const char* text : {"Music to 70%.", "Music to max.", "Spotify to 50 percent."}) {  // volume, not a speaker
+        const auto intent = parser.parse(text);
+        EXPECT_TRUE(!intent || intent->name != "play") << text;
+    }
 }
 
 TEST(RuleParser, ColourIsNotABrightnessOrARoom) {
