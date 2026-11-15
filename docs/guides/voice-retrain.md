@@ -31,7 +31,7 @@ corpus lines that should be recorded too.
 deploy/record.sh desk new
 ```
 
-Only the `train` sentences without a clip from before today: ~250 (the new short forms and every test word 5×), minus
+Only the `train` sentences without a clip from before today: ~260 (the new short forms, mostly without "the", and every test word 5×), minus
 whatever you labelled in step 1. `q` stops; the same command later the same day continues where you stopped. Speak
 like you talk to Buddy, at the distance you usually do.
 
@@ -51,7 +51,7 @@ deploy/record.sh test2 test-new
 deploy/record.sh test2-box test-new    # music on, same day
 ```
 
-19 `test` sentences without a test clip yet (the new rephrasings plus light lines added after the last test session).
+15 `test` sentences without a test clip yet (the new rephrasings plus light lines added after the last test session).
 Never train on these: they're what the eval measures.
 
 ## 4. Train, compare, install (~15–30 min ⚠️ untested with this much data)

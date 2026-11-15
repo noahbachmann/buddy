@@ -53,7 +53,9 @@ One list for everything: recording prompts, brain's regression test (`deploy/tes
   the 2026-10-28 eval missed exactly the words and names that were rare in `train`. A new test line usually needs
   a few train lines too.
 - Write it the way you say it: short forms ("All lights off.", "Move music to desktop 1.") belong in as much as
-  full sentences. `deploy/train.sh history` lists what you said that brain doesn't understand.
+  full sentences, and no "the"/"my" where you'd drop them ("Move music to Pixel 8."). Older lines with "the" have
+  clips: keep them, whisper still needs to hear it now and then.
+  `deploy/train.sh history` lists what you said that brain doesn't understand.
 - A new phrasing → add it, run `deploy/test.sh -R Corpus`. If brain doesn't understand it, fix `services/brain/rules.cpp`.
 - Lights etc. stay in with intent `unknown`: whisper learns the words before a skill exists.
 

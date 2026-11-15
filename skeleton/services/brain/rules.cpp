@@ -191,22 +191,22 @@ RuleParser::RuleParser() {
     add((std::string(R"(((play|go to) )?(the )?(previous|last) (song|track|one)|previous|go back)") + tail + "{0,2}|back")
             .c_str(),
         "previous");
-    add(R"((set |turn )?(the )?(volume|it|the music) (to |at )?([0-9]{1,3}))", "set_volume", 5);
-    add((std::string(R"((turn (it|the music|the volume|this) up|turn up (the )?(music|volume|it)))") + tail + "{0,3}|" +
+    add(R"((set |turn )?(the )?(volume|it|(?:the )?music) (to |at )?([0-9]{1,3}))", "set_volume", 5);  // Dev drops "the"
+    add((std::string(R"((turn (it|(?:the )?music|(?:the )?volume|this) up|turn up (the )?(music|volume|it)))") + tail + "{0,3}|" +
          R"((([a-z]+ ){0,3}louder|volume up))" + amount)
             .c_str(),
         "volume_up");
-    add((std::string(R"((turn (it|the music|the volume|this) down|turn down (the )?(music|volume|it)))") + tail +
+    add((std::string(R"((turn (it|(?:the )?music|(?:the )?volume|this) down|turn down (the )?(music|volume|it)))") + tail +
          "{0,3}|" + R"((([a-z]+ ){0,3}(quieter|softer)|volume down))" + amount)
             .c_str(),
         "volume_down");
     add(R"(shuffle (my )?(liked|favorite|favourite|saved) (songs|tracks|music))", "play_liked", 0, "shuffle");
     add(R"(play (my )?(liked|favorite|favourite|saved) (songs|tracks|music))", "play_liked");
     add(R"((resume|continue|unpause|keep playing)( (the )?(music|spotify|playing|playback|song))?)", "play");
-    // Own playlists: "play my playlist chill vibes", "play my chill vibes playlist", "play the focus playlist"
+    // Own playlists: "play my playlist chill vibes", "play my chill vibes playlist", "play (the) focus playlist"
     add(R"(play (from )?my (playlist|list)( on spotify)?)", "play_playlist");
     add(R"(play (from )?my (playlist|list) (.+?)( on spotify)?)", "play_playlist", 3);
-    add(R"(play (my|the) (.+?) (playlist|list)( on spotify)?)", "play_playlist", 2);
+    add(R"(play (?:(my|the) )?(.+?) (playlist|list)( on spotify)?)", "play_playlist", 2);
     add(R"(play (.+?)( on spotify)?)", "play", 1);
     add(R"(play|music)", "play");
 }

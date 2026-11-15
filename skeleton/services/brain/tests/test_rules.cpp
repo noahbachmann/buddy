@@ -143,6 +143,18 @@ TEST(RuleParser, LiveGaps) {  // #67: Dev's saved live commands brain got wrong
     }
 }
 
+TEST(RuleParser, WithoutArticles) {  // Dev says "move music to pixel 8", not "move the music to the pixel 8"
+    expect_all({
+        {"Turn volume up a bit.", "volume_up", "", ""},
+        {"Turn music down a little.", "volume_down", "", ""},
+        {"Set music to 70%.", "set_volume", "70", ""},
+        {"Play chill playlist on desktop 1.", "play_playlist", "chill", "desktop 1"},
+        {"Put on Hype playlist.", "play_playlist", "hype", ""},
+        {"Move music to Pixel 8.", "play", "", "pixel 8"},
+        {"Turn lights to red in bedroom.", "color", "red", "bedroom"},
+    });
+}
+
 TEST(RuleParser, ColourIsNotABrightnessOrARoom) {
     expect_all({
         {"Living room lights to 80%.", "brightness", "80", "living room"},
