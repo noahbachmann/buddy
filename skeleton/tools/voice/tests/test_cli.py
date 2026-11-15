@@ -12,8 +12,8 @@ def live(tmp_path, monkeypatch):
 
     monkeypatch.setattr(data, "DATA", tmp_path / "voice")
     monkeypatch.setattr(data, "SESSIONS", tmp_path / "voice" / "sessions")
-    monkeypatch.setattr(cli, "_player", lambda: None)
     pi_commands = []
+    monkeypatch.setattr(cli, "_play_on_pi", lambda path: None)
     monkeypatch.setattr(cli.pi, "run", lambda command, **_: pi_commands.append(command) or "")
     monkeypatch.setattr(cli, "cmd_pull", lambda _args=None: "/home/dev/buddy/voice-live")
     monkeypatch.setattr(cli.pi, "brain", lambda texts: pi_commands.append(f"brain {texts}") or {})
@@ -108,3 +108,12 @@ def test_prompts_lists_only_sentences_not_recorded_before_today(live, monkeypatc
     assert train[3] in printed  # its clip on the Pi is a test clip
     assert train[4] in printed  # recorded today: a second session today (box) still gets it
     assert len(printed) == len(train) - 3
+
+
+def test_history_plays_on_the_pi_and_replays_on_r(live, monkeypatch):
+    played = []
+    monkeypatch.setattr(cli, "_play_on_pi", played.append)
+    answers(monkeypatch, "r", "r", "", "q")
+    cli.cmd_history(argparse.Namespace(source="raw"))
+    first = "/home/dev/buddy/voice-live/20261028-100000.wav"
+    assert played == [first, first, first, "/home/dev/buddy/voice-live/20261028-100100.wav"]

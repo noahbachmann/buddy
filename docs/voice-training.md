@@ -150,7 +150,7 @@ restart ears.
 Every week or two (at 500 unlabelled clips the oldest get lost):
 
 1. **pull**: the Pi's saved commands → `~/buddy-voice/live/` (and any new recorded sessions).
-2. **label**: plays each clip (if the PC can play audio: `paplay`, `aplay` or `ffplay`) and shows what whisper heard.
+2. **label**: plays each clip through the Jabra on the Pi (`pw-play`; `r` plays it again) and shows what whisper heard.
    - Enter: the transcript is right.
    - Type the correct sentence: written like the corpus (digits for numbers, names spelled like in Spotify).
    - `d`: not a command (false wake word, someone else talking, cut off): thrown away.

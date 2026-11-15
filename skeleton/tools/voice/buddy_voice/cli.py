@@ -14,7 +14,6 @@ import argparse
 import json
 import shlex
 import shutil
-import subprocess
 import sys
 import time
 from collections import Counter
@@ -113,11 +112,9 @@ def cmd_install(args) -> None:
     install(args.model, ctx or "0")
 
 
-def _player() -> list[str] | None:
-    for cmd in (["paplay"], ["aplay", "-q"], ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet"]):
-        if shutil.which(cmd[0]):
-            return cmd
-    return None
+def _play_on_pi(path: str) -> None:
+    """Through the Pi's default sink (the Jabra): Dev labels next to Buddy, the PC may have no audio."""
+    pi.run(f"pw-play {shlex.quote(path)}", check=False)
 
 
 def cmd_history(args) -> None:
@@ -129,20 +126,21 @@ def cmd_history(args) -> None:
     if not wavs:
         print(f"no new live commands in {live_dir}")
         return
-    player = _player()
     session = "live"
     existing = data.load_session(session) if (data.SESSIONS / session / "metadata.csv").exists() else []
     n = max([int(c.file[:5]) for c in existing], default=0)
     done: list[str] = []
     labelled: list[tuple[str, str, str]] = []  # (clip, heard, said) for the live score
     print(f"{len(wavs)} live commands. Enter = transcript is right, type the correct sentence, "
-          "d = not a command (delete), s = later, q = quit")
+          "d = not a command (delete), r = play again, s = later, q = quit")
     try:
         for wav in wavs:
             heard = wav.with_suffix(".txt").read_text().strip() if wav.with_suffix(".txt").exists() else ""
-            if player:
-                subprocess.run([*player, str(wav)], check=False)
+            _play_on_pi(f"{live_dir}/{wav.name}")
             answer = input(f"\n  {wav.name}\n  heard: {heard}\n  > ").strip()
+            while answer == "r":
+                _play_on_pi(f"{live_dir}/{wav.name}")
+                answer = input("  > ").strip()
             if answer == "q":
                 break
             if answer == "s":

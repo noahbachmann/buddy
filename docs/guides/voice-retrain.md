@@ -10,7 +10,7 @@ Goal: whisper hears your short commands ("All lights off.") the way you say them
 deploy/train.sh history
 ```
 
-~100 saved commands since 2026-10-29. Each one plays, then shows what whisper heard: Enter = right, type what you
+~100 saved commands since 2026-10-29. Each one plays through the Jabra (`r` = again), then shows what whisper heard: Enter = right, type what you
 said (written like the corpus: "All lights off."), `d` = not a command / can't hear it, `q` = stop (the rest comes
 back next time). Label what you *said*, not what you meant.
 
