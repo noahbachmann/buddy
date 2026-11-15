@@ -23,7 +23,7 @@ with their retained state. User-facing behaviour and troubleshooting: `docs/guid
 | widgets, lights | toggles/sliders (`interacting` > 0 blocks re-render while a finger holds a slider), light colour from `mirek`/`xy`, room cards, "All lights" bar, room layout (order/hidden) in `localStorage` key `buddy.lights.layout` |
 | hue tab | `#hue`: scene editor and list (`scene_save` / `scene_delete`, `savingScene` toasts once the bridge reports it) |
 | music | Spotify card from `buddy/spotify/state`, progress bar runs locally from `progress.at`; `watchSpotify()` POSTs `{"action":"watch"}` every 20 s while the dashboard is visible (spotify only polls Spotify while watched) |
-| services | `SERVICE_CHIPS`: fixed list of chips, each green when all its member services are `online` |
+| services | `SERVICE_CHIPS`: fixed list of chips, each green when all its member services are `online`; beside the name the first member state that isn't `idle`, or the chip's own `detail()` (messenger: link trouble, else "2 open") |
 | render | `render()` picks the page by `location.hash` (dashboard / `#hue`) |
 
 `index.html` holds the static skeleton, including the forms: re-rendered inputs would lose typed text and focus.

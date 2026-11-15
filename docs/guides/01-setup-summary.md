@@ -1,6 +1,6 @@
 # Phase 1 summary: voice assistant (done)
 
-Condensed from the step guides 1.2–1.12 plus the extras 1.13–1.15 (full versions in Git history: `git log --all -- 'guides/*' 'docs/guides/*'`).
+Condensed from the step guides 1.2–1.12 plus the extras 1.13–1.16 (full versions in Git history: `git log --all -- 'guides/*' 'docs/guides/*'`).
 Everything needed to rebuild the Pi, re-tune or debug is here; walkthrough text and one-time checks are gone.
 Speech-to-text training is a recurring job with its own doc: `docs/voice-training.md`.
 
@@ -26,6 +26,7 @@ Nest. While Buddy listens or speaks, the music is turned down. Starts on power-o
 | 6 | Spotify login | `buddy-spotify --login` (1.8/1.9) |
 | 6b | Hue pairing | Bridge's link button, then `buddy-hue --pair` (1.13); `BUDDY_HUE_DEFAULT_ROOM` |
 | 6c | Soloist + Nests | `SOLOIST_API_KEY` in `~/buddy/config/soloist.env`, `setup.sh soloist`, pick "Buddy" once in the Spotify app; pair each Nest: `buddy-speakers --pair "<name>"` (1.15) |
+| 6d | Messenger pairing | Bot from @BotFather, then `buddy-messenger --pair` (1.16) |
 | 7 | Check | `deploy/status.sh`, then "Hey Jarvis, play Spotify", "… lights off"; panel `http://buddy.local:8080` |
 
 `setup.sh <step>` runs single steps (`setup.sh models`); `setup.sh check` warns about unknown keys in `buddy.env`.
@@ -520,3 +521,59 @@ panel → Bathroom speaker moves it, panel → DESKTOP-1 puts the voice back on 
 | A Nest became the default sink | `wpctl set-default <Jabra id>`; check `buddy-bluetooth.conf` is installed |
 | Voice too loud / quiet on a Nest | `BUDDY_SPEAKERS_VOICE_PERCENT` |
 | Crackling on the Nest Mini, e.g. with a phone in between | Weak 2.4 GHz link (−69 dBm through walls): phone on 5 GHz Wi-Fi; for good a USB Bluetooth adapter with an external antenna (CLAUDE.md → Deferred) |
+
+## 1.16 Messenger: Buddy's Telegram chat (D22)
+
+Buddy writes to your phone when something needs you, and asks when a service needs an answer: your reply goes back
+to that service. The chat is your private Telegram chat with Buddy's own bot.
+
+```
+ any service ──buddy/messenger/cmd {notify | ask | cancel}──► messenger ──HTTPS──► api.telegram.org ──► your phone
+ the asker   ◄──buddy/messenger/event {asked | answered | expired | failed}──┘   ◄── long poll (outbound only)
+ buddy/+/status ──► watcher inside messenger: a service offline for 5 min, or restarting again and again
+```
+
+- **Outbound only:** the Pi calls `api.telegram.org` (one long poll that waits up to 50 s for your messages, plus the
+  sends). No open port, no webhook, nothing to forward in the router.
+- **Who is heard:** only the paired account in its private chat with the bot. The bot's name is public, anyone can
+  write to it: they get no answer and nothing reaches the bus.
+- **What leaves the house:** bot chats are not end-to-end encrypted, the texts sit on Telegram's servers. A service
+  sends only what may be there. On the Pi, message texts never reach the journal (ids and counts only),
+  `buddy/messenger/state` carries counts only, and the panel can't publish `buddy/messenger/cmd` (no login, D19).
+- **Notices** (`notify`): `level: alert` (default) rings, `info` arrives silently. With a `key`, a later `info`
+  rewrites the earlier message instead of adding one ("hue is offline" → "hue is back").
+- **Questions** (`ask`): `options` become buttons, without them you type the answer. Answer by tapping, by replying
+  to the question, or by just writing if one question is open; with several open Buddy asks which one you mean.
+  The question's message then shows your answer. No answer within `ttl_s` (default `BUDDY_MESSENGER_TTL_S`, 24 h;
+  0 = never) → `expired`. Open questions are kept in `~/buddy/data/messenger/questions.json`: an answer hours later
+  survives restarts. For askers: `id` is yours and unique; repeat the `ask` until `asked` comes back (safe: the
+  current event is sent again, also `answered` for 24 h); `cancel` withdraws it.
+- **In the chat:** `/status` (services online, open questions), `/open` (shows the open questions again).
+  Nothing in the chat acts on the house.
+- **Watcher:** a service on `BUDDY_MESSENGER_WATCH` that is offline for `BUDDY_MESSENGER_OFFLINE_S` (300) → one
+  alert, rewritten to "✓ … is back (was off 12 min)" when it returns. 5 drops within 10 min → "keeps restarting"
+  (a crash loop is never offline for long). After a restart of messenger itself, services that are still offline
+  are reported again. Not covered: the Pi itself dying takes the watcher with it.
+- **Sending:** at most one message per second; while Telegram or the network is down everything waits (retries
+  1 → 60 s) and goes out afterwards. At most 20 open questions and 50 waiting messages.
+- **Pairing** (once): create a bot with **@BotFather** (`/newbot`), then `deploy/run.sh messenger --pair`: paste the
+  token (not shown), open the printed link on the phone and tap Start. Writes `~/buddy/config/messenger.json`
+  (token, your account and chat; mode 600, never in Git). Then `systemctl --user restart buddy@messenger`.
+  A new token (`/revoke` at BotFather) or another account: `--pair` again.
+
+Panel chip `messenger`: green = running; beside it the link if it isn't `ok`, else "2 open".
+
+Offline (no MQTT): `deploy/run.sh messenger --notify "hello"`, and with `buddy@messenger` stopped
+`deploy/run.sh messenger --ask "Tea or coffee?" tea coffee` (prints the answer).
+
+| Symptom | Fix |
+|---|---|
+| Chip says `not paired` / every `ask` → `failed: not paired` | `deploy/run.sh messenger --pair`, restart `buddy@messenger` |
+| `--pair`: "Telegram doesn't know this token" | Copy the whole token from @BotFather (`123456789:AA…`) |
+| `--pair`: "no code within 5 minutes" | Open the printed link on the phone and tap Start, or send the bot the 6 digits |
+| `unauthorized` | Token revoked at @BotFather: `--pair` again with the new one |
+| `blocked` | You blocked or deleted the bot's chat: open the bot in Telegram, tap Restart |
+| `conflict` | Something else reads the bot's messages: a running `--ask`, a second Buddy, or a webhook set on the bot |
+| `unreachable` | Internet or Telegram down; messages wait and go out afterwards (`deploy/logs.sh messenger`) |
+| "someone else is listening to this bot" on `--ask` | `ssh buddy systemctl --user stop buddy@messenger`, start it again afterwards |
+| An alert for a service you stopped on purpose | Take it off `BUDDY_MESSENGER_WATCH`, or `BUDDY_MESSENGER_OFFLINE_S=0` for no alerts at all |

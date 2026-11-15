@@ -7,6 +7,7 @@ camera (4). Every part is a small C++ or Python service; they talk only over MQT
 ```
 Jabra mic → [ears] wake word, speech-to-text → [brain] intent → [spotify] [hue] [motion] … → [voice] reply
                                      phone/PC browser ⇄ [web] panel ⇄ MQTT
+                             any service → [messenger] ⇄ Dev's Telegram chat (notices, questions)
 ```
 
 **Status and what's left:** `CLAUDE.md` → Progress and Open work.
@@ -39,6 +40,7 @@ From the repo's `skeleton/` folder on the PC (or the dev VM). `buddy` is the SSH
 | Follow one service's log | `deploy/logs.sh spotify` |
 | Watch the MQTT bus | `ssh buddy "mosquitto_sub -v -t 'buddy/#'"` |
 | Send a command by hand | `ssh buddy "mosquitto_pub -t buddy/hue/cmd -m '{\"action\":\"off\",\"device\":\"bedroom\"}'"` |
+| Send yourself a notice / a question | `ssh buddy "mosquitto_pub -t buddy/messenger/cmd -m '{\"action\":\"notify\",\"text\":\"hello\"}'"` / `…'{\"action\":\"ask\",\"id\":\"t1\",\"text\":\"Tea or coffee?\",\"options\":[\"tea\",\"coffee\"]}'`, answer on `buddy/messenger/event` |
 | Restart a service on the Pi | `ssh buddy systemctl --user restart buddy@hue` |
 | Web panel | `http://buddy.local:8080` (Android: `http://192.168.1.72:8080`) |
 | Change config | `ssh buddy micro ~/buddy/config/buddy.env`, then restart the service. All keys: `deploy/config/buddy.env.example` |
@@ -57,6 +59,7 @@ the hardware is real: lights switch, music plays, servos move.
 | hue | `--cmd list` (rooms, zones, scenes, lights), `--cmd off "" bedroom`, `--cmd scene relax "living room"`, `--pair` |
 | voice | `--say "Hello"` (plays through `buddy_voice`: the Jabra, or the Nest that plays music), `--say "Hello" --wav /tmp/out.wav` |
 | speakers | `--cmd list` (the Nests, connected?), `--cmd connect "bathroom speaker"`, `--cmd disconnect`, `--pair "Bathroom speaker"` (say "Hey Google, pair Bluetooth" to the Nest first). The running service disconnects a Nest without music: stop `buddy@speakers` to keep one connected |
+| messenger | `--notify "hello"` (a push on your phone), `--ask "Tea or coffee?" tea coffee` (buttons; prints your answer. Stop `buddy@messenger` first: Telegram gives your messages to one listener only), `--pair` (bot token from @BotFather) |
 | ears | `--transcribe a.wav b.wav`, `--wav a.wav` (whole pipeline on a file on the Pi) |
 | motion | `--cmd move demo=30 --ms 400`, `--cmd gesture shake`, `--cmd relax`, `--raw "1 PING"`. Stop `buddy@motion` first: it owns the Pico's port |
 | game | `--check` (every Riftbound deck, card by card), `--deck zed-vendetta --check`, `--code "OGN • 007a/298"` (what a printed code is), `--random --games 1000` (random-vs-random games on the rules engine, vanilla cards; `--rules` with every card's rules; a failing one writes `replay-<seed>.txt`), `--replay <file>` (play a replay action by action), `--match greedy random` (AI against AI), `--table-workload --games 1000` (Buddy's card moves as JSON lines for the table soak). Card data: `ssh buddy bash ~/buddy/src/deploy/pi/setup.sh cards` |

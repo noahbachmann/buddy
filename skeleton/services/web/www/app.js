@@ -593,20 +593,30 @@ watchSpotify();
 // --- services ---------------------------------------------------------------------------------------------------
 
 // Fixed list: stale retained statuses (removed services, test clients) never show up. Chip online = every member online.
+// detail: what the chip says besides its name; default = the first member state that isn't "idle".
 const SERVICE_CHIPS = [
   { name: "voice", members: ["ears", "brain", "voice"] },
   { name: "hue", members: ["hue"] },
   { name: "spotify", members: ["spotify"] },
   { name: "speakers", members: ["speakers"] },
   { name: "table", members: ["table"] },
+  { name: "messenger", members: ["messenger"], detail: messengerDetail },
 ];
 
+// Link trouble first (Dev wouldn't get the question), else how many questions wait in the chat.
+function messengerDetail() {
+  const s = state["buddy/messenger/state"];
+  if (typeof s?.link !== "string") return "";
+  if (s.link !== "ok") return s.link;
+  return s.open > 0 ? `${s.open} open` : "";
+}
+
 function renderServices() {
-  keyed($("services"), SERVICE_CHIPS.map(({ name, members }) => {
+  keyed($("services"), SERVICE_CHIPS.map(({ name, members, detail: own }) => {
     const offline = members.filter((m) => state[`buddy/${m}/status`] !== "online");
     const online = offline.length === 0;
-    const busy = members.map((m) => state[`buddy/${m}/state`]?.state).find((v) => typeof v === "string" && v !== "idle");
-    const detail = online && busy ? busy : "";
+    const busy = () => members.map((m) => state[`buddy/${m}/state`]?.state).find((v) => typeof v === "string" && v !== "idle");
+    const detail = (online && (own ? own() : busy())) || "";
     return [name, JSON.stringify([offline, detail]), () => el("span",
       { class: `chip${online ? " online" : ""}`, title: online ? "online" : `offline: ${offline.join(", ")}` },
       name, detail && el("span", { class: "detail" }, detail))];
