@@ -22,6 +22,9 @@
 //                                           Buddy's physical card moves for the table soak (5.5) as JSON lines on
 //                                           stdout: game i = seed S+i, Buddy in seat i % 2, decks swapped every
 //                                           other pair; `| buddy-table --soak -`
+//   buddy-game --sim [--faults none|stress|…] [--buddy greedy|ismcts] [--iterations N] [--seed S] [--deck A --deck B]
+//                                           play Buddy in the terminal with your real cards (5.6): the panel's payload
+//                                           as text, Buddy's side on an in-process sim table; Buddy plays deck A
 //   buddy-game --sim --games N [--seed S] [--jobs J] [--faults …] [--dev greedy|random] [--buddy greedy|ismcts]
 //              [--iterations N] [--deck A --deck B]
 //                                           the session soak (#51): SimDev (a true shuffled deck) against Buddy on the
@@ -55,6 +58,7 @@
 #include "riftbound/replay.hpp"
 #include "sim.hpp"
 #include "sim_game.hpp"
+#include "sim_terminal.hpp"
 #include "table_moves.hpp"
 
 namespace {
@@ -469,6 +473,25 @@ int sim_soak(const CardDb& db, const std::vector<fs::path>& paths, const game::S
     return game::print_soak_report(std::cout, games, s) == 0 ? 0 : 1;
 }
 
+int sim_terminal(const CardDb& db, const std::vector<fs::path>& paths, std::uint64_t seed, const table::SimFaults& faults,
+                 std::unique_ptr<ai::Player> buddy) {
+    if (paths.size() < 2) throw std::runtime_error("--sim needs two decks");
+    game::HostConfig cfg;
+    for (const auto& p : {paths[0], paths[1]}) {
+        const std::string text = read_file(p);
+        cfg.decks[p.stem().string()] = {parse_deck(db, text), text};
+    }
+    game::TerminalGame g(db, std::move(cfg), {paths[0].stem().string(), seed, faults, std::move(buddy)});
+    std::cout << std::format("Buddy plays {}, you play {} with your real cards (seed {}, faults {}). help: commands\n",
+                             paths[0].stem().string(), paths[1].stem().string(), seed, table::to_string(faults));
+    std::cout << g.start();
+    for (std::string line; !g.over() && std::cout << "> " << std::flush && std::getline(std::cin, line);) {
+        if (line == "quit") break;
+        std::cout << g.input(line);
+    }
+    return 0;
+}
+
 int usage(const char* argv0) {
     std::cerr << "usage: " << argv0 << " --deck <name|file> --check | --check | --code <code>… |\n"
               << "       --random [--rules] [--games N] [--seed S] [--deck A --deck B] | --replay <file> |\n"
@@ -476,7 +499,7 @@ int usage(const char* argv0) {
               << "               [--iterations N | --budget-ms M] [--threads T] [--tune key=value,…]\n"
               << "               (players: random, greedy, ismcts)\n"
               << "       --table-workload [greedy|random] [--games N] [--seed S] [--jobs J] [--deck A --deck B]\n"
-              << "       --sim --games N [--seed S] [--jobs J] [--faults none|stress|…] [--dev greedy|random]\n"
+              << "       --sim [--games N] [--seed S] [--jobs J] [--faults none|stress|…] [--dev greedy|random]\n"
               << "             [--buddy greedy|ismcts] [--iterations N] [--deck A --deck B]\n"
               << "(the game service itself comes in step 5.6)\n";
     return 2;
@@ -533,7 +556,6 @@ int main(int argc, char** argv) {
     }
     const bool matching = !players[0].empty();
     if ((code_index != 0) + check + random + !replay.empty() + matching + workload + sim != 1 || games < 1 || jobs < 1 ||
-        (sim && !games_given) ||
         ismcts.iterations < 1 || ismcts.threads < 1 ||
         (rules && !random)) {
         return usage(argv[0]);
@@ -561,6 +583,12 @@ int main(int argc, char** argv) {
             if (buddy != "greedy" && buddy != "ismcts") throw std::runtime_error("--buddy greedy or ismcts");
             if (dev != "greedy" && dev != "random") throw std::runtime_error("--dev greedy or random");
             const table::SimFaults f = table::parse_faults(faults);
+            if (!games_given) {
+                std::unique_ptr<ai::Player> p;
+                if (buddy == "ismcts") p = std::make_unique<ai::IsmctsPlayer>(seed * 2 + 1, ismcts);
+                else p = std::make_unique<ai::GreedyPlayer>(seed * 2 + 1);
+                return sim_terminal(db, paths, seed, f, std::move(p));
+            }
             return sim_soak(db, paths, {.games = games, .seed = seed, .jobs = jobs, .faults = f, .buddy = buddy,
                                         .dev = dev, .ismcts = ismcts});
         }
