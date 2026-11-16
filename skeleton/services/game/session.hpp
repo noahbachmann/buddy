@@ -67,6 +67,8 @@ enum class Pause : std::uint8_t {
     Missing,     // a card of Buddy's the table can't find
     Invalid,     // the table refused a command (a bug)
     Desync,      // the engine and the table disagree; can't resume
+    Timeout,     // the table didn't answer in time (#52): the command stays in flight, a late answer goes on
+    TableRestart,  // the table restarted mid-game and lost its piles (#52); can't resume
 };
 std::string_view to_string(Pause p);
 // What Buddy says on a pause, and what the panel shows (the message stays in the journal: it may name a card).
@@ -173,9 +175,15 @@ public:
     // (no copy of it left that Buddy hasn't seen, the wrong kind, or the step couldn't have gone this way).
     void on_reveal(const std::vector<const riftbound::Card*>& cards);
     void on_ai(std::uint64_t id, const Action& a);  // a stale id is ignored; an action not offered throws
-    // Paused (not Desync): rescan the hand, then run the command that failed again. Throws std::logic_error otherwise.
+    // Paused and resumable(): rescan the hand, then run the command that failed again; after a Timeout the command in
+    // flight again, with its seq (the table answers a repeat without running it twice). Throws std::logic_error
+    // otherwise.
     void resume();
     void concede(PlayerId p);
+    // The service's clock and the table's status (#52). The command in flight got no answer in time: pause, keep it in
+    // flight. The table restarted: its piles are gone, pause for good. Both do nothing without a running game.
+    void table_timeout();
+    void table_restarted();
 
     Outputs take() { return std::exchange(out_, {}); }
 
@@ -184,6 +192,11 @@ public:
     const std::vector<DevOption>& dev_options() const { return dev_options_; }
     const DevPrompt* prompt() const;  // DevToReveal: what Dev names
     Pause pause() const { return pause_; }
+    bool resumable() const { return status_ == Status::Paused && pause_ != Pause::Desync && pause_ != Pause::TableRestart; }
+    // The table command waiting for its answer (the service resends it after a restart, #52).
+    const table::Command* inflight() const { return inflight_ ? &inflight_->cmd : nullptr; }
+    // BuddyThinking: the open question to the AI again (the service asks again after a restart, #52).
+    std::optional<AiRequest> ai_request() const;
     const std::string& pause_message() const { return pause_message_; }
     // The committed referee state (between steps: the state before the running step).
     const riftbound::GameState& state() const { return s_; }
@@ -276,6 +289,7 @@ private:
     Status status_ = Status::Setup;
     Pause pause_ = Pause::None;
     std::string pause_message_;
+    Status waiting_ = Status::Acting;  // what a Timeout pause interrupted: back to it on the answer
     bool pause_after_ = false;      // a correction reported missing cards: pause once the command ends
     int re_decides_ = 0;            // for the current decision
     std::map<ObjId, int> id_;       // engine object → table id

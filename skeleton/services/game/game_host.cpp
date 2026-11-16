@@ -65,7 +65,7 @@ Reply GameHost::command(const json& cmd) {
             s.concede(riftbound::opponent(s.buddy()));
         } else if (action == "resume") {
             only(cmd, {});
-            if (s.status() != Status::Paused || s.pause() == Pause::Desync) throw Bad{"nothing to resume"};
+            if (!s.resumable()) throw Bad{"nothing to resume"};
             s.resume();
         } else {
             only(cmd, {"v", action == "act" ? "i" : "cards"});

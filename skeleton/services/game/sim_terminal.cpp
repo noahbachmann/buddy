@@ -136,7 +136,7 @@ std::string render(const json& p, int log_tail) {
         out << "Game over: " << (p["winner"].is_null() ? "no winner" : who(p["winner"]) + " wins") << "\n";
     } else if (status == "paused") {
         out << "Paused: " << p["pause"]["message"].get<std::string>() << "\n";
-        if (p["pause"]["reason"] != "desync") out << "  type resume (after fixing the table) or concede\n";
+        if (p["pause"]["resumable"].get<bool>()) out << "  type resume (after fixing the table) or concede\n";
         else out << "  the game can't go on: concede\n";
     } else if (p.contains("options")) {
         const std::string purpose = p["decision"]["purpose"];

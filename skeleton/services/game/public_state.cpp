@@ -202,7 +202,8 @@ json public_state(const Session& session, const GameState& s, const std::vector<
               {"players", {{"buddy", b.player(session.buddy())}, {"dev", b.player(dev)}}},
               {"chain", b.chain()}};
     if (session.status() == Status::Paused) {
-        j["pause"] = {{"reason", to_string(session.pause())}, {"message", pause_text(session.pause())}};
+        j["pause"] = {{"reason", to_string(session.pause())}, {"message", pause_text(session.pause())},
+                      {"resumable", session.resumable()}};
     }
     if (d.kind != riftbound::DecisionKind::None) {
         j["decision"] = {{"player", b.who(d.player)}, {"kind", riftbound::to_string(d.kind)},

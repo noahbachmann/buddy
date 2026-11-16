@@ -263,6 +263,89 @@ TEST(RiftboundSession, DesyncIsDetected) {
     EXPECT_EQ(g.session->status(), Status::Over);
 }
 
+// The table's answer doesn't come (#52): the service's clock pauses the game with the command still in flight.
+// A late answer goes on as if it had come in time; resume instead resends the command with its seq, and the table
+// answers it once whether it ran or not.
+TEST(RiftboundSession, TableTimeoutWaitsForALateAnswer) {
+    Game g("vi-unleashed", "zed-vendetta", 0, 380);
+    int plays = 0;
+    g.lose_answer = [&](const table::Command& c) { return c.kind == CommandKind::Play && ++plays == 4; };
+    g.run();
+    ASSERT_FALSE(g.lost.empty());
+    ASSERT_NE(g.session->inflight(), nullptr);
+    g.session->table_timeout();
+    EXPECT_EQ(g.session->status(), Status::Paused);
+    EXPECT_EQ(g.session->pause(), Pause::Timeout);
+    EXPECT_TRUE(g.session->resumable());
+    EXPECT_NE(g.session->inflight(), nullptr);
+    g.session->table_timeout();  // once paused, nothing more
+    EXPECT_EQ(g.session->stats().pauses, 1);
+    for (const auto& e : g.lost) g.session->on_table(e);
+    g.lost.clear();
+    g.lose_answer = nullptr;
+    EXPECT_NE(g.session->status(), Status::Paused);
+    g.run();
+    EXPECT_EQ(g.session->status(), Status::Over);
+    EXPECT_TRUE(g.problems.empty()) << g.problems.front();
+    EXPECT_EQ(g.session->stats().resumes, 0);
+    EXPECT_EQ(g.replay_problem(), "");
+}
+
+TEST(RiftboundSession, TableTimeoutResumeResendsTheSameCommand) {
+    for (const bool ran : {true, false}) {  // the table ran it and the answer got lost, or it never got the command
+        Game g("zed-vendetta", "vi-unleashed", 1, ran ? 390 : 391);
+        int deals = 0;
+        g.lose_answer = [&](const table::Command& c) { return c.kind == CommandKind::Deal && ++deals == 9; };
+        g.lose_command = !ran;
+        g.run();
+        ASSERT_FALSE(g.lost.empty());
+        const table::Command cmd = *g.session->inflight();
+        const auto& b = g.table.tracker().belief();
+        const int cards = b.deck + b.runes;
+        g.session->table_timeout();
+        ASSERT_EQ(g.session->pause(), Pause::Timeout);
+        g.lose_answer = nullptr;
+        std::vector<table::Command> sent;
+        g.after_cmd = [&](const table::Command& c, const std::vector<table::Event>&) {
+            if (sent.empty()) {
+                EXPECT_EQ(b.deck + b.runes, ran ? cards : cards - cmd.n);
+            }
+            sent.push_back(c);
+        };
+        g.session->resume();
+        g.run();
+        ASSERT_FALSE(sent.empty());
+        EXPECT_EQ(sent[0], cmd);  // the same seq: the table dealt once either way
+        EXPECT_EQ(g.session->status(), Status::Over);
+        EXPECT_TRUE(g.problems.empty()) << g.problems.front();
+        EXPECT_EQ(g.session->stats().resumes, 1);
+        EXPECT_TRUE(has_voice(g, "isn't answering"));
+        EXPECT_EQ(g.replay_problem(), "");
+        EXPECT_EQ(g.final_check(), "");
+    }
+}
+
+// The table restarted mid-game: the sim's piles are gone, the game can't go on.
+TEST(RiftboundSession, TableRestartPausesForGood) {
+    Game g("vi-unleashed", "zed-vendetta", 1, 395);
+    g.stop_when = [&] { return g.session->stats().steps >= 20; };
+    g.run();
+    g.session->table_restarted();
+    EXPECT_EQ(g.session->status(), Status::Paused);
+    EXPECT_EQ(g.session->pause(), Pause::TableRestart);
+    EXPECT_FALSE(g.session->resumable());
+    EXPECT_EQ(g.session->inflight(), nullptr);
+    EXPECT_THROW(g.session->resume(), std::logic_error);
+    g.session->table_timeout();  // stays a restart
+    EXPECT_EQ(g.session->pause(), Pause::TableRestart);
+    const auto out = g.session->take();
+    EXPECT_NE(std::find(out.voice.begin(), out.voice.end(), game::pause_text(Pause::TableRestart)), out.voice.end());
+    g.session->concede(g.session->buddy());
+    EXPECT_EQ(g.session->status(), Status::Over);
+    g.session->table_restarted();  // after the game: nothing
+    EXPECT_EQ(g.session->status(), Status::Over);
+}
+
 TEST(RiftboundSession, DevActionsAreChecked) {
     Game g("vi-unleashed", "zed-vendetta", 1, 380);
     g.stop_when = [&] { return g.session->status() == Status::DevToAct; };

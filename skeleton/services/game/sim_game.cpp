@@ -102,8 +102,17 @@ void SimGame::execute(const table::Command& c) {
         sim.configure(s);
     }
     if (before_cmd) before_cmd(c);
+    const bool lose = lose_answer && lose_answer(c);
+    if (lose && lose_command) {
+        lost = {table::Event{.seq = -1}};
+        return;
+    }
     const auto events = table.execute(c);
     if (after_cmd) after_cmd(c, events);
+    if (lose) {
+        lost = events;
+        return;
+    }
     for (const auto& e : events) session->on_table(e);
 }
 
@@ -167,6 +176,7 @@ void SimGame::run() {
                 break;
             case Status::Over: return;
             default:
+                if (!lost.empty() && session->inflight()) return;  // the answer is lost: up to the test
                 problems.push_back("stuck in " + std::string(to_string(session->status())));
                 return;
         }

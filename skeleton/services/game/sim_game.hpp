@@ -68,6 +68,11 @@ public:
     std::function<void(const table::Command&, const std::vector<table::Event>&)> after_cmd;
     std::function<std::optional<riftbound::Action>(const AiRequest&)> buddy_choice;
     std::function<bool()> stop_when;  // checked between inputs: true → run() returns
+    // true: the command's answer is lost (kept in `lost`); with `lose_command` the table never gets the command
+    // (`lost` holds an empty marker event). run() returns while the answer is missing (#52: the service's timeout).
+    std::function<bool(const table::Command&)> lose_answer;
+    bool lose_command = false;
+    std::vector<table::Event> lost;
 
     std::vector<std::string> problems;  // a check failed: unrecovered
     std::vector<std::string> leaks;     // the leak check failed

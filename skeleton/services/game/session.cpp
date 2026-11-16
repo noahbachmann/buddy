@@ -45,6 +45,8 @@ std::string_view to_string(Pause p) {
         case Pause::Missing: return "missing";
         case Pause::Invalid: return "invalid";
         case Pause::Desync: return "desync";
+        case Pause::Timeout: return "timeout";
+        case Pause::TableRestart: return "table_restart";
     }
     return "?";
 }
@@ -266,6 +268,8 @@ std::string pause_text(Pause p) {
         case Pause::Unreadable: return "I can't read one of my cards. Please check the scanner, then resume.";
         case Pause::Missing: return "One of my cards is missing. Please put it back on my hand pile, then resume.";
         case Pause::Desync: return "Something went wrong with my cards. The game can't go on, I saved the replay.";
+        case Pause::Timeout: return "My table isn't answering. Please check it, then resume.";
+        case Pause::TableRestart: return "My table restarted and lost my cards. The game can't go on, please concede.";
         default: return "My table needs a hand. Please check it, then resume.";
     }
 }
@@ -379,6 +383,11 @@ void Session::start() {
 
 void Session::on_table(const table::Event& e) {
     if (!inflight_ || e.seq != inflight_->cmd.seq) return;
+    if (status_ == Status::Paused && pause_ == Pause::Timeout) {  // the late answer: go on as if it had come in time
+        status_ = waiting_;
+        pause_ = Pause::None;
+        pause_message_.clear();
+    }
     if (e.kind == EventKind::HandCorrected) {
         correction(e);
         return;
@@ -471,10 +480,16 @@ void Session::on_ai(std::uint64_t id, const Action& a) {
 }
 
 void Session::resume() {
-    if (status_ != Status::Paused || pause_ == Pause::Desync) throw std::logic_error("session: nothing to resume");
+    if (!resumable()) throw std::logic_error("session: nothing to resume");
     ++stats_.resumes;
+    const bool timeout = pause_ == Pause::Timeout;
     pause_ = Pause::None;
     pause_message_.clear();
+    if (timeout) {  // the same command, the same seq: the table answers it once, run or not
+        status_ = waiting_;
+        out_.table.push_back(inflight_->cmd);
+        return;
+    }
     status_ = Status::Acting;
     attempt_ = 0;
     if (!set_up_) {  // nothing laid out yet: the setup again
@@ -484,6 +499,24 @@ void Session::resume() {
     table::Command c;
     c.kind = CommandKind::RescanHand;
     send(std::move(c), Kind::Rescan);  // then the step goes on where it failed
+}
+
+void Session::table_timeout() {
+    if (!inflight_ || status_ == Status::Paused || status_ == Status::Over) return;
+    waiting_ = status_;
+    do_pause(Pause::Timeout, "no answer to " + std::string(table::to_string(inflight_->cmd.kind)) + " seq " +
+                                 std::to_string(inflight_->cmd.seq));
+}
+
+void Session::table_restarted() {
+    if (status_ == Status::Over || (status_ == Status::Paused && !resumable())) return;
+    inflight_.reset();  // its answer is gone with the table
+    do_pause(Pause::TableRestart, "the table restarted");
+}
+
+std::optional<AiRequest> Session::ai_request() const {
+    if (status_ != Status::BuddyThinking) return std::nullopt;
+    return AiRequest{ai_id_, riftbound::view(s_, cfg_.buddy), ai_actions_};
 }
 
 void Session::concede(PlayerId p) {
@@ -1029,7 +1062,7 @@ void Session::reconcile_hand() {
 }
 
 void Session::do_pause(Pause p, const std::string& message) {
-    if (status_ == Status::Paused && pause_ == Pause::Desync) return;  // the first reason stays
+    if (status_ == Status::Paused && !resumable()) return;  // a reason for good stays
     ++stats_.pauses;
     status_ = Status::Paused;
     pause_ = p;
