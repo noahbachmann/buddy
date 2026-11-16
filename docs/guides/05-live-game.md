@@ -25,9 +25,11 @@ faults. Notes on pacing, prompts and layout go into #53.
    ssh buddy systemctl --user restart buddy@table
    ```
 
-   Voice on (default): Buddy announces plays, attacks, scores and pauses on the Jabra.
+   For Buddy's lines on the Jabra (plays, attacks, scores, pauses), tick *Buddy speaks* in step 2 (off by default;
+   the switch next to Concede changes it during the game).
 
-2. **New game** on the page (bottom): *Buddy plays* = the other deck, *You play* = **your real cards** → Start.
+2. **New game** on the page (bottom): *Buddy plays* = the other deck, *You play* = **your real cards**, *Buddy
+   speaks* as you like → Start.
 
 3. **Setup:** put one of your battlefields down, then answer *Which battlefield did you put down?* (tap it,
    Confirm). Draw 4, mulligan on the page (*Set aside a card* per card you put back, then *Keep*); put the set-aside

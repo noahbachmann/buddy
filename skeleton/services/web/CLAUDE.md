@@ -44,8 +44,9 @@ Everything from `buddy/game/state` (public cards only, `services/game/CLAUDE.md`
 - `rbSend(cmd)` adds the shown `v`; `rbPending` blocks the controls until the payload's `v` moves on. **Refusals:**
   game doesn't answer them on the bus; an accepted command always brings a new payload at once, so none within 4 s
   = refused → toast.
-- Paused: Resume only when `pause.resumable`; Concede while a game runs; the new-game form (static, `index.html`)
-  only without a running game.
+- Paused: Resume only when `pause.resumable`; Concede and the "Buddy speaks" switch (`voice {on}`, off by default)
+  while a game runs; the new-game form (static, `index.html`, with the voice checkbox) only without a running game.
+  `v` goes only on `act`/`reveal` (the host refuses unknown fields).
 
 ## Adding something
 

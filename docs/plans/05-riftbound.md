@@ -620,7 +620,7 @@ the table reads codes, and the deck is shuffled by the sim (later by hand), not 
 | Dev's options | Dev's hidden objects hold placeholder cards, never shown or trusted. Plays: the non-hand actions plus one "play C" per card C that could be in Dev's hand (decklist minus the copies known elsewhere), each checked on a copy with a hand object bound to C; choosing C binds it for real. Choices that reveal a hand card (discard costs) go by card, the others (mulligan) by count. An impossible entry is refused. **#73:** the referee never picks from the placeholders: Dev's discard costs are always asked, a cost that discards a spell is declared with the option. |
 | Public state | `buddy/game/state` comes only from `public_view(s)` (cards known to everyone): free of Buddy's hand and of Dev's placeholders by construction. Leak test: the JSON is the same after re-determinizing Buddy's hidden cards or Dev's placeholders. The card catalogue goes in once; web's JSON patches carry only changes afterwards. |
 | AI in the service | ISMCTS 2 s, 3 threads (5.4) on a worker thread; forced moves unasked; `nearest_copy` on Buddy's choice. |
-| Voice | Game start, Buddy's plays/moves/attacks (one line per action group, never per pass), scoring, corrections, pauses, the result. Battlefields by card name in voice and panel ("I play Zed to Zaun Warrens"; Dev, 2026-11-16), never left/right. |
+| Voice | Game start, Buddy's plays/moves/attacks (one line per action group, never per pass), scoring, corrections, pauses, the result. Battlefields by card name in voice and panel ("I play Zed to Zaun Warrens"; Dev, 2026-11-16), never left/right. **Off by default, per game** (Dev, 2026-11-16): `new {voice}` / `voice {on}` from the page; off sends nothing to the voice service (no speech synthesized), not a mute. |
 | Gate | `buddy-game --sim --games 1000 --faults stress` (`SimDev` greedy vs Buddy greedy, both decks from both seats): 0 unrecovered, 0 desyncs, 0 leaks; 50 games vs ISMCTS (1000 iterations). Also reports Dev's prompts and taps per game: what real cards cost Dev ⚠️. |
 
 Later, not 5.6: voice input ("pass", "let's play Riftbound": STT doesn't know these words yet, next voice session),
@@ -828,6 +828,9 @@ Riftbound). What building it changed against the design above:
 - **On the Pi** (Release, ISMCTS 2 s on 3 threads), a game through the page: Dev waits 5–20 s for Buddy's turn
   (several decisions per turn: p90 10.7 s, max 19 s from Dev's last tap to Dev's next decision), the game ends on
   "Buddy won." with the new-game form back.
+- **Buddy speaks only when asked** (Dev, 2026-11-16): a "Buddy speaks" checkbox at new game and a switch during
+  it, off by default; replaces `BUDDY_GAME_VOICE`. Off, game publishes nothing on `buddy/voice/say`: checked on the
+  Pi (a silent game had no line, not even the opening one; switched on mid-game, the lines came).
 - **Not built:** voice input ("pass"), thinking during Dev's turn (5.6 design → Later), card images (the catalogue
   has text only; Riftcodex images would need the internet on the panel).
 
