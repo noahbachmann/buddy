@@ -327,6 +327,16 @@ bool bind(GameState& s, ObjId obj, const Card* card, PlayerId knower, std::span<
         std::swap(x.card, o.card);
         return true;
     }
+    // The opening hand (#50): new_game drew it, so which of the knower's hand objects holds what is the engine's guess
+    // until the table deals it. A card the guess put on a hand object not dealt yet is swapped from there.
+    if (s.phase != Phase::Setup || o.zone != Zone::Hand || o.owner != knower) return false;
+    for (const ObjId id : s.player(knower).hand) {
+        Object& x = s.obj(id);
+        if (&x == &o || x.card != card || x.known != 1u << knower) continue;
+        if (std::find(keep.begin(), keep.end(), id) != keep.end()) continue;
+        std::swap(x.card, o.card);
+        return true;
+    }
     return false;
 }
 
@@ -339,7 +349,8 @@ std::vector<ObjId> BindMemory::keep(const GameState& s, PlayerId knower) const {
     std::vector<ObjId> out;
     for (const auto& [obj, gen] : bound_) {
         const Object& o = s.obj(obj);
-        if (o.gen == gen && !(o.known & 1u << knower)) out.push_back(obj);
+        const bool own_hand = o.zone == Zone::Hand && o.owner == knower;  // the opening hand's bound cards
+        if (o.gen == gen && (own_hand || !(o.known & 1u << knower))) out.push_back(obj);
     }
     return out;
 }

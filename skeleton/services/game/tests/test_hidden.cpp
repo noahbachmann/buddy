@@ -168,6 +168,42 @@ TEST(RiftboundHidden, RebindCorrectsAMisreadHandCard) {  // a misread at draw: t
     EXPECT_EQ(check_invariants(s), std::vector<std::string>{});
 }
 
+// #50: the opening hand is the engine's guess until the table deals it. A card the guess put on another hand object
+// (no copy left in the deck) swaps from there; never from a kept (dealt) one, a deck object, or after Setup.
+TEST(RiftboundHidden, BindOpeningHandSwapsWithinTheHand) {
+    for (std::uint64_t seed = 1; seed < 50; ++seed) {
+        GameState s = new_game(vi(), zed(), {.seed = seed, .vanilla = true});
+        const auto hand = s.player(0).hand;
+        std::map<const Card*, int> in_deck;
+        for (const ObjId id : s.player(0).main_deck) ++in_deck[s.obj(id).card];
+        const auto only = std::find_if(hand.begin() + 1, hand.end(), [&](ObjId id) {  // the one copy left
+            const Card* c = s.obj(id).card;
+            return !in_deck.count(c) && std::count_if(hand.begin(), hand.end(), [&](ObjId h) { return s.obj(h).card == c; }) == 1;
+        });
+        if (only == hand.end()) continue;
+        const Card *was = s.obj(hand[0]).card, *want = s.obj(*only).card;
+        const GameState before = s;
+        const std::vector<ObjId> kept{*only};
+        EXPECT_FALSE(buddy::riftbound::bind(s, hand[0], want, 0, kept));  // dealt already: keeps its card
+        EXPECT_FALSE(buddy::riftbound::bind(s, s.player(0).main_deck.back(), want, 0));  // a deck object never takes a hand card
+        EXPECT_EQ(s, before);
+        ASSERT_TRUE(buddy::riftbound::bind(s, hand[0], want, 0));
+        EXPECT_EQ(s.obj(hand[0]).card, want);
+        EXPECT_EQ(s.obj(*only).card, was);
+        EXPECT_EQ(view(s, 1), view(before, 1));  // the opponent sees no difference
+        EXPECT_EQ(check_invariants(s), std::vector<std::string>{});
+        BindMemory memory;  // a bound hand card is kept, so the next bind can't take it back
+        memory.add(s, hand[0]);
+        EXPECT_FALSE(buddy::riftbound::bind(s, *only, want, 0, memory.keep(s, 0)));
+        while (s.phase == Phase::Setup) apply(s, legal_actions(s).back());  // both keep (Done): turn 1
+        const GameState started = s;
+        EXPECT_FALSE(buddy::riftbound::bind(s, *only, want, 0));  // the same swap after Setup: refused
+        EXPECT_EQ(s, started);
+        return;
+    }
+    FAIL() << "no seed with a hand card that has no copy in the deck";
+}
+
 TEST(RiftboundHidden, DevsHandIsInTheirPool) {  // Dev plays real cards: their hand is as unknown to Buddy as their deck
     GameState s = new_game(vi(), zed(), {.seed = 4, .vanilla = true});
     const ObjId placeholder = s.player(1).hand.front();
