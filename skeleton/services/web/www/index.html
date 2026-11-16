@@ -20,6 +20,7 @@
     <nav class="tabs" aria-label="Pages">
       <a href="#" id="tab-dashboard">Dashboard</a>
       <a href="#hue" id="tab-hue">Hue</a>
+      <a href="#riftbound" id="tab-riftbound">Riftbound</a>
     </nav>
 
     <div id="page-dashboard">
@@ -72,7 +73,45 @@
       <div id="scene-list" class="card"></div>
     </section>
     </div>
+
+    <div id="page-riftbound" hidden>
+      <div id="rb-status" class="rb-status"></div>
+      <div id="rb-board" class="rb-board"></div>
+      <div id="rb-act" class="rb-act"></div>
+      <section aria-labelledby="rb-log-title">
+        <div class="section-head">
+          <h2 id="rb-log-title">Log</h2>
+          <span id="rb-game" class="muted"></span>
+        </div>
+        <ol id="rb-log" class="card rb-log"></ol>
+      </section>
+      <!-- static form: an open select would close on every state update -->
+      <section id="rb-new" aria-labelledby="rb-new-title">
+        <div class="section-head"><h2 id="rb-new-title">New game</h2></div>
+        <form id="rb-new-form" class="card rb-new">
+          <label>Buddy plays
+            <select id="rb-new-buddy" class="field">
+              <option value="zed">Zed, Vendetta</option>
+              <option value="vi">Vi, Unleashed</option>
+            </select>
+          </label>
+          <label>You play
+            <select id="rb-new-dev" class="field">
+              <option value="human">your real cards</option>
+              <option value="greedy">bot (greedy, for testing)</option>
+              <option value="random">bot (random, for testing)</option>
+            </select>
+          </label>
+          <button class="text-btn primary" type="submit">Start</button>
+        </form>
+      </section>
+    </div>
   </main>
+
+  <dialog id="rb-sheet" class="rb-sheet" aria-labelledby="rb-sheet-title">
+    <form method="dialog" class="rb-sheet-close"><button class="icon-btn" aria-label="Close">✕</button></form>
+    <div id="rb-sheet-body"></div>
+  </dialog>
 
   <button id="customize" class="cog" aria-label="Arrange rooms" title="Arrange rooms" aria-pressed="false">⚙</button>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>

@@ -9,6 +9,8 @@ let interacting = 0;            // > 0 while a slider is held: re-rendering woul
 let renderQueued = false;
 
 const $ = (id) => document.getElementById(id);
+const PAGES = ["dashboard", "hue", "riftbound"];  // #<page>, none = dashboard
+const page = () => (PAGES.includes(location.hash.slice(1)) ? location.hash.slice(1) : "dashboard");
 
 function el(tag, attrs = {}, ...children) {
   const e = document.createElement(tag);
@@ -581,7 +583,7 @@ setInterval(updateProgress, 1000);
 
 // Spotify can't push: the service polls only while some panel shows the music card and says so every 20 s.
 function watchSpotify() {
-  if (document.visibilityState !== "visible" || location.hash === "#hue") return;
+  if (document.visibilityState !== "visible" || page() !== "dashboard") return;
   fetch("/api/cmd/spotify", { method: "POST", headers: { "Content-Type": "application/json" }, body: '{"action":"watch"}' })
     .catch(() => {});  // offline: the link indicator says so
 }
@@ -639,6 +641,433 @@ function systemCard(s, online) {
       s.disk.used_gb / s.disk.total_gb >= 0.9));
 }
 
+// --- riftbound (5.6) --------------------------------------------------------------------------------------------
+
+// buddy/game/state is built from cards everyone knows (public_view): Buddy's hand is a count, Dev's real cards are
+// named by Dev in prompts. Dev answers with `act {v, i}` (one of `options`) or `reveal {v, cards}` (the prompt).
+const RB_DOMAIN = { Fury: "#d6453a", Calm: "#3c9f66", Mind: "#3a74d4", Body: "#e0862a", Chaos: "#8a52d4", Order: "#c9a52c" };
+const RB_STATUS = {
+  setup: "Buddy sets up the table…", thinking: "Buddy is thinking…", acting: "Buddy is moving cards…",
+  dev_to_act: "Your move", dev_to_reveal: "Name your card",
+};
+const RB_PURPOSE = {
+  target: "Choose a target", may: "Use the ability?", "optional cost": "Pay the optional cost?", discard: "Discard a card",
+  "recycle from trash": "Recycle from your trash", "trigger order": "Which ability goes on the chain next?",
+  effect: "Choose", location: "Where does it go?", move: "Which units move?", stage: "Which showdown first?",
+  "assign damage": "Assign combat damage",
+};
+const RB_PROMPT = {
+  battlefield: "Which battlefield did you put down?", hand: "Which card left your hand?",
+  deck: "Which card came off your deck?", runes: "Which runes did you channel?",
+};
+
+let rbPending = null;            // {v, timer}: an act/reveal is on its way, until the payload moves on
+let rbPick = { key: "", codes: [] };  // the prompt's selection so far (codes, in tap order)
+let rbSheet = null;              // open card sheet: {id} (a board object), {code} (a card), {pile: "trash"|…, who}
+let rbAll = false;               // every option as a list (fallback to tapping cards)
+
+const rbGame = () => state["buddy/game/state"];
+const rbCard = (code) => rbGame()?.catalogue?.[code];
+const rbName = (code) => (code ? rbCard(code)?.name ?? code : "a hidden card");
+const rbShort = (code) => rbName(code).split(",")[0];
+
+// ":rb_might:" & co. in Riftcodex text → small symbols; ")Next" (reminder text ends a line) → line break
+const RB_ICON = { might: "⚔", exhaust: "↷", rune_rainbow: "◈" };
+function rbText(text) {
+  return (text || "").replace(/\)(?=[A-Z[])/g, ")\n").split(/(:rb_[a-z0-9_]+:)/).filter(Boolean).map((part) => {
+    const m = /^:rb_([a-z0-9_]+):$/.exec(part);
+    if (!m) return part;
+    const k = m[1];
+    if (k.startsWith("energy_")) return el("span", { class: "rb-energy", title: "Energy" }, k.slice(7));
+    if (k.startsWith("rune_") && k !== "rune_rainbow") {
+      const d = k[5].toUpperCase() + k.slice(6);
+      return el("span", { class: "rb-rune", style: `--dom:${RB_DOMAIN[d] ?? "var(--muted)"}`, title: d }, d);
+    }
+    return el("span", { class: "rb-sym", title: k.replace("_", " ") }, RB_ICON[k] ?? k);
+  });
+}
+
+function rbSend(cmd) {
+  const g = rbGame();
+  if (rbPending) return;
+  const v = g?.v;
+  // game answers an accepted act/reveal/resume with a new payload at once; none within 4 s = refused (stale v, …)
+  rbPending = { v, timer: setTimeout(() => {
+    if (rbPending?.v !== v) return;
+    rbPending = null;
+    toast("Buddy didn't take that: the game had moved on. Try again.");
+    queueRender();
+  }, 4000) };
+  if (rbSheet && $("rb-sheet").open) $("rb-sheet").close();
+  send("game", { ...cmd, ...(v !== undefined && { v }) }).then((ok) => {
+    if (!ok && rbPending?.v === v) { clearTimeout(rbPending.timer); rbPending = null; queueRender(); }
+  });
+  queueRender();
+}
+const rbAct = (o) => rbSend({ action: "act", i: o.i });
+
+// Where each option goes: on a board object, on a hand card (by code), or the bar (pass, keep, done, …).
+function rbPlace(g) {
+  const onBoard = new Set();
+  for (const who of ["buddy", "dev"]) {
+    const p = g.players?.[who];
+    if (!p) continue;
+    for (const o of [p.legend, ...p.champion, ...p.base]) if (o) onBoard.add(o.id);
+  }
+  for (const f of g.battlefields ?? []) {
+    onBoard.add(f.id);
+    for (const o of [...f.units.buddy, ...f.units.dev]) onBoard.add(o.id);
+  }
+  const byObj = new Map(), byCard = new Map(), bar = [];
+  const push = (m, k, o) => { if (!m.has(k)) m.set(k, []); m.get(k).push(o); };
+  for (const o of g.options ?? []) {
+    if (o.obj !== undefined && onBoard.has(o.obj)) push(byObj, o.obj, o);
+    else if (o.card) push(byCard, o.card, o);
+    else bar.push(o);
+  }
+  return { byObj, byCard, bar };
+}
+
+// Every object the payload shows, by id (for the sheet and attached gear)
+function rbObjects(g) {
+  const m = new Map();
+  for (const who of ["buddy", "dev"]) {
+    const p = g.players?.[who];
+    if (!p) continue;
+    for (const o of [p.legend, ...p.champion, ...p.base]) if (o) m.set(o.id, { ...o, owner: who });
+  }
+  for (const f of g.battlefields ?? []) {
+    m.set(f.id, { id: f.id, card: f.card, owner: f.owner, battlefield: f });
+    for (const who of ["buddy", "dev"]) for (const o of f.units[who]) m.set(o.id, { ...o, owner: who });
+  }
+  return m;
+}
+
+function rbObj(o, opts, where) {
+  if (o.hidden) return el("div", { class: "rb-obj hidden" }, "facedown");
+  const c = rbCard(o.card);
+  const full = rbName(o.card);
+  const [head, ...rest] = full.split(", ");
+  const stats = [];
+  if (o.might !== undefined) stats.push(el("span", { class: "rb-might", title: "Might" }, `⚔${o.might}`));
+  if (o.damage) stats.push(el("span", { class: "rb-dmg", title: "Damage" }, `−${o.damage}`));
+  if (o.buffs) stats.push(el("span", { class: "rb-tag" }, `+${o.buffs}`));
+  if (o.stunned) stats.push(el("span", { class: "rb-tag bad" }, "stunned"));
+  if (o.empowered) stats.push(el("span", { class: "rb-tag" }, "empowered"));
+  if (o.attached_to !== undefined) stats.push(el("span", { class: "rb-tag" }, "gear"));
+  const n = opts?.length ?? 0;
+  return el("button", {
+    class: `rb-obj${o.exhausted ? " exhausted" : ""}${n ? " can" : ""}${c?.type === "Legend" ? " legend" : ""}`,
+    "aria-label": `${full}${o.exhausted ? ", exhausted" : ""}${n ? `, ${n} move${n > 1 ? "s" : ""}` : ""}`,
+    onclick: () => rbOpen({ id: o.id }),
+  },
+  el("span", { class: "rb-obj-name" }, head),
+  rest.length ? el("small", {}, rest.join(", ")) : where && el("small", {}, where),
+  stats.length ? el("span", { class: "rb-stats" }, stats) : null,
+  o.keywords ? el("small", { class: "rb-kw" }, o.keywords.join(" · ")) : null,
+  n ? el("span", { class: "rb-badge" }, String(n)) : null);
+}
+
+function rbRunes(p) {
+  const runes = p.runes.map((r) => el("span", {
+    class: "rb-rune", style: `--dom:${RB_DOMAIN[r.domain] ?? "var(--muted)"}`,
+    title: `${r.domain}: ${r.ready} ready, ${r.exhausted} exhausted`,
+  }, `${r.domain} ${r.ready}/${r.ready + r.exhausted}`));
+  const pool = [p.pool.energy && `${p.pool.energy} energy`, ...Object.entries(p.pool.power).map(([d, v]) => `${v} ${d}`),
+    p.pool.any && `${p.pool.any} any`].filter(Boolean);
+  if (pool.length) runes.push(el("span", { class: "rb-tag" }, `pool ${pool.join(", ")}`));
+  return runes;
+}
+
+function rbSide(g, who, place) {
+  const p = g.players[who];
+  const me = who === "dev";
+  const pile = (name, list) => el("button", {
+    class: "chip-btn rb-pile", disabled: !list.length, onclick: () => rbOpen({ pile: name, who }),
+  }, `${name} ${list.length}`);
+  const head = el("div", { class: "rb-side-head" },
+    el("span", { class: "rb-who" }, me ? "You" : "Buddy"),
+    el("span", { class: "rb-points", title: `${p.points} of ${g.victory} points` }, `${p.points}`, el("small", {}, `/${g.victory}`)),
+    el("span", { class: "muted" }, `hand ${p.hand} · deck ${p.deck} · runes ${p.rune_deck}`),
+    pile("trash", p.trash), p.banishment.length ? pile("banished", p.banishment) : null);
+  const objs = [p.legend, ...p.champion, ...p.base].filter(Boolean)
+    .map((o) => rbObj(o, place.byObj.get(o.id), p.champion.includes(o) ? "champion zone" : null));
+  return el("div", { class: `rb-side ${who}${g.turn_player === who ? " turn" : ""}` },
+    me ? null : head,
+    el("div", { class: "rb-runes" }, rbRunes(p)),
+    el("div", { class: "rb-row" }, objs),
+    me ? head : null);
+}
+
+function rbField(g, f, i, place) {
+  const sd = g.showdown && g.showdown.battlefield === i ? g.showdown : null;
+  const opts = place.byObj.get(f.id);
+  const tag = [
+    f.controller && el("span", { class: `rb-tag ${f.controller}` }, f.controller === "dev" ? "yours" : "Buddy's"),
+    f.contested && el("span", { class: "rb-tag warn" }, "contested"),
+    sd && el("span", { class: "rb-tag warn" }, `${sd.combat ? "combat" : "showdown"} · focus ${sd.focus === "dev" ? "you" : "Buddy"}`),
+    f.facedown && el("span", { class: "rb-tag" }, `${f.facedown} facedown`),
+  ].filter(Boolean);
+  const units = (who) => el("div", { class: `rb-row rb-units ${who}` },
+    f.units[who].length ? f.units[who].map((o) => rbObj(o, place.byObj.get(o.id))) : el("span", { class: "rb-none" }, "–"));
+  return el("div", { class: `rb-field${sd ? " fight" : ""}${opts ? " can" : ""}` },
+    units("buddy"),
+    el("button", {
+      class: "rb-field-name", onclick: () => rbOpen({ id: f.id }),
+      "aria-label": `${rbName(f.card)}${opts ? `, ${opts.length} move${opts.length > 1 ? "s" : ""}` : ""}`,
+    }, el("span", {}, rbName(f.card)), opts ? el("span", { class: "rb-badge" }, String(opts.length)) : null),
+    tag.length ? el("div", { class: "rb-field-tags" }, tag) : null,
+    units("dev"));
+}
+
+function rbChain(g) {
+  if (!g.chain?.length) return null;
+  return el("ol", { class: "rb-chain", "aria-label": "Chain, newest first" }, [...g.chain].reverse().map((c) => el("li", {},
+    el("button", { class: "rb-link", onclick: () => c.card && rbOpen({ code: c.card }) },
+      `${c.controller === "dev" ? "You" : "Buddy"}: ${rbName(c.card)}${c.kind === "card" ? "" : ` (${c.kind})`}`),
+    c.targets.length ? ` → ${c.targets.map((t) => (t.player ? (t.player === "dev" ? "you" : "Buddy") : rbShort(t.card))).join(", ")}` : "")));
+}
+
+function rbStatusLine(g) {
+  if (!g || g.status === "idle") return "No game running.";
+  if (g.status === "over") return g.winner ? (g.winner === "dev" ? "You won!" : "Buddy won.") : "Game over.";
+  if (g.status === "paused") return g.pause?.message ?? "Paused.";
+  let s = RB_STATUS[g.status] ?? g.status;
+  if (g.status === "dev_to_act" && g.decision?.kind === "mulligan") s = "Mulligan: set aside up to 2 cards, then keep";
+  else if (g.status === "dev_to_act" && g.decision?.kind === "recycle") s = "Which rune do you recycle?";
+  else if (g.status === "dev_to_act" && g.decision?.kind === "choose") s = RB_PURPOSE[g.decision.purpose] ?? s;
+  return s;
+}
+
+function renderRiftbound() {
+  const g = rbGame();
+  const online = state["buddy/game/status"] === "online";
+  if (rbPending && g?.v !== rbPending.v) { clearTimeout(rbPending.timer); rbPending = null; }
+  const running = g && !["idle", "over"].includes(g.status);
+  $("rb-new").hidden = running || !online;
+  setText($("rb-game"), !online ? "game service offline" : state["buddy/table/status"] !== "online" ? "table offline" : "");
+
+  const score = g?.players && el("span", { class: "rb-score" }, `Buddy ${g.players.buddy.points} – ${g.players.dev.points} you`);
+  const where = g?.turn ? `Turn ${g.turn} · ${g.turn_player === "dev" ? "your" : "Buddy's"} ${g.phase}` : "";
+  keyed($("rb-status"), [["s", JSON.stringify([g?.status, g?.pause, g?.decision, g?.winner, g?.turn, g?.phase, g?.turn_player,
+    g?.players?.buddy.points, g?.players?.dev.points, online, !!rbPending]), () => el("div", {
+    class: `card rb-status-card ${g?.status ?? "idle"}${g?.status === "dev_to_act" || g?.status === "dev_to_reveal" ? " yours" : ""}`,
+  },
+  el("div", { class: "row" },
+    el("div", { class: "name" }, !online ? "The game service isn't running." : rbPending ? "Sending…" : rbStatusLine(g),
+      el("small", {}, where || " ")),
+    score))]]);
+
+  if (!g?.players) {
+    keyed($("rb-board"), []);
+    keyed($("rb-act"), []);
+    keyed($("rb-log"), []);
+    return rbRenderSheet();
+  }
+  const place = rbPlace(g);
+  const sig = (x) => JSON.stringify([x, g.catalogue ? Object.keys(g.catalogue).length : 0]);
+  const optSig = JSON.stringify(g.options ?? []);
+  keyed($("rb-board"), [
+    ["buddy", sig([g.players.buddy, g.turn_player, optSig]), () => rbSide(g, "buddy", place)],
+    ["chain", sig(g.chain), () => rbChain(g) ?? el("div", { hidden: true })],
+    ["fields", sig([g.battlefields, g.showdown, optSig]), () => el("div", { class: "rb-fields" },
+      g.battlefields.map((f, i) => rbField(g, f, i, place)))],
+    ["dev", sig([g.players.dev, g.turn_player, optSig]), () => rbSide(g, "dev", place)],
+  ]);
+
+  keyed($("rb-act"), [["act", JSON.stringify([g.status, g.pause, g.options, g.prompt, g.decision, rbPick, rbAll, !!rbPending]),
+    () => rbActions(g, place)]]);
+  keyed($("rb-log"), (g.log ?? []).map((l, i) => [`${i}:${l.turn}:${l.text}`, "", () => el("li", { class: l.player },
+    el("span", { class: "muted" }, `T${l.turn}`), " ", el("b", {}, l.player === "dev" ? "You" : "Buddy"), " ", l.text)]).reverse());
+  rbRenderSheet();
+}
+
+function rbActions(g, place) {
+  const nodes = [];
+  const busy = !!rbPending;
+  if (g.status === "dev_to_reveal" && g.prompt) nodes.push(rbPrompt(g));
+  if (g.status === "dev_to_act") {
+    const hand = [...place.byCard.entries()];
+    if (hand.length) {
+      nodes.push(el("div", { class: "rb-hand" }, el("span", { class: "muted" }, "From your hand"),
+        el("div", { class: "rb-row" }, hand.map(([code, opts]) => el("button", {
+          class: "rb-obj can", disabled: busy, onclick: () => rbOpen({ code }),
+        }, el("span", { class: "rb-obj-name" }, rbShort(code)), el("small", {}, rbCost(rbCard(code))),
+        opts.length > 1 ? el("span", { class: "rb-badge" }, String(opts.length)) : null)))));
+    }
+    if (place.bar.length) {
+      nodes.push(el("div", { class: "controls rb-bar" }, place.bar.map((o) => el("button", {
+        class: `text-btn${o.group === "pass" ? " primary" : ""}`, disabled: busy, onclick: () => rbAct(o),
+      }, rbCap(o.text)))));
+    }
+    if (place.byObj.size) nodes.push(el("p", { class: "muted rb-hint" }, "Cards with a number have moves: tap them."));
+    nodes.push(el("button", { class: "more", "aria-expanded": String(rbAll), onclick: () => { rbAll = !rbAll; render(); } },
+      rbAll ? "Hide the list ▴" : `All ${g.options.length} moves as a list ▾`));
+    if (rbAll) nodes.push(rbOptionList(g.options, busy));
+  }
+  if (g.status === "paused" && g.pause?.resumable) {
+    nodes.push(el("div", { class: "controls" }, el("button", {
+      class: "text-btn primary", disabled: busy, onclick: () => rbSend({ action: "resume" }),
+    }, "Resume")));
+    nodes.push(el("p", { class: "muted" }, "Fix the table first (put the card back, free the hand pile), then resume."));
+  } else if (g.status === "paused") {
+    nodes.push(el("p", { class: "muted" }, "This game can't go on: concede it, then start a new one."));
+  }
+  if (!["idle", "over"].includes(g.status)) {
+    nodes.push(el("div", { class: "controls rb-concede" }, el("button", {
+      class: "chip-btn", disabled: busy,
+      onclick: () => { if (confirm("Concede this game?")) rbSend({ action: "concede" }); },
+    }, "Concede")));
+  }
+  return el("div", {}, nodes);
+}
+
+const rbCap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+function rbCost(c) {
+  if (!c) return "";
+  const parts = [];
+  if (c.cost !== undefined) parts.push(`${c.cost} energy`);
+  if (c.power) parts.push(`+${c.power} ${c.domains.join("/")}`);
+  return [c.type, parts.join(" ")].filter(Boolean).join(" · ");
+}
+
+function rbOptionList(options, busy) {
+  const groups = ["play", "activate", "move", "choose", "pass"];
+  const names = { play: "Play", activate: "Abilities", move: "Move", choose: "Choose", pass: "Pass" };
+  return el("div", { class: "card rb-list" }, groups.filter((gr) => options.some((o) => o.group === gr)).map((gr) =>
+    el("div", { class: "rb-list-group" }, el("div", { class: "muted" }, names[gr]),
+      el("div", { class: "controls" }, options.filter((o) => o.group === gr).map((o) => el("button", {
+        class: "chip-btn", disabled: busy, onclick: () => rbAct(o),
+      }, rbCap(o.text)))))));
+}
+
+// Prompt: Dev names the cards that just turned public. Tap a candidate to add a copy, a picked chip to take it back.
+// Runes come as whole combinations (one tap per channel step) when there are few.
+function rbPrompt(g) {
+  const p = g.prompt;
+  const key = JSON.stringify(p);
+  if (rbPick.key !== key) rbPick = { key, codes: [] };
+  const picked = rbPick.codes;
+  const count = (code) => picked.filter((c) => c === code).length;
+  const set = (codes) => { rbPick = { key, codes }; render(); };
+  const busy = !!rbPending;
+  const nodes = [el("div", { class: "rb-prompt-q" }, RB_PROMPT[p.kind] ?? "Name the card",
+    p.n > 1 ? el("small", {}, ` ${p.n} cards`) : null)];
+  const combos = p.kind === "runes" ? rbCombos(p.candidates, p.n) : null;
+  if (combos && combos.length > 1 && combos.length <= 6) {
+    nodes.push(el("div", { class: "controls" }, combos.map((codes) => el("button", {
+      class: `chip-btn${JSON.stringify(codes) === JSON.stringify([...picked].sort()) ? " active" : ""}`,
+      onclick: () => set(codes),
+    }, rbComboText(codes)))));
+  } else {
+    nodes.push(el("div", { class: "rb-row" }, p.candidates.map((c) => {
+      const n = count(c.code);
+      const full = n >= c.left || picked.length >= p.n;
+      return el("button", {
+        class: `rb-obj${n ? " picked" : ""}`, disabled: full && !n,
+        style: c.domain ? `--dom:${RB_DOMAIN[c.domain] ?? "var(--muted)"}` : undefined,
+        onclick: () => { if (!full) set([...picked, c.code]); },
+      }, el("span", { class: "rb-obj-name" }, rbShort(c.code)),
+      el("small", {}, [rbCost(rbCard(c.code)), c.left > 1 && `${c.left} left`].filter(Boolean).join(" · ")),
+      n ? el("span", { class: "rb-badge" }, `${n}`) : null);
+    })));
+  }
+  if (picked.length) {
+    nodes.push(el("div", { class: "controls" }, el("span", { class: "muted" }, "Picked:"), picked.map((code, i) => el("button", {
+      class: "chip-btn", "aria-label": `Take back ${rbName(code)}`, onclick: () => set(picked.filter((_, j) => j !== i)),
+    }, `${rbShort(code)} ✕`))));
+  }
+  nodes.push(el("div", { class: "controls" }, el("button", {
+    class: "text-btn primary", disabled: busy || picked.length !== p.n,
+    onclick: () => rbSend({ action: "reveal", cards: picked }),
+  }, `Confirm${p.n > 1 ? ` (${picked.length}/${p.n})` : ""}`)));
+  return el("div", { class: "card rb-prompt" }, nodes);
+}
+
+// Multisets of n candidate codes within their `left` counts, sorted codes each
+function rbCombos(cands, n) {
+  const out = [];
+  const walk = (i, acc) => {
+    if (acc.length === n) return out.push([...acc]);
+    if (i >= cands.length || out.length > 6) return;
+    for (let k = Math.min(cands[i].left, n - acc.length); k >= 0; k--) {
+      walk(i + 1, [...acc, ...Array(k).fill(cands[i].code)]);
+    }
+  };
+  walk(0, []);
+  return out.map((c) => c.sort());
+}
+function rbComboText(codes) {
+  const m = new Map();
+  for (const c of codes) m.set(c, (m.get(c) ?? 0) + 1);
+  return [...m].map(([c, k]) => `${k} × ${rbShort(c).replace(/ Rune$/, "")}`).join(" + ");
+}
+
+// The card sheet: text of any card, an object's state and the moves on it. Rebuilt with every state update while open.
+function rbOpen(what) {
+  rbSheet = what;
+  rbSheetSig = "";
+  rbRenderSheet();
+  const d = $("rb-sheet");
+  if (!d.open) d.showModal();
+}
+let rbSheetSig = "";
+function rbRenderSheet() {
+  const d = $("rb-sheet");
+  if (!rbSheet || !d.open && rbSheetSig) return;
+  const g = rbGame();
+  if (!g?.players) return;
+  const place = rbPlace(g);
+  const objs = rbObjects(g);
+  let body;
+  const sigOf = [rbSheet, !!rbPending];
+  if (rbSheet.pile) {
+    const list = g.players[rbSheet.who][rbSheet.pile === "trash" ? "trash" : "banishment"];
+    sigOf.push(list);
+    body = [el("h2", { id: "rb-sheet-title" }, `${rbSheet.who === "dev" ? "Your" : "Buddy's"} ${rbSheet.pile}`),
+      el("div", { class: "controls" }, list.map((code) => el("button", {
+        class: "chip-btn", onclick: () => rbOpen({ code }),
+      }, rbName(code))))];
+  } else {
+    const o = rbSheet.id !== undefined ? objs.get(rbSheet.id) : null;
+    const code = o ? o.card : rbSheet.code;
+    const opts = (o ? place.byObj.get(o.id) : place.byCard.get(code)) ?? [];
+    sigOf.push(o, opts, code);
+    const c = rbCard(code);
+    const state_ = o && !o.battlefield ? [
+      o.owner === "dev" ? "yours" : "Buddy's", o.exhausted ? "exhausted" : "ready",
+      o.might !== undefined && `Might ${o.might}${o.damage ? `, ${o.damage} damage` : ""}`,
+      o.buffs && `+${o.buffs} buff`, o.stunned && "stunned", o.empowered && "empowered",
+      o.attached_to !== undefined && `on ${rbName(objs.get(o.attached_to)?.card)}`,
+      o.keywords?.join(", "),
+    ].filter(Boolean).join(" · ") : o?.battlefield ? [
+      o.owner === "dev" ? "your battlefield" : "Buddy's battlefield",
+      o.battlefield.controller && `held by ${o.battlefield.controller === "dev" ? "you" : "Buddy"}`,
+    ].filter(Boolean).join(" · ") : "";
+    body = [
+      el("h2", { id: "rb-sheet-title" }, rbName(code)),
+      el("p", { class: "muted" }, [rbCost(c), c?.might !== undefined && `Might ${c.might}`, c?.domains?.join("/"),
+        c?.tags?.length && c.tags.join(", ")].filter(Boolean).join(" · ")),
+      state_ && el("p", { class: "rb-sheet-state" }, state_),
+      c?.text ? el("p", { class: "rb-text" }, rbText(c.text)) : null,
+      opts.length ? el("div", { class: "rb-sheet-opts" }, opts.map((x) => el("button", {
+        class: "text-btn primary", disabled: !!rbPending, onclick: () => rbAct(x),
+      }, rbCap(x.text)))) : null,
+    ];
+  }
+  const sig = JSON.stringify(sigOf);
+  if (sig === rbSheetSig) return;
+  rbSheetSig = sig;
+  $("rb-sheet-body").replaceChildren(...body.filter(Boolean));
+}
+$("rb-sheet").addEventListener("close", () => { rbSheet = null; rbSheetSig = ""; });
+$("rb-sheet").addEventListener("click", (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });  // backdrop
+
+$("rb-new-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  send("game", { action: "new", buddy: $("rb-new-buddy").value, dev: $("rb-new-dev").value });
+});
+
 // --- services ---------------------------------------------------------------------------------------------------
 
 // Fixed list: stale retained statuses (removed services, test clients) never show up. Chip online = every member online.
@@ -681,14 +1110,16 @@ function renderServices() {
 
 function render() {
   renderServices();
-  const hue = location.hash === "#hue";
-  $("page-dashboard").hidden = hue;
-  $("page-hue").hidden = !hue;
-  $("customize").hidden = hue;
-  $("tab-dashboard").toggleAttribute("aria-current", !hue);
-  $("tab-hue").toggleAttribute("aria-current", hue);
-  if (hue) {
+  const current = page();
+  for (const p of PAGES) {
+    $(`page-${p}`).hidden = p !== current;
+    $(`tab-${p}`).toggleAttribute("aria-current", p === current);
+  }
+  $("customize").hidden = current !== "dashboard";
+  if (current === "hue") {
     renderHue();
+  } else if (current === "riftbound") {
+    renderRiftbound();
   } else {
     renderLights();
     renderMusic();
