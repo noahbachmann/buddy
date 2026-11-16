@@ -1,8 +1,9 @@
 # services/game – Riftbound engine quick reference
 
-What the engine does **now** (state after #50: 5.3, 5.4 and 5.5 done: arena, v1 greedy, engine speed, v2 ISMCTS, table
+What the engine does **now** (state after #51: 5.3, 5.4 and 5.5 done: arena, v1 greedy, engine speed, v2 ISMCTS, table
 moves; 5.6 engine side: binding revealed cards, public view, replay reveals; the session with Buddy's side and Dev's
-real cards, SimDev; the panel's payload, Dev's commands, voice lines) and where the next work plugs in.
+real cards, SimDev; the panel's payload, Dev's commands, voice lines; the session soak (the gate) and terminal play)
+and where the next work plugs in.
 Why it is built this way: `docs/plans/05-riftbound.md` → "5.2 design", "5.3 as built" (with the rulings, confirmed by Dev),
 "5.4 design", "5.5 design"/"as built". Sub-issues: 5.2 #20, 5.3 #33, 5.4 #39, 5.5 #45. Rules text: `~/buddy/data/riftbound/core-rules-2026-10-09.txt`
 on the VM (grep the rule number); full card text: `~/buddy/data/riftbound/cards.json` (VM and Pi, not in Git).
@@ -99,7 +100,9 @@ input that can't be: `Refused` (the reason), nothing changes.
 - **`SimDev`** (tests, the soak, bot games): `truth_` per object (a shuffled permutation of Dev's hidden cards,
   runes and battlefields; `shuffle = false`: the placeholders). `choose`: a `Player` on `true_state(s)`, mapped to an
   option; hidden hand cards are interchangeable, so it swaps true cards when the option names another object
-  (`relabel` for an unnamed option: a true card that allows the action). `reveal`: the true cards.
+  (`relabel` for an unnamed option: a true card that allows the action). `reveal`: the true cards; `answer` (#51)
+  submits them and, if the session refuses a Hand prompt (the placeholders made the engine discard another object
+  than the one holding Dev's real spell), retries with Dev's other hidden hand cards swapped in.
 - Tests `tests/test_session.cpp` (`buddy-game-session-tests`, label `riftbound`, ~60 s wall under ASan): Dev = a
   SimDev; fault-free games (both decks from both seats), each sim fault alone, every failure path forced by a `Flaky`
   backend wrapper or by moving the sim's cards by hand, a forced desync (`Session::on_moves` hook), Dev's
@@ -109,8 +112,9 @@ input that can't be: `Refused` (the reason), nothing changes.
   (SimDev games) the offered cards = exactly the possible ones. At the end a rescan, then strict; the session's
   replay replays to the same state; SimDev games: the game with Dev's true cards from the start replays legally
   into the same state (`true_replay_problem`; a "discard a spell" the placeholders left without a choice is a prompt
-  in the session and a pick in the true game: re-inserted, ~1 in 50 games). The harness (`Game`, `rearranged`) lives
-  in `tests/session_game.hpp`; #50 adds `DevOptionsDontDependOnHiddenCards` and `VoiceLinesPerActionGroupAndScoring`.
+  in the session and a pick in the true game: re-inserted, ~1 in 50 games; the other way round, a pick the true hand
+  made moot, skipped). The harness is `game::SimGame` (game_sim, #51); `tests/session_game.hpp` wraps it as `Game`
+  with the `Flaky` backend; #50 adds `DevOptionsDontDependOnHiddenCards` and `VoiceLinesPerActionGroupAndScoring`.
 
 ## Public state and commands (#50, `game_core`: `public_state.*`, `game_host.*`)
 
@@ -134,6 +138,32 @@ input that can't be: `Refused` (the reason), nothing changes.
   Dev's placeholders and Buddy's hidden cards rearranged; every `card` is in the catalogue), `test_game_host.cpp`
   (bot games, a human Dev playing only by `i` and the prompt's candidates, every refusal). `BUDDY_GAME_STATE_DUMP=<file>`
   makes `HumanDevPlaysByCommands` write a turn-6 payload.
+
+## Soak and terminal play (#51, `game_sim`: `sim_game.*`, `sim_terminal.*`)
+
+`game_sim` = `game_core` + `table_core` (the service links only `game_core`: its table is on MQTT).
+- **`SimGame`**: one session game the way the service runs it: Session, in-process `Table` + `Sim` (optional `wrap`
+  of the backend: the tests' `Flaky`), Buddy's `Player` (greedy by default), Dev a `SimDev`. `run()` until over, a
+  desync, 20 resumes or `stop_when`. After every committed step: engine = belief (hand order, ids, codes, spots,
+  exhausted, counts), belief = truth (the hand as a multiset; skipped while a peeked card is held: a double deal under
+  it shows only at `peek_done`), Dev's known cards = SimDev's truth and never learned unasked. Optional:
+  `check_candidates` (the offered cards = the possible ones), `leak_every` n (`leak_problem`: payload + Dev's options
+  on rearranged hidden cards, #50). At the end: `final_check` (rescan, then strict), `replay_problem`,
+  `true_replay_problem`. `problems` = unrecovered, `leaks`, `pauses`. `rearranged`, `dev_fixed` live here too.
+- **`soak()` / `soak_game()`**: game i = seed S + i, Buddy in seat i % 2, decks swapped every other pair; true deck,
+  leak check every 7th input, candidates on; `--jobs` threads, results independent of them; never throws (an
+  exception is a problem). `SoakGame`: problems, leaks, desyncs, `SessionStats`, table recoveries/scans, faults,
+  prompt cards, `taps()` (asked decisions + per prompt its cards + 1 + resumes), ms, the replay of a failed game.
+  `print_soak_report` = the table in the plan ("5.6 as built" → #51).
+- **`buddy-game --sim --games N [--seed S] [--jobs J] [--faults …] [--dev greedy|random] [--buddy greedy|ismcts]
+  [--iterations N]`**: the soak; a failed game writes `sim-replay-<seed>.txt` (`--replay` reads it). Gate: 1000
+  games under stress, 9.6 s on the VM (Release, 8 jobs).
+- **`buddy-game --sim [--faults …] [--buddy …] [--seed S]`**: `TerminalGame` = a `GameHost` (Buddy = deck A, Dev
+  human) + the sim table + Buddy's AI, synchronous; `render(payload)` prints the board from the payload alone,
+  `prompt_answer` turns candidate numbers or codes into a `reveal`. Lines: a number, numbers/codes at a prompt,
+  `resume`, `concede`, `board`, `help`, `quit`; a refused line changes nothing.
+- Tests: `test_sim_soak.cpp` (`RiftboundSimSoak.Games0`–`9`: 100 stress games, 35–45 s each under ASan),
+  `test_sim_terminal.cpp` (typed games to the end, bad lines, prompt answers).
 
 ## The loop (`engine.cpp` → `run()`), in this order every iteration
 
@@ -254,7 +284,8 @@ start, e.g. a determinization, skips its own turn).
   ability-deck games in `test_abilities`; `apply` accepts exactly `legal_actions`), `test_ai` (keys, players only get views, matches reproducible across
   jobs, eval, greedy on hand-built states: conquer, lethal, no trade down, no own target; greedy vs random 8 games;
   ISMCTS reproducible with 1 and 3 threads, takes the win in 1, ≥ 1000 searched decisions in ISMCTS-vs-ISMCTS games all legal: ~30 s under ASan), `test_hidden` (knowledge, view, determinize; views along random games, the
-  ability deck's in `test_abilities`; real decks with rules too), `test_replay` (incl. binds/orders round trip), `test_session` (#48, own executable), `test_gate` (1000 games of the real
+  ability deck's in `test_abilities`; real decks with rules too), `test_replay` (incl. binds/orders round trip), `test_session` (#48, own executable with `test_public_state`,
+  `test_game_host`, `test_sim_soak`, `test_sim_terminal`), `test_gate` (1000 games of the real
   decks, vanilla (5.2) and with rules (5.3); writes the replay of a failure).
 - `test_real.hpp` + `test_cards_vi.cpp` / `test_cards_zed.cpp` (5.3): real cards from the fixture with their rules
   (`real(name)`), `real_deck` (test frame, Zap, the deck's runes), `fund` (pool energy/power), `zap_kill`; one

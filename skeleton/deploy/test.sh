@@ -4,8 +4,8 @@
 # Usage: deploy/test.sh [--riftbound] [ctest args…]       here (VM/PC); e.g. deploy/test.sh -R Player
 #        deploy/test.sh --pi [--riftbound] [ctest args…]  C++ tests on the Pi (aarch64, GCC 14): sync, build in
 #                                                         ~/buddy/build-test, ctest. Touches no running service.
-# The Riftbound engine's tests (ctest label riftbound, incl. the 1000-game gate: ~30 s under ASan) run only with
-# --riftbound.
+# The Riftbound engine's tests (ctest label riftbound, incl. the 1000-game gates and the session soak: ~160 s under
+# ASan) run only with --riftbound.
 #
 # Env: BUDDY_HOST (default "buddy")
 set -euo pipefail

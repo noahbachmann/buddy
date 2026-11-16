@@ -654,7 +654,7 @@ a login comes before the table drives motion (5.7).
   replays reproduce the state. Unreadable alone hardly ever fails a deal (votes over 10 reads): the retry and the pause
   are forced by a backend wrapper.
 - **Open after #48 (→ #51):** a play the table fails `not_in_hand` that isn't Buddy's choice (Dev's effect discards a
-  misread card) pauses; resume re-runs it with the corrected card. #51's soak says how often.
+  misread card) pauses; resume re-runs it with the corrected card. #51's soak: never in 3 550 games (5× stress included).
 
 **#49 Dev's real cards (2026-11-16):** `dev_options()`, prompts and `on_reveal` in `session.*`, `SimDev` in
 `sim_dev.*`; how it runs: `services/game/CLAUDE.md` → "Session". Dev confirmed the defaults: forced moves only when
@@ -708,6 +708,45 @@ host). What building it changed against the design above:
 - **Tests:** leak test after every input of 4 SimDev games (~1500 comparisons, payload identical with Dev's
   placeholders and Buddy's hidden cards rearranged; every card code in the catalogue); host: bot games, a human Dev
   playing only by `i` and the prompt's candidates, every refusal leaves state, `v` and outputs untouched.
+
+**#51 session soak and terminal play (2026-11-16): the gate passed.** `sim_game.*` and `sim_terminal.*` in a new
+`game_sim` library (`game_core` + `table_core`: the service's `game_core` stays free of the sim table); how it runs:
+`services/game/CLAUDE.md` → "Soak and terminal play". The session tests' harness moved into it (`SimGame`), so the
+tests and the soak run the same games and checks.
+
+- **Gate** (`buddy-game --sim --games 1000 --faults stress --seed 1`, SimDev greedy vs Buddy greedy, both decks from
+  both seats; Release on the VM, 8 jobs, 9.6 s): **0 unrecovered, 0 desyncs, 0 leaks** (30 645 leak checks), every
+  game over, the offered cards = the possible ones at every Dev priority, final rescan = truth, every replay
+  reproduces its game and the game with Dev's true cards replays legally into the same state. Seeds 1001–2000 and
+  SimDev random (1000 games each): the same 0 / 0 / 0. **vs ISMCTS** (1000 iterations, 50 games): 0 / 0 / 0, Buddy
+  won 42 of 50, 3.1 s per game.
+- **Per game** (gate, avg / p95 / max): 16.4 turns; 94.5 / 125 / 152 table commands, 236 / 330 / 441 scans; 2.15 /
+  4 / 6 table recoveries, 0.51 / 2 / 4 corrections (0.18 reorders, no misread card reached the engine); 0 re-decides,
+  0 pauses, 0 retries; 76 / 161 / 379 ms.
+- **What real cards cost Dev ⚠️** (per game, avg / p95 / max): 38 / 63 / 126 asked decisions (+ 20 forced, applied
+  unasked), 9.5 / 16 / 28 prompts naming 17.4 / 31 / 40 cards. Taps (an asked decision = 1, a prompt = 1 per card +
+  1 to confirm) **65 / 96 / 170**, of which ~27 (40 %) are the prompts: burned and channelled cards, Dev's
+  battlefield, discards Dev didn't choose. The panel (#53) should make rune prompts one tap per domain count and keep
+  the candidates in a stable order.
+- **Failure paths at stress never fire:** no pause, retry or re-decide in 3 050 stress games (confirm_reads 3 holds,
+  as in 5.5). At 5× stress (500 games, 120 faults per game) retries 0.08 and re-decides 0.01 per game, still 0 / 0 / 0
+  and no pause. Pauses stay covered by the forced-failure tests (`Flaky`). The open point from #48 (a play the table
+  fails `not_in_hand` that isn't Buddy's choice) didn't occur once.
+- **Found by the soak** (the first run: 9 of 1000 games failed):
+  - **SimDev answered a forced discard with the wrong card** (3 games): Dev activates Mel's Empower, the placeholders
+    hold one spell, the engine discards that object unasked and the session prompts for it; SimDev's truth for it
+    was a non-spell, the session refused it rightly. A real Dev discards the spell they hold: `SimDev::answer()`
+    retries a refused Hand prompt with Dev's other hidden hand cards swapped in (bot games in `GameHost` too).
+  - **The true-game check replayed a moot pick** (4 games): the placeholders held two spells so Dev chose the discard;
+    the true hand held one, discarded unasked. The mirror of #49's "collapsed" case: skipped.
+  - **The truth check ran while a peeked card was held** (3 games): a double deal under a Vision peek stays on the
+    spot until `peek_done`'s post-check puts it back (5.5's design); compared at the next step instead.
+  None was a session or table bug.
+- **ctest:** `RiftboundSimSoak.Games0`–`9`, 100 stress games (seeds 5100+), label `riftbound`, 35–45 s each under
+  ASan in parallel; `deploy/test.sh --riftbound` now takes ~160 s wall on the VM (was ~75).
+- **Terminal play** (`buddy-game --sim` without `--games`): `TerminalGame` drives a `GameHost` with the sim table
+  and Buddy's AI in-process and prints the board from the payload alone (what the panel will get): Dev types option
+  numbers, a prompt's candidate numbers or codes, `resume`, `concede`. Tests type whole games.
 
 ## Hardware notes for Phase 4 (decide there, not now)
 

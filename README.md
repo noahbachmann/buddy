@@ -33,7 +33,7 @@ From the repo's `skeleton/` folder on the PC (or the dev VM). `buddy` is the SSH
 |---|---|
 | Run all tests (C++ under ASan/UBSan, pytest, shellcheck) | `deploy/test.sh` (one suite: `deploy/test.sh -R Player`) |
 | C++ tests on the Pi (what really counts) | `deploy/test.sh --pi` |
-| With the Riftbound engine's tests (skipped by default; incl. the 1000-game gates, ~75 s) | `deploy/test.sh --riftbound`, `deploy/test.sh --pi --riftbound` |
+| With the Riftbound engine's tests (skipped by default; incl. the 1000-game gates and 100 session soak games, ~160 s) | `deploy/test.sh --riftbound`, `deploy/test.sh --pi --riftbound` |
 | Deploy everything / some services | `deploy/deploy.sh` / `deploy/deploy.sh hue web` |
 | Build and flash the Pico firmware | `deploy/deploy.sh --firmware` |
 | Health: services, restarts, memory, temperature | `deploy/status.sh` (`-l`: plus recent log lines) |
@@ -62,7 +62,7 @@ the hardware is real: lights switch, music plays, servos move.
 | messenger | `--notify "hello"` (a push on your phone), `--ask "Tea or coffee?" tea coffee` (buttons; prints your answer. Stop `buddy@messenger` first: Telegram gives your messages to one listener only), `--pair` (bot token from @BotFather) |
 | ears | `--transcribe a.wav b.wav`, `--wav a.wav` (whole pipeline on a file on the Pi) |
 | motion | `--cmd move demo=30 --ms 400`, `--cmd gesture shake`, `--cmd relax`, `--raw "1 PING"`. Stop `buddy@motion` first: it owns the Pico's port |
-| game | `--check` (every Riftbound deck, card by card), `--deck zed-vendetta --check`, `--code "OGN • 007a/298"` (what a printed code is), `--random --games 1000` (random-vs-random games on the rules engine, vanilla cards; `--rules` with every card's rules; a failing one writes `replay-<seed>.txt`), `--replay <file>` (play a replay action by action), `--match greedy random` (AI against AI), `--table-workload --games 1000` (Buddy's card moves as JSON lines for the table soak). Card data: `ssh buddy bash ~/buddy/src/deploy/pi/setup.sh cards` |
+| game | `--check` (every Riftbound deck, card by card), `--deck zed-vendetta --check`, `--code "OGN • 007a/298"` (what a printed code is), `--random --games 1000` (random-vs-random games on the rules engine, vanilla cards; `--rules` with every card's rules; a failing one writes `replay-<seed>.txt`), `--replay <file>` (play a replay action by action), `--match greedy random` (AI against AI), `--table-workload --games 1000` (Buddy's card moves as JSON lines for the table soak), `--sim` (play Buddy in the terminal with your real cards, Buddy's side on the sim table; `--faults stress` for scan errors), `--sim --games 1000 --faults stress` (the session soak, 5.6's gate: SimDev against Buddy, checks after every step). Card data: `ssh buddy bash ~/buddy/src/deploy/pi/setup.sh cards` |
 | system | `--once` (one host-metrics snapshot as JSON: CPU, RAM, disk, temperature, fan, network, throttle flags) |
 | table | `--cmd '{"action":"setup","legend":"L","champion":"C","deck":40,"runes":12}' '{"action":"deal","from":"deck","to":"hand","n":4}'` (commands on a fresh sim, prints events and the belief). Soak (5.5's gate, ~2.5 min): `ssh buddy '~/buddy/bin/buddy-game --table-workload --games 10000 --seed 0 --jobs 3 \| ~/buddy/bin/buddy-table --soak - --faults stress'`. Live: `mosquitto_pub -t buddy/table/cmd -m '{"action":"rescan_hand","seq":1}'`, events on `buddy/table/event`, the belief on `buddy/table/debug` |
 
