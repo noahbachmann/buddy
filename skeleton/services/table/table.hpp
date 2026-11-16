@@ -1,7 +1,11 @@
 #pragma once
 // buddy/table/cmd → tracker → buddy/table/event: one command, its events (hand_corrected first, then exactly one
 // done or failed for its seq). No MQTT, no backend of its own.
+//
+// The last command is idempotent (5.6, #52): game resends its one command in flight after a restart or a timeout,
+// and the same command with the same seq gets the events it got before, without running again. Setup always runs.
 
+#include <optional>
 #include <vector>
 
 #include <nlohmann/json_fwd.hpp>
@@ -23,6 +27,8 @@ public:
 private:
     Backend& backend_;
     Tracker tracker_;
+    std::optional<Command> last_;
+    std::vector<Event> last_events_;
 };
 
 } // namespace buddy::table

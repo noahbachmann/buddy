@@ -7,6 +7,7 @@ namespace buddy::table {
 using json = nlohmann::json;
 
 std::vector<Event> Table::execute(const Command& c) {
+    if (c.kind != CommandKind::Setup && last_ == c) return last_events_;
     Event result;
     result.seq = c.seq;
     backend_.begin_command();
@@ -32,6 +33,8 @@ std::vector<Event> Table::execute(const Command& c) {
     std::vector<Event> out = tracker_.take_corrections();
     for (Event& e : out) e.seq = c.seq;
     out.push_back(std::move(result));
+    last_ = c;
+    last_events_ = out;
     return out;
 }
 

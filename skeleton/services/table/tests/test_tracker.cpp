@@ -198,3 +198,26 @@ TEST(TableTracker, StateShowsTheBelief) {
     EXPECT_TRUE(s["held"].is_null());
 }
 
+
+// game resends its command in flight after a restart or a timeout (#52): the same seq and command answers again
+// without running again; another seq, or the same seq with another command, runs.
+TEST(TableTracker, ARepeatedCommandAnswersAgainWithoutRunning) {
+    Fixture f(setup_of({"C", "B", "A"}));
+    const Command deal{.kind = CommandKind::Deal, .seq = 10, .to = Place::Hand, .n = 1};
+    const auto first = f.table.execute(deal);
+    ASSERT_EQ(first.back().kind, EventKind::Done);
+    EXPECT_EQ(f.table.execute(deal), first);
+    EXPECT_EQ(f.table.tracker().belief().deck, 2);
+    EXPECT_EQ(f.hand(), (std::vector<std::string>{"A"}));
+
+    Command again = deal;
+    again.seq = 11;
+    EXPECT_EQ(f.table.execute(again).back().cards.at(0).code, "B");
+    EXPECT_EQ(f.table.tracker().belief().deck, 1);
+
+    Command other = again;  // same seq, another command: runs (a new game's seqs start over)
+    other.to = Place::Base;
+    EXPECT_EQ(f.table.execute(other).back().cards.at(0).code, "C");
+    EXPECT_EQ(f.table.tracker().belief().deck, 0);
+    EXPECT_EQ(f.sim.compare(f.table.tracker().belief(), f.table.tracker().hand_pile()), "");
+}
