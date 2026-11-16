@@ -24,6 +24,7 @@
 #include <map>
 #include <optional>
 #include <set>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -92,6 +93,29 @@ struct DevOption {
     bool operator==(const DevOption&) const = default;
 };
 std::string describe(const riftbound::GameState& s, const DevOption& o);
+// The panel's text for an option (#50), on the public view `pv`: a named card by its name, a hidden card by count
+// ("set aside a card"), an ability by its kind ("Mel, Defiant Soul: Empower"). Never an unnamed option's card.
+std::string option_text(const riftbound::GameState& pv, const DevOption& o);
+// play / activate / move / pass / choose: how the panel groups the buttons.
+std::string_view option_group(const DevOption& o);
+
+// What Dev's options are computed from: Buddy's seat, the binds that keep their card, the hidden hand cards Dev
+// named (no longer hidden), Dev's decklist (the candidates' order).
+struct DevContext {
+    PlayerId buddy = 0;
+    std::span<const ObjId> keep;
+    const std::set<ObjId>* named = nullptr;
+    const riftbound::Deck* dev_deck = nullptr;
+};
+// A hand card of Dev's Buddy doesn't know and Dev hasn't named.
+bool dev_hidden(const riftbound::GameState& s, PlayerId buddy, const std::set<ObjId>& named, ObjId obj);
+// The cards Dev could still name (#49): Dev's main deck and hand (runes: rune deck) minus what Buddy knows and the
+// kept binds, one entry per card in decklist order. A function of the placeholders' multiset, not their order.
+std::vector<const riftbound::Card*> dev_pool(const riftbound::GameState& s, PlayerId buddy,
+                                             std::span<const ObjId> keep, const riftbound::Deck& deck, bool runes);
+// Dev's options at Dev's decision on `s` (Session::dev_options(); free for the leak test, #50). Same list (and
+// order) for any arrangement of Dev's placeholders.
+std::vector<DevOption> dev_options(const riftbound::GameState& s, const DevContext& c);
 
 // Dev's input refused (not an option, an impossible card): the reason, nothing changed.
 class Refused : public std::invalid_argument {
@@ -154,6 +178,10 @@ public:
     // Buddy's hand as the table believes it, bottom → top (table ids).
     const std::vector<int>& table_hand() const { return table_hand_; }
     const riftbound::Replay& replay() const { return replay_; }
+    // What dev_options() needs besides the state (the leak test recomputes them on rearranged placeholders).
+    std::vector<ObjId> kept() const { return bound_.keep(s_, cfg_.buddy); }
+    const std::set<ObjId>& named() const { return named_; }
+    const SessionConfig& config() const { return cfg_; }
     std::string replay_text() const;  // every replay line so far
     const SessionStats& stats() const { return stats_; }
 
@@ -192,7 +220,6 @@ private:
     std::vector<Item> items(const riftbound::GameState& base, const riftbound::GameState& next,
                             const std::vector<riftbound::LoggedMove>& log, std::vector<TableMove> moves) const;
     std::vector<DevOption> options() const;
-    bool dev_hidden(ObjId obj) const;  // a hand card of Dev's Buddy doesn't know and Dev hasn't named
     void take_dev(const DevOption& o);
     void bind_line(ObjId obj, const riftbound::Card* card, bool kept);
     void send(table::Command c, Kind kind, int attempt = 0);
