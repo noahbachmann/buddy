@@ -59,15 +59,19 @@ Or tell Claude what to change.
 
 Factory reset first if it still has old data. Then:
 
-- [ ] Sign in with the Google account for the app, install **only** the app, and create the app profile by hand.
-- [ ] Play Store → the app → ⋮ → untick **Enable auto update**.
-- [ ] Settings → System → About phone → tap **Build number** 7× → Developer options unlocked.
-- [ ] Developer options: **USB debugging** on, **Stay awake** (while charging) on, **Window / Transition / Animator
-      animation scale** all **off**.
+- [x] Sign in with the Google account for the app, install **only** the app, and create the app profile by hand.
+- [x] Play Store → the app → ⋮ → untick **Enable auto update**.
+- [x] Settings → System → About phone → tap **Build number** 7× → Developer options unlocked.
+- [x] Developer options: **USB debugging** on, **Allow ADB debugging in charge only mode** on (EMUI hides ADB
+      without it), **Stay awake** (while charging) on, **Window / Transition / Animator animation scale** all **off**.
 - [ ] Settings → Battery → (More battery settings) → **Smart charging** on.
-- [ ] Settings → Security & privacy → Screen lock → **None**.
-- [ ] Do Not Disturb on. Auto-rotate off (portrait). Leave font and display size at the default.
-- [ ] Plug the phone into the Pi by USB. On the phone, accept **Allow USB debugging** and tick **Always allow from this
+- [ ] Settings → Battery → **App launch** → the app → switch **Manage automatically** off and leave **Auto-launch**,
+      **Secondary launch** and **Run in background** on. Why: EMUI kills apps in the background, and then the app's
+      message notifications (how the bot notices new messages first) don't arrive.
+- [x] Settings → Security & privacy → Screen lock → **None**.
+- [x] Do Not Disturb on. Auto-rotate off (portrait). Leave font and display size at the default.
+- [x] Plug the phone into the Pi by USB. On the phone, accept **Allow USB debugging** and tick **Always allow from this
       computer**.
 
-Then tell Claude the phone is connected, and step 0 starts (the spike: `adb`, screens, battery log over 24 h).
+Step 0 is done (2026-11-16). The phone keeps its keyboard set to the screener's own one (no keys): to type by hand,
+tap the keyboard icon at the bottom right and pick SwiftKey.
