@@ -699,7 +699,8 @@ function rbSend(cmd) {
     queueRender();
   }, 4000) };
   if (rbSheet && $("rb-sheet").open) $("rb-sheet").close();
-  send("game", { ...cmd, ...(v !== undefined && { v }) }).then((ok) => {
+  const withV = cmd.action === "act" || cmd.action === "reveal";  // resume/concede take no fields: v would be refused
+  send("game", { ...cmd, ...(withV && v !== undefined && { v }) }).then((ok) => {
     if (!ok && rbPending?.v === v) { clearTimeout(rbPending.timer); rbPending = null; queueRender(); }
   });
   queueRender();
@@ -875,7 +876,7 @@ function renderRiftbound() {
     ["dev", sig([g.players.dev, g.turn_player, optSig]), () => rbSide(g, "dev", place)],
   ]);
 
-  keyed($("rb-act"), [["act", JSON.stringify([g.status, g.pause, g.options, g.prompt, g.decision, rbPick, rbAll, !!rbPending]),
+  keyed($("rb-act"), [["act", JSON.stringify([g.status, g.pause, g.options, g.prompt, g.decision, g.voice, rbPick, rbAll, !!rbPending]),
     () => rbActions(g, place)]]);
   keyed($("rb-log"), (g.log ?? []).map((l, i) => [`${i}:${l.turn}:${l.text}`, "", () => el("li", { class: l.player },
     el("span", { class: "muted" }, `T${l.turn}`), " ", el("b", {}, l.player === "dev" ? "You" : "Buddy"), " ", l.text)]).reverse());
@@ -915,7 +916,11 @@ function rbActions(g, place) {
     nodes.push(el("p", { class: "muted" }, "This game can't go on: concede it, then start a new one."));
   }
   if (!["idle", "over"].includes(g.status)) {
-    nodes.push(el("div", { class: "controls rb-concede" }, el("button", {
+    // off by default: game then sends no lines to the voice service at all (no speech synthesized)
+    nodes.push(el("div", { class: "controls rb-concede" },
+      el("span", { class: "muted" }, "Buddy speaks"),
+      toggle(!!g.voice, "Buddy speaks", (on) => send("game", { action: "voice", on })),
+      el("button", {
       class: "chip-btn", disabled: busy,
       onclick: () => { if (confirm("Concede this game?")) rbSend({ action: "concede" }); },
     }, "Concede")));
@@ -1066,7 +1071,7 @@ $("rb-sheet").addEventListener("click", (e) => { if (e.target === e.currentTarge
 
 $("rb-new-form").addEventListener("submit", (e) => {
   e.preventDefault();
-  send("game", { action: "new", buddy: $("rb-new-buddy").value, dev: $("rb-new-dev").value });
+  send("game", { action: "new", buddy: $("rb-new-buddy").value, dev: $("rb-new-dev").value, voice: $("rb-new-voice").checked });
 });
 
 // --- services ---------------------------------------------------------------------------------------------------

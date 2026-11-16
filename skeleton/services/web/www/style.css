@@ -423,7 +423,10 @@ input.warmth { accent-color: var(--muted); }
 .rb-prompt { display: grid; gap: 12px; border-color: var(--accent); }
 .rb-prompt-q { font-weight: 600; }
 .rb-prompt-q small { color: var(--muted); font-weight: 400; }
-.rb-concede { justify-content: flex-end; }
+.rb-concede { justify-content: flex-end; align-items: center; }
+.rb-concede .switch { margin-right: 8px; }
+.rb-new label.rb-check { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 0.9rem; }
+.rb-check input { width: 20px; height: 20px; accent-color: var(--on); }
 .rb-log { margin: 0; padding: 10px 14px 10px 14px; list-style: none; max-height: 18rem; overflow-y: auto; font-size: 0.85rem; }
 .rb-log li + li { margin-top: 4px; }
 .rb-log b { font-weight: 600; }
