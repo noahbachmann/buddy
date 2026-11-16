@@ -1,0 +1,155 @@
+<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>
+<hierarchy rotation="0">
+ <node class="android.widget.FrameLayout" package="app.example" bounds="[0,0][1080,2060]">
+  <node class="android.widget.LinearLayout" package="app.example" bounds="[0,0][1080,2060]">
+   <node class="android.widget.FrameLayout" package="app.example" bounds="[0,0][1080,2060]">
+    <node resource-id="app.example:id/action_bar_root" class="android.widget.LinearLayout" package="app.example" bounds="[0,0][1080,2060]">
+     <node resource-id="android:id/content" class="android.widget.FrameLayout" package="app.example" bounds="[0,0][1080,2060]">
+      <node resource-id="app.example:id/activity_root" class="android.view.ViewGroup" package="app.example" bounds="[0,0][1080,2060]">
+       <node resource-id="app.example:id/sdui_notification_host" class="androidx.compose.ui.platform.ComposeView" package="app.example" bounds="[0,0][1080,2060]">
+        <node class="android.view.View" package="app.example" bounds="[0,0][1080,2060]" />
+       </node>
+       <node resource-id="app.example:id/blur_view" class="android.view.ViewGroup" package="app.example" bounds="[0,0][1080,2060]">
+        <node class="android.view.View" package="app.example" bounds="[0,0][1080,2060]" />
+       </node>
+       <node class="android.widget.FrameLayout" package="app.example" bounds="[0,0][1080,2060]">
+        <node resource-id="app.example:id/nav_host" class="android.widget.FrameLayout" package="app.example" bounds="[0,0][1080,2060]">
+         <node resource-id="app.example:id/nav_host" class="android.widget.FrameLayout" package="app.example" bounds="[0,0][1080,2060]">
+          <node class="androidx.compose.ui.platform.ComposeView" package="app.example" bounds="[0,0][1080,2060]">
+           <node class="android.view.View" package="app.example" bounds="[0,0][1080,2060]">
+            <node class="rzj" package="app.example" bounds="[0,0][1080,2060]">
+             <node class="android.widget.FrameLayout" package="app.example" bounds="[0,0][1080,2060]">
+              <node class="androidx.compose.ui.platform.ComposeView" package="app.example" bounds="[0,0][1080,2060]">
+               <node class="android.view.View" package="app.example" bounds="[0,0][1080,2060]">
+                <node class="android.view.View" package="app.example" bounds="[0,0][1080,2060]">
+                 <node class="android.view.View" package="app.example" bounds="[0,0][1080,2060]">
+                  <node class="android.view.View" package="app.example" bounds="[0,0][1080,2060]">
+                   <node class="android.view.View" package="app.example" bounds="[0,0][1080,1970]">
+                    <node class="android.view.View" package="app.example" bounds="[0,0][1080,1970]">
+                     <node class="android.view.View" package="app.example" bounds="[0,0][1080,1970]">
+                      <node class="android.view.View" package="app.example" scrollable="true" bounds="[0,223][1080,1970]">
+                       <node class="android.view.View" package="app.example" bounds="[60,280][1020,956]">
+                        <node class="android.view.View" package="app.example" bounds="[60,280][1020,956]">
+                         <node class="android.view.View" package="app.example" content-desc="Prompt: Question 1. Answer: Answer 1" bounds="[60,280][1020,956]" />
+                         <node class="android.view.View" package="app.example" bounds="[816,752][1020,956]">
+                          <node class="android.view.View" package="app.example" bounds="[816,752][1020,956]">
+                           <node class="android.widget.Button" package="app.example" content-desc="Like prompt" clickable="true" focusable="true" bounds="[846,782][990,926]" />
+                          </node>
+                         </node>
+                        </node>
+                       </node>
+                       <node class="android.view.View" package="app.example" bounds="[60,1016][1020,1970]">
+                        <node class="android.view.View" package="app.example" bounds="[60,1016][1020,1970]">
+                         <node class="android.view.View" package="app.example" scrollable="true" bounds="[60,1016][1020,1244]">
+                          <node class="android.view.View" package="app.example" bounds="[96,1046][307,1214]">
+                           <node class="android.view.View" package="app.example" content-desc="Age" bounds="[96,1094][168,1166]" />
+                           <node text="Text 11" class="android.widget.TextView" package="app.example" bounds="[204,1102][259,1159]" />
+                          </node>
+                          <node class="android.view.View" package="app.example" bounds="[355,1046][674,1214]">
+                           <node class="android.view.View" package="app.example" content-desc="Gender" bounds="[355,1094][427,1166]" />
+                           <node text="Text 12" class="android.widget.TextView" package="app.example" bounds="[463,1102][626,1159]" />
+                          </node>
+                          <node class="android.view.View" package="app.example" bounds="[722,1046][1020,1214]">
+                           <node class="android.view.View" package="app.example" content-desc="Sexuality" bounds="[722,1094][794,1166]" />
+                           <node text="Text 13" class="android.widget.TextView" package="app.example" bounds="[830,1102][1003,1159]" />
+                          </node>
+                         </node>
+                         <node class="android.view.View" package="app.example" bounds="[60,1244][1020,1397]">
+                          <node class="android.view.View" package="app.example" content-desc="Job" bounds="[96,1285][168,1357]" />
+                          <node text="Text 14" class="android.widget.TextView" package="app.example" bounds="[204,1292][267,1349]" />
+                         </node>
+                         <node class="android.view.View" package="app.example" bounds="[60,1397][1020,1550]">
+                          <node class="android.view.View" package="app.example" content-desc="Hometown" bounds="[96,1438][168,1510]" />
+                          <node text="Text 15" class="android.widget.TextView" package="app.example" bounds="[204,1445][306,1502]" />
+                         </node>
+                         <node class="android.view.View" package="app.example" bounds="[60,1550][1020,1703]">
+                          <node class="android.view.View" package="app.example" content-desc="Politics" bounds="[96,1591][168,1663]" />
+                          <node text="Text 16" class="android.widget.TextView" package="app.example" bounds="[204,1598][349,1655]" />
+                         </node>
+                         <node class="android.view.View" package="app.example" bounds="[60,1703][1020,1916]">
+                          <node text="Text 17" class="android.widget.TextView" package="app.example" bounds="[246,1751][960,1868]" />
+                         </node>
+                         <node class="android.view.View" package="app.example" bounds="[60,1916][1020,1970]">
+                          <node class="android.view.View" package="app.example" content-desc="Relationship Type" bounds="[96,1957][168,1970]" />
+                          <node text="Text 18" class="android.widget.TextView" package="app.example" bounds="[204,1964][452,1970]" />
+                         </node>
+                        </node>
+                       </node>
+                      </node>
+                      <node class="android.view.View" package="app.example" bounds="[0,0][1080,223]">
+                       <node class="android.view.View" package="app.example" bounds="[468,193][612,295]" />
+                       <node class="android.view.View" package="app.example" bounds="[0,90][1080,223]">
+                        <node class="android.view.View" package="app.example" bounds="[422,120][658,193]">
+                         <node class="android.view.View" package="app.example" bounds="[422,120][598,193]" />
+                         <node class="android.view.View" package="app.example" content-desc="Selfie Verified" bounds="[610,133][658,181]" />
+                        </node>
+                        <node class="android.view.View" package="app.example" bounds="[924,102][1056,210]">
+                         <node class="android.view.View" package="app.example" bounds="[936,102][1044,210]">
+                          <node class="android.widget.Button" package="app.example" content-desc="More" clickable="true" focusable="true" bounds="[918,84][1062,228]" />
+                         </node>
+                        </node>
+                       </node>
+                       <node class="android.view.View" package="app.example" bounds="[0,18][1080,162]" />
+                      </node>
+                     </node>
+                     <node class="android.view.View" package="app.example" bounds="[60,1724][246,1910]">
+                      <node class="android.widget.Button" package="app.example" content-desc="Skip Alex" clickable="true" focusable="true" bounds="[60,1724][246,1910]" />
+                     </node>
+                    </node>
+                   </node>
+                   <node class="android.view.View" package="app.example" bounds="[468,1898][612,1970]" />
+                   <node class="rzj" package="app.example" bounds="[0,1970][1080,2060]">
+                    <node class="androidx.compose.ui.platform.ComposeView" package="app.example" bounds="[0,1970][1080,2060]">
+                     <node class="android.view.View" package="app.example" bounds="[0,1970][1080,2060]">
+                      <node class="android.view.View" package="app.example" bounds="[0,1970][1080,2060]">
+                       <node class="android.view.View" package="app.example" bounds="[0,1970][1080,2060]">
+                        <node class="android.view.View" package="app.example" focusable="true" selected="true" bounds="[0,1970][216,2060]">
+                         <node class="android.view.View" package="app.example" content-desc="Discover" bounds="[0,1970][216,2060]" />
+                         <node class="android.view.View" package="app.example" bounds="[69,1970][153,2060]" />
+                         <node class="android.view.View" package="app.example" bounds="[0,1970][216,2060]" />
+                        </node>
+                        <node class="android.view.View" package="app.example" clickable="true" focusable="true" bounds="[216,1970][432,2060]">
+                         <node class="android.view.View" package="app.example" content-desc="Text 10" bounds="[216,1970][432,2060]" />
+                         <node class="android.view.View" package="app.example" bounds="[282,1970][366,2060]" />
+                         <node class="android.view.View" package="app.example" bounds="[216,1970][432,2060]" />
+                        </node>
+                        <node class="android.view.View" package="app.example" clickable="true" focusable="true" bounds="[432,1970][648,2060]">
+                         <node class="android.view.View" package="app.example" content-desc="Likes You" bounds="[432,1970][648,2060]" />
+                         <node class="android.view.View" package="app.example" bounds="[498,1970][582,2060]" />
+                         <node class="android.view.View" package="app.example" bounds="[432,1970][648,2060]" />
+                        </node>
+                        <node class="android.view.View" package="app.example" clickable="true" focusable="true" bounds="[648,1970][864,2060]">
+                         <node class="android.view.View" package="app.example" content-desc="Matches, 1 new message" bounds="[648,1970][864,2060]" />
+                         <node class="android.view.View" package="app.example" bounds="[714,1970][798,2060]" />
+                         <node class="android.view.View" package="app.example" bounds="[648,1970][864,2060]" />
+                        </node>
+                        <node class="android.view.View" package="app.example" clickable="true" focusable="true" bounds="[864,1970][1080,2060]">
+                         <node class="android.view.View" package="app.example" content-desc="Profile Hub" bounds="[864,1970][1080,2060]" />
+                         <node class="android.view.View" package="app.example" bounds="[924,1970][1020,2060]" />
+                         <node class="android.view.View" package="app.example" bounds="[864,1970][1080,2060]" />
+                        </node>
+                       </node>
+                      </node>
+                     </node>
+                    </node>
+                   </node>
+                  </node>
+                 </node>
+                </node>
+               </node>
+              </node>
+             </node>
+            </node>
+           </node>
+          </node>
+         </node>
+        </node>
+       </node>
+      </node>
+     </node>
+    </node>
+   </node>
+  </node>
+  <node resource-id="android:id/navigationBarBackground" class="android.view.View" package="app.example" bounds="[0,0][0,0]" />
+ </node>
+</hierarchy>

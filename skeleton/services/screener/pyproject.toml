@@ -1,0 +1,22 @@
+[project]
+name = "buddy-screener"
+version = "0.1.0"
+description = "Screens chats in a social app on a dedicated Android phone over adb (#66)"
+requires-python = ">=3.12"
+dependencies = [
+    "buddy-shared",
+    "pillow>=11",     # screenshot crops: photo hashes now, image input for the decision calls later
+]
+
+[project.scripts]
+buddy-screener = "buddy_screener.main:main"
+
+[tool.uv.sources]
+buddy-shared = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["buddy_screener"]

@@ -5,13 +5,13 @@
 # Explicit list (uv needs a pyproject.toml in every match): a new Python service is added here, like a C++ one to
 # CMakeLists.txt.
 [tool.uv.workspace]
-members = ["shared/python", "tools/voice"]
+members = ["shared/python", "tools/voice", "services/screener"]
 
 [dependency-groups]
 dev = ["pytest>=8.3"]
 
 [tool.pytest.ini_options]
-testpaths = ["shared/python/tests", "tools"]
+testpaths = ["shared/python/tests", "tools", "services/screener/tests"]
 # deploy/test.sh passes the root: never collect build dirs (FetchContent sources bring their own tests)
 norecursedirs = ["build*", ".*", "node_modules"]
 
