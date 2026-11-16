@@ -233,8 +233,9 @@ const DevPrompt* Session::prompt() const {
 }
 
 void Session::on_reveal(const std::vector<const Card*>& cards) {
-    const DevPrompt* p = prompt();
-    if (p == nullptr) throw std::logic_error("session: nothing to name");
+    if (prompt() == nullptr) throw std::logic_error("session: nothing to name");
+    const DevPrompt prompt_copy = *prompt();  // the step's list is replaced below
+    const DevPrompt* p = &prompt_copy;
     const auto refuse = [&](const std::string& why) {
         ++stats_.refusals;
         throw Refused(why);
@@ -757,6 +758,8 @@ void Session::take_dev(const DevOption& o) {
             bound_.add(s_, o.obj);
             named_.insert(o.obj);
             ++stats_.dev_named;
+        } else {
+            ++stats_.dev_assumed;
         }
         bind_line(o.obj, o.card, o.named);
     }

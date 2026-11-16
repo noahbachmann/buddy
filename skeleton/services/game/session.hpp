@@ -117,7 +117,7 @@ struct Outputs {
 struct SessionStats {
     long steps = 0, commands = 0, binds = 0, reapplies = 0, re_decides = 0, retries = 0, corrections = 0,
          misreads = 0, reorders = 0, extras = 0, pauses = 0, resumes = 0;
-    long dev_decisions = 0, dev_forced = 0, dev_named = 0, prompts = 0, refusals = 0;
+    long dev_decisions = 0, dev_forced = 0, dev_named = 0, dev_assumed = 0, prompts = 0, refusals = 0;
 };
 
 class Session {
