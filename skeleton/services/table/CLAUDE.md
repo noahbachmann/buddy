@@ -34,4 +34,6 @@ The engine side (which commands a game step needs): `services/game/table_moves.*
 - A double feed can land a same-code copy further up at the bottom: the confirm read accepts it, the belief's order
   drifts until the next recovery. Same codes, so nothing wrong gets played; the final rescan fixes it.
 - Ids are the table's, per game from 1 (legend, champion); a card going into a deck loses its id.
+- A play whose recovery finds the asked card misread (`replaced`: the id is another code) fails `not_in_hand` (#48):
+  nobody chose to play the other card; game rebinds it and decides again.
 - `Sim::compare` needs the hand tray: `tracker().hand_pile()`.

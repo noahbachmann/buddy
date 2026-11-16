@@ -193,7 +193,10 @@ CardRef Tracker::play(int id, Place to) {
     // Mismatch: one pile again, recover, then look for the card the slow way (every card read on the spot).
     merge();
     recover();
+    const std::string asked = code;
     std::tie(j, code) = locate(id, true);
+    // the recovery found the asked card misread (replaced): it's another card, which nobody chose to play
+    if (code != asked) throw Failure(FailReason::NotInHand, "card " + std::to_string(id) + " is " + code + ", not " + asked);
     if (search(j, id, code, to)) return {id, code};
     recover();
     throw Failure(FailReason::NotInHand, "card " + std::to_string(id) + " not found");
