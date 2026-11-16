@@ -24,6 +24,7 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 | `skeleton/services/web/CLAUDE.md` | Web panel internals: server, state stream, `www/` page structure |
 | `skeleton/services/game/CLAUDE.md` | Riftbound engine as it is now: the loop, hidden information, hook points for cards, invariants, test helpers, gotchas |
 | `skeleton/services/table/CLAUDE.md` | Buddy's physical cards (5.5): tracker procedures, sim faults, soak, gotchas |
+| `skeleton/android/screener-ime/CLAUDE.md` | The screener phone's keyboard (#66): adb commands, build and install, gotchas |
 | `parts/CLAUDE.md` | CAD toolchain (pinned OpenSCAD nightly, BOSL2, NopSCADlib, Python checks), conventions for printable parts |
 
 - Read this file and `buddy-hardware.md` before answering about setup, parts or next steps.
@@ -252,6 +253,7 @@ buddy/
 │   │   └── game/            ← Riftbound: riftbound/ lib (cards, decks, rules, AI), table moves, decks/ (Phase 5)
 │   ├── tools/voice/         ← commands.tsv (corpus) + buddy_voice (record/train/eval, runs on the PC)
 │   ├── firmware/pico-motion/ ← Pico 2 firmware: all servos (separate CMake project, D17)
+│   ├── android/screener-ime/ ← keyboard on the screener phone: types and reads back text (Gradle project, Kotlin, #66)
 │   └── deploy/              ← PC scripts; pi/ = scripts that run on the Pi; config/ = units, env example, PipeWire
 └── parts/                   ← printable parts: one folder per module (arm/, dispenser/ card roller: parametric OpenSCAD), lib/ (BOSL2,
                                 NopSCADlib submodules), tools/ (setup.sh, CAD checks, #54)

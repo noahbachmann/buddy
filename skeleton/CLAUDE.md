@@ -62,6 +62,11 @@ physical cards).
 
 No unit tests on the Pico: the logic that can break (protocol) lives in the shared header and is tested on the host.
 
+## android/screener-ime (screener phone keyboard, own Gradle project, built on the VM)
+
+Types and reads back text in the app's fields over adb broadcasts (the app hides field text from `uiautomator`).
+Details, build and install: `android/screener-ime/CLAUDE.md`.
+
 ## tools/voice (Python, runs on the PC; `deploy/record.sh`, `deploy/train.sh`)
 
 | File | What |
