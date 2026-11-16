@@ -484,9 +484,14 @@ struct LoggedMove {
     std::uint8_t from_where = 0, to_where = 0;
     Pos pos = Pos::Top;
     bool created = false;
+    bool peek = false;  // no move: the top of the main deck was looked at (predict, 817), from = to = MainDeck
     bool operator==(const LoggedMove&) const = default;
 };
 inline thread_local std::vector<LoggedMove>* move_log = nullptr;
+// Logs that `id`, the top of its main deck, was looked at: the table has to scan it before the answer (Vision).
+inline void log_peek(ObjId id) {
+    if (move_log) [[unlikely]] move_log->push_back({id, Zone::MainDeck, Zone::MainDeck, 0, 0, Pos::Top, false, true});
+}
 // Moves a card. Into or out of a non-board zone it becomes a new object (124): gen + 1, damage, buffs, statuses and
 // designation cleared, controller back to the owner. No events, no replacements: game actions (actions.hpp) do that.
 // Attached gear goes along on the board (719.3.a) and detaches where it is when its top-most card leaves the board
@@ -507,6 +512,18 @@ void channel(GameState& s, PlayerId p, int n);
 // 417: to the bottom of the owner's main or rune deck; two or more in random order (417.5), so nobody knows which
 // is which any more (Object::known cleared).
 void recycle(GameState& s, std::vector<ObjId> ids);
+
+// Identities the outside world reveals (5.6): the table's scans of Buddy's cards, Dev's real cards. The engine's
+// cards for objects `knower` doesn't know are only one possibility; bind makes `obj` the card that turned out to be
+// there. It swaps Object::card with another object of the same owner holding `card`, taken from the pool of cards
+// `knower` doesn't know: the owner's main and rune deck, plus their hand if the owner isn't `knower` (Dev's hand is
+// as unknown as their deck). Zones, gen and known stay, so views and determinizations stay valid. `obj` must not be
+// public (known to everyone); it may be known to `knower`: a misread hand card is corrected the same way (Buddy's
+// hand object takes the true card from an unknown deck object). Runes swap only with runes. false = no such object
+// (the state is unchanged); already `card` = true.
+bool bind(GameState& s, ObjId obj, const Card* card, PlayerId knower);
+// The table's hand order after a disturbed pile (5.6): `ids` must be a permutation of p's hand. false = it isn't.
+bool set_hand_order(GameState& s, PlayerId p, const std::vector<ObjId>& ids);
 
 // Every object in exactly one zone list (or chain item), matching its zone/owner/controller/where; occupancy of
 // single-card zones; pools ≥ 0; a sane decision. Empty = fine. The random games check it after every action.

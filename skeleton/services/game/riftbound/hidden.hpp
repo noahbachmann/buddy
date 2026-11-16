@@ -17,6 +17,8 @@ const Card* hidden_card();
 // information: setup creates deck objects in shuffled order. Not playable: the engine needs real cards, so search
 // plays on determinize(view(…)).
 GameState view(const GameState& s, PlayerId p);
+// The game as a bystander sees it (the panel, 5.6): only cards everyone knows stay; neither hand nor any deck order.
+GameState public_view(const GameState& s);
 
 // One state consistent with a view: per owner, the hidden objects get the deck's cards that no visible object
 // holds, at random (rune deck: its runes, everywhere else: the rest). The RNG is reseeded from `rng`. Throws

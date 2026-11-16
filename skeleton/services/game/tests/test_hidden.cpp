@@ -106,3 +106,117 @@ TEST(RiftboundHidden, ViewsAlongRandomGames) {  // real decks with and without r
         EXPECT_EQ(test::views_along_a_game(a, b, seed, true), "");
     }
 }
+
+// 5.6: identities revealed from outside (table scans, Dev's real cards) bound into the state.
+
+TEST(RiftboundHidden, BindSwapsWithAnUnknownCardOfTheOwner) {
+    GameState s = new_game(vi(), zed(), {.seed = 4, .vanilla = true});
+    const auto& deck = s.player(0).main_deck;
+    const ObjId top = deck.back();
+    const auto other = std::find_if(deck.begin(), deck.end(), [&](ObjId id) { return s.obj(id).card != s.obj(top).card; });
+    ASSERT_NE(other, deck.end());
+    const ObjId partner = *other;
+    const Card *was = s.obj(top).card, *want = s.obj(partner).card;
+    const GameState before = s;
+    ASSERT_TRUE(bind(s, top, want, 0));  // Buddy (seat 0) scans its top card: it is `want`
+    EXPECT_EQ(s.obj(top).card, want);
+    EXPECT_NE(std::count_if(s.objects.begin(), s.objects.end(), [&](const Object& o) { return o.card == was; }), 0);
+    EXPECT_EQ(test::card_counts(s), test::card_counts(before));
+    for (ObjId id = 0; id < s.objects.size(); ++id) {  // zones, gen and known stay
+        EXPECT_EQ(s.obj(id).zone, before.obj(id).zone);
+        EXPECT_EQ(s.obj(id).gen, before.obj(id).gen);
+        EXPECT_EQ(s.obj(id).known, before.obj(id).known);
+    }
+    EXPECT_EQ(check_invariants(s), std::vector<std::string>{});
+    EXPECT_EQ(view(s, 0), view(before, 0));
+    EXPECT_EQ(view(s, 1), view(before, 1));
+    EXPECT_TRUE(bind(s, top, want, 0));  // already that card
+}
+
+TEST(RiftboundHidden, BindRefusesWhatCantBe) {
+    GameState s = new_game(vi(), zed(), {.seed = 4, .vanilla = true});
+    const GameState before = s;
+    const ObjId top = s.player(0).main_deck.back(), rune = s.player(0).rune_deck.back();
+    EXPECT_FALSE(bind(s, top, s.obj(rune).card, 0));             // a rune into the main deck
+    EXPECT_FALSE(bind(s, rune, s.obj(top).card, 0));             // and back
+    EXPECT_FALSE(bind(s, top, s.obj(s.player(1).main_deck.back()).card, 0));  // the opponent's card
+    EXPECT_FALSE(bind(s, s.player(0).legend.front(), s.obj(top).card, 0));    // public
+    EXPECT_EQ(s, before);
+    // Buddy's own hand is known to Buddy: never in Buddy's pool. A card only in it can't be bound to the deck.
+    std::map<const Card*, int> in_deck;
+    for (const ObjId id : s.player(0).main_deck) ++in_deck[s.obj(id).card];
+    for (const ObjId id : s.player(0).hand) {
+        if (in_deck.count(s.obj(id).card)) continue;
+        EXPECT_FALSE(bind(s, top, s.obj(id).card, 0));
+        EXPECT_EQ(s, before);
+    }
+}
+
+TEST(RiftboundHidden, RebindCorrectsAMisreadHandCard) {  // a misread at draw: the hand object takes the true card
+    GameState s = new_game(vi(), zed(), {.seed = 4, .vanilla = true});
+    const ObjId held = s.player(0).hand.front();
+    const auto& deck = s.player(0).main_deck;
+    const auto other = std::find_if(deck.begin(), deck.end(), [&](ObjId id) { return s.obj(id).card != s.obj(held).card; });
+    ASSERT_NE(other, deck.end());
+    const Card *misread = s.obj(held).card, *truth = s.obj(*other).card;
+    const GameState before = s;
+    ASSERT_TRUE(bind(s, held, truth, 0));
+    EXPECT_EQ(s.obj(held).card, truth);
+    EXPECT_EQ(s.obj(*other).card, misread);  // the misread card is still somewhere in the unknown deck
+    EXPECT_EQ(test::card_counts(s), test::card_counts(before));
+    EXPECT_EQ(view(s, 1), view(before, 1));  // Dev saw nothing
+    EXPECT_EQ(check_invariants(s), std::vector<std::string>{});
+}
+
+TEST(RiftboundHidden, DevsHandIsInTheirPool) {  // Dev plays real cards: their hand is as unknown to Buddy as their deck
+    GameState s = new_game(vi(), zed(), {.seed = 4, .vanilla = true});
+    const ObjId placeholder = s.player(1).hand.front();
+    const ObjId in_deck = s.player(1).main_deck.front();
+    const Card* played = s.obj(in_deck).card;
+    const GameState before = s;
+    ASSERT_TRUE(bind(s, placeholder, played, 0));
+    EXPECT_EQ(s.obj(placeholder).card, played);
+    EXPECT_EQ(view(s, 0), view(before, 0));  // Buddy's view of Dev's hidden cards: unchanged
+    // and from Dev's hand: binding a deck card to a card only in Dev's hand works too
+    const auto& hand = s.player(1).hand;
+    ASSERT_GT(hand.size(), 1u);
+    EXPECT_TRUE(bind(s, s.player(1).main_deck.back(), s.obj(hand[1]).card, 0));
+}
+
+TEST(RiftboundHidden, SetHandOrder) {
+    GameState s = new_game(vi(), zed(), {.seed = 4, .vanilla = true});
+    auto hand = s.player(0).hand;
+    std::reverse(hand.begin(), hand.end());
+    EXPECT_TRUE(set_hand_order(s, 0, hand));
+    EXPECT_EQ(s.player(0).hand, hand);
+    EXPECT_FALSE(set_hand_order(s, 0, {hand[0], hand[0], hand[1], hand[2]}));
+    EXPECT_FALSE(set_hand_order(s, 0, {hand.begin(), hand.end() - 1}));
+    EXPECT_FALSE(set_hand_order(s, 0, s.player(1).hand));
+    EXPECT_EQ(s.player(0).hand, hand);
+    EXPECT_EQ(check_invariants(s), std::vector<std::string>{});
+}
+
+TEST(RiftboundHidden, PublicViewShowsOnlyWhatEveryoneKnows) {
+    GameState s = new_game(vi(), zed(), {.seed = 4, .vanilla = true});
+    const ObjId top = s.player(0).main_deck.back();
+    s.obj(top).known |= 1u;  // Buddy predicted it (Vision)
+    const GameState v = public_view(s);
+    for (ObjId id = 0; id < s.objects.size(); ++id) {
+        EXPECT_EQ(hidden(v, id), s.obj(id).known != everyone) << id;
+    }
+    for (PlayerId p = 0; p < player_count; ++p) {
+        for (const ObjId id : s.player(p).hand) EXPECT_TRUE(hidden(v, id));
+    }
+    EXPECT_TRUE(hidden(v, top));
+    EXPECT_FALSE(hidden(v, s.player(0).legend.front()));
+    EXPECT_EQ(v.rng, Rng{});
+}
+
+TEST(RiftboundHidden, RandomBindsAlongRandomGames) {  // either seat as Buddy, with and without rules
+    for (std::uint64_t seed = 0; seed < 4; ++seed) {
+        for (PlayerId buddy = 0; buddy < player_count; ++buddy) {
+            EXPECT_EQ(test::binds_along_a_game(vi(), zed(), seed, true, buddy), "");
+            EXPECT_EQ(test::binds_along_a_game(zed(), vi(), seed, false, buddy), "");
+        }
+    }
+}

@@ -1,7 +1,7 @@
 # services/game – Riftbound engine quick reference
 
-What the engine does **now** (state after #45: 5.3, 5.4 and 5.5 done: arena, v1 greedy, engine speed, v2 ISMCTS, table
-moves) and where the next work plugs in.
+What the engine does **now** (state after #47: 5.3, 5.4 and 5.5 done: arena, v1 greedy, engine speed, v2 ISMCTS, table
+moves; 5.6 engine side: binding revealed cards, public view, replay reveals) and where the next work plugs in.
 Why it is built this way: `docs/plans/05-riftbound.md` → "5.2 design", "5.3 as built" (with the rulings, confirmed by Dev),
 "5.4 design", "5.5 design"/"as built". Sub-issues: 5.2 #20, 5.3 #33, 5.4 #39, 5.5 #45. Rules text: `~/buddy/data/riftbound/core-rules-2026-10-09.txt`
 on the VM (grep the rule number); full card text: `~/buddy/data/riftbound/cards.json` (VM and Pi, not in Git).
@@ -11,15 +11,15 @@ on the VM (grep the rule number); full card text: `~/buddy/data/riftbound/cards.
 | File | What |
 |---|---|
 | `card_db`, `code`, `deck` | Card data, printed codes, decklists (5.1). `Card::timing` = leading `[Action]`/`[Reaction]` (`printed_timing()`); `Card::rules` = its `CardRules` (nullptr = not implemented) |
-| `state` | `GameState` value: objects (`ObjId` + `gen`, 124; `attached` = the unit an Equipment hangs on), zone id lists, `active` (ascending ids in board and legend zones, `active_zone()`: what rules loops walk instead of every object; kept by `move_to`/`create`), pools, battlefields (`controller`, `contested`), chain (`ChainItem` with targets, cost, step counters, unit location `to`, `play` = `played::` bits: Flow, Ambush, token to base / exhausted; `rep` = Repeat execution), `passes`, `showdown` (`Showdown`: focus, passes, attacker, damage assignment), tasks, decision, RNG, and the ability data: `triggered`, `effects`, `delayed`, `uses`, `links`. `move_to` (raw zone change, no events; carries attached gear, detaches it when its unit leaves the board, a token off the board → `Removed`), `create` (new object), `draw`, `burn`, `channel`, `recycle`, `turn_state`, `chain_priority`, `lethal_damage`, `check_invariants` |
+| `state` | `GameState` value: objects (`ObjId` + `gen`, 124; `attached` = the unit an Equipment hangs on), zone id lists, `active` (ascending ids in board and legend zones, `active_zone()`: what rules loops walk instead of every object; kept by `move_to`/`create`), pools, battlefields (`controller`, `contested`), chain (`ChainItem` with targets, cost, step counters, unit location `to`, `play` = `played::` bits: Flow, Ambush, token to base / exhausted; `rep` = Repeat execution), `passes`, `showdown` (`Showdown`: focus, passes, attacker, damage assignment), tasks, decision, RNG, and the ability data: `triggered`, `effects`, `delayed`, `uses`, `links`. `move_to` (raw zone change, no events; carries attached gear, detaches it when its unit leaves the board, a token off the board → `Removed`), `create` (new object), `draw`, `burn`, `channel`, `recycle`, `bind`/`set_hand_order` (5.6, see Hidden information), `turn_state`, `chain_priority`, `lethal_damage`, `check_invariants` |
 | `rules` | `CardRules` (the hooks a card implements), `AbilitySpec` (`builtin`: Empower, Equip), `TargetSpec`, `CostMod`, `Mod`; `Resolution` (what `resolve()` works with); `active_rules` (rules that work where the card is, none while attached); targets (`candidates`, `still_valid`, `target_slots`/`target_spec`: once per Repeat), `optional_costs` (card's, Accelerate, Repeats), `total_cost` (Flow base, Deflect), `payable`, `completable` (355.16: targets + cost can still work out); `predict`, `resolve_builtin` (Vision, Empower, Equip); `filters::`; `rules_of`/`active_rules` inline (hot) |
 | `actions` | Game actions abilities see: `kill`/`kill_all` (Die → Died), `deal`, `heal`, `exhaust`, `ready`, `recall`, `move` (Moved events, contests the destination), `contest`, `stun`, `buff`, `discard`, `empower`/`disempower`, `banish` (Banished event), `return_to_hand`, `add`, `pay_energy`, `attach`/`detach`, `play_token`; `emit` (queue triggers, Vision), `replaced` (replacement effects); layers `traits`/`might`/`has` (Assault/Shield while designated, Might Bonus of attached gear); `mighty`; `give`/`give_might`/`double_might`, `expire`, `prune`; `uses`, `link`/`linked`; `has_units_at` |
 | `tokens` | The decks' tokens with their rules: `bird()` (Deflect), `shadow_clone()` (attack trigger), `gold()` (Add [A]) |
 | `pay` | Rune payment of Energy, domain Power, then any-domain Power ([A]); which rune to recycle is the only choice (`Recycle` decision, one pick per domain) |
 | `engine` | `new_game`, `legal_actions`, `apply`, `concede`, `playable`, `describe`; the loop `run()`, `cleanup()`, `run_task()`, `finalize()`, `resolve_step()`, `place_triggers()`; showdowns and combat (`begin`, `pass_focus`, `score`, `establish_control`, damage assignment `assign_options`), Standard Move (`can_move`) |
 | `random_game` | `play_random()`: uniform random seats, `GameChecks` after every action (invariants, card count, turn start); vanilla or with rules; counts spells, chain plays, activations, triggers, choices, moves, showdowns, combats, scorings; `log` = the actions (failing one included) |
-| `hidden` | `view(s, p)`: objects p doesn't know (`Object::known` bit, set by `move_to`/`recycle`/`predict`) get `hidden_card()`, RNG reset; not playable. `determinize(view, seat0, seat1, rng)`: per owner the decklist minus visible cards, shuffled onto the hidden objects (rune deck: runes), RNG reseeded |
-| `replay` | `Replay` (seed, vanilla, both decklists' text, actions) ⇄ text (`parse_replay`, `to_text`: annotated by replaying), `run_replay` (GameChecks after every action; `buddy-game --replay`) |
+| `hidden` | `view(s, p)`: objects p doesn't know (`Object::known` bit, set by `move_to`/`recycle`/`predict`) get `hidden_card()`, RNG reset; not playable. `public_view(s)`: only cards known to everyone (the panel's source, 5.6). `determinize(view, seat0, seat1, rng)`: per owner the decklist minus visible cards, shuffled onto the hidden objects (rune deck: runes), RNG reseeded |
+| `replay` | `Replay` (seed, vanilla, both decklists' text, actions; 5.6: `buddy` seat + `reveals`: `bind <obj> <code>` / `order <p> <ids…>` lines before the action they precede, `apply_reveal`) ⇄ text (`parse_replay`, `to_text`: annotated by replaying), `run_replay` (GameChecks after every action; `buddy-game --replay`) |
 | `rng` | xoshiro256\*\*, own `below`/`shuffle` (portable replays) |
 | `ai/player` | `Player` (`begin(seat, decks)`, `choose(view, actions)`: never the referee's state; `iterations()` of the last search), `RandomPlayer`; `ActionKey` / `key_of` (hand and trash cards by card, the rest by id), `distinct` |
 | `ai/arena` | `play_game` (forced moves applied unasked, `GameChecks` after every action, per-seat `SeatStats`: legal actions per decision, forced, time and iterations per asked decision, Choose runs), `play_match` (`PlayerFactory` per game, `pairing()`: seed S + i/2, players swapped every game, decks every other seed; `--jobs` threads, results independent of them), `wilson`, `percentile` |
@@ -36,7 +36,10 @@ installed by `MoveRecorder` around the referee's `new_game`/`apply` only (search
 one load per move; the `--random` digest is unchanged). `table_setup` takes the created objects off new_game's log
 (legend, champion, decks bottom → top). `TableMoves::step(after, log)`: the seat's cards, hops through the chain or
 set aside collapsed (hand → chain → base = one play, mulligan = play → deck bottom after the redraw), deck → place
-= `deal` (consecutive ones merged), deck → deck bottom = `peek` + `peek_done`, created = `token`, a token gone =
+= `deal` (consecutive ones merged), Vision = `peek` when the engine shows the seat its top card (a `peek` entry in the
+log from `predict`: the step ends with the keep-or-recycle decision open), then `peek_done` (deck top or bottom) first
+in the answer's step (`TableMoves` remembers the card on the scan spot), deck → deck bottom unpeeked = `peek` +
+`peek_done`, created = `token`, a token gone =
 `remove`, hand → anywhere = `play`, else `move`; then exhaust/ready where the state differs from what the table shows.
 `nearest_copy(s, a)`: of same-card copies in hand play the lowest index (the table plays exactly the id asked, so the
 engine's hand order stays the pile's): game (5.6) calls it on Buddy's chosen action before `apply`.
@@ -65,6 +68,14 @@ order); `predict` → + predictor. Setup creates deck objects after shuffling, s
 rule that looks at or reveals a hidden card (5.3) must set `known` too; `check_invariants` checks public and hand
 cards. `test_hidden.hpp`'s `views_along_a_game` checks after every action that a determinization is valid, has the
 same view and gives the deciding player the same legal actions: run it on any new deck.
+
+Revealed identities (5.6): the referee doesn't know Dev's real cards or the order of Buddy's physically shuffled deck,
+so the engine's cards for objects Buddy doesn't know are one possibility. `bind(s, obj, card, knower)` (knower = Buddy's
+seat) swaps `Object::card` with the first object (by id) of the same owner that holds `card` and sits in the pool:
+the owner's main and rune deck unknown to the knower, plus the hand if the owner isn't the knower. `obj` must not be
+public; it may be the knower's own hand card (a misread at draw: same call). Runes only with runes. Zones, `gen`,
+`known` unchanged, so views, determinizations and per-owner card counts stay valid; binding the knower's own cards
+changes neither player's view (`binds_along_a_game`). `set_hand_order` = the table's order after a disturbed pile.
 
 ## Writing a card (5.3)
 
@@ -148,7 +159,7 @@ start, e.g. a determinization, skips its own turn).
   ability-deck games in `test_abilities`; `apply` accepts exactly `legal_actions`), `test_ai` (keys, players only get views, matches reproducible across
   jobs, eval, greedy on hand-built states: conquer, lethal, no trade down, no own target; greedy vs random 8 games;
   ISMCTS reproducible with 1 and 3 threads, takes the win in 1, ≥ 1000 searched decisions in ISMCTS-vs-ISMCTS games all legal: ~30 s under ASan), `test_hidden` (knowledge, view, determinize; views along random games, the
-  ability deck's in `test_abilities`; real decks with rules too), `test_replay`, `test_gate` (1000 games of the real
+  ability deck's in `test_abilities`; real decks with rules too), `test_replay` (incl. binds/orders round trip), `test_gate` (1000 games of the real
   decks, vanilla (5.2) and with rules (5.3); writes the replay of a failure).
 - `test_real.hpp` + `test_cards_vi.cpp` / `test_cards_zed.cpp` (5.3): real cards from the fixture with their rules
   (`real(name)`), `real_deck` (test frame, Zap, the deck's runes), `fund` (pool energy/power), `zap_kill`; one

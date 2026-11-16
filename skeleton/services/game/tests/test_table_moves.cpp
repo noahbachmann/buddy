@@ -77,7 +77,9 @@ std::string compare(const GameState& s, PlayerId seat, const table::StandIn& t) 
         for (const auto& k : t.table().tracker().belief().hand) t2 += " [" + std::to_string(k.id) + "]";
         return e + t2 + " recoveries " + std::to_string(t.table().tracker().counts().recoveries) + " feeds " + std::to_string(t.table().tracker().counts().feeds);
     }
-    if (codes(pl.main_deck) != truth(sim.pile(table::Pile::Deck))) return "deck order differs";
+    auto deck = truth(sim.pile(table::Pile::Deck));
+    for (const auto& c : sim.pile(table::Pile::Spot)) deck.push_back(c.code);  // peeked: still the deck's top
+    if (codes(pl.main_deck) != deck) return "deck order differs";
     if (codes(pl.rune_deck) != truth(sim.pile(table::Pile::Runes))) return "rune deck order differs";
     std::map<TPlace, std::vector<std::pair<std::string, bool>>> engine, tab;
     for (ObjId id = 0; id < s.objects.size(); ++id) {
@@ -112,7 +114,9 @@ struct Coverage {
         const auto& c = m.cmd;
         std::string k(table::to_string(c.kind));
         if (c.kind == CommandKind::Deal) k += std::string(" ") + std::string(table::to_string(c.from)) + "→" + std::string(table::to_string(c.to));
-        if (c.kind == CommandKind::Play || c.kind == CommandKind::Move) k += "→" + std::string(table::to_string(c.to));
+        if (c.kind == CommandKind::Play || c.kind == CommandKind::Move || c.kind == CommandKind::PeekDone) {
+            k += "→" + std::string(table::to_string(c.to));
+        }
         if (c.kind == CommandKind::Exhaust) k += c.exhausted ? " exhaust" : " ready";
         ++seen[k];
     }
@@ -174,6 +178,10 @@ private:
             problem = "turn " + std::to_string(s.turn) + " (" + what + "): " + e.what();
             return;
         }
+        if (auto p = check_peeks(cmds); !p.empty()) {
+            problem = "turn " + std::to_string(s.turn) + " (" + what + "): " + p;
+            return;
+        }
         for (const TableMove& m : cmds) {
             coverage.count(m);
             stand_in_->apply({{"cmd", table::to_json(m.cmd)}, {"objs", m.objs}});
@@ -186,7 +194,33 @@ private:
             problem = "turn " + std::to_string(s.turn) + " (" + what + "): " + diff;
         }
     }
+    // Vision (5.6): a peek ends its step (only exhaust/ready after it) with the seat's keep-or-recycle decision open on
+    // the known top card; the next step starts with peek_done.
+    std::string check_peeks(const std::vector<TableMove>& cmds) {
+        if (peeked_ != no_obj && (cmds.empty() || cmds[0].cmd.kind != CommandKind::PeekDone)) {
+            return "the step after a peek doesn't start with peek_done";
+        }
+        peeked_ = no_obj;
+        for (std::size_t i = 0; i < cmds.size(); ++i) {
+            if (cmds[i].cmd.kind != CommandKind::Peek) continue;
+            const ObjId id = cmds[i].objs.at(0);
+            for (std::size_t j = i + 1; j < cmds.size(); ++j) {
+                if (cmds[j].cmd.kind != CommandKind::Exhaust) return "a command after the peek";
+            }
+            const Decision& d = s.decision;
+            if (d.kind != DecisionKind::Choose || d.player != seat_ || d.options.empty() || d.options[0].obj != id) {
+                return "peek without the keep-or-recycle decision";
+            }
+            if (s.player(seat_).main_deck.back() != id || !(s.obj(id).known & 1u << seat_)) {
+                return "peeked card isn't the known top card";
+            }
+            peeked_ = id;
+        }
+        return {};
+    }
+
     PlayerId seat_;
+    ObjId peeked_ = no_obj;
     game::TableMoves moves_;
     std::unique_ptr<table::StandIn> stand_in_;
 };
@@ -228,7 +262,8 @@ TEST(RiftboundTableMoves, RandomGamesReplayOnTheSim) {
     // payment, Vision, tokens, exhaust/ready
     for (const char* k : {"deal deck→hand", "deal deck→trash", "deal runes→base", "play→base", "play→chain",
                           "play→trash", "play→deck_bottom", "move→hand", "move→trash", "move→deck_bottom",
-                          "move→runes_bottom", "move→bf0", "move→bf1", "move→banish", "peek", "peek_done", "token",
+                          "move→runes_bottom", "move→bf0", "move→bf1", "move→banish", "peek", "peek_done→deck_top",
+                          "peek_done→deck_bottom", "token",
                           "remove", "exhaust exhaust", "exhaust ready"}) {
         EXPECT_GT(seen(c, k), 0) << k;
     }

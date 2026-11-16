@@ -225,7 +225,7 @@ void move_to(GameState& s, ObjId id, Zone zone, PlayerId controller, std::uint8_
         if (pos == Pos::Top) to->push_back(id);
         else to->insert(to->begin(), id);
     }
-    if (move_log) [[unlikely]] move_log->push_back({id, from_zone, zone, from_where, where, pos, false});
+    if (move_log) [[unlikely]] move_log->push_back({id, from_zone, zone, from_where, where, pos, false, false});
     if (!was_on_board) return;
     for (ObjId g = 0; g < s.objects.size(); ++g) {  // 719.3.a, 719.5
         Object& gear = s.obj(g);
@@ -250,7 +250,7 @@ ObjId create(GameState& s, const Card* card, PlayerId owner, Zone zone, std::uin
     o.where = where;
     o.known = is_public(zone) || card->type == CardType::Battlefield ? everyone : 0;  // 487.5's unused ones: no secret
     if (active_zone(zone)) s.active.push_back(id);  // the highest id yet
-    if (move_log) [[unlikely]] move_log->push_back({id, Zone::Removed, zone, 0, where, Pos::Top, true});
+    if (move_log) [[unlikely]] move_log->push_back({id, Zone::Removed, zone, 0, where, Pos::Top, true, false});
     if (card->type == CardType::Battlefield) return id;  // its place is Battlefield::card (or Removed), no list
     if (auto* list = zone_list(s, zone, owner, where)) list->push_back(id);
     return id;
@@ -300,6 +300,30 @@ void recycle(GameState& s, std::vector<ObjId> ids) {
         move_to(s, id, deck, o.owner, 0, Pos::Bottom);
         if (ids.size() > 1) o.known = 0;
     }
+}
+
+bool bind(GameState& s, ObjId obj, const Card* card, PlayerId knower) {
+    Object& o = s.obj(obj);
+    if (o.card == card) return true;
+    if (o.known == everyone || card == nullptr) return false;
+    if ((o.card->type == CardType::Rune) != (card->type == CardType::Rune)) return false;
+    const auto in_pool = [&](const Object& x) {
+        if (x.owner != o.owner || x.card != card || x.known & 1u << knower) return false;
+        return x.zone == Zone::MainDeck || x.zone == Zone::RuneDeck || (x.zone == Zone::Hand && x.owner != knower);
+    };
+    for (Object& x : s.objects) {
+        if (&x == &o || !in_pool(x)) continue;
+        std::swap(x.card, o.card);
+        return true;
+    }
+    return false;
+}
+
+bool set_hand_order(GameState& s, PlayerId p, const std::vector<ObjId>& ids) {
+    auto& hand = s.player(p).hand;
+    if (!std::is_permutation(hand.begin(), hand.end(), ids.begin(), ids.end())) return false;
+    hand = ids;
+    return true;
 }
 
 std::vector<std::string> check_invariants(const GameState& s) {

@@ -118,13 +118,25 @@ std::vector<TableMove> TableMoves::step(const GameState& after, const std::vecto
 
     std::vector<TableMove> out;
     exhausted_.resize(after.objects.size(), 0);
+    if (peeking_ != riftbound::no_obj) {  // the answer to the peek: recycled (deck → deck bottom) or kept on top
+        const auto down = std::find_if(moves.begin(), moves.end(), [&](const LoggedMove& m) {
+            return m.id == peeking_ && m.from == Zone::MainDeck && m.to == Zone::MainDeck && !m.peek;
+        });
+        out.push_back(command(CommandKind::PeekDone, down == moves.end() ? Place::DeckTop : Place::DeckBottom, {}));
+        if (down != moves.end()) moves.erase(down);
+        peeking_ = riftbound::no_obj;
+    }
     for (const LoggedMove& e : moves) {
         const ObjId id = e.id;
-        if (e.created) {
+        if (e.peek) {
+            if (peeking_ != riftbound::no_obj) throw std::logic_error("table: two peeks in one step");
+            out.push_back(command(CommandKind::Peek, Place::DeckTop, {id}));
+            peeking_ = id;
+        } else if (e.created) {
             TableMove m = command(CommandKind::Token, place_of(e.to, e.to_where, e.pos), {id});
             m.cmd.code = code_of(after, id);
             out.push_back(std::move(m));
-        } else if (e.from == Zone::MainDeck && e.to == Zone::MainDeck) {  // Vision: looked at, then to the bottom
+        } else if (e.from == Zone::MainDeck && e.to == Zone::MainDeck) {  // top to bottom unseen: scanned on the way
             out.push_back(command(CommandKind::Peek, Place::DeckTop, {id}));
             out.push_back(command(CommandKind::PeekDone, place_of(e.to, e.to_where, e.pos), {}));
         } else if (e.from == Zone::MainDeck || e.from == Zone::RuneDeck) {

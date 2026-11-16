@@ -34,7 +34,7 @@ void thousand_games(bool vanilla) {
         ++failed;
         const auto file = std::filesystem::absolute(std::string("riftbound-replay-") + (vanilla ? "vanilla-" : "") +
                                                     std::to_string(seed) + ".txt");
-        std::ofstream(file) << to_text({seed, vanilla, texts, g.log}, db);
+        std::ofstream(file) << to_text({.seed = seed, .vanilla = vanilla, .decks = texts, .actions = g.log, .buddy = {}, .reveals = {}}, db);
         ADD_FAILURE() << "seed " << seed << ": " << g.problem << "\n  replay: " << file.string();
     }
 }

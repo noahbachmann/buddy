@@ -7,6 +7,7 @@
 #include "riftbound/engine.hpp"
 #include "riftbound/random_game.hpp"
 #include "riftbound/replay.hpp"
+#include "test_hidden.hpp"
 
 using namespace buddy::riftbound;
 
@@ -27,7 +28,7 @@ std::string deck_text(const std::string& name) {
 }
 
 Replay replay_of(std::uint64_t seed, const RandomGame& g) {
-    return {seed, true, {deck_text("vi-unleashed"), deck_text("zed-vendetta")}, g.log};
+    return {.seed = seed, .vanilla = true, .decks = {deck_text("vi-unleashed"), deck_text("zed-vendetta")}, .actions = g.log, .buddy = {}, .reveals = {}};
 }
 
 } // namespace
@@ -89,4 +90,75 @@ TEST(RiftboundReplay, AnIllegalActionIsTheProblem) {
     const std::string last = text.substr(text.rfind('\n', text.size() - 2) + 1);
     EXPECT_EQ(last.rfind("# turn", 0), 0u) << last;  // the problem as the last line
     EXPECT_NE(last.find("action 10"), std::string::npos) << last;
+}
+
+// 5.6: seed + actions + binds and hand orders reproduce a service game.
+TEST(RiftboundReplay, BindsAndOrdersRoundTrip) {
+    const Deck vi = parse_deck(fixture(), deck_text("vi-unleashed")), zed = parse_deck(fixture(), deck_text("zed-vendetta"));
+    Replay replay{.seed = 21, .vanilla = false, .decks = {deck_text("vi-unleashed"), deck_text("zed-vendetta")},
+                  .actions = {}, .buddy = 1, .reveals = {}};
+    GameState s = new_game(vi, zed, {.seed = replay.seed});
+    Rng rng(5);
+    int binds = 0, orders = 0;
+    for (int n = 0; !s.winner && n < 3000; ++n) {
+        if (rng.below(3) == 0) {
+            if (const auto b = test::random_bind(s, 1, rng, rng.below(2) == 0)) {
+                replay.reveals.push_back({.before = replay.actions.size(), .kind = Reveal::Kind::Bind, .obj = b->first,
+                                          .code = b->second->home().code.str(), .player = 0, .ids = {}});
+                ++binds;
+            }
+        }
+        if (rng.below(8) == 0 && s.player(1).hand.size() > 1) {
+            auto hand = s.player(1).hand;
+            rng.shuffle(hand);
+            ASSERT_TRUE(set_hand_order(s, 1, hand));
+            replay.reveals.push_back({.before = replay.actions.size(), .kind = Reveal::Kind::Order, .obj = no_obj,
+                                      .code = {}, .player = 1, .ids = hand});
+            ++orders;
+        }
+        const auto actions = legal_actions(s);
+        replay.actions.push_back(actions.at(rng.below(actions.size())));
+        apply(s, replay.actions.back());
+    }
+    ASSERT_GT(binds, 20);
+    ASSERT_GT(orders, 2);
+    const std::string text = to_text(replay, fixture());
+    EXPECT_NE(text.find("\nbuddy 1\n"), std::string::npos);
+    EXPECT_NE(text.find("\nbind "), std::string::npos);
+    EXPECT_NE(text.find("\norder 1 "), std::string::npos);
+    const Replay back = parse_replay(text);
+    EXPECT_EQ(back.buddy, replay.buddy);
+    EXPECT_EQ(back.actions, replay.actions);
+    EXPECT_EQ(back.reveals, replay.reveals);
+    const ReplayResult r = run_replay(back, fixture());
+    EXPECT_EQ(r.problem, "");
+    EXPECT_EQ(r.state, s);  // the same game, every card where the live one had it
+}
+
+TEST(RiftboundReplay, RevealSyntax) {
+    const std::string head = "seed 1\nbuddy 0\ndeck 0\nend\ndeck 1\nend\nactions\n";
+    const Replay r = parse_replay(head + "bind 41 OGN-007a  # Vi\ndone\norder 1 3 9 4\n");
+    ASSERT_EQ(r.reveals.size(), 2u);
+    EXPECT_EQ(r.reveals[0].before, 0u);
+    EXPECT_EQ(r.reveals[0].obj, 41);
+    EXPECT_EQ(r.reveals[0].code, "OGN-007a");
+    EXPECT_EQ(r.reveals[1].before, 1u);
+    EXPECT_EQ(r.reveals[1].kind, Reveal::Kind::Order);
+    EXPECT_EQ(r.reveals[1].player, 1);
+    EXPECT_EQ(r.reveals[1].ids, (std::vector<ObjId>{3, 9, 4}));
+    EXPECT_THROW(parse_replay("seed 1\ndeck 0\nend\ndeck 1\nend\nactions\nbind 41 OGN-007a\n"), ReplayError);
+    EXPECT_THROW(parse_replay(head + "bind 41\n"), ReplayError);
+    EXPECT_THROW(parse_replay(head + "order 2 1\n"), ReplayError);
+}
+
+TEST(RiftboundReplay, AnImpossibleBindIsTheProblem) {
+    Replay replay{.seed = 3, .vanilla = true, .decks = {deck_text("vi-unleashed"), deck_text("zed-vendetta")},
+                  .actions = {}, .buddy = 0, .reveals = {}};
+    const Deck vi = parse_deck(fixture(), deck_text("vi-unleashed")), zed = parse_deck(fixture(), deck_text("zed-vendetta"));
+    const GameState s = new_game(vi, zed, {.seed = 3, .vanilla = true});
+    const ObjId top = s.player(0).main_deck.back();
+    const std::string rune = s.obj(s.player(0).rune_deck.back()).card->home().code.str();
+    replay.reveals.push_back({.before = 0, .kind = Reveal::Kind::Bind, .obj = top, .code = rune, .player = 0, .ids = {}});
+    const ReplayResult r = run_replay(replay, fixture());
+    EXPECT_NE(r.problem.find("bind " + std::to_string(top) + " " + rune), std::string::npos) << r.problem;
 }

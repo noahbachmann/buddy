@@ -14,14 +14,23 @@ const Card* hidden_card() {
     return &card;
 }
 
-GameState view(const GameState& s, PlayerId p) {
+namespace {
+
+// Hides every card not known to all players in `mask`.
+GameState hide(const GameState& s, std::uint8_t mask) {
     GameState v = s;
     for (Object& o : v.objects) {
-        if (!(o.known & 1u << p)) o.card = hidden_card();
+        if ((o.known & mask) != mask) o.card = hidden_card();
     }
     v.rng = Rng{};
     return v;
 }
+
+} // namespace
+
+GameState view(const GameState& s, PlayerId p) { return hide(s, static_cast<std::uint8_t>(1u << p)); }
+
+GameState public_view(const GameState& s) { return hide(s, everyone); }
 
 namespace {
 

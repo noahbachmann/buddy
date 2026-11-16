@@ -64,11 +64,14 @@ public:
 
     // The commands for one step: `after` = the state after it, `log` = what moved during it. In physical order;
     // hops through the chain or "set aside" in one step collapse (hand → chain → base = one play), consecutive deck
-    // → same place = one deal, deck → deck bottom = peek + peek_done, then exhaust/ready to match `after`.
+    // → same place = one deal, then exhaust/ready to match `after`. Vision: `peek` as the engine shows the seat its top
+    // card (the step ends with the keep-or-recycle decision open; the session binds the scanned card before the AI
+    // answers), then the answer's step starts with `peek_done` to the deck top or bottom.
     std::vector<TableMove> step(const GameState& after, const std::vector<LoggedMove>& log);
 
 private:
     PlayerId seat_;
+    ObjId peeking_ = riftbound::no_obj;  // on the scan spot until the next step
     std::vector<std::uint8_t> exhausted_;  // by ObjId: what the table shows
 };
 

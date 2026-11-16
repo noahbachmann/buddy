@@ -195,7 +195,12 @@ int random_games(const CardDb& db, const std::vector<fs::path>& paths, int games
         RandomGame g = play_random(a, b, seed + i, 100000, vanilla);
         if (!g.problem.empty()) {
             const fs::path file = fs::absolute(std::format("replay-{}.txt", seed + i));
-            const Replay replay{seed + i, vanilla, {read_file(paths[0]), read_file(paths[1])}, g.log};
+            const Replay replay{.seed = seed + i,
+                                .vanilla = vanilla,
+                                .decks = {read_file(paths[0]), read_file(paths[1])},
+                                .actions = g.log,
+                                .buddy = {},
+                                .reveals = {}};
             std::ofstream(file) << to_text(replay, db);
             std::cerr << std::format("✗ seed {}: {}\n  replay: {}\n", seed + i, g.problem, file.string());
             ++failed;
@@ -330,10 +335,13 @@ int match(const CardDb& db, const std::vector<fs::path>& paths, const std::array
         const ai::ArenaGame& g = r.game;
         if (!g.problem.empty()) {
             const fs::path file = fs::absolute(std::format("replay-{}.txt", r.pairing.seed));
-            const Replay replay{r.pairing.seed, false,
-                                {read_file(paths[r.pairing.decks_swapped ? 1 : 0]),
-                                 read_file(paths[r.pairing.decks_swapped ? 0 : 1])},
-                                g.log};
+            const Replay replay{.seed = r.pairing.seed,
+                                .vanilla = false,
+                                .decks = {read_file(paths[r.pairing.decks_swapped ? 1 : 0]),
+                                          read_file(paths[r.pairing.decks_swapped ? 0 : 1])},
+                                .actions = g.log,
+                                .buddy = {},
+                                .reveals = {}};
             std::ofstream(file) << to_text(replay, db);
             std::cerr << std::format("✗ seed {}: {}\n  replay: {}\n", r.pairing.seed, g.problem, file.string());
             ++failed;

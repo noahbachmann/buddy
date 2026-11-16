@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <map>
+#include <optional>
 #include <stdexcept>
 #include <string>
 
@@ -73,6 +74,64 @@ inline std::string views_along_a_game(const Deck& seat0, const Deck& seat1, std:
     for (int n = 0; !s.winner && n < 5000; ++n) {
         if (auto problem = check_view(s, seat0, seat1, sample, n % 25 == 0); !problem.empty()) {
             return "seed " + std::to_string(seed) + ", action " + std::to_string(n) + ", " + problem;
+        }
+        const auto actions = legal_actions(s);
+        apply(s, actions.at(pick.below(actions.size())));
+    }
+    return s.winner ? std::string{} : "seed " + std::to_string(seed) + ": no winner";
+}
+
+// A random bind as the session does it (5.6): an object `knower` doesn't know, of either owner, becomes a card from its
+// owner's pool (state.hpp bind). Returns the bind made (obj, card), nullopt if there's nothing to bind. `buddy_only`:
+// only the knower's own cards.
+inline std::optional<std::pair<ObjId, const Card*>> random_bind(GameState& s, PlayerId knower, Rng& rng,
+                                                                bool buddy_only = false) {
+    const auto pooled = [&](const Object& o) {
+        if (o.known & 1u << knower) return false;
+        return o.zone == Zone::MainDeck || o.zone == Zone::RuneDeck || (o.zone == Zone::Hand && o.owner != knower);
+    };
+    std::vector<ObjId> objs;
+    for (ObjId id = 0; id < s.objects.size(); ++id) {
+        if (pooled(s.obj(id)) && (!buddy_only || s.obj(id).owner == knower)) objs.push_back(id);
+    }
+    if (objs.empty()) return std::nullopt;
+    const ObjId obj = objs[rng.below(objs.size())];
+    const Object& o = s.obj(obj);
+    const bool rune = o.card->type == CardType::Rune;
+    std::vector<const Card*> cards;
+    for (const Object& x : s.objects) {
+        if (x.owner == o.owner && pooled(x) && (x.card->type == CardType::Rune) == rune) cards.push_back(x.card);
+    }
+    const Card* card = cards[rng.below(cards.size())];
+    if (!bind(s, obj, card, knower)) throw std::logic_error("bind refused " + card->name);
+    return std::pair{obj, card};
+}
+
+// views_along_a_game with random binds before every action (knower = `knower`): each keeps the invariants, every
+// owner's card counts and the knower's view (the other player's too while only the knower's cards are bound), and
+// check_view still holds. Returns the first problem.
+inline std::string binds_along_a_game(const Deck& seat0, const Deck& seat1, std::uint64_t seed, bool vanilla,
+                                      PlayerId knower) {
+    GameState s = new_game(seat0, seat1, {.seed = seed, .vanilla = vanilla});
+    Rng pick(seed), sample(seed + 1000), binds(seed + 2000);
+    const std::string at = "seed " + std::to_string(seed) + ", action ";
+    for (int n = 0; !s.winner && n < 5000; ++n) {
+        for (int k = 0; k < 3; ++k) {
+            const bool buddy_only = k == 0;
+            const GameState before = s;
+            if (!random_bind(s, knower, binds, buddy_only)) {
+                if (buddy_only) continue;
+                return at + std::to_string(n) + ": no bind possible";
+            }
+            if (auto problems = check_invariants(s); !problems.empty()) return at + std::to_string(n) + ": " + problems.front();
+            if (card_counts(s) != card_counts(before)) return at + std::to_string(n) + ": card counts changed";
+            if (!(view(s, knower) == view(before, knower))) return at + std::to_string(n) + ": the knower's view changed";
+            if (buddy_only && !(view(s, opponent(knower)) == view(before, opponent(knower)))) {
+                return at + std::to_string(n) + ": the opponent's view changed";
+            }
+        }
+        if (auto problem = check_view(s, seat0, seat1, sample, n % 25 == 0); !problem.empty()) {
+            return at + std::to_string(n) + ", " + problem;
         }
         const auto actions = legal_actions(s);
         apply(s, actions.at(pick.below(actions.size())));
