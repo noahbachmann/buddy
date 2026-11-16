@@ -1,6 +1,6 @@
 # Phase 1 summary: voice assistant (done)
 
-Condensed from the step guides 1.2–1.12 plus the extras 1.13–1.16 (full versions in Git history: `git log --all -- 'guides/*' 'docs/guides/*'`).
+Condensed from the step guides 1.2–1.12 plus the extras 1.13–1.17 (full versions in Git history: `git log --all -- 'guides/*' 'docs/guides/*'`).
 Everything needed to rebuild the Pi, re-tune or debug is here; walkthrough text and one-time checks are gone.
 Speech-to-text training is a recurring job with its own doc: `docs/voice-training.md`.
 
@@ -577,3 +577,27 @@ Offline (no MQTT): `deploy/run.sh messenger --notify "hello"`, and with `buddy@m
 | `unreachable` | Internet or Telegram down; messages wait and go out afterwards (`deploy/logs.sh messenger`) |
 | "someone else is listening to this bot" on `--ask` | `ssh buddy systemctl --user stop buddy@messenger`, start it again afterwards |
 | An alert for a service you stopped on purpose | Take it off `BUDDY_MESSENGER_WATCH`, or `BUDDY_MESSENGER_OFFLINE_S=0` for no alerts at all |
+
+## 1.17 System monitor (host metrics on the panel)
+
+Service `system`: CPU, RAM, disk, temperature, fan, network and the Pi's throttle flags as a card on the
+dashboard. It reads `/proc`, `/sys` and `vcgencmd get_throttled` every 5 s (`BUDDY_SYSTEM_INTERVAL_S`) and
+publishes `buddy/system/state` retained — only when the rounded values changed, so an idle Pi stays silent.
+
+- **Card:** name (hostname, or `BUDDY_SYSTEM_NAME`), temp · fan · ↓↑ network under it, meters for CPU (with the
+  current clock), RAM and disk (red from 90 %). Red badge = a throttle condition is active **now** (undervoltage,
+  freq-capped, throttled, soft-temp-limit); grey badge = it happened since boot. The card dims when the service
+  is offline. A badge that never clears: check the power supply (27 W) and the Active Cooler.
+- **More hosts:** install the service on the new host and set `BUDDY_SYSTEM_NAME` ("Pi 2") in its `buddy.env`.
+  It then runs as `system-pi-2` with its own client id and `buddy/system-pi-2/{state,status}`: the dashboard
+  shows one card per host, sorted by name, with no other config.
+- **Watcher:** `system` is on `BUDDY_MESSENGER_WATCH`: Telegram tells you when it dies. Metric alerts
+  (temperature, disk full) are not built; the payload carries what a later watcher needs.
+
+Offline (no MQTT): `deploy/run.sh system --once` prints one snapshot as JSON.
+
+| Symptom | Fix |
+|---|---|
+| No `throttled` in the state, log says vcgencmd unavailable | `vcgencmd` missing or no `/dev/vcio` access (user not in `video`); flags are simply omitted |
+| No `fan_rpm` | No hwmon named `pwmfan` (no Active Cooler, or renamed by a kernel update): `cat /sys/class/hwmon/hwmon*/name` |
+| Card shows a second host you removed | Retained state stays on the broker: `mosquitto_pub -r -n -t buddy/system-<name>/state` (and `…/status`) |

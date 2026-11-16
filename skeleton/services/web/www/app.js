@@ -590,6 +590,55 @@ document.addEventListener("visibilitychange", watchSpotify);
 addEventListener("hashchange", watchSpotify);
 watchSpotify();
 
+// --- system -----------------------------------------------------------------------------------------------------
+
+// One card per host: this Pi publishes buddy/system/state, extra hosts buddy/system-<name>/state (1.17).
+function renderSystem() {
+  const hosts = Object.keys(state)
+    .filter((t) => /^buddy\/system(-[a-z0-9-]+)?\/state$/.test(t) && state[t]?.cpu)
+    .map((t) => ({ svc: t.slice("buddy/".length, -"/state".length), s: state[t] }))
+    .sort((a, b) => (a.s.label || a.svc).localeCompare(b.s.label || b.svc));
+  const box = $("system");
+  if (!hosts.length) return keyed(box, [emptyNote("The system service isn't running.")]);
+  keyed(box, hosts.map(({ svc, s }) => {
+    const online = state[`buddy/${svc}/status`] === "online";
+    return [svc, JSON.stringify([s, online]), () => systemCard(s, online)];
+  }));
+}
+
+function meter(name, frac, text, warn) {
+  const pct = Math.max(0, Math.min(100, Math.round((frac || 0) * 100)));
+  return el("div", { class: "row" },
+    el("span", { class: "meter-name" }, name),
+    el("div", { class: "meter", role: "meter", "aria-label": name, "aria-valuenow": pct },
+      el("div", { class: `meter-fill${warn ? " warn" : ""}`, style: `width:${pct}%` })),
+    el("span", { class: "range-label meter-val" }, text));
+}
+
+const kib = (bps) => (bps >= 1024 * 1024 ? `${(bps / 1024 / 1024).toFixed(1)} MiB/s` : `${Math.round(bps / 1024)} KiB/s`);
+
+function systemCard(s, online) {
+  const flags = s.throttled ?? {};
+  const details = [
+    typeof s.temp_c === "number" && `${s.temp_c.toFixed(1).replace(/\.0$/, "")} °C`,
+    s.fan_rpm != null && `fan ${s.fan_rpm} rpm`,
+    s.net && `↓ ${kib(s.net.rx_bps)} ↑ ${kib(s.net.tx_bps)}`,
+  ].filter(Boolean).join(" · ");
+  const gb = (mb) => (mb / 1024).toFixed(1);
+  return el("div", { class: `card${online ? "" : " offline"}` },
+    el("div", { class: "row" },
+      el("div", { class: "name" }, s.label, el("small", {}, online ? details || " " : "offline")),
+      (flags.now ?? []).map((f) => el("span", { class: "flag bad", title: "active now" }, f)),
+      (flags.ever ?? []).filter((f) => !(flags.now ?? []).includes(f))
+        .map((f) => el("span", { class: "flag", title: "happened since boot" }, f))),
+    meter("CPU", (s.cpu.pct ?? 0) / 100, s.cpu.pct != null ? `${s.cpu.pct} %${s.cpu.mhz ? ` · ${(s.cpu.mhz / 1000).toFixed(1)} GHz` : ""}` : "–",
+      (s.cpu.pct ?? 0) >= 90),
+    meter("RAM", s.mem.used_mb / s.mem.total_mb, `${gb(s.mem.used_mb)} / ${gb(s.mem.total_mb)} GB`,
+      s.mem.used_mb / s.mem.total_mb >= 0.9),
+    meter("Disk", s.disk.used_gb / s.disk.total_gb, `${s.disk.used_gb.toFixed(1)} / ${s.disk.total_gb.toFixed(1)} GB`,
+      s.disk.used_gb / s.disk.total_gb >= 0.9));
+}
+
 // --- services ---------------------------------------------------------------------------------------------------
 
 // Fixed list: stale retained statuses (removed services, test clients) never show up. Chip online = every member online.
@@ -636,6 +685,7 @@ function render() {
   } else {
     renderLights();
     renderMusic();
+    renderSystem();
   }
 }
 

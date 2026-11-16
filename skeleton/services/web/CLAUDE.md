@@ -23,6 +23,7 @@ with their retained state. User-facing behaviour and troubleshooting: `docs/guid
 | widgets, lights | toggles/sliders (`interacting` > 0 blocks re-render while a finger holds a slider), light colour from `mirek`/`xy`, room cards, "All lights" bar, room layout (order/hidden) in `localStorage` key `buddy.lights.layout` |
 | hue tab | `#hue`: scene editor and list (`scene_save` / `scene_delete`, `savingScene` toasts once the bridge reports it) |
 | music | Spotify card from `buddy/spotify/state`, progress bar runs locally from `progress.at`; `watchSpotify()` POSTs `{"action":"watch"}` every 20 s while the dashboard is visible (spotify only polls Spotify while watched) |
+| system | `renderSystem()`: one card per host from every `buddy/system(-<name>)?/state` (sorted by label; no fixed list: new hosts just appear), `meter()` bars for CPU/RAM/disk, throttle badges, card dims when that host's status isn't online. No chip in `SERVICE_CHIPS` (host names aren't fixed) |
 | services | `SERVICE_CHIPS`: fixed list of chips, each green when all its member services are `online`; beside the name the first member state that isn't `idle`, or the chip's own `detail()` (messenger: link trouble, else "2 open") |
 | render | `render()` picks the page by `location.hash` (dashboard / `#hue`) |
 

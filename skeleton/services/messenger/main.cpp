@@ -65,7 +65,7 @@ struct Config {
     std::string data_dir = env_string("BUDDY_MESSENGER_DATA_DIR", env_string("HOME", ".") + "/buddy/data/messenger");
     int ttl_s = env_int("BUDDY_MESSENGER_TTL_S", 24 * 3600);
     int offline_s = env_int("BUDDY_MESSENGER_OFFLINE_S", 300);
-    std::string watch = env_string("BUDDY_MESSENGER_WATCH", "ears brain spotify hue web voice motion speakers table");
+    std::string watch = env_string("BUDDY_MESSENGER_WATCH", "ears brain spotify hue web voice motion speakers table system");
 
     Config() {
         if (ttl_s < 0) throw std::invalid_argument("BUDDY_MESSENGER_TTL_S must not be negative");

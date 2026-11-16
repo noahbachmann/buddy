@@ -50,6 +50,7 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 | 1 – Voice | 1.1 – 1.12 Hardware, OS, audio, skeleton, wake word, STT, brain, Spotify, voice, background music, boot | ✅ |
 | 1 – Voice (extra) | 1.13 Hue lights, 1.14 web panel (#6), 1.15 Nest speakers over Bluetooth (D20, #17): done 2026-10-30 (side issue: Deferred → Bathroom Bluetooth) | ✅ |
 | 1 – Voice (extra) | 1.16 messenger: Buddy's notices and questions in Dev's Telegram chat (D22, #68): done 2026-11-15: paired, verified on the Pi (notice, button answer across a restart, offline → back online alert) | ✅ |
+| 1 – Voice (extra) | 1.17 system monitor: host metrics (CPU, RAM, disk, temp, fan, net, throttle flags) as per-host cards on the panel (D23, #70): done 2026-11-16 | ✅ |
 | 2 – Head | 2.1 printer: guide not written yet. 2.2 motion controller: Pi setup, firmware and flash done; wiring and servo test (guide steps 1–3, 9) open. 2.3 motion service + demo gesture ("cut off Andi's balls"): code and tests done, deployed 2026-10-29 (waits with `connected:false` while the Pico is unplugged); Verify open. 2.4 eyes: postponed (Dev, 2026-10-30). 2.5 head pan/tilt and 2.6 head & body: plans in `docs/plans/` | 🟨 |
 | 3 – Hand | 3.1 – 3.4 | ⬜ |
 | 4 – Arm & vision | 4.1 – 4.3 | ⬜ |
@@ -112,6 +113,8 @@ Phase 1 → Deferred lists what waits for a reason (wake word CPU, next voice se
 | D21 | Card game | Riftbound (Phase 5): **own C++ rules engine, no LLM**: code is the referee, search (heuristic, then ISMCTS over Dev's hidden cards) picks the plays. alpharune is reading material only (no license). Cards scoped to two precons (Vi, Unleashed; Zed, Vendetta); an unimplemented card is a hard error. Rules: Core Rules 2026-10-09 (the Rules Hub serves only the current document). Card data from the Riftcodex API, fetched on the Pi. Services `game` (rules, AI, which cards are in hand) and `table` (physical piles, hand order, scan/recover; sim backend now, hardware later). | ✅ |
 | D22 | Reaching Dev | Service `messenger` (C++, Telegram Bot API over libcurl): notices and questions from any service go to Dev's private **Telegram** chat with Buddy's own bot, answers come back on the bus (`buddy/messenger/cmd` → `buddy/messenger/event`). Named after the job: askers never see the vendor. Outbound HTTPS only (long poll; no open port, no webhook). Only the paired account's private chat is heard, everyone else gets no answer. Bot chats are **not end-to-end encrypted**: a service sends only what may sit on Telegram's servers. `cmd` is `"web": false` and `state` carries counts only (the panel has no login, D19); message texts never reach the journal. Bot token + chat from `buddy-messenger --pair` in `~/buddy/config/messenger.json`. A built-in watcher reports services that stay offline or keep restarting. Email dropped: replies need IMAP + quote parsing, Proton has IMAP only through its Bridge and SMTP tokens only for custom domains. Commands to Buddy from the chat ("lights off"): later. | ✅ |
 
+| D23 | Host monitoring | Own service `system` (C++, /proc + /sys + `vcgencmd get_throttled`), no node_exporter/Prometheus/Grafana: retained `buddy/system/state` every 5 s (published only on change), card per host on the panel, live values only. Extra hosts set `BUDDY_SYSTEM_NAME` → service `system-<name>` with its own client id and `buddy/system-<name>/{state,status}`, so everything (web's `buddy/+/state`, status, last will, messenger watcher) works unchanged. Dashboard-only; metric alerting (temp, disk) deliberately left to a later watcher. | ✅ |
+
 Update this table when a decision is made or changed.
 
 ---
@@ -146,7 +149,7 @@ Update this table when a decision is made or changed.
 ## Phase 1 – Voice assistant ✅
 
 Summary of every step, rebuild order, config and troubleshooting: `docs/guides/01-setup-summary.md` (incl. the extras
-1.13 Hue lights, 1.14 web panel, 1.15 Nest speakers and 1.16 messenger).
+1.13 Hue lights, 1.14 web panel, 1.15 Nest speakers, 1.16 messenger and 1.17 system monitor).
 Speech-to-text training: `docs/voice-training.md`.
 
 ### Deferred (not needed for Phase 1, pick up when useful)
@@ -235,6 +238,7 @@ buddy/
 │   │   ├── web/             ← web panel: HTTP ⇄ MQTT bridge + www/ page
 │   │   ├── speakers/        ← Nests over Bluetooth: music and voice routing, ducking (D20)
 │   │   ├── messenger/       ← Dev's Telegram chat: notices, questions and answers, service watcher (D22)
+│   │   ├── system/          ← host metrics for the panel: CPU, RAM, disk, temp, fan, net, throttling (D23)
 │   │   ├── motion/          ← joints → Pico serial protocol, gestures
 │   │   ├── table/           ← Riftbound: Buddy's physical cards: piles, hand tracker, sim backend, soak (5.5)
 │   │   └── game/            ← Riftbound: riftbound/ lib (cards, decks, rules, AI), table moves, decks/ (Phase 5)

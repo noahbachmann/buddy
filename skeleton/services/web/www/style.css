@@ -208,6 +208,19 @@ input.warmth { accent-color: var(--muted); }
 
 .empty { color: var(--muted); padding: 18px 4px; }
 
+/* system cards (1.17) */
+.card.offline { opacity: 0.55; }
+.meter-name { width: 2.8em; font-size: 0.85rem; color: var(--muted); }
+.meter { flex: 1; height: 8px; border-radius: 4px; background: var(--track); overflow: hidden; }
+.meter-fill { height: 100%; border-radius: 4px; background: var(--on); transition: width 0.4s; }
+.meter-fill.warn { background: var(--bad); }
+.meter-val { width: auto; min-width: 5.5em; white-space: nowrap; }
+.flag {
+  font-size: 0.75rem; color: var(--muted); border: 1px solid var(--line); border-radius: 999px;
+  padding: 2px 8px; white-space: nowrap;
+}
+.flag.bad { color: var(--bad); border-color: var(--bad); }
+
 /* pages */
 .tabs { display: flex; gap: 4px; margin-top: 12px; padding: 4px; background: var(--track); border-radius: 12px; }
 .tabs a {
