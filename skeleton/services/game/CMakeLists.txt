@@ -27,8 +27,8 @@ find_package(Threads REQUIRED)
 target_link_libraries(riftbound PUBLIC nlohmann_json::nlohmann_json PRIVATE buddy_names Threads::Threads)
 
 # game_core: the service's logic beyond the rules (5.5: engine moves → table commands, the soak's workload; 5.6: the
-# session, SimDev, the public state).
-add_library(game_core STATIC public_state.cpp session.cpp sim_dev.cpp table_moves.cpp)
+# session, SimDev, the public state, the command host).
+add_library(game_core STATIC game_host.cpp public_state.cpp session.cpp sim_dev.cpp table_moves.cpp)
 target_include_directories(game_core PUBLIC .)
 target_link_libraries(game_core PUBLIC riftbound buddy_table_protocol)
 
@@ -45,4 +45,4 @@ buddy_add_tests(game
 # Engine moves replayed on table's sim (#42): links table_core for the sim and the soak's stand-in.
 buddy_add_tests(game-table tests/test_table_moves.cpp LIBS game_core table_core LABELS riftbound)
 # Session games (#48, #49): Buddy's side on an in-process Table + Sim, Dev a SimDev.
-buddy_add_tests(game-session tests/test_session.cpp tests/test_public_state.cpp LIBS game_core table_core LABELS riftbound)
+buddy_add_tests(game-session tests/test_session.cpp tests/test_public_state.cpp tests/test_game_host.cpp LIBS game_core table_core LABELS riftbound)
