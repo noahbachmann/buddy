@@ -38,18 +38,6 @@ bool number(std::string_view s, T& out) {
     return ec == std::errc{} && end == s.data() + s.size();
 }
 
-Action parse_action(std::string_view line) {
-    const auto w = words(line);
-    Action a;
-    const auto kind = std::find(kind_names.begin(), kind_names.end(), w.at(0));
-    if (kind == kind_names.end()) throw std::invalid_argument("unknown action \"" + std::string(w[0]) + "\"");
-    a.kind = static_cast<ActionKind>(kind - kind_names.begin());
-    if (w.size() > 3 || (w.size() > 1 && w[1] != "-" && !number(w[1], a.obj)) || (w.size() > 2 && !number(w[2], a.n))) {
-        throw std::invalid_argument("expected <kind> [<obj>|-] [<n>]");
-    }
-    return a;
-}
-
 Reveal parse_reveal(std::string_view line) {
     const auto w = words(line);
     Reveal r;
@@ -69,6 +57,19 @@ Reveal parse_reveal(std::string_view line) {
 }
 
 } // namespace
+
+Action parse_action(std::string_view line) {
+    const auto w = words(line);
+    if (w.empty()) throw std::invalid_argument("empty action");
+    Action a;
+    const auto kind = std::find(kind_names.begin(), kind_names.end(), w.at(0));
+    if (kind == kind_names.end()) throw std::invalid_argument("unknown action \"" + std::string(w[0]) + "\"");
+    a.kind = static_cast<ActionKind>(kind - kind_names.begin());
+    if (w.size() > 3 || (w.size() > 1 && w[1] != "-" && !number(w[1], a.obj)) || (w.size() > 2 && !number(w[2], a.n))) {
+        throw std::invalid_argument("expected <kind> [<obj>|-] [<n>]");
+    }
+    return a;
+}
 
 std::string format_reveal(const Reveal& r) {
     if (r.kind == Reveal::Kind::Bind) return "bind " + std::to_string(r.obj) + " " + r.code;

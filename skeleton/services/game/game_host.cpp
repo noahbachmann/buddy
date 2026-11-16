@@ -7,6 +7,7 @@
 #include "public_state.hpp"
 #include "riftbound/ai/greedy.hpp"
 #include "riftbound/ai/player.hpp"
+#include "riftbound/replay.hpp"
 
 namespace buddy::game {
 
@@ -53,7 +54,7 @@ Reply GameHost::command(const json& cmd) {
     try {
         if (!cmd.is_object()) throw Bad{"a command is a JSON object"};
         const std::string action = text(cmd, "action");
-        if (action == "new") return start(cmd);
+        if (action == "new") return start(cmd);  // records itself: the seed filled in
         if (action != "act" && action != "reveal" && action != "resume" && action != "concede") {
             throw Bad{"unknown action " + action};
         }
@@ -96,6 +97,7 @@ Reply GameHost::command(const json& cmd) {
     } catch (const Refused& r) {
         return {false, r.what()};
     }
+    record({{"cmd", cmd}});
     absorb();
     drive();
     return {};
@@ -130,6 +132,9 @@ Reply GameHost::start(const json& cmd) {
         bot_ = std::make_unique<SimDev>(1, std::move(p), seed * 3 + 7);
     }
     catalogue_ = catalogue(sc.decks[0], sc.decks[1]);
+    json line = cmd;
+    line["seed"] = seed;
+    record({{"cmd", line}});
     session_->start();
     if (bot_) bot_->begin(session_->state(), sc.decks[0], sc.decks[1]);
     absorb();
@@ -139,6 +144,9 @@ Reply GameHost::start(const json& cmd) {
 
 void GameHost::on_table(const table::Event& e) {
     if (!session_) return;
+    const auto* c = session_->inflight();
+    if (c == nullptr || c->seq != e.seq) return;  // not the command in flight: the session ignores it
+    record({{"table", table::to_json(e)}});
     session_->on_table(e);
     absorb();
     drive();
@@ -146,9 +154,77 @@ void GameHost::on_table(const table::Event& e) {
 
 void GameHost::on_ai(std::uint64_t id, const riftbound::Action& a) {
     if (!session_) return;
-    session_->on_ai(id, a);
+    const auto open = session_->ai_request();
+    if (!open || open->id != id) return;  // a stale answer: the session ignores it
+    session_->on_ai(id, a);  // throws if not offered: nothing changed, nothing recorded
+    record({{"ai", {{"id", id}, {"action", riftbound::format_action(a)}}}});
     absorb();
     drive();
+}
+
+void GameHost::table_timeout() {
+    if (!session_ || !session_->inflight() || session_->status() == Status::Paused) return;
+    record({{"table_lost", "timeout"}});
+    session_->table_timeout();
+    absorb();
+}
+
+void GameHost::table_restarted() {
+    if (!session_ || session_->status() == Status::Over || (session_->status() == Status::Paused && !session_->resumable())) return;
+    record({{"table_lost", "restart"}});
+    session_->table_restarted();
+    absorb();
+}
+
+void GameHost::record(json line) { out_.journal.push_back(line.dump()); }
+
+HostOutputs GameHost::restore(const std::vector<std::string>& journal) {
+    if (session_) throw std::logic_error("restore: the host already runs a game");
+    for (std::size_t n = 0; n < journal.size(); ++n) {
+        const auto fail = [&](const std::string& why) {
+            throw JournalError("journal line " + std::to_string(n + 1) + ": " + why);
+        };
+        const json line = json::parse(journal[n], nullptr, /*allow_exceptions=*/false);
+        if (!line.is_object() || line.size() != 1) fail("not a journal line");
+        const std::string key = line.begin().key();
+        const json& value = line.front();
+        try {
+            if (key == "cmd") {
+                if (const Reply r = command(value); !r.ok) fail("refused now: " + r.message);
+            } else if (key == "table") {
+                const table::Event e = table::parse_event(value);
+                const auto* c = session_ ? session_->inflight() : nullptr;
+                if (c == nullptr || c->seq != e.seq) fail("no command " + std::to_string(e.seq) + " in flight");
+                on_table(e);
+            } else if (key == "ai") {
+                const auto id = value.at("id").get<std::uint64_t>();
+                const auto open = session_ ? session_->ai_request() : std::nullopt;
+                if (!open || open->id != id) fail("no question " + std::to_string(id) + " open");
+                on_ai(id, riftbound::parse_action(value.at("action").get<std::string>()));
+            } else if (key == "table_lost" && value == "timeout") {
+                if (!session_ || !session_->inflight()) fail("no command in flight");
+                table_timeout();
+            } else if (key == "table_lost" && value == "restart") {
+                if (!session_) fail("no game");
+                table_restarted();
+            } else {
+                fail("unknown entry " + key);
+            }
+        } catch (const JournalError&) {
+            throw;
+        } catch (const std::exception& e) {
+            fail(e.what());
+        }
+        take();  // as the service does after every input: `v` counts the same
+    }
+    HostOutputs open;
+    open.state = state_;
+    if (session_) {
+        // paused (a timeout): stays paused, Dev's resume resends it
+        if (const auto* c = session_->inflight(); c && session_->status() != Status::Paused) open.table.push_back(*c);
+        open.ai = session_->ai_request();
+    }
+    return open;
 }
 
 void GameHost::absorb() {

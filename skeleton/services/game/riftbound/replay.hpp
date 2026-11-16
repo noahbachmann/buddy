@@ -72,6 +72,7 @@ void apply_reveal(GameState& s, const Reveal& r, const CardDb& db, PlayerId budd
 
 // One line of the actions section: "play 41", "bind 41 OGN-007a", "order 1 12 40". A service appends them as it goes.
 std::string format_action(const Action& a);
+Action parse_action(std::string_view line);  // format_action's inverse; throws std::invalid_argument
 std::string format_reveal(const Reveal& r);
 // The header up to and including "actions": seed, vanilla, buddy, both decklists.
 std::string format_header(const Replay& r);
