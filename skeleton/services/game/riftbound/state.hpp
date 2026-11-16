@@ -524,7 +524,21 @@ void recycle(GameState& s, std::vector<ObjId> ids);
 // (the state is unchanged); already `card` = true. `keep`: objects bound before in the same reveal group (one step's
 // reveals, or one replay's lines before the same action) never give their card away: two copies dealt in one step
 // are bound one after the other on the state before the step, where both still sit in the pool.
+// A battlefield (5.6, #49) swaps with one of its owner's battlefields that left the game at setup (487.5): the
+// engine picks one at random, the player chose theirs; only meaningful before the first action.
 bool bind(GameState& s, ObjId obj, const Card* card, PlayerId knower, std::span<const ObjId> keep = {});
+// The `keep` of a game's binds (#49): an object bound to a revealed identity keeps it while it sits where it was bound
+// (same gen) and the knower still doesn't know it. Covers a step's deals (bound on the state before the step) and
+// Dev's named cards (a discard picked by card, still in hand until the cost is paid). The session and run_replay
+// track binds the same way, so a replay's binds give the same swaps.
+class BindMemory {
+public:
+    void add(const GameState& s, ObjId obj);
+    std::vector<ObjId> keep(const GameState& s, PlayerId knower) const;
+
+private:
+    std::vector<std::pair<ObjId, std::uint16_t>> bound_;  // obj, gen when bound
+};
 // The table's hand order after a disturbed pile (5.6): `ids` must be a permutation of p's hand. false = it isn't.
 bool set_hand_order(GameState& s, PlayerId p, const std::vector<ObjId>& ids);
 

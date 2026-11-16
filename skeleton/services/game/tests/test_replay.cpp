@@ -99,10 +99,11 @@ TEST(RiftboundReplay, BindsAndOrdersRoundTrip) {
                   .actions = {}, .buddy = 1, .reveals = {}};
     GameState s = new_game(vi, zed, {.seed = replay.seed});
     Rng rng(5);
+    BindMemory memory;
     int binds = 0, orders = 0;
     for (int n = 0; !s.winner && n < 3000; ++n) {
         if (rng.below(3) == 0) {
-            if (const auto b = test::random_bind(s, 1, rng, rng.below(2) == 0)) {
+            if (const auto b = test::random_bind(s, 1, rng, rng.below(2) == 0, &memory)) {
                 replay.reveals.push_back({.before = replay.actions.size(), .kind = Reveal::Kind::Bind, .obj = b->first,
                                           .code = b->second->home().code.str(), .player = 0, .ids = {}});
                 ++binds;
@@ -137,8 +138,10 @@ TEST(RiftboundReplay, BindsAndOrdersRoundTrip) {
 
 TEST(RiftboundReplay, RevealSyntax) {
     const std::string head = "seed 1\nbuddy 0\ndeck 0\nend\ndeck 1\nend\nactions\n";
-    const Replay r = parse_replay(head + "bind 41 OGN-007a  # Vi\ndone\norder 1 3 9 4\n");
-    ASSERT_EQ(r.reveals.size(), 2u);
+    const Replay r = parse_replay(head + "bind 41 OGN-007a  # Vi\ndone\norder 1 3 9 4\nassume 7 OGN-001a\n");
+    ASSERT_EQ(r.reveals.size(), 3u);
+    EXPECT_EQ(r.reveals[2].kind, Reveal::Kind::Assume);
+    EXPECT_EQ(format_reveal(r.reveals[2]), "assume 7 OGN-001a");
     EXPECT_EQ(r.reveals[0].before, 0u);
     EXPECT_EQ(r.reveals[0].obj, 41);
     EXPECT_EQ(r.reveals[0].code, "OGN-007a");

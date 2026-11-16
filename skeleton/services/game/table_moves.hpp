@@ -39,6 +39,10 @@ private:
 struct TableMove {
     table::Command cmd;
     std::vector<ObjId> objs;
+    // Index into the step's log of the move it comes from (#49: Dev's prompts go between the commands in log order):
+    // a collapsed hop its last one, a merged deal its first card's; peek_done of the last step 0, exhaust/ready the
+    // log's size.
+    std::size_t at = 0;
 };
 
 // Of same-card copies in Buddy's hand, play the one nearest the bottom of the pile: fewer feeds, and the engine

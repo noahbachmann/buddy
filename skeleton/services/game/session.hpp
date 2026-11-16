@@ -170,7 +170,7 @@ private:
     std::vector<int> table_hand_;
     std::deque<int> fixes_;         // extra cards (table ids) going back on the deck top
     ObjId peeking_ = riftbound::no_obj;
-    std::vector<ObjId> group_;      // bound since the last committed action: bind()'s keep, the replay's group
+    riftbound::BindMemory bound_;   // bind()'s keep, tracked as run_replay does
     riftbound::Replay replay_;
     std::vector<std::string> lines_;
     Outputs out_;

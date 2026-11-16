@@ -305,7 +305,17 @@ void recycle(GameState& s, std::vector<ObjId> ids) {
 bool bind(GameState& s, ObjId obj, const Card* card, PlayerId knower, std::span<const ObjId> keep) {
     Object& o = s.obj(obj);
     if (o.card == card) return true;
-    if (o.known == everyone || card == nullptr) return false;
+    if (card == nullptr) return false;
+    if (o.card->type == CardType::Battlefield) {
+        if (card->type != CardType::Battlefield) return false;
+        for (Object& x : s.objects) {
+            if (x.owner != o.owner || x.zone != Zone::Removed || x.card != card) continue;
+            std::swap(x.card, o.card);
+            return true;
+        }
+        return false;
+    }
+    if (o.known == everyone) return false;
     if ((o.card->type == CardType::Rune) != (card->type == CardType::Rune)) return false;
     const auto in_pool = [&](const Object& x) {
         if (x.owner != o.owner || x.card != card || x.known & 1u << knower) return false;
@@ -318,6 +328,20 @@ bool bind(GameState& s, ObjId obj, const Card* card, PlayerId knower, std::span<
         return true;
     }
     return false;
+}
+
+void BindMemory::add(const GameState& s, ObjId obj) {
+    std::erase_if(bound_, [&](const auto& b) { return b.first == obj || s.obj(b.first).gen != b.second; });
+    bound_.emplace_back(obj, s.obj(obj).gen);
+}
+
+std::vector<ObjId> BindMemory::keep(const GameState& s, PlayerId knower) const {
+    std::vector<ObjId> out;
+    for (const auto& [obj, gen] : bound_) {
+        const Object& o = s.obj(obj);
+        if (o.gen == gen && !(o.known & 1u << knower)) out.push_back(obj);
+    }
+    return out;
 }
 
 bool set_hand_order(GameState& s, PlayerId p, const std::vector<ObjId>& ids) {

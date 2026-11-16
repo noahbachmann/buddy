@@ -182,6 +182,14 @@ private:
             problem = "turn " + std::to_string(s.turn) + " (" + what + "): " + p;
             return;
         }
+        for (std::size_t i = 0; i < cmds.size(); ++i) {  // log positions (#49): in order, ready last
+            const bool after_log = cmds[i].cmd.kind == CommandKind::Exhaust;
+            if ((i > 0 && cmds[i].at < cmds[i - 1].at) || (after_log ? cmds[i].at != log.size() : cmds[i].at > log.size())) {
+                problem = "turn " + std::to_string(s.turn) + " (" + what + "): command " + std::to_string(i) + " at " +
+                          std::to_string(cmds[i].at) + " of " + std::to_string(log.size());
+                return;
+            }
+        }
         for (const TableMove& m : cmds) {
             coverage.count(m);
             stand_in_->apply({{"cmd", table::to_json(m.cmd)}, {"objs", m.objs}});

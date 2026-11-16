@@ -83,11 +83,13 @@ inline std::string views_along_a_game(const Deck& seat0, const Deck& seat1, std:
 
 // A random bind as the session does it (5.6): an object `knower` doesn't know, of either owner, becomes a card from its
 // owner's pool (state.hpp bind). Returns the bind made (obj, card), nullopt if there's nothing to bind. `buddy_only`:
-// only the knower's own cards.
+// only the knower's own cards. `memory`: the game's binds (state.hpp BindMemory), as the session and run_replay keep them.
 inline std::optional<std::pair<ObjId, const Card*>> random_bind(GameState& s, PlayerId knower, Rng& rng,
-                                                                bool buddy_only = false) {
+                                                                bool buddy_only = false, BindMemory* memory = nullptr) {
+    const std::vector<ObjId> keep = memory ? memory->keep(s, knower) : std::vector<ObjId>{};
     const auto pooled = [&](const Object& o) {
         if (o.known & 1u << knower) return false;
+        if (std::find(keep.begin(), keep.end(), static_cast<ObjId>(&o - s.objects.data())) != keep.end()) return false;
         return o.zone == Zone::MainDeck || o.zone == Zone::RuneDeck || (o.zone == Zone::Hand && o.owner != knower);
     };
     std::vector<ObjId> objs;
@@ -102,8 +104,10 @@ inline std::optional<std::pair<ObjId, const Card*>> random_bind(GameState& s, Pl
     for (const Object& x : s.objects) {
         if (x.owner == o.owner && pooled(x) && (x.card->type == CardType::Rune) == rune) cards.push_back(x.card);
     }
+    if (cards.empty()) return std::nullopt;  // every other one kept
     const Card* card = cards[rng.below(cards.size())];
-    if (!bind(s, obj, card, knower)) throw std::logic_error("bind refused " + card->name);
+    if (!buddy::riftbound::bind(s, obj, card, knower, keep)) throw std::logic_error("bind refused " + card->name);
+    if (memory) memory->add(s, obj);
     return std::pair{obj, card};
 }
 

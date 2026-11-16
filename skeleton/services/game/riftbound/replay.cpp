@@ -53,8 +53,9 @@ Action parse_action(std::string_view line) {
 Reveal parse_reveal(std::string_view line) {
     const auto w = words(line);
     Reveal r;
-    if (w[0] == "bind") {
-        if (w.size() != 3 || !number(w[1], r.obj)) throw std::invalid_argument("expected bind <obj> <code>");
+    if (w[0] == "bind" || w[0] == "assume") {
+        if (w[0] == "assume") r.kind = Reveal::Kind::Assume;
+        if (w.size() != 3 || !number(w[1], r.obj)) throw std::invalid_argument("expected " + std::string(w[0]) + " <obj> <code>");
         r.code = std::string(w[2]);
         return r;
     }
@@ -71,7 +72,9 @@ Reveal parse_reveal(std::string_view line) {
 } // namespace
 
 std::string format_reveal(const Reveal& r) {
-    if (r.kind == Reveal::Kind::Bind) return "bind " + std::to_string(r.obj) + " " + r.code;
+    if (r.kind != Reveal::Kind::Order) {
+        return (r.kind == Reveal::Kind::Bind ? "bind " : "assume ") + std::to_string(r.obj) + " " + r.code;
+    }
     std::string out = "order " + std::to_string(r.player);
     for (const ObjId id : r.ids) out += " " + std::to_string(id);
     return out;
@@ -116,7 +119,7 @@ Replay parse_replay(std::string_view text) {
         try {
             const auto w = words(line);
             if (section == InActions) {
-                if (w[0] == "bind" || w[0] == "order") {
+                if (w[0] == "bind" || w[0] == "assume" || w[0] == "order") {
                     r.reveals.push_back(parse_reveal(line));
                     r.reveals.back().before = r.actions.size();
                 } else {
@@ -140,25 +143,24 @@ Replay parse_replay(std::string_view text) {
     if (section == InDeck) throw ReplayError("deck " + std::to_string(seat) + " without \"end\"");
     if (!have_seed || !have_deck[0] || !have_deck[1]) throw ReplayError("needs seed, deck 0 and deck 1");
     if (!r.buddy && std::any_of(r.reveals.begin(), r.reveals.end(),
-                                [](const Reveal& x) { return x.kind == Reveal::Kind::Bind; })) {
+                                [](const Reveal& x) { return x.kind != Reveal::Kind::Order; })) {
         throw ReplayError("bind lines need a \"buddy <seat>\" line");
     }
     return r;
 }
 
-void apply_reveal(GameState& s, const Reveal& r, const CardDb& db, PlayerId buddy, std::vector<ObjId>* group) {
+void apply_reveal(GameState& s, const Reveal& r, const CardDb& db, PlayerId buddy, BindMemory* memory) {
     if (r.kind == Reveal::Kind::Order) {
         if (!set_hand_order(s, r.player, r.ids)) throw std::logic_error("order: not player " + std::to_string(r.player) + "'s hand");
         return;
     }
     const auto found = db.find_code(r.code);
     if (found.card == nullptr) throw std::logic_error("bind " + r.code + ": " + found.error);
-    const std::span<const ObjId> keep = group ? std::span<const ObjId>(*group) : std::span<const ObjId>{};
-    if (r.obj >= s.objects.size() || !bind(s, r.obj, found.card, buddy, keep)) {
-        throw std::logic_error("bind " + std::to_string(r.obj) + " " + r.code + ": no unknown " + found.card->name +
-                               " to swap with");
+    const std::vector<ObjId> keep = memory ? memory->keep(s, buddy) : std::vector<ObjId>{};
+    if (r.obj >= s.objects.size() || !riftbound::bind(s, r.obj, found.card, buddy, keep)) {
+        throw std::logic_error(format_reveal(r) + ": no unknown " + found.card->name + " to swap with");
     }
-    if (group) group->push_back(r.obj);
+    if (memory && r.kind == Reveal::Kind::Bind) memory->add(s, r.obj);
 }
 
 ReplayResult run_replay(const Replay& replay, const CardDb& db,
@@ -171,12 +173,11 @@ ReplayResult run_replay(const Replay& replay, const CardDb& db,
         GameChecks checks(result.state);
         if (auto p = checks.check(result.state); !p.empty()) throw std::logic_error(p);
         std::size_t next = 0;  // reveal
-        std::vector<ObjId> group;  // bound before the same action
+        BindMemory memory;  // as the session keeps it
         const auto reveal_until = [&](std::size_t before) {
-            group.clear();
             for (; next < replay.reveals.size() && replay.reveals[next].before <= before; ++next) {
                 last = format_reveal(replay.reveals[next]);
-                apply_reveal(result.state, replay.reveals[next], db, replay.buddy.value_or(0), &group);
+                apply_reveal(result.state, replay.reveals[next], db, replay.buddy.value_or(0), &memory);
             }
         };
         for (const Action& a : replay.actions) {
@@ -203,7 +204,7 @@ std::string to_text(const Replay& replay, const CardDb& db) {
         for (; next < replay.reveals.size() && replay.reveals[next].before <= before; ++next) {
             const Reveal& r = replay.reveals[next];
             std::string line = format_reveal(r);
-            if (r.kind == Reveal::Kind::Bind) {
+            if (r.kind != Reveal::Kind::Order) {
                 if (const auto found = db.find_code(r.code); found.card != nullptr) {
                     line.resize(std::max<std::size_t>(line.size() + 1, 16), ' ');
                     line += "# " + found.card->name;

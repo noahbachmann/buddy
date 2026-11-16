@@ -479,12 +479,12 @@ void Session::reveal(ObjId obj, const std::string& code) {
         return;
     }
     const bool changed = s_.obj(obj).card != found.card;
-    if (!riftbound::bind(s_, obj, found.card, cfg_.buddy, group_)) {
+    if (!riftbound::bind(s_, obj, found.card, cfg_.buddy, bound_.keep(s_, cfg_.buddy))) {
         do_pause(Pause::Desync, "no unknown " + found.card->name + " left for object " + std::to_string(obj));
         return;
     }
     ++stats_.binds;
-    group_.push_back(obj);
+    bound_.add(s_, obj);
     riftbound::Reveal r;
     r.before = replay_.actions.size();
     r.obj = obj;
@@ -501,7 +501,6 @@ void Session::commit() {
         s_ = std::move(st.next);
         replay_.actions.push_back(*st.action);
         emit_replay(riftbound::format_action(*st.action));
-        group_.clear();
         re_decides_ = 0;
     }
     moves_ = std::move(st.moves);

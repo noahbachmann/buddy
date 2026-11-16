@@ -213,6 +213,41 @@ TEST(RiftboundHidden, BindKeepsTheGroupsEarlierBinds) {
     EXPECT_EQ(s, before);
 }
 
+// #49: a bind keeps its card while the object sits where it was bound and the knower doesn't know it; a move (gen)
+// or the knower learning it ends that.
+TEST(RiftboundHidden, BindMemoryKeepsUntilMovedOrKnown) {
+    GameState s = new_game(vi(), zed(), {.seed = 4, .vanilla = true});
+    BindMemory memory;
+    const ObjId hand = s.player(1).hand.front(), deck = s.player(1).main_deck.front(), mine = s.player(0).main_deck.back();
+    for (const ObjId id : {hand, deck, mine}) memory.add(s, id);
+    EXPECT_EQ(memory.keep(s, 0), (std::vector<ObjId>{hand, deck, mine}));
+    s.obj(mine).known |= 1u;  // Buddy (seat 0) learns its card
+    move_to(s, deck, Zone::MainDeck, 1, 0, Pos::Bottom);  // moved: a new object (124)
+    EXPECT_EQ(memory.keep(s, 0), std::vector<ObjId>{hand});
+    move_to(s, hand, Zone::Trash, 1);  // public
+    EXPECT_EQ(memory.keep(s, 0), std::vector<ObjId>{});
+}
+
+// #49: Dev's battlefield is the engine's random pick until Dev names theirs: it swaps with a removed one (487.5).
+TEST(RiftboundHidden, BindABattlefield) {
+    GameState s = new_game(vi(), zed(), {.seed = 4, .vanilla = true});
+    const ObjId field = s.battlefields[1].card;
+    ASSERT_EQ(s.obj(field).owner, 1);
+    std::vector<ObjId> removed;
+    for (ObjId id = 0; id < s.objects.size(); ++id) {
+        if (s.obj(id).owner == 1 && s.obj(id).zone == Zone::Removed) removed.push_back(id);
+    }
+    ASSERT_EQ(removed.size(), 2u);
+    const Card* was = s.obj(field).card;
+    const Card* want = s.obj(removed[1]).card;
+    ASSERT_TRUE(bind(s, field, want, 0));
+    EXPECT_EQ(s.obj(field).card, want);
+    EXPECT_EQ(s.obj(removed[1]).card, was);
+    EXPECT_EQ(check_invariants(s), std::vector<std::string>{});
+    EXPECT_FALSE(bind(s, field, s.obj(s.battlefields[0].card).card, 0));  // Buddy's: not one of Dev's
+    EXPECT_FALSE(bind(s, field, s.obj(s.player(1).main_deck.back()).card, 0));  // not a battlefield
+}
+
 TEST(RiftboundHidden, SetHandOrder) {
     GameState s = new_game(vi(), zed(), {.seed = 4, .vanilla = true});
     auto hand = s.player(0).hand;

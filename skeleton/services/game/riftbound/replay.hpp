@@ -23,6 +23,7 @@
 //
 //   buddy 1                    (header: the seat whose knowledge `bind` uses, bind() in state.hpp)
 //   bind 41 OGN-007a           # Vi's object 41 is that card: a scan, or Dev's entry
+//   assume 52 OGN-120a         # a placeholder for a card of Dev's that an action needs (#49): bound, not kept
 //   order 1 12 40 33 7         # player 1's hand order bottom → top (set_hand_order)
 
 #include <array>
@@ -39,13 +40,14 @@
 
 namespace buddy::riftbound {
 
-// An identity revealed between two actions (5.6): a bind (obj is the card printed `code`) or a hand order.
+// An identity revealed between two actions (5.6): a bind (obj is the card printed `code`) or a hand order. Assume:
+// a bind that reveals nothing (Dev's hidden hand card gets a placeholder an action needs), so BindMemory skips it.
 struct Reveal {
-    enum class Kind : std::uint8_t { Bind, Order };
+    enum class Kind : std::uint8_t { Bind, Order, Assume };
     std::size_t before = 0;  // applied before actions[before]; actions.size() = after the last
     Kind kind = Kind::Bind;
-    ObjId obj = no_obj;      // Bind
-    std::string code;        // Bind: Code::str()
+    ObjId obj = no_obj;      // Bind, Assume
+    std::string code;        // Bind, Assume: Code::str()
     PlayerId player = 0;     // Order
     std::vector<ObjId> ids;  // Order: the hand bottom → top
     bool operator==(const Reveal&) const = default;
@@ -66,9 +68,9 @@ public:
     using std::runtime_error::runtime_error;
 };
 
-// Applies one reveal; throws std::logic_error if the code is unknown, the bind or the order impossible. `group`: the
-// objects bound by earlier reveals before the same action (bind()'s `keep`); a bind adds its object.
-void apply_reveal(GameState& s, const Reveal& r, const CardDb& db, PlayerId buddy, std::vector<ObjId>* group = nullptr);
+// Applies one reveal; throws std::logic_error if the code is unknown, the bind or the order impossible. `memory`: the
+// game's binds so far (bind()'s keep); a Bind adds its object.
+void apply_reveal(GameState& s, const Reveal& r, const CardDb& db, PlayerId buddy, BindMemory* memory = nullptr);
 
 // One line of the actions section: "play 41", "bind 41 OGN-007a", "order 1 12 40". A service appends them as it goes.
 std::string format_action(const Action& a);

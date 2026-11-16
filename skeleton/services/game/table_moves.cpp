@@ -98,22 +98,29 @@ TableSetup table_setup(const GameState& s, std::vector<LoggedMove>& log, PlayerI
 std::vector<TableMove> TableMoves::step(const GameState& after, const std::vector<LoggedMove>& log) {
     // the seat's cards, hops through transit places collapsed into one move at the time of the last hop
     std::vector<LoggedMove> moves;
-    for (const LoggedMove& e : log) {
+    std::vector<std::size_t> at;  // per move: its log index
+    for (std::size_t k = 0; k < log.size(); ++k) {
+        const LoggedMove& e = log[k];
         const auto& o = after.obj(e.id);
         if (o.owner != seat_ || o.card->type == CardType::Battlefield) continue;
         const auto last = std::find_if(moves.rbegin(), moves.rend(), [&](const LoggedMove& m) { return m.id == e.id; });
         if (last == moves.rend() || !transit(after, *last)) {
             moves.push_back(e);
+            at.push_back(k);
             continue;
         }
         LoggedMove merged = *last;
+        at.erase(at.begin() + (std::next(last).base() - moves.begin()));
         moves.erase(std::next(last).base());
         merged.to = e.to;
         merged.to_where = e.to_where;
         merged.pos = e.pos;
         const bool nowhere = merged.from == merged.to && merged.from_where == merged.to_where;
         const bool fleeting = merged.created && merged.to == Zone::Removed;  // a token made and gone in one step
-        if (!(nowhere && !merged.created) && !fleeting) moves.push_back(merged);
+        if (!(nowhere && !merged.created) && !fleeting) {
+            moves.push_back(merged);
+            at.push_back(k);
+        }
     }
 
     std::vector<TableMove> out;
@@ -123,11 +130,16 @@ std::vector<TableMove> TableMoves::step(const GameState& after, const std::vecto
             return m.id == peeking_ && m.from == Zone::MainDeck && m.to == Zone::MainDeck && !m.peek;
         });
         out.push_back(command(CommandKind::PeekDone, down == moves.end() ? Place::DeckTop : Place::DeckBottom, {}));
-        if (down != moves.end()) moves.erase(down);
+        if (down != moves.end()) {
+            at.erase(at.begin() + (down - moves.begin()));
+            moves.erase(down);
+        }
         peeking_ = riftbound::no_obj;
     }
-    for (const LoggedMove& e : moves) {
+    for (std::size_t k = 0; k < moves.size(); ++k) {
+        const LoggedMove& e = moves[k];
         const ObjId id = e.id;
+        const std::size_t first = out.size();
         if (e.peek) {
             if (peeking_ != riftbound::no_obj) throw std::logic_error("table: two peeks in one step");
             out.push_back(command(CommandKind::Peek, Place::DeckTop, {id}));
@@ -159,6 +171,7 @@ std::vector<TableMove> TableMoves::step(const GameState& after, const std::vecto
             out.push_back(command(kind, place_of(e.to, e.to_where, e.pos), {id}));
         }
         if (!(board(e.from) && board(e.to)) || e.created) exhausted_[id] = 0;  // arrives ready, like table's keeps_exhausted
+        for (std::size_t i = first; i < out.size(); ++i) out[i].at = at[k];
     }
 
     std::vector<ObjId> exhaust, ready;
@@ -174,6 +187,7 @@ std::vector<TableMove> TableMoves::step(const GameState& after, const std::vecto
         if (ids->empty()) continue;
         TableMove m = command(CommandKind::Exhaust, Place::Base, *ids);
         m.cmd.exhausted = ids == &exhaust;
+        m.at = log.size();
         out.push_back(std::move(m));
     }
     return out;
