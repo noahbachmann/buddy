@@ -361,7 +361,7 @@ TEST(RiftboundSession, DevOptionsDontDependOnHiddenCards) {
         int checked = 0;
         const auto key = [](const std::vector<game::DevOption>& list) {
             std::vector<std::tuple<Action, const Card*>> out;
-            for (const auto& o : list) out.emplace_back(o.action, o.named ? o.card : nullptr);
+            for (const auto& o : list) out.emplace_back(o.action, o.card);
             return out;
         };
         g.stop_when = [&] {
@@ -471,11 +471,11 @@ TEST(RiftboundSession, VoiceLinesPerActionGroupAndScoring) {
 // #49's gate: SimDev (a true shuffled deck, greedy) against Buddy (greedy), both decks from both seats, fault-free
 // table. No refusal, no desync, no pause; Dev's options always hold SimDev's true move, the offered cards are exactly
 // the possible ones, every card Buddy learns of Dev's comes from a prompt or Dev's choice and is SimDev's true card,
-// and the game with Dev's true cards from the start is the same legal game. 50 games in 5 tests (ctest runs them in
+// and the game with Dev's true cards from the start is the same legal game (#73: the same decisions, Dev's discards
+// asked in both). 50 games in 5 tests (ctest runs them in
 // parallel).
 void sim_dev_games(int first) {
     game::SessionStats sum;
-    int collapsed = 0;
     for (int i = first; i < first + 10; ++i) {
         const auto& [d0, d1] = kDecks[static_cast<std::size_t>(i % 2)];
         const auto buddy = static_cast<PlayerId>(i / 2 % 2);
@@ -494,14 +494,13 @@ void sim_dev_games(int first) {
         sum.dev_decisions += st.dev_decisions;
         sum.dev_forced += st.dev_forced;
         sum.dev_named += st.dev_named;
-        sum.dev_assumed += st.dev_assumed;
+        sum.dev_declared += st.dev_declared;
         sum.prompts += st.prompts;
-        collapsed += g.collapsed;
     }
     EXPECT_GT(sum.dev_named, 20);
     EXPECT_GT(sum.prompts, 20);
     std::cout << "SimDev games " << first << "–" << first + 9 << ": Dev decisions " << sum.dev_decisions << ", forced "
-              << sum.dev_forced << ", named " << sum.dev_named << ", assumed " << sum.dev_assumed << ", prompts " << sum.prompts << ", choices collapsed into a prompt " << collapsed << "\n";
+              << sum.dev_forced << ", named " << sum.dev_named << ", declared discards " << sum.dev_declared << ", prompts " << sum.prompts << "\n";
 }
 
 TEST(RiftboundSession, SimDevGames0) { sim_dev_games(0); }
@@ -509,3 +508,35 @@ TEST(RiftboundSession, SimDevGames1) { sim_dev_games(10); }
 TEST(RiftboundSession, SimDevGames2) { sim_dev_games(20); }
 TEST(RiftboundSession, SimDevGames3) { sim_dev_games(30); }
 TEST(RiftboundSession, SimDevGames4) { sim_dev_games(40); }
+
+// #73: Dev declares the spell Mel's Empower discards ("… (discard X)"), the Discard choice that follows is answered
+// with it, and no discard ever turns into a prompt afterwards (the referee never picks from Dev's placeholders).
+TEST(RiftboundSession, DevDeclaresTheSpellACostDiscards) {
+    long declared = 0, hand_prompts = 0, texts = 0;
+    for (int i = 0; i < 30 && declared < 2; ++i) {
+        Game g("vi-unleashed", "zed-vendetta", 0, 1300 + static_cast<std::uint64_t>(i), {}, 13, true);  // Dev: Zed (Mel)
+        g.stop_when = [&] {
+            const Session& s = *g.session;
+            if (s.status() == Status::DevToReveal && s.prompt()->kind == game::DevPrompt::Kind::Hand) ++hand_prompts;
+            if (s.status() != Status::DevToAct) return false;
+            const GameState pv = public_view(s.state());
+            for (const auto& o : s.dev_options()) {
+                if (!o.discards()) continue;
+                ++texts;
+                EXPECT_EQ(o.card->type, CardType::Spell);
+                EXPECT_TRUE(game::option_text(pv, o).ends_with("(discard " + o.card->name + ")")) << game::option_text(pv, o);
+            }
+            return false;
+        };
+        g.run();
+        SCOPED_TRACE("seed " + std::to_string(1300 + i));
+        EXPECT_EQ(g.session->status(), Status::Over) << g.session->pause_message();
+        EXPECT_TRUE(g.problems.empty()) << g.problems.front();
+        EXPECT_EQ(g.replay_problem(), "");
+        EXPECT_EQ(g.true_replay_problem(), "");
+        declared += g.session->stats().dev_declared;
+    }
+    EXPECT_GE(declared, 2);
+    EXPECT_GT(texts, declared);
+    EXPECT_EQ(hand_prompts, 0);
+}

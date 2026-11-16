@@ -97,7 +97,7 @@ TEST(RiftboundReplay, BindsAndOrdersRoundTrip) {
     const Deck vi = parse_deck(fixture(), deck_text("vi-unleashed")), zed = parse_deck(fixture(), deck_text("zed-vendetta"));
     Replay replay{.seed = 21, .vanilla = false, .decks = {deck_text("vi-unleashed"), deck_text("zed-vendetta")},
                   .actions = {}, .buddy = 1, .reveals = {}};
-    GameState s = new_game(vi, zed, {.seed = replay.seed});
+    GameState s = new_game(vi, zed, {.seed = replay.seed, .ask_discard = 1});  // a session's: Dev (seat 0) is asked (#73)
     Rng rng(5);
     BindMemory memory;
     int binds = 0, orders = 0;
@@ -138,10 +138,8 @@ TEST(RiftboundReplay, BindsAndOrdersRoundTrip) {
 
 TEST(RiftboundReplay, RevealSyntax) {
     const std::string head = "seed 1\nbuddy 0\ndeck 0\nend\ndeck 1\nend\nactions\n";
-    const Replay r = parse_replay(head + "bind 41 OGN-007a  # Vi\ndone\norder 1 3 9 4\nassume 7 OGN-001a\n");
-    ASSERT_EQ(r.reveals.size(), 3u);
-    EXPECT_EQ(r.reveals[2].kind, Reveal::Kind::Assume);
-    EXPECT_EQ(format_reveal(r.reveals[2]), "assume 7 OGN-001a");
+    const Replay r = parse_replay(head + "bind 41 OGN-007a  # Vi\ndone\norder 1 3 9 4\n");
+    ASSERT_EQ(r.reveals.size(), 2u);
     EXPECT_EQ(r.reveals[0].before, 0u);
     EXPECT_EQ(r.reveals[0].obj, 41);
     EXPECT_EQ(r.reveals[0].code, "OGN-007a");
@@ -152,6 +150,7 @@ TEST(RiftboundReplay, RevealSyntax) {
     EXPECT_THROW(parse_replay("seed 1\ndeck 0\nend\ndeck 1\nend\nactions\nbind 41 OGN-007a\n"), ReplayError);
     EXPECT_THROW(parse_replay(head + "bind 41\n"), ReplayError);
     EXPECT_THROW(parse_replay(head + "order 2 1\n"), ReplayError);
+    EXPECT_THROW(parse_replay(head + "assume 7 OGN-001a\n"), ReplayError);  // #73: Dev's cards are declared, not assumed
 }
 
 TEST(RiftboundReplay, AnImpossibleBindIsTheProblem) {

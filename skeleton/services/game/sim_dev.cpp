@@ -60,34 +60,27 @@ std::vector<const Card*> SimDev::reveal(const DevPrompt& p) const {
     return cards;
 }
 
-void SimDev::answer(const GameState& s, const DevPrompt& p,
-                    const std::function<bool(const std::vector<const Card*>&)>& submit) {
-    if (submit(reveal(p))) return;
-    if (p.kind == DevPrompt::Kind::Hand) {
-        for (const ObjId obj : p.objs) {
-            for (const ObjId x : s.player(seat_).hand) {
-                if (!hidden_hand(s, x) || truth_[x] == truth_[obj]) continue;
-                std::swap(truth_[x], truth_[obj]);
-                if (submit(reveal(p))) return;
-                std::swap(truth_[x], truth_[obj]);
+// A cost Dev declares (#73, "Mel: Empower (discard X)"): the spell SimDev's player discards when the true game asks,
+// as the option with that card; a hidden one swaps its truth onto the option's object (hidden hand cards are
+// interchangeable). nullptr: no such option.
+const DevOption* SimDev::declared(const GameState& t, const Action& a, const std::vector<DevOption>& options) {
+    GameState after = t;
+    riftbound::apply(after, a);
+    for (int guard = 0; guard < 16 && after.decision.player == seat_ && after.decision.kind == riftbound::DecisionKind::Choose; ++guard) {
+        const auto acts = riftbound::legal_actions(after);
+        const Action pick = acts.size() == 1 ? acts[0] : player_->choose(riftbound::view(after, seat_), acts);
+        if (after.decision.purpose == riftbound::Purpose::Discard) {
+            const Card* card = after.obj(pick.obj).card;
+            for (const auto& o : options) {
+                if (o.action != a || o.card != card) continue;
+                if (hidden_hand(t, o.obj) && o.obj != pick.obj) std::swap(truth_[pick.obj], truth_[o.obj]);
+                return &o;
             }
+            return nullptr;
         }
+        riftbound::apply(after, pick);
     }
-    throw std::logic_error("SimDev: no answer to the " + std::string(to_string(p.kind)) + " prompt is accepted");
-}
-
-// An unnamed option assumes `o.card` on `o.obj`: put a true card there that allows the action (some hidden hand card
-// of Dev's does, or SimDev's player wouldn't have picked it), so a later prompt for that object can answer truly.
-void SimDev::relabel(const GameState& s, const DevOption& o) {
-    for (const ObjId x : s.player(seat_).hand) {
-        if (!hidden_hand(s, x)) continue;
-        GameState copy = s;
-        if (!riftbound::bind(copy, o.obj, truth_[x], riftbound::opponent(seat_))) continue;
-        const auto legal = riftbound::legal_actions(copy);
-        if (std::find(legal.begin(), legal.end(), o.action) == legal.end()) continue;
-        std::swap(truth_[x], truth_[o.obj]);
-        return;
-    }
+    return nullptr;
 }
 
 DevOption SimDev::choose(const GameState& s, const std::vector<DevOption>& options) {
@@ -99,15 +92,11 @@ DevOption SimDev::choose(const GameState& s, const std::vector<DevOption>& optio
                                 std::to_string(options.size()) + " options");
     };
     if (!hidden_hand(s, a.obj)) {
-        const DevOption* unnamed = nullptr;
         for (const auto& o : options) {
-            if (o.action != a) continue;
-            if (o.named && !o.card) return o;
-            if (!o.named) unnamed = &o;
+            if (o.action == a && !o.card) return o;
         }
-        if (!unnamed) throw fail();
-        relabel(s, *unnamed);
-        return *unnamed;
+        if (const DevOption* o = declared(t, a, options)) return *o;
+        throw fail();
     }
     if (s.decision.kind == riftbound::DecisionKind::Mulligan) {  // by count: whichever hidden card the option names
         for (const auto& o : options) {
@@ -118,7 +107,7 @@ DevOption SimDev::choose(const GameState& s, const std::vector<DevOption>& optio
         }
         throw fail();
     }
-    const auto same_kind = [&](const DevOption& o) { return o.named && o.card && o.action.kind == a.kind && o.action.n == a.n; };
+    const auto same_kind = [&](const DevOption& o) { return o.card && !o.discards() && o.action.kind == a.kind && o.action.n == a.n; };
     for (const auto& o : options) {
         if (same_kind(o) && o.card == truth_[a.obj]) {
             std::swap(truth_[a.obj], truth_[o.obj]);

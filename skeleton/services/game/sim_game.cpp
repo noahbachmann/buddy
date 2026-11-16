@@ -79,7 +79,7 @@ std::string SimGame::candidates_problem() const {
         }
     }
     for (const auto& o : session->dev_options()) {
-        if (o.named && o.card && o.action.kind == ActionKind::Play) offered.insert(o.card);
+        if (o.card && !o.discards() && o.action.kind == ActionKind::Play) offered.insert(o.card);
     }
     for (const auto& e : cfg.decks[dev_seat()].main) {
         const bool is_offered = offered.contains(e.card);
@@ -145,7 +145,7 @@ void SimGame::run() {
                     if (auto p = candidates_problem(); !p.empty()) problems.push_back("candidates: " + p);
                 }
                 const auto choice = dev.choose(session->state(), session->dev_options());
-                if (choice.named && choice.card) announced_.insert(choice.obj);
+                if (choice.card) announced_.insert(choice.obj);
                 session->on_dev(choice);
                 break;
             }
@@ -158,15 +158,7 @@ void SimGame::run() {
                     announced_.insert(id);
                 }
                 prompt_cards += static_cast<long>(p.objs.size());
-                dev.answer(session->state(), p, [&](const auto& cards) {
-                    try {
-                        session->on_reveal(cards);
-                        return true;
-                    } catch (const Refused&) {
-                        ++reanswers;
-                        return false;
-                    }
-                });
+                session->on_reveal(dev.reveal(p));
                 break;
             }
             case Status::Paused:
@@ -191,6 +183,13 @@ void SimGame::check() {
     if (auto p = dev_problem(); !p.empty()) problems.push_back("step " + std::to_string(last_steps_) + ": " + p);
 }
 
+// A bind line for Dev's object: only Dev's choices and prompts write them, a choice the session applied unasked (one
+// option left: the last card Dev's pool holds) too.
+bool SimGame::bound_by_dev(ObjId id) const {
+    const auto& reveals = session->replay().reveals;
+    return std::any_of(reveals.begin(), reveals.end(), [&](const Reveal& r) { return r.kind == Reveal::Kind::Bind && r.obj == id; });
+}
+
 // Dev's side: every card of Dev's that Buddy knows is SimDev's true one, and Buddy learned it from a prompt or Dev
 // naming it, never on its own; a prompted card is known after its step.
 std::string SimGame::dev_problem() {
@@ -204,7 +203,8 @@ std::string SimGame::dev_problem() {
         const bool removed = o.zone == Zone::Removed;  // 487.5's unused battlefields: SimDev doesn't track them
         if (knows && dev.truth(id) && !removed && check_truth && o.card != dev.truth(id)) {
             problem = "Dev's " + std::to_string(id) + " is " + o.card->name + ", truly " + dev.truth(id)->name;
-        } else if (knows && !known_before_[id] && !announced_.contains(id) && o.card->type != CardType::Battlefield) {
+        } else if (knows && !known_before_[id] && !announced_.contains(id) && !bound_by_dev(id) &&
+                   o.card->type != CardType::Battlefield) {
             problem = "Buddy learned Dev's " + o.card->name + " (" + std::to_string(id) + ") unasked";
         }
         known_before_[id] = knows;
@@ -215,7 +215,8 @@ std::string SimGame::dev_problem() {
 
 std::string SimGame::true_replay_problem() {
     const Replay r = parse_replay(session->replay_text());
-    GameState st = new_game(cfg.decks[0], cfg.decks[1], {.seed = cfg.seed});
+    GameState st = new_game(cfg.decks[0], cfg.decks[1],
+                            {.seed = cfg.seed, .ask_discard = static_cast<std::uint8_t>(1u << dev_seat())});
     const GameState& end = session->state();
     for (ObjId id = 0; id < st.objects.size(); ++id) {  // what Buddy knows at the end: checked = the truth
         if (st.obj(id).owner == dev_seat()) st.obj(id).card = buddy_knows(end, id) ? end.obj(id).card : dev.truth(id);
@@ -233,30 +234,6 @@ std::string SimGame::true_replay_problem() {
         };
         for (std::size_t i = 0; i < r.actions.size(); ++i) {
             reveals_until(i);
-            // A "discard a spell" that the placeholders left without a choice (one spell among them) is a prompt in
-            // the session; with Dev's true hand it can be a choice: pick the cards Dev named there.
-            const auto legal = legal_actions(st);
-            if (std::find(legal.begin(), legal.end(), r.actions[i]) == legal.end() &&
-                st.decision.kind == DecisionKind::Choose && st.decision.purpose == Purpose::Discard &&
-                st.decision.player == dev_seat() && i > 0) {
-                ++collapsed;
-                for (const Reveal& x : r.reveals) {
-                    if (x.before == i - 1 && x.kind == Reveal::Kind::Bind && st.obj(x.obj).zone == Zone::Hand) {
-                        apply(st, {ActionKind::Pick, x.obj});
-                    }
-                }
-            }
-            // The other way round: the placeholders held several spells, so Dev picked the one to discard; Dev's true
-            // hand held one, which the true game discarded unasked: the pick's card is in Dev's trash already.
-            const Action& a = r.actions[i];
-            if (a.kind == ActionKind::Pick && a.obj < st.objects.size() && st.obj(a.obj).owner == dev_seat() &&
-                st.obj(a.obj).zone == Zone::Trash) {
-                const auto now = legal_actions(st);
-                if (std::find(now.begin(), now.end(), a) == now.end()) {
-                    ++expanded;
-                    continue;
-                }
-            }
             try {
                 apply(st, r.actions[i]);
             } catch (const IllegalAction& e) {
@@ -451,7 +428,6 @@ SoakGame soak_game(const CardDb& db, const std::array<std::string, 2>& deck_text
         out.injected = g.sim.faults().total();
         out.prompt_cards = g.prompt_cards;
         out.leak_checks = g.leak_checks;
-        out.reanswers = g.reanswers;
         if (out.failed()) out.replay = s.replay_text();
     } catch (const std::exception& e) {
         out.problems.push_back(std::string("exception: ") + e.what());
@@ -521,10 +497,10 @@ int print_soak_report(std::ostream& out, const std::vector<SoakGame>& games, dou
     row("Dev decisions asked", [](const SoakGame& g) { return g.stats.dev_decisions - g.stats.dev_forced; });
     row("Dev decisions forced", [](const SoakGame& g) { return g.stats.dev_forced; });
     row("Dev cards named (plays)", [](const SoakGame& g) { return g.stats.dev_named; });
+    row("Dev declared discards", [](const SoakGame& g) { return g.stats.dev_declared; });
     row("Dev prompts", [](const SoakGame& g) { return g.stats.prompts; });
     row("  cards in prompts", [](const SoakGame& g) { return g.prompt_cards; });
     row("Dev taps", [](const SoakGame& g) { return g.taps(); });
-    row("SimDev re-answers", [](const SoakGame& g) { return g.reanswers; });
     row("time (ms)", [](const SoakGame& g) { return g.ms; });
     if (wall_s > 0) out << std::format("  wall {:.1f} s\n", wall_s);
     return failed;

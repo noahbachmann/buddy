@@ -221,7 +221,7 @@ json public_state(const Session& session, const GameState& s, const std::vector<
         for (std::size_t i = 0; i < options.size(); ++i) {
             const auto& o = options[i];
             json e = {{"i", i}, {"text", option_text(pv, o)}, {"group", option_group(o)}};
-            if (o.card && o.named) e["card"] = o.card->home().code.str();
+            if (o.card) e["card"] = o.card->home().code.str();
             list.push_back(e);
         }
         j["options"] = list;

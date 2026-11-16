@@ -163,17 +163,7 @@ void GameHost::drive() {
     while (bot_) {
         Session& s = *session_;
         if (s.status() == Status::DevToAct) s.on_dev(bot_->choose(s.state(), s.dev_options()));
-        else if (s.status() == Status::DevToReveal) {
-            const DevPrompt p = *s.prompt();
-            bot_->answer(s.state(), p, [&](const auto& cards) {
-                try {
-                    s.on_reveal(cards);
-                    return true;
-                } catch (const Refused&) {
-                    return false;
-                }
-            });
-        }
+        else if (s.status() == Status::DevToReveal) s.on_reveal(bot_->reveal(*s.prompt()));
         else return;
         absorb();
     }

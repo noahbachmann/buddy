@@ -23,7 +23,6 @@
 //
 //   buddy 1                    (header: the seat whose knowledge `bind` uses, bind() in state.hpp)
 //   bind 41 OGN-007a           # Vi's object 41 is that card: a scan, or Dev's entry
-//   assume 52 OGN-120a         # a placeholder for a card of Dev's that an action needs (#49): bound, not kept
 //   order 1 12 40 33 7         # player 1's hand order bottom → top (set_hand_order)
 
 #include <array>
@@ -40,14 +39,13 @@
 
 namespace buddy::riftbound {
 
-// An identity revealed between two actions (5.6): a bind (obj is the card printed `code`) or a hand order. Assume:
-// a bind that reveals nothing (Dev's hidden hand card gets a placeholder an action needs), so BindMemory skips it.
+// An identity revealed between two actions (5.6): a bind (obj is the card printed `code`) or a hand order.
 struct Reveal {
-    enum class Kind : std::uint8_t { Bind, Order, Assume };
+    enum class Kind : std::uint8_t { Bind, Order };
     std::size_t before = 0;  // applied before actions[before]; actions.size() = after the last
     Kind kind = Kind::Bind;
-    ObjId obj = no_obj;      // Bind, Assume
-    std::string code;        // Bind, Assume: Code::str()
+    ObjId obj = no_obj;      // Bind
+    std::string code;        // Bind: Code::str()
     PlayerId player = 0;     // Order
     std::vector<ObjId> ids;  // Order: the hand bottom → top
     bool operator==(const Reveal&) const = default;

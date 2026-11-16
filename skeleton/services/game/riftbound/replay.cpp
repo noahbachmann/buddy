@@ -53,8 +53,7 @@ Action parse_action(std::string_view line) {
 Reveal parse_reveal(std::string_view line) {
     const auto w = words(line);
     Reveal r;
-    if (w[0] == "bind" || w[0] == "assume") {
-        if (w[0] == "assume") r.kind = Reveal::Kind::Assume;
+    if (w[0] == "bind") {
         if (w.size() != 3 || !number(w[1], r.obj)) throw std::invalid_argument("expected " + std::string(w[0]) + " <obj> <code>");
         r.code = std::string(w[2]);
         return r;
@@ -72,9 +71,7 @@ Reveal parse_reveal(std::string_view line) {
 } // namespace
 
 std::string format_reveal(const Reveal& r) {
-    if (r.kind != Reveal::Kind::Order) {
-        return (r.kind == Reveal::Kind::Bind ? "bind " : "assume ") + std::to_string(r.obj) + " " + r.code;
-    }
+    if (r.kind == Reveal::Kind::Bind) return "bind " + std::to_string(r.obj) + " " + r.code;
     std::string out = "order " + std::to_string(r.player);
     for (const ObjId id : r.ids) out += " " + std::to_string(id);
     return out;
@@ -119,7 +116,7 @@ Replay parse_replay(std::string_view text) {
         try {
             const auto w = words(line);
             if (section == InActions) {
-                if (w[0] == "bind" || w[0] == "assume" || w[0] == "order") {
+                if (w[0] == "bind" || w[0] == "order") {
                     r.reveals.push_back(parse_reveal(line));
                     r.reveals.back().before = r.actions.size();
                 } else {
@@ -169,7 +166,9 @@ ReplayResult run_replay(const Replay& replay, const CardDb& db,
     ReplayResult result;
     std::string last = "setup";
     try {
-        result.state = new_game(seat0, seat1, {.seed = replay.seed, .vanilla = replay.vanilla});
+        // a session's replay (5.6): Dev's discards were asked (#73)
+        const auto ask = replay.buddy ? static_cast<std::uint8_t>(1u << opponent(*replay.buddy)) : std::uint8_t{0};
+        result.state = new_game(seat0, seat1, {.seed = replay.seed, .vanilla = replay.vanilla, .ask_discard = ask});
         GameChecks checks(result.state);
         if (auto p = checks.check(result.state); !p.empty()) throw std::logic_error(p);
         std::size_t next = 0;  // reveal

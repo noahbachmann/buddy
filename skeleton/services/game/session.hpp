@@ -15,7 +15,9 @@
 //
 // Dev plays real cards (#49): the referee doesn't know Dev's hand or deck order, Dev's hidden objects hold
 // placeholders. Dev chooses from dev_options(): the actions on known cards, and hidden hand cards by card (one
-// option per card Dev could hold, checked on a copy with a hand object bound to it); choosing one binds it.
+// option per card Dev could hold, checked on a copy with a hand object bound to it); choosing one binds it. The
+// referee never picks from Dev's placeholders (#73): Dev's discard costs are always asked (GameOptions::ask_discard),
+// and a cost that needs a spell is declared with the option ("discard X").
 
 #include <array>
 #include <cstdint>
@@ -84,19 +86,21 @@ struct DevPrompt {
 };
 std::string_view to_string(DevPrompt::Kind k);
 
-// One of Dev's choices. A hidden hand card of Dev's is offered by card: `obj` (the session's pick of Dev's hidden
-// hand objects, the one `action` names) becomes `card` when chosen. Unnamed: an action that needs some card in Dev's
-// hand that the placeholders don't hold (Mel's "discard a spell"): `obj` gets `card` as a placeholder, nothing more.
+// One of Dev's choices. `card` is what Dev declares (#49, #73): a hidden hand card played or picked by card (`obj` =
+// the session's pick of Dev's hidden hand objects, the one `action` names; it becomes `card` when chosen), or the
+// spell an action's cost discards ("Mel: Empower (discard X)": `obj` = the hand card that pays it, a hidden one
+// becomes `card`; the Discard choice that follows is answered with it). No card: the action as it is.
 struct DevOption {
     Action action;
     ObjId obj = riftbound::no_obj;
     const riftbound::Card* card = nullptr;
-    bool named = true;
     bool operator==(const DevOption&) const = default;
+    // The option declares the card its cost discards (not the card it plays or picks).
+    bool discards() const { return card && action.obj != obj; }
 };
 std::string describe(const riftbound::GameState& s, const DevOption& o);
-// The panel's text for an option (#50), on the public view `pv`: a named card by its name, a hidden card by count
-// ("set aside a card"), an ability by its kind ("Mel, Defiant Soul: Empower"). Never an unnamed option's card.
+// The panel's text for an option (#50), on the public view `pv`: a declared card by its name, a hidden card by count
+// ("set aside a card"), an ability by its kind ("Mel, Defiant Soul: Empower (discard Ruthless Strike)").
 std::string option_text(const riftbound::GameState& pv, const DevOption& o);
 // play / activate / move / pass / choose: how the panel groups the buttons.
 std::string_view option_group(const DevOption& o);
@@ -152,7 +156,7 @@ inline constexpr std::size_t log_lines = 30;
 struct SessionStats {
     long steps = 0, commands = 0, binds = 0, reapplies = 0, re_decides = 0, retries = 0, corrections = 0,
          misreads = 0, reorders = 0, extras = 0, pauses = 0, resumes = 0;
-    long dev_decisions = 0, dev_forced = 0, dev_named = 0, dev_assumed = 0, prompts = 0, refusals = 0;
+    long dev_decisions = 0, dev_forced = 0, dev_named = 0, dev_declared = 0, prompts = 0, refusals = 0;
 };
 
 class Session {
@@ -240,7 +244,7 @@ private:
                             const std::vector<riftbound::LoggedMove>& log, std::vector<TableMove> moves) const;
     std::vector<DevOption> options() const;
     void take_dev(const DevOption& o);
-    void bind_line(ObjId obj, const riftbound::Card* card, bool kept);
+    void bind_line(ObjId obj, const riftbound::Card* card);
     void send(table::Command c, Kind kind, int attempt = 0);
     void send_step_command();
     void done(const Inflight& f, const table::Event& e);
@@ -282,6 +286,7 @@ private:
     ObjId peeking_ = riftbound::no_obj;
     riftbound::BindMemory bound_;   // bind()'s keep, tracked as run_replay does
     std::set<ObjId> named_;         // Dev's hidden cards Dev named (a discard picked by card): no prompt for them
+    ObjId declared_ = riftbound::no_obj;  // the card Dev declared for a discard cost: picks the Discard choice (#73)
     std::vector<DevOption> dev_options_;
     riftbound::Replay replay_;
     std::deque<LogLine> log_;

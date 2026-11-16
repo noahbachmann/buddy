@@ -128,7 +128,7 @@ TEST(RiftboundGameHost, HumanDevPlaysByCommands) {
             const auto i = static_cast<std::size_t>(std::find(list.begin(), list.end(), o) - list.begin());
             const json& shown = st["options"].at(i);
             if (shown["i"] != i || shown["text"].get<std::string>().empty()) g.problems.push_back("option " + shown.dump());
-            if (o.named && o.card && shown["card"] != o.card->home().code.str()) g.problems.push_back("card " + shown.dump());
+            if (o.card && shown["card"] != o.card->home().code.str()) g.problems.push_back("card " + shown.dump());
             if (!dumped && s.state().turn >= 6 && std::getenv("BUDDY_GAME_STATE_DUMP")) {  // for the issue's review
                 std::ofstream(std::getenv("BUDDY_GAME_STATE_DUMP")) << st.dump(2) << "\n";
                 dumped = true;

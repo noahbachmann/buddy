@@ -60,7 +60,8 @@ std::string_view to_string(DevPrompt::Kind k) {
 }
 
 std::string describe(const GameState& s, const DevOption& o) {
-    if (!o.card || !o.named) return riftbound::describe(s, o.action);
+    if (!o.card) return riftbound::describe(s, o.action);
+    if (o.discards()) return riftbound::describe(s, o.action) + " (discard " + o.card->name + ")";
     switch (o.action.kind) {
         case ActionKind::Play: return "play " + o.card->name;
         case ActionKind::Pick: return "choose " + o.card->name;
@@ -70,18 +71,19 @@ std::string describe(const GameState& s, const DevOption& o) {
 
 std::string option_text(const GameState& pv, const DevOption& o) {
     const Action& a = o.action;
-    if (o.card && o.named) return describe(pv, o);
+    if (o.card && !o.discards()) return describe(pv, o);
     const bool hidden = a.obj < pv.objects.size() && pv.obj(a.obj).card == riftbound::hidden_card();
     if (hidden) return pv.decision.kind == DecisionKind::Mulligan ? "set aside a card" : "a card";  // by count
+    const std::string discard = o.discards() ? " (discard " + o.card->name + ")" : "";
     if (a.kind == ActionKind::Activate) {
         const std::string& name = pv.obj(a.obj).card->name;
         const auto* spec = riftbound::ability_spec(pv, a.obj, a.n);
-        if (spec && spec->builtin == riftbound::Builtin::Empower) return name + ": Empower";
-        if (spec && spec->builtin == riftbound::Builtin::Equip) return name + ": Equip";
-        if (spec && spec->add) return name + ": Add";
-        return name + ": activate";
+        if (spec && spec->builtin == riftbound::Builtin::Empower) return name + ": Empower" + discard;
+        if (spec && spec->builtin == riftbound::Builtin::Equip) return name + ": Equip" + discard;
+        if (spec && spec->add) return name + ": Add" + discard;
+        return name + ": activate" + discard;
     }
-    return riftbound::describe(pv, a);
+    return riftbound::describe(pv, a) + discard;
 }
 
 std::string_view option_group(const DevOption& o) {
@@ -121,26 +123,48 @@ std::vector<const Card*> dev_pool(const GameState& s, PlayerId buddy, std::span<
     return out;
 }
 
+namespace {
+
+// An action whose cost discards a spell (Mel's Empower): Dev declares the spell with the option (#73).
+bool needs_spell(const GameState& s, const Action& a) {
+    if (a.kind != ActionKind::Activate) return false;
+    const auto* spec = riftbound::ability_spec(s, a.obj, a.n);
+    return spec && spec->cost.discard_spell;
+}
+
+} // namespace
+
 // Actions on cards Buddy knows as they are; Dev's hidden hand cards stand for any card Dev could hold (the decklist
 // minus what Buddy has seen): one option per such card, checked on a copy where the first hidden hand card (`h`)
-// holds it. Mulligan: by count (which cards go back stays secret). Priority: an action only some card in Dev's hand
-// allows (Mel's "discard a spell") comes in unnamed. The order depends on nothing the placeholders hold (#50: `i` is
-// stable and leaks nothing): by group, named cards in decklist order, the rest by object and index.
+// holds it. Mulligan: by count (which cards go back stays secret). Priority: an action whose cost discards a spell
+// comes once per spell Dev could pay with: the spells Buddy knows in Dev's hand, and the pool's spells on `h` (#73;
+// whether the placeholders hold one decides nothing). The order depends on nothing the placeholders hold (#50: `i`
+// is stable and leaks nothing): by group, declared cards in decklist order, the rest by object and index.
 std::vector<DevOption> dev_options(const GameState& s, const DevContext& c) {
     const auto base = riftbound::legal_actions(s);
     const auto& d = s.decision;
+    const bool priority = d.kind == DecisionKind::Priority;
     const auto hidden = [&](ObjId id) { return dev_hidden(s, c.buddy, *c.named, id); };
     std::vector<DevOption> out;
     ObjId h = no_obj;
     for (const Action& a : base) {
-        if (!hidden(a.obj)) {
+        if (hidden(a.obj)) {
+            if (h == no_obj) {
+                h = a.obj;  // the first hidden one offered: picks go in option order
+                if (d.kind == DecisionKind::Mulligan) out.push_back({a});
+            }
+        } else if (priority && needs_spell(s, a)) {
+            // with a spell Buddy knows in hand: its legality holds whatever the placeholders are
+            std::set<const Card*> seen;
+            for (const ObjId id : s.player(d.player).hand) {
+                const Card* card = s.obj(id).card;
+                if (!hidden(id) && card->type == CardType::Spell && seen.insert(card).second) out.push_back({a, id, card});
+            }
+        } else {
             out.push_back({a});
-        } else if (h == no_obj) {
-            h = a.obj;  // the first hidden one offered: picks go in option order
-            if (d.kind == DecisionKind::Mulligan) out.push_back({a});
         }
     }
-    if (d.kind == DecisionKind::Priority) {
+    if (priority) {
         h = no_obj;
         for (const ObjId id : s.player(d.player).hand) {
             if (hidden(id)) {
@@ -158,34 +182,32 @@ std::vector<DevOption> dev_options(const GameState& s, const DevContext& c) {
                 break;
             }
         }
-        std::vector<DevOption> unnamed;
         for (const Card* card : dev_pool(s, c.buddy, c.keep, *c.dev_deck, false)) {
             if (spells_only && card->type != CardType::Spell) continue;
             GameState copy = s;
             if (!riftbound::bind(copy, h, card, c.buddy, c.keep)) continue;
-            if (d.kind != DecisionKind::Priority) {  // a Choose: its options are fixed, h is one of them
-                out.push_back({{ActionKind::Pick, h}, h, card, true});
+            if (!priority) {  // a Choose: its options are fixed, h is one of them
+                out.push_back({{ActionKind::Pick, h}, h, card});
                 continue;
             }
             for (const Action& a : riftbound::legal_actions(copy)) {
                 if (a.obj == h && a.kind == ActionKind::Play) {
-                    out.push_back({a, h, card, true});
-                } else if (!hidden(a.obj) && std::find(base.begin(), base.end(), a) == base.end() &&
-                           std::none_of(unnamed.begin(), unnamed.end(), [&](const DevOption& u) { return u.action == a; })) {
-                    unnamed.push_back({a, h, card, false});
+                    out.push_back({a, h, card});
+                } else if (card->type == CardType::Spell && !hidden(a.obj) && needs_spell(copy, a) &&
+                           std::none_of(out.begin(), out.end(), [&](const DevOption& o) { return o.action == a && o.card == card; })) {
+                    out.push_back({a, h, card});  // a known spell of the same card came first
                 }
             }
         }
-        out.insert(out.end(), unnamed.begin(), unnamed.end());
     }
-    // Stable order: the rank of the group, then named cards by decklist, then the action itself (a known card's id
-    // and index don't depend on the placeholders; whether an action came from `base` or `unnamed` does).
+    // Stable order: the rank of the group, then declared cards by decklist, then the action itself (a known card's id
+    // and index don't depend on the placeholders).
     const auto& main = c.dev_deck->main;
     const auto rank = [&](const DevOption& o) {
         static constexpr int by_kind[] = {/*Pick*/ 3, /*Done*/ 5, /*Play*/ 0, /*EndTurn*/ 4, /*Pass*/ 4,
                                           /*Activate*/ 1, /*Move*/ 2};
         int listed = -1;
-        if (o.card && o.named) {
+        if (o.card) {
             listed = static_cast<int>(std::find_if(main.begin(), main.end(), [&](const auto& e) { return e.card == o.card; }) - main.begin());
         }
         return std::tuple(by_kind[static_cast<int>(o.action.kind)], listed, o.action.obj, o.action.n);
@@ -323,7 +345,8 @@ void Session::start() {
     std::vector<riftbound::LoggedMove> log;
     {
         MoveRecorder rec;
-        s_ = riftbound::new_game(cfg_.decks[0], cfg_.decks[1], {.seed = cfg_.seed});
+        const auto dev = static_cast<std::uint8_t>(1u << riftbound::opponent(cfg_.buddy));
+        s_ = riftbound::new_game(cfg_.decks[0], cfg_.decks[1], {.seed = cfg_.seed, .ask_discard = dev});
         log = rec.take();
     }
     setup_ = table_setup(s_, log, cfg_.buddy);
@@ -431,7 +454,7 @@ void Session::on_reveal(const std::vector<const Card*>& cards) {
     }
     s_ = std::move(s);
     bound_ = std::move(bound);
-    for (std::size_t i = 0; i < cards.size(); ++i) bind_line(p->objs[i], cards[i], true);
+    for (std::size_t i = 0; i < cards.size(); ++i) bind_line(p->objs[i], cards[i]);
     ++stats_.prompts;
     ++st.done;
     status_ = Status::Acting;
@@ -510,6 +533,19 @@ bool Session::advance() {
         return false;
     }
     if (s_.decision.player != cfg_.buddy) {
+        // the card Dev declared for a discard cost pays it (#73); the next Priority ends the declaration
+        if (declared_ != no_obj && s_.decision.kind == DecisionKind::Priority) declared_ = no_obj;
+        if (declared_ != no_obj && s_.decision.kind == DecisionKind::Choose &&
+            s_.decision.purpose == riftbound::Purpose::Discard) {
+            const Action pick{ActionKind::Pick, declared_};
+            declared_ = no_obj;
+            const auto legal = riftbound::legal_actions(s_);
+            if (std::find(legal.begin(), legal.end(), pick) != legal.end()) {
+                ++stats_.dev_forced;
+                take_dev({pick});
+                return true;
+            }
+        }
         dev_options_ = options();
         if (dev_options_.size() == 1) {  // no card in Dev's hand could change it
             ++stats_.dev_forced;
@@ -799,7 +835,7 @@ void Session::reveal(ObjId obj, const std::string& code) {
         return;
     }
     bound_.add(s_, obj);
-    bind_line(obj, found.card, true);
+    bind_line(obj, found.card);
     if (changed && step_ && step_->action) step_->stale = true;
 }
 
@@ -931,10 +967,10 @@ void Session::flush_voice() {
     out_.voice.push_back(line);
 }
 
-void Session::bind_line(ObjId obj, const Card* card, bool kept) {
+void Session::bind_line(ObjId obj, const Card* card) {
     ++stats_.binds;
     riftbound::Reveal r;
-    r.kind = kept ? riftbound::Reveal::Kind::Bind : riftbound::Reveal::Kind::Assume;
+    r.kind = riftbound::Reveal::Kind::Bind;
     r.before = replay_.actions.size();
     r.obj = obj;
     r.code = card->home().code.str();
@@ -948,18 +984,18 @@ std::vector<DevOption> Session::options() const {
 }
 
 void Session::take_dev(const DevOption& o) {
-    if (o.card) {
+    if (o.card && dev_hidden(s_, cfg_.buddy, named_, o.obj)) {
         if (!riftbound::bind(s_, o.obj, o.card, cfg_.buddy, bound_.keep(s_, cfg_.buddy))) {
             throw std::logic_error("session: Dev's option " + o.card->name + " no longer binds");  // options() checked it
         }
-        if (o.named) {
-            bound_.add(s_, o.obj);
-            named_.insert(o.obj);
-            ++stats_.dev_named;
-        } else {
-            ++stats_.dev_assumed;
-        }
-        bind_line(o.obj, o.card, o.named);
+        bound_.add(s_, o.obj);
+        named_.insert(o.obj);
+        ++stats_.dev_named;
+        bind_line(o.obj, o.card);
+    }
+    if (o.discards()) {
+        declared_ = o.obj;
+        ++stats_.dev_declared;
     }
     dev_options_.clear();
     begin_step(o.action, false);

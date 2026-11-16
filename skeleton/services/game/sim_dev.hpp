@@ -4,11 +4,10 @@
 // (the referee's state with Dev's true cards in place of the placeholders), answering with one of dev_options().
 //
 // The truth is per object. Dev's hidden hand cards are interchangeable for the referee: when the session's option
-// names another hidden hand object than the one SimDev's player picked (or a placeholder needs another card),
+// names another hidden hand object than the one SimDev's player picked (or declares the spell a cost discards),
 // SimDev swaps the two objects' true cards, as a real Dev would just play the card in their hand.
 
 #include <cstdint>
-#include <functional>
 #include <memory>
 #include <vector>
 
@@ -31,12 +30,6 @@ public:
     DevOption choose(const riftbound::GameState& s, const std::vector<DevOption>& options);
     // The true cards of a prompt.
     std::vector<const riftbound::Card*> reveal(const DevPrompt& p) const;
-    // Names the prompt's cards through `submit` (true: accepted). A Hand prompt the truth can't answer (the
-    // placeholders made the engine discard another object than the one holding Dev's real card, #51) is answered
-    // again with Dev's other hidden hand cards swapped in: they're interchangeable, a real Dev discards the card that
-    // fits. Throws std::logic_error if nothing is accepted.
-    void answer(const riftbound::GameState& s, const DevPrompt& p,
-                const std::function<bool(const std::vector<const riftbound::Card*>&)>& submit);
 
     // `s` with Dev's true cards on every object Buddy doesn't know.
     riftbound::GameState true_state(const riftbound::GameState& s) const;
@@ -46,7 +39,8 @@ public:
 
 private:
     bool hidden_hand(const riftbound::GameState& s, ObjId obj) const;
-    void relabel(const riftbound::GameState& s, const DevOption& o);
+    const DevOption* declared(const riftbound::GameState& t, const riftbound::Action& a,
+                              const std::vector<DevOption>& options);
 
     PlayerId seat_;
     std::unique_ptr<riftbound::ai::Player> player_;

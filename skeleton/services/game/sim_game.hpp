@@ -74,9 +74,6 @@ public:
     std::vector<std::string> voice;
     std::vector<Pause> pauses;
     long checked = 0, leak_checks = 0, prompt_cards = 0;
-    long reanswers = 0;  // SimDev's refused prompt answers (SimDev::answer): the session's refusals count them too
-    int collapsed = 0;  // true_replay_problem: Dev's choices the placeholders turned into a prompt
-    int expanded = 0;   // true_replay_problem: Dev's picks the true hand made moot (one spell to discard)
 
     PlayerId dev_seat() const { return 1 - session->buddy(); }
     // Runs until the game is over, a pause Dev doesn't resume, or stop_when.
@@ -94,6 +91,7 @@ private:
     void check();
     std::string compare() const;
     std::string dev_problem();
+    bool bound_by_dev(ObjId id) const;
     std::string candidates_problem() const;
 
     std::set<ObjId> announced_;              // Dev's cards prompted or named since the last committed step
@@ -134,7 +132,7 @@ struct SoakGame {
     std::vector<std::string> problems, leaks;
     int desyncs = 0;
     SessionStats stats;
-    long recoveries = 0, injected = 0, prompt_cards = 0, leak_checks = 0, scans = 0, reanswers = 0;
+    long recoveries = 0, injected = 0, prompt_cards = 0, leak_checks = 0, scans = 0;
     double ms = 0;
     std::string replay;  // the session's replay, kept for a failing game
     bool failed() const { return !problems.empty() || !leaks.empty() || desyncs > 0; }
