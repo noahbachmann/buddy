@@ -116,7 +116,8 @@ struct Builder {
         const auto& f = pv.battlefields[b];
         json units = {{"buddy", json::array()}, {"dev", json::array()}};
         for (const ObjId id : f.here) units[who(pv.obj(id).controller)].push_back(object(id));
-        return {{"card", code_of(pv, f.card)},
+        return {{"id", f.card},
+                {"card", code_of(pv, f.card)},
                 {"owner", who(pv.obj(f.card).owner)},
                 {"controller", f.controller ? json(who(*f.controller)) : json(nullptr)},
                 {"contested", f.contested ? json(who(*f.contested)) : json(nullptr)},
@@ -223,6 +224,9 @@ json public_state(const Session& session, const GameState& s, const std::vector<
             const auto& o = options[i];
             json e = {{"i", i}, {"text", option_text(pv, o)}, {"group", option_group(o)}};
             if (o.card) e["card"] = o.card->home().code.str();
+            // the public object it acts on: the panel puts the option on that card (never a hidden one: placeholder)
+            const ObjId obj = o.action.obj;
+            if (obj != no_obj && obj < pv.objects.size() && !b.hidden(obj)) e["obj"] = obj;
             list.push_back(e);
         }
         j["options"] = list;
