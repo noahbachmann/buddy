@@ -766,6 +766,37 @@ the AI and the table rely on); only what the engine decided on the placeholders 
 - **Gate again:** 5 × 1000 stress games (seeds 1–5000): 0 unrecovered, 0 desyncs, 0 leaks; SimDev random 1000 and
   50 vs ISMCTS (39 won by Buddy): the same. Declared discards in ~8 % of the games.
 
+**#52 service and deploy (2026-11-16):** `buddy@game` runs: `service.*` (the MQTT loop) and `game_store.*`; how it
+runs: `services/game/CLAUDE.md` → "The service". What building it changed against the design above:
+
+- **Resume = re-feed, not reconstruct.** "A game restart resumes from the replay" didn't hold: the referee replay
+  rebuilds the engine state but not the session (table ids, the hand belief, bind memory, the step in progress) nor
+  the payload's `v`. The host is deterministic in its inputs, so each game also gets a **journal** of them (accepted
+  commands with the seed filled in, the in-flight command's events, the AI's answers, table timeout/restart), and a
+  restart feeds it into a fresh host. Files are written before anything is published. Strict: an entry that doesn't
+  fit, or a replay file that isn't a prefix of the restored replay, sets the game aside (`*.journal.broken`).
+  Measured by tests that kill the service loop every few inputs and between a command and its answer: the game with
+  crashes is the game without (payload with `v`, journal, replay, table). `v` now counts per game.
+- **One command in flight, made idempotent.** After a restart or a timeout game can't know whether the table ran its
+  command. The table keeps its last command and events: the same command with the same seq gets them again without
+  running. So game simply resends.
+- **Table trouble.** No answer within `BUDDY_GAME_TABLE_TIMEOUT_S` (30) → pause `timeout`, the command stays in flight:
+  a late answer goes on, `resume` resends it. The table's status offline → online mid-game → pause `table_restart`,
+  not resumable (the sim's piles are gone). A reboot restarts both, so game never sees the table go offline: a table
+  without a setup now fails every command `no_game`, which pauses the same way. The payload's `pause` says
+  `resumable`.
+- **AI on its own thread**, jobs tagged with the game (question ids start over per game, an old answer must not land
+  on a new question); the main loop pings the watchdog while it thinks.
+- **On the Pi** (Release, ISMCTS 2 s on 3 threads): a bot-Dev game under stress faults through `buddy@table` played
+  to the end (16 turns, Buddy won, the replay replays); `systemctl --user restart buddy@game` mid-game resumed at the
+  same `v` and played to the end (replay checks out); `deploy/status.sh` clean (game 14 MB). While Buddy thought
+  (game ~256 % CPU), live ears kept its ~6 % of a core with no restart, and Dev's 100 recorded "Hey Jarvis" clips
+  through `buddy-ears --wav` (379 s of audio) gave the same detections as without the game, 5.3× faster than real
+  time while fighting for the free core (22.5 s without load); 60 °C, no throttling. Saying "Hey Jarvis" during a
+  live game is left for #53's live game.
+- `deploy/test.sh --pi --riftbound`: 1058 of 1058 (435 s); the VM's `deploy/test.sh --riftbound` too.
+- **Not built:** feedback for a refused command on the panel (only logged: a stale `v` is the usual one, #53 decides).
+
 ## Hardware notes for Phase 4 (decide there, not now)
 
 - **Scanning:** the code is ~1.5 mm text. The head camera (4.2) won't read that at table distance, so it needs a fixed

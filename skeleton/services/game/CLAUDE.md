@@ -1,9 +1,10 @@
 # services/game – Riftbound engine quick reference
 
-What the engine does **now** (state after #73: 5.3, 5.4 and 5.5 done: arena, v1 greedy, engine speed, v2 ISMCTS, table
+What the engine does **now** (state after #52: 5.3, 5.4 and 5.5 done: arena, v1 greedy, engine speed, v2 ISMCTS, table
 moves; 5.6 engine side: binding revealed cards, public view, replay reveals; the session with Buddy's side and Dev's
 real cards, SimDev; the panel's payload, Dev's commands, voice lines; the session soak (the gate) and terminal play;
-Dev declares what a cost discards, the referee never picks from Dev's placeholders)
+Dev declares what a cost discards, the referee never picks from Dev's placeholders; the service `buddy@game` with its
+journal, restarts and table timeouts)
 and where the next work plugs in.
 Why it is built this way: `docs/plans/05-riftbound.md` → "5.2 design", "5.3 as built" (with the rulings, confirmed by Dev),
 "5.4 design", "5.5 design"/"as built". Sub-issues: 5.2 #20, 5.3 #33, 5.4 #39, 5.5 #45. Rules text: `~/buddy/data/riftbound/core-rules-2026-10-09.txt`
@@ -95,7 +96,11 @@ input that can't be: `Refused` (the reason), nothing changes.
   `resume` = `rescan_hand`, then the step's next command again (setup failed: the setup again). `hand_corrected`:
   `replaced` → rebind + "I misread a card"; `extra` → back on the deck top (Play → `deck_top`), unless its code is a
   `missing` card's (found again: same object); `missing` → pause after the command, a rescan that still misses it
-  pauses again.
+  pauses again. The service's clock and the table's status (#52): `table_timeout()` → `Pause::Timeout` with the
+  command still in flight (`waiting_` = the status it interrupted): a late answer goes on, `resume` resends it with
+  its seq (the table answers a repeat once); `table_restarted()` or a `no_game` failure → `Pause::TableRestart`.
+  `resumable()` = paused, not Desync or TableRestart. `inflight()` / `ai_request()`: what the service resends after a
+  restart.
 - **Voice and log (#50):** at every commit `narrate(before, a)`: a log line (`log()`, last 30: `describe` on the
   public view after the action, with the decision answered); Buddy's **action group** = a Priority play / activation
   / move plus Buddy's Choose/Recycle answers right after it, one line when someone else decides ("I play Zed to
@@ -124,7 +129,7 @@ input that can't be: `Refused` (the reason), nothing changes.
 ## Public state and commands (#50, `game_core`: `public_state.*`, `game_host.*`)
 
 - **`public_state(session)`** = `buddy/game/state` without `v` and catalogue, built from `public_view(s)` only:
-  `status`, `pause {reason, message}`, `winner`, `turn`, `phase`, `turn_player`, `victory`, `decision {player, kind,
+  `status`, `pause {reason, message, resumable}`, `winner`, `turn`, `phase`, `turn_player`, `victory`, `decision {player, kind,
   purpose}`, `players.{buddy,dev}` (`points`, `legend`, `champion`, `base` (objects: `id`, `card` code, `exhausted`,
   units `might` (layers), `damage`, `buffs`, `stunned`; `attached_to`, `empowered`, `keywords` ("Assault 2")),
   `runes` per domain ready/exhausted, `pool`, counts of `hand`/`deck`/`rune_deck`, `trash`/`banishment` codes),
@@ -137,9 +142,17 @@ input that can't be: `Refused` (the reason), nothing changes.
   `Reply {ok, message}`: `new {buddy: vi|zed, seed?, dev}` (refused while a game runs; Buddy = seat 0, the first
   player is the engine's coin flip), `act {v, i}`, `reveal {v, cards: [code…]}`, `resume`, `concede`; an unknown
   field or value, a stale `v`, the wrong status → refused, nothing changes. `on_table`, `on_ai` pass through.
-  `take()`: table commands, AI request, voice, replay lines (`new_game` = a new file), and the payload when its game
-  part changed (`v` + 1, catalogue in every payload: web's patches carry only changes).
-- Tests: `test_public_state.cpp` (leak test: after every input of 4 SimDev games, the payload is the same with
+  `take()`: table commands, AI request, voice, replay lines (`new_game` = a new file), the journal lines, and the
+  payload when its game part changed (`v` + 1, from 1 per game; catalogue in every payload: web's patches carry only
+  changes).
+- **Journal (#52):** every input that changed something is a JSON line (`{"cmd"}` accepted, `new` with its seed;
+  `{"table"}` the in-flight seq's events; `{"ai": {id, action}}`; `{"table_lost": "timeout"|"restart"}`).
+  `restore(lines)` feeds them into a fresh host with `take()` after each (the service does the same, so `v`
+  matches) and returns what's open: payload, the command in flight (not while paused), the AI's question. Strict: a
+  line that doesn't fit throws `JournalError` naming it.
+- Tests: `test_journal.cpp` (#52: the service loop with crashes every few inputs and between a command and its
+  answer, stress faults, a human Dev, a timeout pause: the game equals the game without crashes; damaged journals),
+  `test_game_store.cpp`; `test_public_state.cpp` (leak test: after every input of 4 SimDev games, the payload is the same with
   Dev's placeholders and Buddy's hidden cards rearranged; every `card` is in the catalogue), `test_game_host.cpp`
   (bot games, a human Dev playing only by `i` and the prompt's candidates, every refusal). `BUDDY_GAME_STATE_DUMP=<file>`
   makes `HumanDevPlaysByCommands` write a turn-6 payload.
@@ -148,7 +161,8 @@ input that can't be: `Refused` (the reason), nothing changes.
 
 `game_sim` = `game_core` + `table_core` (the service links only `game_core`: its table is on MQTT).
 - **`SimGame`**: one session game the way the service runs it: Session, in-process `Table` + `Sim` (optional `wrap`
-  of the backend: the tests' `Flaky`), Buddy's `Player` (greedy by default), Dev a `SimDev`. `run()` until over, a
+  of the backend: the tests' `Flaky`; `lose_answer`/`lose_command`: a command's answer or the command itself never
+  arrives, #52), Buddy's `Player` (greedy by default), Dev a `SimDev`. `run()` until over, a
   desync, 20 resumes or `stop_when`. After every committed step: engine = belief (hand order, ids, codes, spots,
   exhausted, counts), belief = truth (the hand as a multiset; skipped while a peeked card is held: a double deal under
   it shows only at `peek_done`), Dev's known cards = SimDev's truth and never learned unasked (a prompt, Dev's
@@ -170,6 +184,25 @@ input that can't be: `Refused` (the reason), nothing changes.
   `resume`, `concede`, `board`, `help`, `quit`; a refused line changes nothing.
 - Tests: `test_sim_soak.cpp` (`RiftboundSimSoak.Games0`–`9`: 100 stress games, 35–45 s each under ASan),
   `test_sim_terminal.cpp` (typed games to the end, bad lines, prompt answers).
+
+## The service (#52, `service.*` in the executable; `game_store.*` in `game_core`)
+
+`buddy-game` without flags = `run_service`: one `GameHost`, one queue (`buddy/game/cmd`, `buddy/table/event`,
+`buddy/table/status`, AI answers). Per input: host call → `take()` → `GameStore::append` (journal, then replay) →
+publish (table commands, voice if `BUDDY_GAME_VOICE`, retained `buddy/game/state`). **Files before sending**: a
+restart resends exactly what was open. `AiWorker`: an `IsmctsPlayer` (`BUDDY_GAME_BUDGET_MS` 2000,
+`BUDDY_GAME_THREADS` 3) on its own thread, jobs and answers tagged with the game number (question ids start over per
+game: an old game's answer is dropped). The main loop pings the watchdog every ≤ 5 s, also while the AI thinks.
+Clock: per in-flight seq, `BUDDY_GAME_TABLE_TIMEOUT_S` (30), stopped while paused. Table status offline → online →
+`table_restarted()`; a reboot (both fresh) shows as `no_game` on the first resent command instead. systemd STATUS =
+"turn 7, thinking". Logs: new game, refusals, pauses, the result.
+- **`GameStore`**: `~/buddy/data/riftbound/games/<yyyy-mm-dd-hhmmss>-<seed>.{journal,txt}` (`BUDDY_GAME_GAMES`),
+  newest by stamp then clash number (`-2`). `resume_latest()` at start: the newest journal restored; over → idle;
+  a cut-off last line (no `\n`) dropped (never acted on); the replay file must be a prefix of the restored replay
+  (written after the journal), then rewritten; else `*.journal.broken` and idle.
+- Checked live (2026-11-16, Pi): a bot game under stress faults to the end; `systemctl restart buddy@game` mid-game
+  resumes at the same `v` and finishes; locally also kill -9, a frozen table (timeout, then the late answer), a
+  restarted table, both restarted.
 
 ## The loop (`engine.cpp` → `run()`), in this order every iteration
 
