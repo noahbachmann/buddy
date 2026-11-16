@@ -154,9 +154,12 @@ Speech-to-text training: `docs/voice-training.md`.
 
 ### Deferred (not needed for Phase 1, pick up when useful)
 
-- **Wake word CPU:** ears idles at ~8 % of one core; `embedding_model.onnx` is 3.7 of 4.2 ms per 80 ms chunk. Options
-  that change behaviour: quantized embedding model, or skipping inference during silence. Needs score comparisons on the
-  wake-word clips `deploy/record.sh` collects.
+- **Wake word CPU:** ears idles at ~8 % of one core; `embedding_model.onnx` is 3.7 of 4.2 ms per 80 ms chunk.
+  Quantizing it is **rejected on data** (2026-11-16, #72, scored on the 100 recorded "Hey Jarvis" clips + 419 command
+  clips as negatives): dynamic int8 61/100 detections vs 67/100 fp32 and slower (ConvInteger), static QDQ int8 65/100
+  with one 0.99 false positive. Longer strides break the classifier (trained on the 80 ms feature hop: scores → 0).
+  Remaining option: skip embedding inference while the room is below ears' level gate: only pays while no music plays,
+  needs a live A/B with the adaptive gate.
 - **Next voice session** (after #67): the 2026-10-28 eval showed whisper misses words that are rare in `train`; #67
   grew the corpus to every `test` word 5× in `train` (pytest enforces it) plus Dev's short forms from live use. After
   2.6 (new mic position): a fresh test session first, then `record.sh <label> new` for lines added since, and
