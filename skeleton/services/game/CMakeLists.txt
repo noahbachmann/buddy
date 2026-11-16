@@ -44,5 +44,5 @@ buddy_add_tests(game
     LIBS riftbound LABELS riftbound)
 # Engine moves replayed on table's sim (#42): links table_core for the sim and the soak's stand-in.
 buddy_add_tests(game-table tests/test_table_moves.cpp LIBS game_core table_core LABELS riftbound)
-# Session games (#48): Buddy's side on an in-process Table + Sim, a scripted Dev.
+# Session games (#48, #49): Buddy's side on an in-process Table + Sim, Dev a SimDev.
 buddy_add_tests(game-session tests/test_session.cpp LIBS game_core table_core LABELS riftbound)

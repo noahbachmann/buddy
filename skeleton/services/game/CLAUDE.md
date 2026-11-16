@@ -1,8 +1,8 @@
 # services/game – Riftbound engine quick reference
 
-What the engine does **now** (state after #48: 5.3, 5.4 and 5.5 done: arena, v1 greedy, engine speed, v2 ISMCTS, table
-moves; 5.6 engine side: binding revealed cards, public view, replay reveals; the session with Buddy's side) and where the
-next work plugs in.
+What the engine does **now** (state after #49: 5.3, 5.4 and 5.5 done: arena, v1 greedy, engine speed, v2 ISMCTS, table
+moves; 5.6 engine side: binding revealed cards, public view, replay reveals; the session with Buddy's side and Dev's
+real cards, SimDev) and where the next work plugs in.
 Why it is built this way: `docs/plans/05-riftbound.md` → "5.2 design", "5.3 as built" (with the rulings, confirmed by Dev),
 "5.4 design", "5.5 design"/"as built". Sub-issues: 5.2 #20, 5.3 #33, 5.4 #39, 5.5 #45. Rules text: `~/buddy/data/riftbound/core-rules-2026-10-09.txt`
 on the VM (grep the rule number); full card text: `~/buddy/data/riftbound/cards.json` (VM and Pi, not in Git).
@@ -20,7 +20,7 @@ on the VM (grep the rule number); full card text: `~/buddy/data/riftbound/cards.
 | `engine` | `new_game`, `legal_actions`, `apply`, `concede`, `playable`, `describe`; the loop `run()`, `cleanup()`, `run_task()`, `finalize()`, `resolve_step()`, `place_triggers()`; showdowns and combat (`begin`, `pass_focus`, `score`, `establish_control`, damage assignment `assign_options`), Standard Move (`can_move`) |
 | `random_game` | `play_random()`: uniform random seats, `GameChecks` after every action (invariants, card count, turn start); vanilla or with rules; counts spells, chain plays, activations, triggers, choices, moves, showdowns, combats, scorings; `log` = the actions (failing one included) |
 | `hidden` | `view(s, p)`: objects p doesn't know (`Object::known` bit, set by `move_to`/`recycle`/`predict`) get `hidden_card()`, RNG reset; not playable. `public_view(s)`: only cards known to everyone (the panel's source, 5.6). `determinize(view, seat0, seat1, rng)`: per owner the decklist minus visible cards, shuffled onto the hidden objects (rune deck: runes), RNG reseeded |
-| `replay` | `Replay` (seed, vanilla, both decklists' text, actions; 5.6: `buddy` seat + `reveals`: `bind <obj> <code>` / `order <p> <ids…>` lines before the action they precede, `apply_reveal`) ⇄ text (`parse_replay`, `to_text`: annotated by replaying), `run_replay` (GameChecks after every action; `buddy-game --replay`) |
+| `replay` | `Replay` (seed, vanilla, both decklists' text, actions; 5.6: `buddy` seat + `reveals`: `bind <obj> <code>` / `assume <obj> <code>` (#49: a placeholder, not kept) / `order <p> <ids…>` lines before the action they precede, `apply_reveal` with the game's `BindMemory`) ⇄ text (`parse_replay`, `to_text`: annotated by replaying), `run_replay` (GameChecks after every action; `buddy-game --replay`) |
 | `rng` | xoshiro256\*\*, own `below`/`shuffle` (portable replays) |
 | `ai/player` | `Player` (`begin(seat, decks)`, `choose(view, actions)`: never the referee's state; `iterations()` of the last search), `RandomPlayer`; `ActionKey` / `key_of` (hand and trash cards by card, the rest by id), `distinct` |
 | `ai/arena` | `play_game` (forced moves applied unasked, `GameChecks` after every action, per-seat `SeatStats`: legal actions per decision, forced, time and iterations per asked decision, Choose runs), `play_match` (`PlayerFactory` per game, `pairing()`: seed S + i/2, players swapped every game, decks every other seed; `--jobs` threads, results independent of them), `wilson`, `percentile` |
@@ -47,18 +47,34 @@ engine's hand order stays the pile's): game (5.6) calls it on Buddy's chosen act
 `workload_game` / `buddy-game --table-workload` = the soak's input. Tests: `tests/test_table_moves.cpp` (own
 executable `buddy-game-table-tests`, links `table_core`).
 
-## Session (5.6.2, `game_core`: `session.*`)
+## Session (5.6.2/5.6.3, `game_core`: `session.*`, `sim_dev.*`)
 
-One game, message-driven, no MQTT/threads/clock. Inputs: `start`, `on_table(event)`, `on_dev(action)` (must be in
-`legal_actions`; Dev = scripted until #49), `on_ai(id, action)`, `resume`, `concede(p)`; after each, `take()` →
-`Outputs` (table commands, at most one in flight; an `AiRequest` with `view(s, buddy)`; voice lines; replay lines,
-header first). `Status`: setup → dev_to_act / thinking / acting → paused → over.
+One game, message-driven, no MQTT/threads/clock. Inputs: `start`, `on_table(event)`, `on_dev(option)` (one of
+`dev_options()`), `on_reveal(cards)` (the cards of `prompt()`), `on_ai(id, action)`, `resume`, `concede(p)`; after
+each, `take()` → `Outputs` (table commands, at most one in flight; an `AiRequest` with `view(s, buddy)`; voice lines;
+replay lines, header first). `Status`: setup → dev_to_act / dev_to_reveal / thinking / acting → paused → over. Dev's
+input that can't be: `Refused` (the reason), nothing changes.
 - **Step:** `next = s; apply` under `MoveRecorder` on a copy of `TableMoves`, deals split into single cards (a failed
-  deal reports none of the cards it placed). Each `deal`/`peek` code → `bind(s, obj, card, buddy, group_)`; a changed
-  card marks the step stale, and before the next command (or the commit) it is re-applied: the commands already done
-  must be a prefix, else **desync** (pause for good, `# desync:` in the replay). Commit: `s = next`, `moves_` advances,
-  the action line. Binds go to the replay as they happen (`before` = the next action), every bind of a step is in
-  `group_` (bind's `keep`; run_replay groups the same way).
+  deal reports none of the cards it placed). The step's items = Buddy's table commands + Dev's prompts, merged by log
+  position (`TableMove::at`; a split deal keeps its first card's). Each `deal`/`peek` code → `bind(s, obj, card,
+  buddy, bound_.keep(…))`; a changed card marks the step stale, and before the next item (or the commit) it is
+  re-applied: the items already done must be a prefix, else **desync** (pause for good, `# desync:` in the replay).
+  Commit: `s = next`, `moves_` advances, the action line. Binds go to the replay as they happen (`before` = the next
+  action); `bound_` (`BindMemory`: kept while the object sits where it was bound and Buddy doesn't know it) is bind's
+  `keep`, run_replay keeps binds the same way.
+- **Dev's real cards (#49):** Dev's hidden objects (hand, deck, rune deck) hold placeholders, never shown or trusted.
+  `options()`: actions on cards Buddy knows as they are; Dev's hidden hand cards by card: per candidate (bind's pool
+  for the representative `h` = Dev's first hidden hand card, Priority, or the first hidden one offered, Choose; runes
+  excluded; a "discard a spell" Choose only spells) a copy with `h` bound to it; Priority: its `legal_actions`' play
+  of `h` → a named option, an action the base list lacks → an **unnamed** option (assumes the card on `h`: Mel's
+  Empower); Choose: `Pick h`. Mulligan by count (the first hidden pick). One option in all → applied unasked
+  (`dev_forced`). Choosing a named option: bind + `bind` line, `named_` (no prompt for it) and `bound_`; unnamed:
+  `assume` line, not kept.
+- **Prompts:** objects of Dev's that Buddy didn't know before the step and knows after it, unless named; placed where
+  each first lands in public; a row of the same origin (`Hand` = discarded unasked, `Deck` = burned, `Runes` =
+  channelled) is one prompt. `on_reveal`: binds on a copy (kind checked: runes, battlefields, the rest), re-applies
+  the step, the items up to the prompt must stay; then commits the binds. Dev's battlefield = the setup step's first
+  item (before both mulligans; `bind` swaps it with a removed one).
 - **Setup:** `setup` with `sim_deck`/`sim_runes` (home-printing codes); the opening deals from new_game's log run as a
   step without action, bound on `s` directly.
 - **Ids:** `id_`/`obj_` engine object ⇄ table id (deal/peek/token give them; into a deck, `remove`, `peek_done` forget);
@@ -70,12 +86,20 @@ header first). `Status`: setup → dev_to_act / thinking / acting → paused →
   `replaced` → rebind + "I misread a card"; `extra` → back on the deck top (Play → `deck_top`), unless its code is a
   `missing` card's (found again: same object); `missing` → pause after the command, a rescan that still misses it
   pauses again.
-- Tests `tests/test_session.cpp` (`buddy-game-session-tests`, label `riftbound`, ~60 s under ASan): fault-free games
-  (both decks from both seats), each sim fault alone, every failure path forced by a `Flaky` backend wrapper or by
-  moving the sim's cards by hand, a forced desync (`Session::on_moves` hook). After every step: engine = belief
-  (hand order, ids, codes, spots, exhausted, counts) and belief = truth with the hand as a multiset (a disturbed
-  pile stays unnoticed until a play mismatches); at the end a rescan, then strict, and the session's replay replays
-  to the same state.
+- **`SimDev`** (tests, the soak, bot games): `truth_` per object (a shuffled permutation of Dev's hidden cards,
+  runes and battlefields; `shuffle = false`: the placeholders). `choose`: a `Player` on `true_state(s)`, mapped to an
+  option; hidden hand cards are interchangeable, so it swaps true cards when the option names another object
+  (`relabel` for an unnamed option: a true card that allows the action). `reveal`: the true cards.
+- Tests `tests/test_session.cpp` (`buddy-game-session-tests`, label `riftbound`, ~60 s wall under ASan): Dev = a
+  SimDev; fault-free games (both decks from both seats), each sim fault alone, every failure path forced by a `Flaky`
+  backend wrapper or by moving the sim's cards by hand, a forced desync (`Session::on_moves` hook), Dev's
+  battlefield and refusals; `SimDevGames0`–`4` (50 games with a true deck). After every step: engine = belief (hand
+  order, ids, codes, spots, exhausted, counts), belief = truth with the hand as a multiset (a disturbed pile stays
+  unnoticed until a play mismatches), Dev's known cards = SimDev's truth, none learned unasked; at Dev's priority
+  (SimDev games) the offered cards = exactly the possible ones. At the end a rescan, then strict; the session's
+  replay replays to the same state; SimDev games: the game with Dev's true cards from the start replays legally
+  into the same state (`true_replay_problem`; a "discard a spell" the placeholders left without a choice is a prompt
+  in the session and a pick in the true game: re-inserted, ~1 in 50 games).
 
 ## The loop (`engine.cpp` → `run()`), in this order every iteration
 
@@ -107,8 +131,10 @@ the owner's main and rune deck unknown to the knower, plus the hand if the owner
 public; it may be the knower's own hand card (a misread at draw: same call). Runes only with runes. Zones, `gen`,
 `known` unchanged, so views, determinizations and per-owner card counts stay valid; binding the knower's own cards
 changes neither player's view (`binds_along_a_game`). `set_hand_order` = the table's order after a disturbed pile.
-`keep` (#48): objects bound earlier in the same group (one step, or the replay lines before one action) are never
-partners: two copies dealt in one step are bound on the state before it, where the first still sits in the pool.
+`keep`: objects bound earlier that must keep their card. `BindMemory` (#49) tracks them: an object stays kept while
+it sits where it was bound (same `gen`) and the knower doesn't know it. Two copies dealt in one step are bound on the
+state before it, where the first still sits in the pool; Dev's discard picked by card stays in hand until paid. A
+battlefield binds with one of its owner's removed battlefields (setup, Dev's choice; it's public otherwise).
 
 ## Writing a card (5.3)
 

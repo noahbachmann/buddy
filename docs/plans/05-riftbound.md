@@ -653,8 +653,33 @@ a login comes before the table drives motion (5.7).
   end a rescan, then the order too. Each fault alone at 5× stress (at least 10 %): no desync, no pause, every game ends,
   replays reproduce the state. Unreadable alone hardly ever fails a deal (votes over 10 reads): the retry and the pause
   are forced by a backend wrapper.
-- **Open for #49:** Dev's prompts (oracle) join the step's command list; a play the table fails `not_in_hand` that
-  isn't Buddy's choice (Dev's effect discards a misread card) pauses, resume re-runs it with the corrected card.
+- **Open after #48 (→ #51):** a play the table fails `not_in_hand` that isn't Buddy's choice (Dev's effect discards a
+  misread card) pauses; resume re-runs it with the corrected card. #51's soak says how often.
+
+**#49 Dev's real cards (2026-11-16):** `dev_options()`, prompts and `on_reveal` in `session.*`, `SimDev` in
+`sim_dev.*`; how it runs: `services/game/CLAUDE.md` → "Session". Dev confirmed the defaults: forced moves only when
+the whole option list has one entry, one rune prompt per channel step (the panel may enter it as domain counts), the
+battlefield prompt at setup before both mulligans. What building it changed against the design above:
+
+- **Bind memory instead of bind groups.** A group per action wasn't enough: Dev's discard picked by card stays in
+  Dev's hand across the picks of one decision, and a second pick could take its card. `BindMemory`: a bound object
+  keeps its card while it sits where it was bound (same `gen`) and Buddy doesn't know it. It covers the two copies
+  dealt in one step as before; `run_replay` keeps binds the same way.
+- **Placeholders can decide more than plays.** Mel's Empower ("discard a spell") is legal only with a spell in hand,
+  and its discard options are filtered on the placeholders. Dev's Priority options are the union over every candidate
+  bound to the hidden hand: an action only some card allows is an *unnamed* option (`assume` line: a placeholder, not
+  kept, never shown as Dev's card); a "discard a spell" pick offers spells only. When the placeholders then hold one
+  spell, the engine discards it without asking: Dev names the discarded spell in a prompt instead of choosing it
+  (same outcome; 1 in 50 SimDev games).
+- **Prompts in log order.** `TableMove::at` = the log index a command comes from; a prompt sits where its card first
+  lands in public. A merged deal keeps its first card's index (a prompt between two cards of one deal comes after the
+  deal: no deck card does that).
+- **Battlefields bind with the removed ones.** Dev's battlefield is public from setup on, so `bind()` swaps a
+  battlefield with one of its owner's battlefields that left the game (487.5); only the setup prompt uses it.
+- **Gate (`SimDevGames0`–`4`):** 50 fault-free session games, SimDev (true shuffled deck, greedy) vs Buddy greedy,
+  both decks from both seats: no refusal, desync or pause; per 10 games ~570 Dev decisions (~200 forced), ~120
+  named cards, ~90 prompts; Dev's offered cards = exactly the possible ones at every priority; the game with Dev's true
+  cards from the start replays legally into the same state.
 
 ## Hardware notes for Phase 4 (decide there, not now)
 
