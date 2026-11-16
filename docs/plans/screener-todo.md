@@ -38,11 +38,11 @@ Or print both at once:
 ssh dev@buddy.local cat ~/buddy/config/screener/preferences.md ~/buddy/config/screener/templates.md
 ```
 
-To fix something yourself (`Ctrl+O` then Enter saves, `Ctrl+X` quits):
+To fix something yourself (`Ctrl+S` saves, `Ctrl+Q` quits):
 
 ```bash
-ssh -t dev@buddy.local nano ~/buddy/config/screener/preferences.md
-ssh -t dev@buddy.local nano ~/buddy/config/screener/templates.md
+ssh -t dev@buddy.local micro ~/buddy/config/screener/preferences.md
+ssh -t dev@buddy.local micro ~/buddy/config/screener/templates.md
 ```
 
 Or tell Claude what to change.
