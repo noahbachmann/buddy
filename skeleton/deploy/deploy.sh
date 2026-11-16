@@ -59,7 +59,7 @@ py=()
 units=()
 for s in "$@"; do
     if [[ -f "src/services/$s/pyproject.toml" ]]; then py+=("$s"); else cpp+=("$s"); fi
-    [[ "$s" == game ]] || units+=("buddy@$s")  # game: command line only (deploy/run.sh game …) until step 5.6
+    units+=("buddy@$s")
 done
 if [[ ${#cpp[@]} -gt 0 ]]; then
     cmake -S src -B build-release -G Ninja \

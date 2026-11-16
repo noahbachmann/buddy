@@ -648,9 +648,16 @@ const SERVICE_CHIPS = [
   { name: "hue", members: ["hue"] },
   { name: "spotify", members: ["spotify"] },
   { name: "speakers", members: ["speakers"] },
-  { name: "table", members: ["table"] },
+  { name: "game", members: ["game", "table"], detail: gameDetail },
   { name: "messenger", members: ["messenger"], detail: messengerDetail },
 ];
+
+// A Riftbound game running: what it waits for (buddy/game/state's status; table has no /state of its own).
+const GAME_DETAIL = { setup: "setup", dev_to_act: "your move", dev_to_reveal: "name a card", thinking: "thinking",
+  acting: "playing", paused: "paused" };
+function gameDetail() {
+  return GAME_DETAIL[state["buddy/game/state"]?.status] || "";
+}
 
 // Link trouble first (Dev wouldn't get the question), else how many questions wait in the chat.
 function messengerDetail() {
