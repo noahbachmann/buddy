@@ -617,7 +617,7 @@ the table reads codes, and the deck is shuffled by the sim (later by hand), not 
 | Step protocol | Answers 5.5's first open point. `next = s; apply(next, a)` under the move log, `TableMoves::step` gives the commands. Commands and prompts run one at a time in log order; each revealed identity is bound on `s` and `next` re-applied. Whatever already ran must be a prefix of the new list, else a **desync** (pause, replay written; the soak counts them, expected 0: no deck card branches on a drawn or burned card's identity within the step). After the last `done`, `s = next`. The table always acts before the state commits. |
 | Vision | Peek as soon as the engine shows Buddy the top card (Vision's `predict` opens the decision): bound before the AI chooses, `peek_done` follows the answer. `TableMoves` changes for it (#47). |
 | Failures | `not_in_hand` on Buddy's play (the step's first command): `hand_corrected` into `s`, extras back on the deck top, the AI decides again. `unreadable`: retry once, then pause. `hardware`, `missing`, a table restart: pause and say so; `resume` (after a `rescan_hand`) or `concede`. `replaced` → rebind + "I misread a card". |
-| Dev's options | Dev's hidden objects hold placeholder cards, never shown or trusted. Plays: the non-hand actions plus one "play C" per card C that could be in Dev's hand (decklist minus the copies known elsewhere), each checked on a copy with a hand object bound to C; choosing C binds it for real. Choices that reveal a hand card (discard costs) go by card, the others (mulligan) by count. An impossible entry is refused. |
+| Dev's options | Dev's hidden objects hold placeholder cards, never shown or trusted. Plays: the non-hand actions plus one "play C" per card C that could be in Dev's hand (decklist minus the copies known elsewhere), each checked on a copy with a hand object bound to C; choosing C binds it for real. Choices that reveal a hand card (discard costs) go by card, the others (mulligan) by count. An impossible entry is refused. **#73:** the referee never picks from the placeholders: Dev's discard costs are always asked, a cost that discards a spell is declared with the option. |
 | Public state | `buddy/game/state` comes only from `public_view(s)` (cards known to everyone): free of Buddy's hand and of Dev's placeholders by construction. Leak test: the JSON is the same after re-determinizing Buddy's hidden cards or Dev's placeholders. The card catalogue goes in once; web's JSON patches carry only changes afterwards. |
 | AI in the service | ISMCTS 2 s, 3 threads (5.4) on a worker thread; forced moves unasked; `nearest_copy` on Buddy's choice. |
 | Voice | Game start, Buddy's plays/moves/attacks (one line per action group, never per pass), scoring, corrections, pauses, the result. Battlefields by card name in voice and panel ("I play Zed to Zaun Warrens"; Dev, 2026-11-16), never left/right. |
@@ -747,6 +747,24 @@ tests and the soak run the same games and checks.
 - **Terminal play** (`buddy-game --sim` without `--games`): `TerminalGame` drives a `GameHost` with the sim table
   and Buddy's AI in-process and prints the board from the payload alone (what the panel will get): Dev types option
   numbers, a prompt's candidate numbers or codes, `resume`, `concede`. Tests type whole games.
+
+**#73 Dev declares, the referee records (2026-11-16, Dev's decision after #51):** the referee never picks from Dev's
+placeholders. The narrow version: option lists and legality checks stay (a mistyped play must not reach the state
+the AI and the table rely on); only what the engine decided on the placeholders moves to Dev.
+
+- **`GameOptions::ask_discard`:** every discard cost of Dev's is a Choose, even with just the cards needed in hand;
+  Dev picks by card. Off elsewhere (`--random` digest unchanged, `42705b80131137f7`); `run_replay` sets it for a
+  session replay.
+- **Declared discards:** an action whose cost discards a spell (Mel's Empower) comes once per spell Dev could pay with
+  ("Mel, Defiant Soul: Empower (discard Ruthless Strike)"), the known ones on their objects, the pool's on the first
+  hidden hand card; choosing one binds it, the Discard choice that follows is answered with it.
+- **Gone:** unnamed options and `assume` lines, `DevOption::named`, SimDev's `relabel` and `answer` retry, the
+  collapsed/expanded cases of the true-game check: the first three findings of #51's soak can't happen any more.
+  Prompts per game 9.5 → 9.2 (no "which card did you discard" after a cost).
+- **One more checker gap found:** a Discard choice (now always asked) with a single card left in Dev's pool is
+  applied unasked and binds it: a deduction, which the "learned unasked" check now accepts by its `bind` line.
+- **Gate again:** 5 × 1000 stress games (seeds 1–5000): 0 unrecovered, 0 desyncs, 0 leaks; SimDev random 1000 and
+  50 vs ISMCTS (39 won by Buddy): the same. Declared discards in ~8 % of the games.
 
 ## Hardware notes for Phase 4 (decide there, not now)
 

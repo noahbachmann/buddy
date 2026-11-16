@@ -1,8 +1,9 @@
 # services/game – Riftbound engine quick reference
 
-What the engine does **now** (state after #51: 5.3, 5.4 and 5.5 done: arena, v1 greedy, engine speed, v2 ISMCTS, table
+What the engine does **now** (state after #73: 5.3, 5.4 and 5.5 done: arena, v1 greedy, engine speed, v2 ISMCTS, table
 moves; 5.6 engine side: binding revealed cards, public view, replay reveals; the session with Buddy's side and Dev's
-real cards, SimDev; the panel's payload, Dev's commands, voice lines; the session soak (the gate) and terminal play)
+real cards, SimDev; the panel's payload, Dev's commands, voice lines; the session soak (the gate) and terminal play;
+Dev declares what a cost discards, the referee never picks from Dev's placeholders)
 and where the next work plugs in.
 Why it is built this way: `docs/plans/05-riftbound.md` → "5.2 design", "5.3 as built" (with the rulings, confirmed by Dev),
 "5.4 design", "5.5 design"/"as built". Sub-issues: 5.2 #20, 5.3 #33, 5.4 #39, 5.5 #45. Rules text: `~/buddy/data/riftbound/core-rules-2026-10-09.txt`
@@ -21,7 +22,7 @@ on the VM (grep the rule number); full card text: `~/buddy/data/riftbound/cards.
 | `engine` | `new_game`, `legal_actions`, `apply`, `concede`, `playable`, `describe`; the loop `run()`, `cleanup()`, `run_task()`, `finalize()`, `resolve_step()`, `place_triggers()`; showdowns and combat (`begin`, `pass_focus`, `score`, `establish_control`, damage assignment `assign_options`), Standard Move (`can_move`) |
 | `random_game` | `play_random()`: uniform random seats, `GameChecks` after every action (invariants, card count, turn start); vanilla or with rules; counts spells, chain plays, activations, triggers, choices, moves, showdowns, combats, scorings; `log` = the actions (failing one included) |
 | `hidden` | `view(s, p)`: objects p doesn't know (`Object::known` bit, set by `move_to`/`recycle`/`predict`) get `hidden_card()`, RNG reset; not playable. `public_view(s)`: only cards known to everyone (the panel's source, 5.6). `determinize(view, seat0, seat1, rng)`: per owner the decklist minus visible cards, shuffled onto the hidden objects (rune deck: runes), RNG reseeded |
-| `replay` | `Replay` (seed, vanilla, both decklists' text, actions; 5.6: `buddy` seat + `reveals`: `bind <obj> <code>` / `assume <obj> <code>` (#49: a placeholder, not kept) / `order <p> <ids…>` lines before the action they precede, `apply_reveal` with the game's `BindMemory`) ⇄ text (`parse_replay`, `to_text`: annotated by replaying), `run_replay` (GameChecks after every action; `buddy-game --replay`) |
+| `replay` | `Replay` (seed, vanilla, both decklists' text, actions; 5.6: `buddy` seat + `reveals`: `bind <obj> <code>` / `order <p> <ids…>` lines before the action they precede, `apply_reveal` with the game's `BindMemory`) ⇄ text (`parse_replay`, `to_text`: annotated by replaying), `run_replay` (GameChecks after every action; `buddy-game --replay`) |
 | `rng` | xoshiro256\*\*, own `below`/`shuffle` (portable replays) |
 | `ai/player` | `Player` (`begin(seat, decks)`, `choose(view, actions)`: never the referee's state; `iterations()` of the last search), `RandomPlayer`; `ActionKey` / `key_of` (hand and trash cards by card, the rest by id), `distinct` |
 | `ai/arena` | `play_game` (forced moves applied unasked, `GameChecks` after every action, per-seat `SeatStats`: legal actions per decision, forced, time and iterations per asked decision, Choose runs), `play_match` (`PlayerFactory` per game, `pairing()`: seed S + i/2, players swapped every game, decks every other seed; `--jobs` threads, results independent of them), `wilson`, `percentile` |
@@ -67,11 +68,17 @@ input that can't be: `Refused` (the reason), nothing changes.
   `dev_options()` (free: the leak test reruns it): actions on cards Buddy knows as they are; Dev's hidden hand cards by card: per candidate (bind's pool
   for the representative `h` = Dev's first hidden hand card, Priority, or the first hidden one offered, Choose; runes
   excluded; a "discard a spell" Choose only spells) a copy with `h` bound to it; Priority: its `legal_actions`' play
-  of `h` → a named option, an action the base list lacks → an **unnamed** option (assumes the card on `h`: Mel's
-  Empower); Choose: `Pick h`. Mulligan by count (the first hidden pick). Candidates in decklist order (`dev_pool`),
-  the list sorted by group, named card, action (#50): the same list for every arrangement of the placeholders, so the
-  panel's `i` is stable and says nothing. One option in all → applied unasked (`dev_forced`). Choosing a named option: bind + `bind` line, `named_` (no prompt for it) and `bound_`; unnamed:
-  `assume` line, not kept.
+  of `h` → an option with that card; Choose: `Pick h`. Mulligan by count (the first hidden pick). Candidates in
+  decklist order (`dev_pool`), the list sorted by group, declared card, action (#50): the same list for every
+  arrangement of the placeholders, so the panel's `i` is stable and says nothing. One option in all → applied unasked
+  (`dev_forced`). Choosing an option with a card: bind + `bind` line, `named_` (no prompt for it) and `bound_`.
+- **Dev declares, the referee records (#73):** the referee never picks from Dev's placeholders. Dev's games run with
+  `GameOptions::ask_discard` (Dev's bit): every discard cost of Dev's is a Choose, Dev picks by card. An action whose
+  cost discards a spell (`needs_spell`: Mel's Empower) is never offered plain: one option per spell Dev could pay
+  with (`discards()`: "Mel, Defiant Soul: Empower (discard Ruthless Strike)"), the spells Buddy knows in Dev's hand
+  (their own object) and the pool's spells on `h`; choosing one binds it and sets `declared_`, and the Discard
+  choice that follows is answered with it (forced). So a "discard a spell" is never a prompt and never depends on
+  whether the placeholders hold a spell.
 - **Prompts:** objects of Dev's that Buddy didn't know before the step and knows after it, unless named; placed where
   each first lands in public; a row of the same origin (`Hand` = discarded unasked, `Deck` = burned, `Runes` =
   channelled) is one prompt. `on_reveal`: binds on a copy (kind checked: runes, battlefields, the rest), re-applies
@@ -100,9 +107,8 @@ input that can't be: `Refused` (the reason), nothing changes.
 - **`SimDev`** (tests, the soak, bot games): `truth_` per object (a shuffled permutation of Dev's hidden cards,
   runes and battlefields; `shuffle = false`: the placeholders). `choose`: a `Player` on `true_state(s)`, mapped to an
   option; hidden hand cards are interchangeable, so it swaps true cards when the option names another object
-  (`relabel` for an unnamed option: a true card that allows the action). `reveal`: the true cards; `answer` (#51)
-  submits them and, if the session refuses a Hand prompt (the placeholders made the engine discard another object
-  than the one holding Dev's real spell), retries with Dev's other hidden hand cards swapped in.
+  (`declared` for a declared discard: plays the true game to its Discard pick, takes the option with that card and
+  swaps the truth onto its object). `reveal`: the true cards.
 - Tests `tests/test_session.cpp` (`buddy-game-session-tests`, label `riftbound`, ~60 s wall under ASan): Dev = a
   SimDev; fault-free games (both decks from both seats), each sim fault alone, every failure path forced by a `Flaky`
   backend wrapper or by moving the sim's cards by hand, a forced desync (`Session::on_moves` hook), Dev's
@@ -111,10 +117,9 @@ input that can't be: `Refused` (the reason), nothing changes.
   unnoticed until a play mismatches), Dev's known cards = SimDev's truth, none learned unasked; at Dev's priority
   (SimDev games) the offered cards = exactly the possible ones. At the end a rescan, then strict; the session's
   replay replays to the same state; SimDev games: the game with Dev's true cards from the start replays legally
-  into the same state (`true_replay_problem`; a "discard a spell" the placeholders left without a choice is a prompt
-  in the session and a pick in the true game: re-inserted, ~1 in 50 games; the other way round, a pick the true hand
-  made moot, skipped). The harness is `game::SimGame` (game_sim, #51); `tests/session_game.hpp` wraps it as `Game`
-  with the `Flaky` backend; #50 adds `DevOptionsDontDependOnHiddenCards` and `VoiceLinesPerActionGroupAndScoring`.
+  into the same state (`true_replay_problem`, with Dev's discards asked in both since #73). The harness is `game::SimGame` (game_sim, #51); `tests/session_game.hpp` wraps it as `Game`
+  with the `Flaky` backend; #50 adds `DevOptionsDontDependOnHiddenCards` and `VoiceLinesPerActionGroupAndScoring`,
+  #73 `DevDeclaresTheSpellACostDiscards`.
 
 ## Public state and commands (#50, `game_core`: `public_state.*`, `game_host.*`)
 
@@ -146,7 +151,8 @@ input that can't be: `Refused` (the reason), nothing changes.
   of the backend: the tests' `Flaky`), Buddy's `Player` (greedy by default), Dev a `SimDev`. `run()` until over, a
   desync, 20 resumes or `stop_when`. After every committed step: engine = belief (hand order, ids, codes, spots,
   exhausted, counts), belief = truth (the hand as a multiset; skipped while a peeked card is held: a double deal under
-  it shows only at `peek_done`), Dev's known cards = SimDev's truth and never learned unasked. Optional:
+  it shows only at `peek_done`), Dev's known cards = SimDev's truth and never learned unasked (a prompt, Dev's
+  choice, or a `bind` line: a choice with one card left in Dev's pool binds it unasked, a deduction). Optional:
   `check_candidates` (the offered cards = the possible ones), `leak_every` n (`leak_problem`: payload + Dev's options
   on rearranged hidden cards, #50). At the end: `final_check` (rescan, then strict), `replay_problem`,
   `true_replay_problem`. `problems` = unrecovered, `leaks`, `pauses`. `rearranged`, `dev_fixed` live here too.
