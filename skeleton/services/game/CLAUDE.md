@@ -1,8 +1,8 @@
 # services/game – Riftbound engine quick reference
 
-What the engine does **now** (state after #49: 5.3, 5.4 and 5.5 done: arena, v1 greedy, engine speed, v2 ISMCTS, table
+What the engine does **now** (state after #50: 5.3, 5.4 and 5.5 done: arena, v1 greedy, engine speed, v2 ISMCTS, table
 moves; 5.6 engine side: binding revealed cards, public view, replay reveals; the session with Buddy's side and Dev's
-real cards, SimDev) and where the next work plugs in.
+real cards, SimDev; the panel's payload, Dev's commands, voice lines) and where the next work plugs in.
 Why it is built this way: `docs/plans/05-riftbound.md` → "5.2 design", "5.3 as built" (with the rulings, confirmed by Dev),
 "5.4 design", "5.5 design"/"as built". Sub-issues: 5.2 #20, 5.3 #33, 5.4 #39, 5.5 #45. Rules text: `~/buddy/data/riftbound/core-rules-2026-10-09.txt`
 on the VM (grep the rule number); full card text: `~/buddy/data/riftbound/cards.json` (VM and Pi, not in Git).
@@ -63,12 +63,13 @@ input that can't be: `Refused` (the reason), nothing changes.
   action); `bound_` (`BindMemory`: kept while the object sits where it was bound and Buddy doesn't know it) is bind's
   `keep`, run_replay keeps binds the same way.
 - **Dev's real cards (#49):** Dev's hidden objects (hand, deck, rune deck) hold placeholders, never shown or trusted.
-  `options()`: actions on cards Buddy knows as they are; Dev's hidden hand cards by card: per candidate (bind's pool
+  `dev_options()` (free: the leak test reruns it): actions on cards Buddy knows as they are; Dev's hidden hand cards by card: per candidate (bind's pool
   for the representative `h` = Dev's first hidden hand card, Priority, or the first hidden one offered, Choose; runes
   excluded; a "discard a spell" Choose only spells) a copy with `h` bound to it; Priority: its `legal_actions`' play
   of `h` → a named option, an action the base list lacks → an **unnamed** option (assumes the card on `h`: Mel's
-  Empower); Choose: `Pick h`. Mulligan by count (the first hidden pick). One option in all → applied unasked
-  (`dev_forced`). Choosing a named option: bind + `bind` line, `named_` (no prompt for it) and `bound_`; unnamed:
+  Empower); Choose: `Pick h`. Mulligan by count (the first hidden pick). Candidates in decklist order (`dev_pool`),
+  the list sorted by group, named card, action (#50): the same list for every arrangement of the placeholders, so the
+  panel's `i` is stable and says nothing. One option in all → applied unasked (`dev_forced`). Choosing a named option: bind + `bind` line, `named_` (no prompt for it) and `bound_`; unnamed:
   `assume` line, not kept.
 - **Prompts:** objects of Dev's that Buddy didn't know before the step and knows after it, unless named; placed where
   each first lands in public; a row of the same origin (`Hand` = discarded unasked, `Deck` = burned, `Runes` =
@@ -76,7 +77,8 @@ input that can't be: `Refused` (the reason), nothing changes.
   the step, the items up to the prompt must stay; then commits the binds. Dev's battlefield = the setup step's first
   item (before both mulligans; `bind` swaps it with a removed one).
 - **Setup:** `setup` with `sim_deck`/`sim_runes` (home-printing codes); the opening deals from new_game's log run as a
-  step without action, bound on `s` directly.
+  step without action, bound on `s` directly. new_game drew the hand already, so a dealt card the guess put on a
+  hand object not dealt yet swaps from there (`bind` during Setup, #50; `BindMemory` keeps dealt hand cards).
 - **Ids:** `id_`/`obj_` engine object ⇄ table id (deal/peek/token give them; into a deck, `remove`, `peek_done` forget);
   `table_hand_` = the belief's hand as the session saw it (deals, plays, returns, `hand_corrected`). At every commit
   `reconcile_hand()`: a different order → `set_hand_order` + an `order` line; not a permutation → desync.
@@ -86,6 +88,14 @@ input that can't be: `Refused` (the reason), nothing changes.
   `replaced` → rebind + "I misread a card"; `extra` → back on the deck top (Play → `deck_top`), unless its code is a
   `missing` card's (found again: same object); `missing` → pause after the command, a rescan that still misses it
   pauses again.
+- **Voice and log (#50):** at every commit `narrate(before, a)`: a log line (`log()`, last 30: `describe` on the
+  public view after the action, with the decision answered); Buddy's **action group** = a Priority play / activation
+  / move plus Buddy's Choose/Recycle answers right after it, one line when someone else decides ("I play Zed to
+  Zaun Warrens", "… on Vi" from the chain item's targets, "I empower Mel", "I move Vi and the Bird to …", "I attack
+  at … with …" when the destination held enemy units; a play's battlefield from where the card ended up); passes and
+  Dev's moves silent. Scoring: a `Player::scored` bit new this step ("I conquer X. 5 to 3.", scorer first; hold =
+  the turn player's, in a new turn or before Main). `pause_text(p)` = the spoken pause line (the panel shows it, not
+  `pause_message`: that may name a card).
 - **`SimDev`** (tests, the soak, bot games): `truth_` per object (a shuffled permutation of Dev's hidden cards,
   runes and battlefields; `shuffle = false`: the placeholders). `choose`: a `Player` on `true_state(s)`, mapped to an
   option; hidden hand cards are interchangeable, so it swaps true cards when the option names another object
@@ -99,7 +109,31 @@ input that can't be: `Refused` (the reason), nothing changes.
   (SimDev games) the offered cards = exactly the possible ones. At the end a rescan, then strict; the session's
   replay replays to the same state; SimDev games: the game with Dev's true cards from the start replays legally
   into the same state (`true_replay_problem`; a "discard a spell" the placeholders left without a choice is a prompt
-  in the session and a pick in the true game: re-inserted, ~1 in 50 games).
+  in the session and a pick in the true game: re-inserted, ~1 in 50 games). The harness (`Game`, `rearranged`) lives
+  in `tests/session_game.hpp`; #50 adds `DevOptionsDontDependOnHiddenCards` and `VoiceLinesPerActionGroupAndScoring`.
+
+## Public state and commands (#50, `game_core`: `public_state.*`, `game_host.*`)
+
+- **`public_state(session)`** = `buddy/game/state` without `v` and catalogue, built from `public_view(s)` only:
+  `status`, `pause {reason, message}`, `winner`, `turn`, `phase`, `turn_player`, `victory`, `decision {player, kind,
+  purpose}`, `players.{buddy,dev}` (`points`, `legend`, `champion`, `base` (objects: `id`, `card` code, `exhausted`,
+  units `might` (layers), `damage`, `buffs`, `stunned`; `attached_to`, `empowered`, `keywords` ("Assault 2")),
+  `runes` per domain ready/exhausted, `pool`, counts of `hand`/`deck`/`rune_deck`, `trash`/`banishment` codes),
+  `battlefields` (`card`, `owner`, `controller`, `contested`, `units.{buddy,dev}`, `facedown` count), `chain`
+  (`kind`, `card`, `controller`, `finalized`, `targets`), `showdown`, `options` (DevToAct: `i`, `text` =
+  `option_text` on the public view, `group`, `card` only when named), `prompt` (`kind`, `n`, `candidates`: code +
+  `left`, runes with `domain`), `log`. Players are `buddy`/`dev`, never seats. `catalogue(decks)`: every card + the
+  three tokens by `code_of` key. The overload with `(s, options)` is for the leak test.
+- **`GameHost`**: one `Session` (+ `SimDev` for `dev: greedy|random`, answered inside at once). `command(json)` →
+  `Reply {ok, message}`: `new {buddy: vi|zed, seed?, dev}` (refused while a game runs; Buddy = seat 0, the first
+  player is the engine's coin flip), `act {v, i}`, `reveal {v, cards: [code…]}`, `resume`, `concede`; an unknown
+  field or value, a stale `v`, the wrong status → refused, nothing changes. `on_table`, `on_ai` pass through.
+  `take()`: table commands, AI request, voice, replay lines (`new_game` = a new file), and the payload when its game
+  part changed (`v` + 1, catalogue in every payload: web's patches carry only changes).
+- Tests: `test_public_state.cpp` (leak test: after every input of 4 SimDev games, the payload is the same with
+  Dev's placeholders and Buddy's hidden cards rearranged; every `card` is in the catalogue), `test_game_host.cpp`
+  (bot games, a human Dev playing only by `i` and the prompt's candidates, every refusal). `BUDDY_GAME_STATE_DUMP=<file>`
+  makes `HumanDevPlaysByCommands` write a turn-6 payload.
 
 ## The loop (`engine.cpp` → `run()`), in this order every iteration
 
@@ -132,7 +166,9 @@ public; it may be the knower's own hand card (a misread at draw: same call). Run
 `known` unchanged, so views, determinizations and per-owner card counts stay valid; binding the knower's own cards
 changes neither player's view (`binds_along_a_game`). `set_hand_order` = the table's order after a disturbed pile.
 `keep`: objects bound earlier that must keep their card. `BindMemory` (#49) tracks them: an object stays kept while
-it sits where it was bound (same `gen`) and the knower doesn't know it. Two copies dealt in one step are bound on the
+it sits where it was bound (same `gen`) and the knower doesn't know it, or it's in the knower's own hand. During Setup
+a card of the knower's own hand also swaps with another of its hand objects the opponent doesn't know and `keep`
+doesn't hold: the opening hand is the engine's guess until the table deals it (#50). Two copies dealt in one step are bound on the
 state before it, where the first still sits in the pool; Dev's discard picked by card stays in hand until paid. A
 battlefield binds with one of its owner's removed battlefields (setup, Dev's choice; it's public otherwise).
 

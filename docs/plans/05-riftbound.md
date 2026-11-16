@@ -104,7 +104,7 @@ believes in (a misread at draw), table reports the corrected hand; game fixes it
 
 | Topic | Direction | Notes |
 |---|---|---|
-| `buddy/game/cmd` | → game | `new {buddy: zed\|vi, seed?, dev: human\|greedy\|random}`, `act {v, i}` (one of Dev's options), `reveal {v, cards}` (Dev's answer to a prompt), `resume`, `concede` (5.6 design) |
+| `buddy/game/cmd` | → game | `{"action": …}`: `new {buddy: zed\|vi, seed?, dev: human\|greedy\|random}`, `act {v, i}` (one of Dev's options), `reveal {v, cards: [code…]}` (Dev's answer to a prompt), `resume`, `concede` (5.6 design, built in #50) |
 | `buddy/game/state` | game → | retained, built from `public_view` only (cards everyone knows): board, scores, Buddy's status, Dev's options or prompt, log, card catalogue. Never Buddy's hand. |
 | `buddy/table/cmd` | game → table | `setup`, `deal`, `peek`/`peek_done`, `play {id, to}`, `move`, `exhaust`, `token`, `remove`, `rescan_hand`, … with a `seq` (5.5 design). `"web": false`: it moves the arm later (D19). |
 | `buddy/table/event` | table → game | `done {seq, cards}`, `failed {seq, reason}`, `hand_corrected {hand, replaced, extra, missing}` |
@@ -680,6 +680,34 @@ battlefield prompt at setup before both mulligans. What building it changed agai
   both decks from both seats: no refusal, desync or pause; per 10 games ~570 Dev decisions (~200 forced), ~120
   named cards, ~90 prompts; Dev's offered cards = exactly the possible ones at every priority; the game with Dev's true
   cards from the start replays legally into the same state.
+
+**#50 public state, commands, voice lines (2026-11-16):** `public_state.*` and `game_host.*` in `game_core`, voice
+and log in `session.*`; how it runs: `services/game/CLAUDE.md` → "Public state and commands". Defaults as proposed
+in the issue (log 30 lines, catalogue in every payload, `v` + 1 per published payload, bot Dev answered inside the
+host). What building it changed against the design above:
+
+- **Option order.** `options()` listed candidate cards in object id order, and ids carry placeholders: another
+  arrangement of Dev's placeholders reordered the options (the panel's `i` would move, and the order hinted at the
+  referee's guess). Candidates in decklist order, the list sorted by group, named card and action: an action that is
+  in the base list in one arrangement and unnamed in another keeps its place. A test reruns the options on
+  rearranged placeholders at every Dev decision.
+- **The opening hand is a guess too.** One of the leak test's games (seed 802; none of the earlier tests' seeds)
+  hit a false desync in the opening deal: new_game draws the hand, so Buddy's hand objects hold the engine's guess when the table deals them, and a
+  dealt card the guess had put on a later hand object (no copy left in the deck) couldn't bind. During Setup a hand
+  card of the knower now swaps with an undealt hand object; `BindMemory` keeps the dealt ones (same in run_replay).
+- **Payload.** Players are `buddy`/`dev`, objects carry their `id` and printed code (`token:Bird` for tokens), Might
+  after the layers, keywords as "Assault 2"; prompts list candidates with the copies `left`. The pause shows the
+  spoken line, not the technical message (a desync message can name a card Buddy drew). `v` goes up only when the
+  payload changes, so a table event during Dev's decision doesn't make Dev's `act` stale.
+- **Commands** are `{"action": "new", …}` like the table protocol; Buddy sits in seat 0 (the first player is the
+  engine's coin flip from the seed). Before a game the payload is `{v, status: "idle"}`.
+- **Voice.** One line per Buddy action group (a play, activation or move plus Buddy's choices right after it);
+  targets from the chain item (forced ones too), a unit's battlefield from where it ended up; a move into enemy units
+  is "I attack at …". Scoring from `Player::scored`: hold = the turn player's at the start of a turn, else conquer;
+  the score is the scorer's first ("You hold Valley of Idols. 2 to 1.").
+- **Tests:** leak test after every input of 4 SimDev games (~1500 comparisons, payload identical with Dev's
+  placeholders and Buddy's hidden cards rearranged; every card code in the catalogue); host: bot games, a human Dev
+  playing only by `i` and the prompt's candidates, every refusal leaves state, `v` and outputs untouched.
 
 ## Hardware notes for Phase 4 (decide there, not now)
 
