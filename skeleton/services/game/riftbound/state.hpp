@@ -443,6 +443,7 @@ struct GameState {
     std::optional<std::vector<Action>> answer;  // a finished Choose decision's picks, until its asker takes them
     Rng rng;
     bool vanilla = false;  // GameOptions::vanilla: no card rules run, stats and timing only
+    std::uint8_t ask_discard = 0;  // GameOptions::ask_discard: bit p = player p picks every discard cost
 
     // Abilities: plain data, see the types above.
     std::vector<Trigger> triggered;  // conditions met, not yet on the chain

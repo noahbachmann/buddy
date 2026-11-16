@@ -841,7 +841,8 @@ void finalize(GameState& s, std::size_t i) {
                         }
                     }
                     std::sort(options.begin(), options.end(), [](const Action& a, const Action& b) { return a.obj < b.obj; });
-                    if (static_cast<int>(options.size()) > n) {
+                    if (static_cast<int>(options.size()) > n ||
+                        (disc && s.ask_discard & 1u << p && static_cast<int>(options.size()) == n)) {
                         ask(s, p, disc ? Purpose::Discard : Purpose::RecycleTrash, std::move(options), n, n);
                         return;
                     }
@@ -1127,6 +1128,7 @@ GameState new_game(const Deck& seat0, const Deck& seat1, const GameOptions& opti
     GameState s;
     s.rng = Rng(options.seed);
     s.vanilla = options.vanilla;
+    s.ask_discard = options.ask_discard;
     setup_player(s, 0, seat0);
     setup_player(s, 1, seat1);
     s.first_player = static_cast<PlayerId>(s.rng.below(player_count));  // 115

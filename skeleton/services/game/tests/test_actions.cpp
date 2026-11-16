@@ -265,6 +265,27 @@ TEST(RiftboundCosts, DiscardASpell) {  // Mel's Empower cost, 357.2
     expect_ok(s);
 }
 
+// #73: with ask_discard the player picks even the only spell (Dev's hand holds placeholders: the referee never picks).
+TEST(RiftboundCosts, AskDiscardAsksForTheOnlyCandidate) {
+    GameState s = started();
+    const PlayerId p = s.first_player;
+    s.ask_discard = static_cast<std::uint8_t>(1u << p);
+    for (const ObjId id : std::vector<ObjId>(s.player(p).hand)) move_to(s, id, Zone::Trash, p);
+    const ObjId m = put(s, p, kMel, Zone::Base);
+    put(s, p, kUnit, Zone::Hand);
+    const ObjId spell = put(s, p, kSpell, Zone::Hand);
+    apply(s, {ActionKind::Activate, m, 0});
+    ASSERT_EQ(s.decision.kind, DecisionKind::Choose);
+    EXPECT_EQ(s.decision.purpose, Purpose::Discard);
+    EXPECT_EQ(s.decision.player, p);
+    EXPECT_EQ(legal_actions(s), (std::vector<Action>{{ActionKind::Pick, spell}}));
+    pick(s, spell);  // auto-finished at max, as without the flag
+    EXPECT_EQ(s.obj(spell).zone, Zone::Trash);
+    both_pass(s);
+    EXPECT_TRUE(s.obj(m).empowered);
+    expect_ok(s);
+}
+
 TEST(RiftboundCosts, BanishMeToBanishIt) {  // Ravenbloom Prefect: a trigger cost (383.3.b), 428
     GameState s = started();
     const PlayerId p = s.first_player, o = opponent(p);
