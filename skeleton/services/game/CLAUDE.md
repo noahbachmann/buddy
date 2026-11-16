@@ -1,7 +1,8 @@
 # services/game – Riftbound engine quick reference
 
-What the engine does **now** (state after #47: 5.3, 5.4 and 5.5 done: arena, v1 greedy, engine speed, v2 ISMCTS, table
-moves; 5.6 engine side: binding revealed cards, public view, replay reveals) and where the next work plugs in.
+What the engine does **now** (state after #48: 5.3, 5.4 and 5.5 done: arena, v1 greedy, engine speed, v2 ISMCTS, table
+moves; 5.6 engine side: binding revealed cards, public view, replay reveals; the session with Buddy's side) and where the
+next work plugs in.
 Why it is built this way: `docs/plans/05-riftbound.md` → "5.2 design", "5.3 as built" (with the rulings, confirmed by Dev),
 "5.4 design", "5.5 design"/"as built". Sub-issues: 5.2 #20, 5.3 #33, 5.4 #39, 5.5 #45. Rules text: `~/buddy/data/riftbound/core-rules-2026-10-09.txt`
 on the VM (grep the rule number); full card text: `~/buddy/data/riftbound/cards.json` (VM and Pi, not in Git).
@@ -46,6 +47,36 @@ engine's hand order stays the pile's): game (5.6) calls it on Buddy's chosen act
 `workload_game` / `buddy-game --table-workload` = the soak's input. Tests: `tests/test_table_moves.cpp` (own
 executable `buddy-game-table-tests`, links `table_core`).
 
+## Session (5.6.2, `game_core`: `session.*`)
+
+One game, message-driven, no MQTT/threads/clock. Inputs: `start`, `on_table(event)`, `on_dev(action)` (must be in
+`legal_actions`; Dev = scripted until #49), `on_ai(id, action)`, `resume`, `concede(p)`; after each, `take()` →
+`Outputs` (table commands, at most one in flight; an `AiRequest` with `view(s, buddy)`; voice lines; replay lines,
+header first). `Status`: setup → dev_to_act / thinking / acting → paused → over.
+- **Step:** `next = s; apply` under `MoveRecorder` on a copy of `TableMoves`, deals split into single cards (a failed
+  deal reports none of the cards it placed). Each `deal`/`peek` code → `bind(s, obj, card, buddy, group_)`; a changed
+  card marks the step stale, and before the next command (or the commit) it is re-applied: the commands already done
+  must be a prefix, else **desync** (pause for good, `# desync:` in the replay). Commit: `s = next`, `moves_` advances,
+  the action line. Binds go to the replay as they happen (`before` = the next action), every bind of a step is in
+  `group_` (bind's `keep`; run_replay groups the same way).
+- **Setup:** `setup` with `sim_deck`/`sim_runes` (home-printing codes); the opening deals from new_game's log run as a
+  step without action, bound on `s` directly.
+- **Ids:** `id_`/`obj_` engine object ⇄ table id (deal/peek/token give them; into a deck, `remove`, `peek_done` forget);
+  `table_hand_` = the belief's hand as the session saw it (deals, plays, returns, `hand_corrected`). At every commit
+  `reconcile_hand()`: a different order → `set_hand_order` + an `order` line; not a permutation → desync.
+- **Failures:** `not_in_hand` on the first command of Buddy's chosen play → step dropped, AI asked again (twice at
+  most, then pause); `unreadable` on a step command → once more, then pause; anything else → pause (`Pause` says why);
+  `resume` = `rescan_hand`, then the step's next command again (setup failed: the setup again). `hand_corrected`:
+  `replaced` → rebind + "I misread a card"; `extra` → back on the deck top (Play → `deck_top`), unless its code is a
+  `missing` card's (found again: same object); `missing` → pause after the command, a rescan that still misses it
+  pauses again.
+- Tests `tests/test_session.cpp` (`buddy-game-session-tests`, label `riftbound`, ~60 s under ASan): fault-free games
+  (both decks from both seats), each sim fault alone, every failure path forced by a `Flaky` backend wrapper or by
+  moving the sim's cards by hand, a forced desync (`Session::on_moves` hook). After every step: engine = belief
+  (hand order, ids, codes, spots, exhausted, counts) and belief = truth with the hand as a multiset (a disturbed
+  pile stays unnoticed until a play mismatches); at the end a rescan, then strict, and the session's replay replays
+  to the same state.
+
 ## The loop (`engine.cpp` → `run()`), in this order every iteration
 
 1. `cleanup_due` and nothing resolving (321) → `cleanup()` (323 in rule order: win, combat designations, lethal damage via `kill_all`, the Ending/Combat Special Cleanup steps, `prune`, lost control, recalls, Contested; then in Neutral Open a staged showdown/combat begins, or a `Stage` task when several are; Showdown Open: a showdown becomes a combat, 323.13. Re-arms the flag if it changed something, 322).
@@ -76,6 +107,8 @@ the owner's main and rune deck unknown to the knower, plus the hand if the owner
 public; it may be the knower's own hand card (a misread at draw: same call). Runes only with runes. Zones, `gen`,
 `known` unchanged, so views, determinizations and per-owner card counts stay valid; binding the knower's own cards
 changes neither player's view (`binds_along_a_game`). `set_hand_order` = the table's order after a disturbed pile.
+`keep` (#48): objects bound earlier in the same group (one step, or the replay lines before one action) are never
+partners: two copies dealt in one step are bound on the state before it, where the first still sits in the pool.
 
 ## Writing a card (5.3)
 
@@ -159,7 +192,7 @@ start, e.g. a determinization, skips its own turn).
   ability-deck games in `test_abilities`; `apply` accepts exactly `legal_actions`), `test_ai` (keys, players only get views, matches reproducible across
   jobs, eval, greedy on hand-built states: conquer, lethal, no trade down, no own target; greedy vs random 8 games;
   ISMCTS reproducible with 1 and 3 threads, takes the win in 1, ≥ 1000 searched decisions in ISMCTS-vs-ISMCTS games all legal: ~30 s under ASan), `test_hidden` (knowledge, view, determinize; views along random games, the
-  ability deck's in `test_abilities`; real decks with rules too), `test_replay` (incl. binds/orders round trip), `test_gate` (1000 games of the real
+  ability deck's in `test_abilities`; real decks with rules too), `test_replay` (incl. binds/orders round trip), `test_session` (#48, own executable), `test_gate` (1000 games of the real
   decks, vanilla (5.2) and with rules (5.3); writes the replay of a failure).
 - `test_real.hpp` + `test_cards_vi.cpp` / `test_cards_zed.cpp` (5.3): real cards from the fixture with their rules
   (`real(name)`), `real_deck` (test frame, Zap, the deck's runes), `fund` (pool energy/power), `zap_kill`; one

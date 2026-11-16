@@ -628,6 +628,34 @@ thinking during Dev's turn, a game that survives a *table* restart (the sim's pi
 resumes from the replay). **D19:** `buddy/game/cmd` is on the web without a login; fine while the table is a sim,
 a login comes before the table drives motion (5.7).
 
+### 5.6 as built (in progress)
+
+**#48 session (2026-11-16):** `services/game/session.*` in `game_core`, how it runs: `services/game/CLAUDE.md` →
+"Session". What building it changed against the design above:
+
+- **Deals one card at a time.** A deal of n that fails on its k-th card has placed k − 1 cards whose ids the
+  `failed` event doesn't carry; the session splits every deal into single cards (the prefix check compares the split
+  lists).
+- **Bind groups.** Two copies dealt in one step are bound on the state before the step, where the first still sits in
+  the unknown deck: the second bind could take its card and leave it holding another. `bind()` got `keep` (objects
+  bound earlier in the group never give their card away); a group = one step's reveals = the replay lines before one
+  action, and `run_replay` applies them the same way.
+- **Re-apply lazily.** A `hand_corrected` arrives before the command's `done`/`failed`: a rebind there marks the step
+  stale and it is re-applied before the next command. Re-applying at once broke the re-decide path (the abandoned play
+  of a rebound card can be illegal: a false desync).
+- **A misread card isn't played.** The table played whatever a recovery found under the asked id, so a misread at draw
+  made Buddy play a card the AI never chose. Now the table fails `not_in_hand` when the recovery replaced the asked
+  card's code; the session rebinds it and asks the AI again (twice at most, then pause).
+- **Lost and found.** `missing` pauses; when Dev puts the card back, the rescan reports it as `extra`: the session
+  matches it to the missing object by code instead of putting it on the deck top.
+- **Checks.** After every step engine = belief strictly (hand order and ids, codes, spots, exhausted, counts); belief
+  = truth with the hand as a multiset: a disturbed pile stays unnoticed until a play mismatches (as in 5.5). At game
+  end a rescan, then the order too. Each fault alone at 5× stress (at least 10 %): no desync, no pause, every game ends,
+  replays reproduce the state. Unreadable alone hardly ever fails a deal (votes over 10 reads): the retry and the pause
+  are forced by a backend wrapper.
+- **Open for #49:** Dev's prompts (oracle) join the step's command list; a play the table fails `not_in_hand` that
+  isn't Buddy's choice (Dev's effect discards a misread card) pauses, resume re-runs it with the corrected card.
+
 ## Hardware notes for Phase 4 (decide there, not now)
 
 - **Scanning:** the code is ~1.5 mm text. The head camera (4.2) won't read that at table distance, so it needs a fixed
