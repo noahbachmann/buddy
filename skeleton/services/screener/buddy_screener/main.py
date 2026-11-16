@@ -8,6 +8,12 @@ Offline (no MQTT; on the Pi with buddy.env: `deploy/run.sh screener --cmd …`):
     --cmd back-out                leave an open comment sheet without sending (clear, leave the app, relaunch)
     --cmd walk                    step 1 check: feed → whole profile → a section's comment sheet (type, read back,
                                   back out without sending) → likes → matches → a chat → back
+    --cmd templates               check templates.md, list the like comments
+Shadow mode (step 2; Dev taps, nothing here likes, skips or sends; details in shadow.py):
+    --cmd shadow                  capture the profile on screen, decide, store and print it (row id)
+    --cmd label <id> like|skip [section comment] [--note …] [--wrong] [--dealbreaker] [--sensitive]
+    --cmd type <id>               type the labelled comment into the labelled section's panel; Dev taps send
+    --cmd report                  step 2's done-when numbers, missing comments, usage
 
 Service (no flags): retained state, `stop|pause|resume` on buddy/screener/cmd, phone check. Step 1 acts on nothing
 by itself; browsing and chats come in later steps.
@@ -25,10 +31,13 @@ from buddy_shared.mqtt import Mqtt
 
 from . import screens, vocab
 from .config import Config
+from .decide import DecideConfig, DecideError, Decider
 from .device import OUR_IME, AdbError, Device, Stopped
+from .library import Library, LibraryError
 from .navigator import Navigator, NeedsYou
 from .profile import Capture
 from .sanitize import read_forbidden, sanitize_many
+from .store import Store
 
 TEST_TEXT = "Test äöü ß – ok"   # typed into a comment field and read back, never sent
 
@@ -38,8 +47,13 @@ def _device(cfg: Config) -> Device:
 
 
 def _navigator(cfg: Config, dev: Device) -> Navigator:
-    from .imaging import crop_hash
-    return Navigator(dev, cfg.package, dump_dir=cfg.tmp_dir, hasher=crop_hash)
+    from .imaging import crop_hash, crop_jpeg
+    return Navigator(dev, cfg.package, dump_dir=cfg.tmp_dir, hasher=crop_hash, cropper=crop_jpeg)
+
+
+def _decider(cfg: Config, store: Store) -> Decider:
+    return Decider(DecideConfig(cfg.model, cfg.effort, cfg.decide_timeout_s, cfg.daily_usd, cfg.token_file,
+                                cfg.limit_file, cfg.tmp_dir / "claude"), store)
 
 
 def _ensure_our_ime(dev: Device) -> None:
@@ -98,7 +112,88 @@ def cmd_walk(cfg: Config, dev: Device, nav: Navigator) -> None:
     print("walk done")
 
 
+def cmd_shadow(cfg: Config, args: argparse.Namespace) -> int:
+    """Shadow mode commands: no input action that likes, skips or sends."""
+    from . import shadow
+
+    lib = Library.load(cfg.config_dir)
+    store = Store(cfg.db_path)
+    if args.cmd == "templates":
+        for c in lib.like_comments:
+            print(f"{c.id:24} {c.lang} {len(c.text):3}  {c.hint}")
+        print(f"{len(lib.like_comments)} like comments ok")
+        return 0
+    if args.cmd == "report":
+        print("\n".join(shadow.report(store.shadow(), store.usage_rows())))
+        return 0
+    if args.cmd == "label":
+        if len(args.args) not in (2, 4):
+            print("label <id> like|skip [section comment]", file=sys.stderr)
+            return 2
+        row_id = int(args.args[0])
+        rows = store.shadow(row_id)
+        if not rows:
+            print(f"no shadow row {row_id}", file=sys.stderr)
+            return 2
+        cap = shadow.load_capture(cfg.tmp_dir, row_id)
+        section, comment = (" ".join(args.args[2].split()), args.args[3]) if len(args.args) == 4 else (None, None)
+        try:
+            dev_label = shadow.make_label(rows[0], args.args[1], section, comment, lib,
+                                          [s.ref for s in cap.profile.sections] if cap else None, args.note,
+                                          args.wrong, args.dealbreaker, args.sensitive)
+        except shadow.LabelError as e:
+            print(f"label: {e}", file=sys.stderr)
+            return 2
+        store.label(row_id, dev_label)
+        print(f"#{row_id} labelled: {dev_label['decision']}"
+              + (f" {dev_label['comment_on']} / {dev_label['comment']}" if dev_label["decision"] == "like" else ""))
+        return 0
+
+    dev = _device(cfg)
+    nav = _navigator(cfg, dev)
+    if args.cmd == "shadow":
+        r = shadow.run_shadow(nav, _decider(cfg, store), lib, store, cfg.tmp_dir)
+        print("\n".join(shadow.describe(r, lib)))
+        return 0
+    if args.cmd == "type":
+        row_id = int(args.args[0])
+        rows = store.shadow(row_id)
+        cap = shadow.load_capture(cfg.tmp_dir, row_id)
+        if not rows or cap is None:
+            print(f"#{row_id}: no capture in tmpfs (only the newest shadow row's): run shadow again", file=sys.stderr)
+            return 2
+        _ensure_our_ime(dev)
+        try:
+            text = shadow.type_label(nav, rows[0], cap, lib)
+        except shadow.LabelError as e:
+            print(f"type: {e}", file=sys.stderr)
+            return 2
+        print(f"#{row_id}: {rows[0].dev['comment_on']} panel open, typed and read back {len(text)} chars. "
+              "Tap send on the phone (or --cmd back-out).")
+        return 0
+    raise AssertionError(args.cmd)
+
+
 def offline(cfg: Config, args: argparse.Namespace) -> int:
+    if args.cmd in ("templates", "report", "label", "shadow", "type"):
+        try:
+            return cmd_shadow(cfg, args)
+        except LibraryError as e:
+            print(f"library: {e}", file=sys.stderr)
+            return 1
+        except DecideError as e:
+            print(f"decide: {e}", file=sys.stderr)
+            return 6
+        except NeedsYou as e:
+            print(f"needs you: {e}", file=sys.stderr)
+            return 3
+        except Stopped as e:
+            print(f"stopped: {e}", file=sys.stderr)
+            return 4
+        except AdbError as e:
+            print(f"phone: {e}", file=sys.stderr)
+            return 5
+
     if args.cmd == "fixture":
         out, *files = args.args
         paths = [Path(f) for f in files]
@@ -212,8 +307,13 @@ def handle(cfg: Config, dev: Device, action: str) -> str | None:
 def main() -> int:
     lifecycle.install_signal_handlers()
     p = argparse.ArgumentParser(prog="buddy-screener")
-    p.add_argument("--cmd", help="screen | dump [name] | fixture <out> <xml…> | profile | back-out | walk")
+    p.add_argument("--cmd", help="screen | dump [name] | fixture <out> <xml…> | profile | back-out | walk | templates"
+                                 " | shadow | label <id> like|skip [section comment] | type <id> | report")
     p.add_argument("--show", action="store_true", help="profile: print texts (host terminal only)")
+    p.add_argument("--note", default="", help="label: Dev's note (why)")
+    p.add_argument("--wrong", action="store_true", help="label: the bot's comment reads wrong on its section")
+    p.add_argument("--dealbreaker", action="store_true", help="label: Dev saw a dealbreaker")
+    p.add_argument("--sensitive", action="store_true", help="label: the bot's reason infers something sensitive")
     p.add_argument("args", nargs="*")
     args = p.parse_args()
     try:
