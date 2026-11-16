@@ -389,6 +389,85 @@ TEST(RiftboundSession, DevOptionsDontDependOnHiddenCards) {
     }
 }
 
+// #50: Buddy says one line per action group (a play, activation or move with its choices, never a pass), battlefields
+// by name, and every scoring with the score; Dev's own moves aren't voiced. The log has one line per action.
+TEST(RiftboundSession, VoiceLinesPerActionGroupAndScoring) {
+    std::map<std::string, int> kinds;
+    for (int i = 0; i < 4; ++i) {
+        const auto& [d0, d1] = kDecks[static_cast<std::size_t>(i % 2)];
+        Game g(d0, d1, static_cast<PlayerId>(i / 2), 700 + static_cast<std::uint64_t>(i), {}, 5, true);
+        std::set<std::string> fields;
+        long buddy_actions = 0, actions_seen = 0;
+        int last_turn = 0;
+        g.stop_when = [&] {
+            const GameState& s = g.session->state();
+            for (const auto& b : s.battlefields) fields.insert(s.obj(b.card).card->name);
+            const auto n = static_cast<long>(g.session->replay().actions.size());
+            if (n != actions_seen) {  // one log line per committed action, the newest last
+                const auto& log = g.session->log();
+                if (log.size() != std::min<std::size_t>(game::log_lines, static_cast<std::size_t>(n))) {
+                    g.problems.push_back("log has " + std::to_string(log.size()) + " lines after " + std::to_string(n) + " actions");
+                }
+                if (!log.empty() && (log.back().turn < last_turn || log.back().text.find("hidden") != std::string::npos)) {
+                    g.problems.push_back("log line: " + log.back().text);
+                }
+                if (!log.empty()) last_turn = log.back().turn;
+                actions_seen = n;
+            }
+            return false;
+        };
+        g.buddy_choice = [&](const game::AiRequest&) {
+            ++buddy_actions;
+            return std::optional<Action>{};
+        };
+        g.run();
+        SCOPED_TRACE("game " + std::to_string(i));
+        ASSERT_EQ(g.session->status(), Status::Over) << g.session->pause_message();
+        EXPECT_TRUE(g.problems.empty()) << g.problems.front();
+        long buddy_lines = 0;
+        int points_seen = 0;
+        for (const auto& line : g.voice) {
+            EXPECT_EQ(line.find("hidden"), std::string::npos) << line;
+            EXPECT_EQ(line.find("left"), std::string::npos) << line;
+            EXPECT_EQ(line.find("right"), std::string::npos) << line;
+            const auto names_field = [&] {
+                return std::any_of(fields.begin(), fields.end(), [&](const auto& f) { return line.ends_with(f) || line.find(f + ".") != std::string::npos || line.find(f + " with") != std::string::npos; });
+            };
+            if (line.starts_with("I play ") || line.starts_with("I activate ") || line.starts_with("I equip ") ||
+                line.starts_with("I empower ") || line.starts_with("I move ") || line.starts_with("I attack at ")) {
+                ++buddy_lines;
+                kinds[line.substr(0, line.find(' ', 2))]++;
+                if (line.starts_with("I attack at ") || (line.starts_with("I move ") && !line.ends_with("my base"))) {
+                    EXPECT_TRUE(names_field()) << line;
+                }
+                if (line.starts_with("I play ") && line.find(" to ") != std::string::npos) {
+                    EXPECT_TRUE(names_field()) << line;
+                    ++kinds["play to a battlefield"];
+                }
+                if (line.find(" on ") != std::string::npos) ++kinds["with a target"];
+            } else if (line.find(" conquer ") != std::string::npos || line.find(" hold ") != std::string::npos) {
+                EXPECT_TRUE(line.starts_with("I ") || line.starts_with("You ")) << line;
+                EXPECT_TRUE(names_field()) << line;
+                int a = 0, b = 0;
+                const auto dot = line.find(". ");
+                ASSERT_NE(dot, std::string::npos) << line;
+                ASSERT_EQ(std::sscanf(line.c_str() + dot + 2, "%d to %d.", &a, &b), 2) << line;
+                EXPECT_GE(a + b, points_seen) << line;  // the score only grows
+                points_seen = a + b;
+                ++kinds[line.find(" conquer ") != std::string::npos ? "conquer" : "hold"];
+            }
+        }
+        // never a line per pass: far fewer lines than Buddy's asked decisions, but some
+        EXPECT_GT(buddy_lines, 5);
+        EXPECT_LT(buddy_lines, buddy_actions);
+        EXPECT_TRUE(has_voice(g, " win") || has_voice(g, "concede"));
+    }
+    for (const auto& [k, n] : kinds) std::cout << k << ": " << n << "\n";
+    for (const char* k : {"I play", "I move", "I attack", "play to a battlefield", "conquer", "hold"}) {
+        EXPECT_GT(kinds[k], 0) << k;
+    }
+}
+
 // #49's gate: SimDev (a true shuffled deck, greedy) against Buddy (greedy), both decks from both seats, fault-free
 // table. No refusal, no desync, no pause; Dev's options always hold SimDev's true move, the offered cards are exactly
 // the possible ones, every card Buddy learns of Dev's comes from a prompt or Dev's choice and is SimDev's true card,

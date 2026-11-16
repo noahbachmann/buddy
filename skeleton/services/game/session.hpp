@@ -67,6 +67,8 @@ enum class Pause : std::uint8_t {
     Desync,      // the engine and the table disagree; can't resume
 };
 std::string_view to_string(Pause p);
+// What Buddy says on a pause, and what the panel shows (the message stays in the journal: it may name a card).
+std::string pause_text(Pause p);
 
 // Dev's cards that turn visible without Dev choosing them: Dev names each one (#49).
 struct DevPrompt {
@@ -138,6 +140,15 @@ struct Outputs {
     std::vector<std::string> replay;    // lines to append to the replay file (header first)
 };
 
+// One committed action for the panel's log (#50), described on the public view after it.
+struct LogLine {
+    int turn = 0;
+    PlayerId player = 0;
+    std::string text;
+    bool operator==(const LogLine&) const = default;
+};
+inline constexpr std::size_t log_lines = 30;
+
 struct SessionStats {
     long steps = 0, commands = 0, binds = 0, reapplies = 0, re_decides = 0, retries = 0, corrections = 0,
          misreads = 0, reorders = 0, extras = 0, pauses = 0, resumes = 0;
@@ -178,6 +189,7 @@ public:
     // Buddy's hand as the table believes it, bottom → top (table ids).
     const std::vector<int>& table_hand() const { return table_hand_; }
     const riftbound::Replay& replay() const { return replay_; }
+    const std::deque<LogLine>& log() const { return log_; }  // the last log_lines actions, oldest first
     // What dev_options() needs besides the state (the leak test recomputes them on rearranged placeholders).
     std::vector<ObjId> kept() const { return bound_.keep(s_, cfg_.buddy); }
     const std::set<ObjId>& named() const { return named_; }
@@ -204,6 +216,13 @@ private:
         bool stale = false;  // a bind changed s since the list was computed: re-apply before the next command
     };
     enum class Kind : std::uint8_t { Setup, Step, Fix, Rescan };
+    // Buddy's action group being voiced (#50): a play, activation or move and the choices that belong to it.
+    struct VoiceGroup {
+        Action action;
+        std::vector<ObjId> before;  // Move: Buddy's units at the destination before
+        std::vector<riftbound::Target> targets;
+        bool attack = false;
+    };
     struct Inflight {
         table::Command cmd;
         Kind kind = Kind::Step;
@@ -230,6 +249,8 @@ private:
     void reveal(ObjId obj, const std::string& code);
     void commit();
     void reconcile_hand();
+    void narrate(const riftbound::GameState& before, const Action& a);
+    void flush_voice();
     void do_pause(Pause p, const std::string& message);
     void map_id(ObjId obj, int id);
     void forget(ObjId obj);
@@ -263,6 +284,8 @@ private:
     std::set<ObjId> named_;         // Dev's hidden cards Dev named (a discard picked by card): no prompt for them
     std::vector<DevOption> dev_options_;
     riftbound::Replay replay_;
+    std::deque<LogLine> log_;
+    std::optional<VoiceGroup> group_;
     std::vector<std::string> lines_;
     Outputs out_;
     SessionStats stats_;

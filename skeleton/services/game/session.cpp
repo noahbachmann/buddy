@@ -14,6 +14,7 @@ namespace buddy::game {
 using riftbound::ActionKind;
 using riftbound::Card;
 using riftbound::CardType;
+using riftbound::Decision;
 using riftbound::DecisionKind;
 using riftbound::GameState;
 using riftbound::no_obj;
@@ -236,7 +237,9 @@ Pause pause_of(FailReason r) {
     return Pause::Hardware;
 }
 
-std::string pause_line(Pause p) {
+}  // namespace
+
+std::string pause_text(Pause p) {
     switch (p) {
         case Pause::Unreadable: return "I can't read one of my cards. Please check the scanner, then resume.";
         case Pause::Missing: return "One of my cards is missing. Please put it back on my hand pile, then resume.";
@@ -244,6 +247,31 @@ std::string pause_line(Pause p) {
         default: return "My table needs a hand. Please check it, then resume.";
     }
 }
+
+namespace {
+
+// "Vi", "Vi and the Bird", "Vi, Zed and two Birds": tokens get "the", copies are counted.
+std::string spoken_list(const GameState& pv, const std::vector<ObjId>& ids) {
+    static const char* const count[] = {"", "", "two", "three", "four", "five", "six"};
+    std::vector<std::pair<const Card*, int>> cards;
+    for (const ObjId id : ids) {
+        const Card* c = pv.obj(id).card;
+        const auto it = std::find_if(cards.begin(), cards.end(), [&](const auto& e) { return e.first == c; });
+        if (it == cards.end()) cards.emplace_back(c, 1);
+        else ++it->second;
+    }
+    std::string out;
+    for (std::size_t i = 0; i < cards.size(); ++i) {
+        const auto& [c, n] = cards[i];
+        if (i > 0) out += i + 1 == cards.size() ? " and " : ", ";
+        if (c == riftbound::hidden_card()) out += n == 1 ? "a card" : std::string(count[std::min(n, 6)]) + " cards";
+        else if (n > 1) out += std::string(count[std::min(n, 6)]) + " " + c->name + "s";
+        else out += (c->token ? "the " : "") + c->name;
+    }
+    return out;
+}
+
+std::string battlefield_name(const GameState& s, std::uint8_t b) { return s.obj(s.battlefields.at(b).card).card->name; }
 
 } // namespace
 
@@ -779,15 +807,128 @@ void Session::commit() {
     Step st = std::move(*step_);
     step_.reset();
     if (st.action) {
-        s_ = std::move(st.next);
+        const GameState before = std::exchange(s_, std::move(st.next));
         std::erase_if(named_, [&](ObjId id) { return s_.obj(id).known & 1u << cfg_.buddy; });
         replay_.actions.push_back(*st.action);
         emit_replay(riftbound::format_action(*st.action));
         re_decides_ = 0;
+        narrate(before, *st.action);
     }
     moves_ = std::move(st.moves);
     ++stats_.steps;
     reconcile_hand();
+}
+
+// The log line of every committed action, Buddy's voice line per action group and the scoring lines (#50).
+void Session::narrate(const GameState& before, const Action& a) {
+    const PlayerId who = before.decision.player;
+    GameState pv = riftbound::public_view(s_);
+    {
+        const Decision now = std::exchange(pv.decision, before.decision);  // describe() reads the decision answered
+        std::string text = riftbound::describe(pv, a);
+        for (std::size_t at; (at = text.find("hidden card")) != std::string::npos;) text.replace(at, 11, "a card");
+        log_.push_back({before.turn, who, std::move(text)});
+        if (log_.size() > log_lines) log_.pop_front();
+        pv.decision = now;
+    }
+
+    if (who == cfg_.buddy) {
+        const auto kind = before.decision.kind;
+        if (kind == DecisionKind::Priority &&
+            (a.kind == ActionKind::Play || a.kind == ActionKind::Activate || a.kind == ActionKind::Move)) {
+            flush_voice();
+            VoiceGroup g;
+            g.action = a;
+            if (a.kind == ActionKind::Move) {
+                const auto& at = a.n == riftbound::to_base ? before.player(cfg_.buddy).base : before.battlefields[a.n].here;
+                for (const ObjId id : at) {
+                    if (before.obj(id).controller == cfg_.buddy) g.before.push_back(id);
+                    else if (before.obj(id).card->type == CardType::Unit) g.attack = true;
+                }
+            }
+            group_ = std::move(g);
+        }
+        if (group_ && group_->action.kind != ActionKind::Move) {  // its targets so far, forced ones included
+            for (const auto& item : s_.chain) {
+                const bool mine = group_->action.kind == ActionKind::Play
+                                      ? item.card == group_->action.obj
+                                      : item.kind == riftbound::ItemKind::Activated && item.source.id == group_->action.obj;
+                if (mine) group_->targets = item.targets;
+            }
+        }
+    }
+    const auto& d = s_.decision;
+    if (group_ && (s_.winner || d.player != cfg_.buddy || (d.kind != DecisionKind::Choose && d.kind != DecisionKind::Recycle))) {
+        flush_voice();
+    }
+
+    // Scoring: a battlefield bit new this turn. Holds happen in the turn player's Beginning Phase, conquers later.
+    const bool new_turn = s_.turn != before.turn;
+    for (PlayerId p = 0; p < riftbound::player_count; ++p) {
+        const auto was = new_turn ? 0 : before.player(p).scored;
+        const auto now = s_.player(p).scored & ~was;
+        for (std::uint8_t b = 0; b < s_.battlefields.size(); ++b) {
+            if (!(now & 1u << b)) continue;
+            const bool hold = p == s_.turn_player && (new_turn || before.phase < riftbound::Phase::Main);
+            const std::string verb = hold ? "hold " : "conquer ";
+            out_.voice.push_back((p == cfg_.buddy ? "I " : "You ") + verb + battlefield_name(s_, b) + ". " +
+                                 std::to_string(s_.player(p).points) + " to " +
+                                 std::to_string(s_.player(riftbound::opponent(p)).points) + ".");
+        }
+    }
+}
+
+// "I play Zed to Zaun Warrens", "I play Void Rush on Vi", "I move Vi and the Bird to Zaun Warrens", "I attack at
+// Zaun Warrens with Vi", "I empower Mel": names on the public view (a card Buddy plays is public by then).
+void Session::flush_voice() {
+    if (!group_) return;
+    const VoiceGroup g = std::move(*group_);
+    group_.reset();
+    const GameState pv = riftbound::public_view(s_);
+    const auto name = [&](ObjId id) { return spoken_list(pv, {id}); };
+    std::string line;
+    switch (g.action.kind) {
+        case ActionKind::Play: {
+            line = "I play " + name(g.action.obj);
+            const auto& o = s_.obj(g.action.obj);
+            if (o.zone == Zone::Battlefield) line += " to " + battlefield_name(s_, o.where);
+            break;
+        }
+        case ActionKind::Activate: {
+            const auto* spec = riftbound::ability_spec(s_, g.action.obj, g.action.n);
+            const auto builtin = spec ? spec->builtin : riftbound::Builtin::None;
+            if (builtin == riftbound::Builtin::Empower) return out_.voice.push_back("I empower " + name(g.action.obj));
+            line = (builtin == riftbound::Builtin::Equip ? "I equip " : "I activate ") + name(g.action.obj);
+            break;
+        }
+        case ActionKind::Move: {
+            const bool home = g.action.n == riftbound::to_base;
+            const auto& at = home ? s_.player(cfg_.buddy).base : s_.battlefields[g.action.n].here;
+            std::vector<ObjId> moved;
+            for (const ObjId id : at) {
+                if (s_.obj(id).controller == cfg_.buddy && s_.obj(id).card->type == CardType::Unit &&
+                    std::find(g.before.begin(), g.before.end(), id) == g.before.end()) {
+                    moved.push_back(id);
+                }
+            }
+            if (moved.empty()) return;
+            const std::string where = home ? "my base" : battlefield_name(s_, g.action.n);
+            out_.voice.push_back(g.attack ? "I attack at " + where + " with " + spoken_list(pv, moved)
+                                          : "I move " + spoken_list(pv, moved) + " to " + where);
+            return;
+        }
+        default: return;
+    }
+    std::vector<ObjId> objs;
+    std::vector<std::string> players;
+    for (const auto& t : g.targets) {
+        if (t.ref.id == no_obj) players.push_back(t.player == cfg_.buddy ? "myself" : "you");
+        else if (std::find(objs.begin(), objs.end(), t.ref.id) == objs.end()) objs.push_back(t.ref.id);
+    }
+    std::string on = objs.empty() ? "" : spoken_list(pv, objs);
+    for (const auto& pl : players) on += (on.empty() ? "" : " and ") + pl;
+    if (!on.empty()) line += (g.action.kind == ActionKind::Activate && line.starts_with("I equip") ? " to " : " on ") + on;
+    out_.voice.push_back(line);
 }
 
 void Session::bind_line(ObjId obj, const Card* card, bool kept) {
@@ -858,7 +999,7 @@ void Session::do_pause(Pause p, const std::string& message) {
     pause_ = p;
     pause_message_ = message;
     if (p == Pause::Desync) emit_replay("# desync: " + message);
-    out_.voice.push_back(pause_line(p));
+    out_.voice.push_back(pause_text(p));
 }
 
 } // namespace buddy::game
