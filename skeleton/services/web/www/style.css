@@ -412,6 +412,10 @@ input.warmth { accent-color: var(--muted); }
 .rb-act { display: grid; gap: 10px; margin-top: 12px; }
 .rb-act > div { display: grid; gap: 10px; }
 .rb-hand { display: grid; gap: 6px; }
+/* hand and prompt tiles: whole names (several Vi cards), wrapped */
+.rb-act .rb-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+.rb-act .rb-obj { width: auto; }
+.rb-act .rb-obj-name { white-space: normal; }
 .rb-bar .text-btn { height: 44px; }
 .rb-hint { margin: 0; }
 .rb-list { display: grid; gap: 10px; }

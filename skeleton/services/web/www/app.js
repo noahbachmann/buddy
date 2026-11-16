@@ -887,12 +887,13 @@ function rbActions(g, place) {
   const busy = !!rbPending;
   if (g.status === "dev_to_reveal" && g.prompt) nodes.push(rbPrompt(g));
   if (g.status === "dev_to_act") {
-    const hand = [...place.byCard.entries()];
+    // Buddy doesn't know Dev's hand: every card that could be in it, by name (find the one you hold)
+    const hand = [...place.byCard.entries()].sort(([a], [b]) => rbName(a).localeCompare(rbName(b)));
     if (hand.length) {
-      nodes.push(el("div", { class: "rb-hand" }, el("span", { class: "muted" }, "From your hand"),
+      nodes.push(el("div", { class: "rb-hand" }, el("span", { class: "muted" }, "From your hand: tap the card you hold"),
         el("div", { class: "rb-row" }, hand.map(([code, opts]) => el("button", {
           class: "rb-obj can", disabled: busy, onclick: () => rbOpen({ code }),
-        }, el("span", { class: "rb-obj-name" }, rbShort(code)), el("small", {}, rbCost(rbCard(code))),
+        }, el("span", { class: "rb-obj-name" }, rbName(code)), el("small", {}, rbCost(rbCard(code))),
         opts.length > 1 ? el("span", { class: "rb-badge" }, String(opts.length)) : null)))));
     }
     if (place.bar.length) {
@@ -967,7 +968,7 @@ function rbPrompt(g) {
         class: `rb-obj${n ? " picked" : ""}`, disabled: full && !n,
         style: c.domain ? `--dom:${RB_DOMAIN[c.domain] ?? "var(--muted)"}` : undefined,
         onclick: () => { if (!full) set([...picked, c.code]); },
-      }, el("span", { class: "rb-obj-name" }, rbShort(c.code)),
+      }, el("span", { class: "rb-obj-name" }, rbName(c.code)),
       el("small", {}, [rbCost(rbCard(c.code)), c.left > 1 && `${c.left} left`].filter(Boolean).join(" · ")),
       n ? el("span", { class: "rb-badge" }, `${n}`) : null);
     })));
