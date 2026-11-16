@@ -440,7 +440,9 @@ left arranges the rooms (order, hide, add back), saved per browser (`localStorag
 what Spotify plays on **any** device (cover, title, artist, "on <device>"), a progress bar to seek, play/pause/next/
 previous and volume on that device, and the speaker list (tap one = move the music there): the Nests (1.15) plus
 whatever Spotify sees (DESKTOP-1, Pixel 8 while its app is open), never Soloist's "Buddy". Tab **Hue** (`#hue`): pick a room or zone, set its lights (live), name, Save →
-scene; scene list per room/zone: tap = recall and load for editing, ✕ = delete (asks first). Fixed chips
+scene; scene list per room/zone: tap = recall and load for editing, ✕ = delete (asks first). Tab **Riftbound**
+(`#riftbound`, Phase 5.6): play Riftbound against Buddy with real cards (`skeleton/services/web/CLAUDE.md` →
+Riftbound page). Fixed chips
 `voice` (green = ears, brain and voice all online; shows listening/speaking), `hue`, `spotify`, `speakers`. The list lives in
 `SERVICE_CHIPS` in `app.js`: add new services there.
 

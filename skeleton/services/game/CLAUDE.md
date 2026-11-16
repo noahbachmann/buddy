@@ -1,10 +1,11 @@
 # services/game – Riftbound engine quick reference
 
-What the engine does **now** (state after #52: 5.3, 5.4 and 5.5 done: arena, v1 greedy, engine speed, v2 ISMCTS, table
+What the engine does **now** (state after #53: 5.3, 5.4 and 5.5 done: arena, v1 greedy, engine speed, v2 ISMCTS, table
 moves; 5.6 engine side: binding revealed cards, public view, replay reveals; the session with Buddy's side and Dev's
 real cards, SimDev; the panel's payload, Dev's commands, voice lines; the session soak (the gate) and terminal play;
 Dev declares what a cost discards, the referee never picks from Dev's placeholders; the service `buddy@game` with its
-journal, restarts and table timeouts)
+journal, restarts and table timeouts; the panel's options on public objects, a table back on the broker asked
+again)
 and where the next work plugs in.
 Why it is built this way: `docs/plans/05-riftbound.md` → "5.2 design", "5.3 as built" (with the rulings, confirmed by Dev),
 "5.4 design", "5.5 design"/"as built". Sub-issues: 5.2 #20, 5.3 #33, 5.4 #39, 5.5 #45. Rules text: `~/buddy/data/riftbound/core-rules-2026-10-09.txt`
@@ -133,15 +134,18 @@ input that can't be: `Refused` (the reason), nothing changes.
   purpose}`, `players.{buddy,dev}` (`points`, `legend`, `champion`, `base` (objects: `id`, `card` code, `exhausted`,
   units `might` (layers), `damage`, `buffs`, `stunned`; `attached_to`, `empowered`, `keywords` ("Assault 2")),
   `runes` per domain ready/exhausted, `pool`, counts of `hand`/`deck`/`rune_deck`, `trash`/`banishment` codes),
-  `battlefields` (`card`, `owner`, `controller`, `contested`, `units.{buddy,dev}`, `facedown` count), `chain`
-  (`kind`, `card`, `controller`, `finalized`, `targets`), `showdown`, `options` (DevToAct: `i`, `text` =
-  `option_text` on the public view, `group`, `card` only when named), `prompt` (`kind`, `n`, `candidates`: code +
+  `battlefields` (`id` = the battlefield's object, `card`, `owner`, `controller`, `contested`, `units.{buddy,dev}`,
+  `facedown` count), `chain` (`kind`, `card`, `controller`, `finalized`, `targets`), `showdown`, `options` (DevToAct:
+  `i`, `text` = `option_text` on the public view, `group`, `card` only when named, `obj` = the object it acts on only
+  when public: the panel puts the option on that card, #53), `prompt` (`kind`, `n`, `candidates`: code +
   `left`, runes with `domain`), `log`. Players are `buddy`/`dev`, never seats. `catalogue(decks)`: every card + the
   three tokens by `code_of` key. The overload with `(s, options)` is for the leak test.
 - **`GameHost`**: one `Session` (+ `SimDev` for `dev: greedy|random`, answered inside at once). `command(json)` →
   `Reply {ok, message}`: `new {buddy: vi|zed, seed?, dev}` (refused while a game runs; Buddy = seat 0, the first
   player is the engine's coin flip), `act {v, i}`, `reveal {v, cards: [code…]}`, `resume`, `concede`; an unknown
-  field or value, a stale `v`, the wrong status → refused, nothing changes. `on_table`, `on_ai` pass through.
+  field or value, a stale `v`, the wrong status → refused, nothing changes (numbers: unsigned too, seeds use 64
+  bits, #53). `on_table`, `on_ai` pass through. `table_reconnected()`: the command in flight to resend when the
+  table's link comes back (not while paused for anything but a timeout; no journal line).
   `take()`: table commands, AI request, voice, replay lines (`new_game` = a new file), the journal lines, and the
   payload when its game part changed (`v` + 1, from 1 per game; catalogue in every payload: web's patches carry only
   changes).
@@ -151,7 +155,8 @@ input that can't be: `Refused` (the reason), nothing changes.
   matches) and returns what's open: payload, the command in flight (not while paused), the AI's question. Strict: a
   line that doesn't fit throws `JournalError` naming it.
 - Tests: `test_journal.cpp` (#52: the service loop with crashes every few inputs and between a command and its
-  answer, stress faults, a human Dev, a timeout pause: the game equals the game without crashes; damaged journals),
+  answer, stress faults, a human Dev, a timeout pause: the game equals the game without crashes; damaged journals;
+  #53: a seed ≥ 2^63 restores, a lost answer resent on reconnect, also after the timeout pause),
   `test_game_store.cpp`; `test_public_state.cpp` (leak test: after every input of 4 SimDev games, the payload is the same with
   Dev's placeholders and Buddy's hidden cards rearranged; every `card` is in the catalogue), `test_game_host.cpp`
   (bot games, a human Dev playing only by `i` and the prompt's candidates, every refusal). `BUDDY_GAME_STATE_DUMP=<file>`
@@ -193,15 +198,17 @@ publish (table commands, voice if `BUDDY_GAME_VOICE`, retained `buddy/game/state
 restart resends exactly what was open. `AiWorker`: an `IsmctsPlayer` (`BUDDY_GAME_BUDGET_MS` 2000,
 `BUDDY_GAME_THREADS` 3) on its own thread, jobs and answers tagged with the game number (question ids start over per
 game: an old game's answer is dropped). The main loop pings the watchdog every ≤ 5 s, also while the AI thinks.
-Clock: per in-flight seq, `BUDDY_GAME_TABLE_TIMEOUT_S` (30), stopped while paused. Table status offline → online →
-`table_restarted()`; a reboot (both fresh) shows as `no_game` on the first resent command instead. systemd STATUS =
+Clock: per in-flight seq, `BUDDY_GAME_TABLE_TIMEOUT_S` (30), stopped while paused. Table status offline → online =
+only a lost broker link as far as game can tell (#53): resend `table_reconnected()`; a table that kept its game
+answers the repeat (a timeout pause ends with it), one that restarted answers `no_game` → `Pause::TableRestart`
+(then or at the next command; a reboot the same). `table_restarted()` stays for journals that hold it. systemd STATUS =
 "turn 7, thinking". Logs: new game, refusals, pauses, the result.
 - **`GameStore`**: `~/buddy/data/riftbound/games/<yyyy-mm-dd-hhmmss>-<seed>.{journal,txt}` (`BUDDY_GAME_GAMES`),
   newest by stamp then clash number (`-2`). `resume_latest()` at start: the newest journal restored; over → idle;
   a cut-off last line (no `\n`) dropped (never acted on); the replay file must be a prefix of the restored replay
   (written after the journal), then rewritten; else `*.journal.broken` and idle.
 - Checked live (2026-11-16, Pi): a bot game under stress faults to the end; `systemctl restart buddy@game` mid-game
-  resumes at the same `v` and finishes; locally also kill -9, a frozen table (timeout, then the late answer), a
+  resumes at the same `v` and finishes; `buddy@table` frozen 45 s (SIGSTOP) → timeout pause → thawed → goes on (#53); locally also kill -9, a frozen table (timeout, then the late answer), a
   restarted table, both restarted.
 
 ## The loop (`engine.cpp` → `run()`), in this order every iteration

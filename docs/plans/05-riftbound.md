@@ -628,7 +628,14 @@ thinking during Dev's turn, a game that survives a *table* restart (the sim's pi
 resumes from the replay). **D19:** `buddy/game/cmd` is on the web without a login; fine while the table is a sim,
 a login comes before the table drives motion (5.7).
 
-### 5.6 as built (in progress)
+### 5.6 as built (2026-11-16, #46: #47–#53, #73)
+
+**In short:** the gate passed (`buddy-game --sim --games 1000 --faults stress`, SimDev greedy vs Buddy greedy, both
+decks from both seats: **0 unrecovered, 0 desyncs, 0 leaks**, 5 × 1000 games after #73; SimDev random 1000 and 50 vs
+ISMCTS the same); what real cards cost Dev: 65 / 96 / 170 taps per game (avg / p95 / max), ~40 % of them prompts;
+`buddy@game` on the Pi resumes a game after a restart and survives table timeouts; the Riftbound page (#53) plays a
+whole game on a phone. Details per sub-issue below. Dev's live game: #53.
+
 
 **#48 session (2026-11-16):** `services/game/session.*` in `game_core`, how it runs: `services/game/CLAUDE.md` →
 "Session". What building it changed against the design above:
@@ -796,6 +803,33 @@ runs: `services/game/CLAUDE.md` → "The service". What building it changed agai
   live game is left for #53's live game.
 - `deploy/test.sh --pi --riftbound`: 1058 of 1058 (435 s); the VM's `deploy/test.sh --riftbound` too.
 - **Not built:** feedback for a refused command on the panel (only logged: a stale `v` is the usual one, #53 decides).
+
+**#53 panel page (2026-11-16):** `#riftbound` in `services/web/www/` (how it works: `services/web/CLAUDE.md` →
+Riftbound). What building it changed against the design above:
+
+- **Options on cards.** An option now names the public object it acts on (`obj`, never a hidden one: placeholders)
+  and battlefields carry their object `id`: the page puts a move on its unit, legend or battlefield (a numbered
+  badge; tap = the card's text and its moves), plays by card on tiles "from your hand" (every card Dev could hold,
+  by name: Buddy doesn't know Dev's hand), the rest (pass, keep, done, optional costs) in a bar, the whole list as a
+  fallback. The leak test covers the new fields.
+- **Refused commands stay on the page.** No reply channel: game answers every accepted command with a new payload at
+  once, so the page waits 4 s for the payload to move on and says so if it doesn't ("the game had moved on"). Only a
+  stale `v` gets there (the page offers nothing else).
+- **Rune prompts** as whole combinations ("1 × Fury + 1 × Order", one tap + Confirm) when there are ≤ 6; other
+  prompts by tapping candidates (a copy per tap), Confirm at `n`.
+- **Two #52 bugs found by the page's live tests:**
+  - A seed ≥ 2^63 (half of the service's random seeds) was refused when the journal replayed its own `new` line
+    (parsed JSON holds it unsigned): a restart set half of all games aside. Fixed, regression test.
+  - Every table status offline → online counted as a table restart and ended the game, also when the table only lost
+    the broker (frozen past its keepalive, a Mosquitto restart). Now the service resends the command in flight on
+    reconnect: a table that kept its game answers the repeat (after a timeout pause that's the late answer: the
+    pause ends by itself), one that restarted answers `no_game` → `table_restart`. Checked on the Pi: `buddy@table`
+    frozen 45 s → timeout pause → thawed → the game went on.
+- **On the Pi** (Release, ISMCTS 2 s on 3 threads), a game through the page: Dev waits 5–20 s for Buddy's turn
+  (several decisions per turn: p90 10.7 s, max 19 s from Dev's last tap to Dev's next decision), the game ends on
+  "Buddy won." with the new-game form back.
+- **Not built:** voice input ("pass"), thinking during Dev's turn (5.6 design → Later), card images (the catalogue
+  has text only; Riftcodex images would need the internet on the panel).
 
 ## Hardware notes for Phase 4 (decide there, not now)
 

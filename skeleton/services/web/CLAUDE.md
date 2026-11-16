@@ -25,9 +25,27 @@ with their retained state. User-facing behaviour and troubleshooting: `docs/guid
 | music | Spotify card from `buddy/spotify/state`, progress bar runs locally from `progress.at`; `watchSpotify()` POSTs `{"action":"watch"}` every 20 s while the dashboard is visible (spotify only polls Spotify while watched) |
 | system | `renderSystem()`: one card per host from every `buddy/system(-<name>)?/state` (sorted by label; no fixed list: new hosts just appear), `meter()` bars for CPU/RAM/disk, throttle badges, card dims when that host's status isn't online. No chip in `SERVICE_CHIPS` (host names aren't fixed) |
 | services | `SERVICE_CHIPS`: fixed list of chips, each green when all its member services are `online`; beside the name the first member state that isn't `idle`, or the chip's own `detail()` (messenger: link trouble, else "2 open"; game (members game + table): the running game's status, "your move", "thinking", "paused") |
-| render | `render()` picks the page by `location.hash` (dashboard / `#hue`) |
+| riftbound | `#riftbound` (#53), see below |
+| render | `render()` picks the page by `location.hash` (`PAGES`: dashboard / `#hue` / `#riftbound`; `page()`) |
 
 `index.html` holds the static skeleton, including the forms: re-rendered inputs would lose typed text and focus.
+
+## Riftbound page (`#riftbound`, 5.6)
+
+Everything from `buddy/game/state` (public cards only, `services/game/CLAUDE.md` → Public state); commands to
+`buddy/game/cmd`. Buddy's side on top, battlefields in the middle (units one compact line each), Dev's side below.
+- `rbPlace(g)`: each option goes on a board object (`obj` shown on the board: badge with the count), else on a hand
+  tile by `card` (every card Dev could hold, sorted by name: Buddy doesn't know Dev's hand), else the bar (pass,
+  keep, done, optional costs). `rbAll`: every option as a list (fallback).
+- The card sheet (`<dialog id="rb-sheet">`, `rbOpen({id}|{code}|{pile, who})`): card text (`rbText`: `:rb_…:` →
+  symbols), the object's state, its moves; rebuilt on updates only when its sig changes.
+- `rbPrompt(g)`: Dev names cards that turned public; tap a candidate per copy, Confirm at `n`; runes as whole
+  combinations (`rbCombos`, ≤ 6). Selection in `rbPick`, reset when the prompt changes.
+- `rbSend(cmd)` adds the shown `v`; `rbPending` blocks the controls until the payload's `v` moves on. **Refusals:**
+  game doesn't answer them on the bus; an accepted command always brings a new payload at once, so none within 4 s
+  = refused → toast.
+- Paused: Resume only when `pause.resumable`; Concede while a game runs; the new-game form (static, `index.html`)
+  only without a running game.
 
 ## Adding something
 
