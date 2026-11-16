@@ -28,7 +28,7 @@
     {"name": "messenger_event", "topic": "buddy/messenger/event", "kind": "event",   "payload": ["event: asked|answered|expired|failed", "id", "[text: Dev's answer]", "[option: index into options, absent if Dev typed something else]", "[reason]"]},
     {"name": "messenger_state", "topic": "buddy/messenger/state", "kind": "event",   "retained": true, "payload": ["link: ok|connecting|unreachable|conflict|blocked|unauthorized|not paired", "open: questions waiting for Dev (a count: /state is on the panel, texts never)"]},
     {"name": "table_cmd",       "topic": "buddy/table/cmd",       "kind": "command", "web": false, "payload": ["action: setup|deal|peek|peek_done|play|move|exhaust|shuffle_trash_into_deck|token|remove|rescan_hand", "seq", "fields per action: shared/include/buddy/table_protocol.hpp"]},
-    {"name": "table_event",     "topic": "buddy/table/event",     "kind": "event",   "payload": ["event: done|failed|hand_corrected", "seq", "[cards: [{id, code}]]", "[reason: not_in_hand|unreadable|hardware|invalid, message]", "[hand, replaced, extra: [{id, code}], missing: [id]]"]},
+    {"name": "table_event",     "topic": "buddy/table/event",     "kind": "event",   "payload": ["event: done|failed|hand_corrected", "seq", "[cards: [{id, code}]]", "[reason: not_in_hand|unreadable|hardware|invalid|no_game, message]", "[hand, replaced, extra: [{id, code}], missing: [id]]"]},
     {"name": "table_debug",     "topic": "buddy/table/debug",     "kind": "event",   "retained": true, "payload": ["hand: [{id, code}] (Buddy's hidden cards: not /state, so never on the panel)", "deck", "runes", "spots: {place: [{id, code, [exhausted]}]}", "held", "ops: {scans, feeds, takes, deals, passes, recoveries}"]}
   ]
 }

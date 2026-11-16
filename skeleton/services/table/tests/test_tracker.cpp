@@ -221,3 +221,20 @@ TEST(TableTracker, ARepeatedCommandAnswersAgainWithoutRunning) {
     EXPECT_EQ(f.table.tracker().belief().deck, 0);
     EXPECT_EQ(f.sim.compare(f.table.tracker().belief(), f.table.tracker().hand_pile()), "");
 }
+
+// A table that restarted has no game: everything but setup fails no_game (game pauses for good, #52).
+TEST(TableTracker, NoGameBeforeSetup) {
+    Sim sim(setup_of({"A"}), {}, 1);
+    Table table(sim, {});
+    for (const Command& c : {Command{.kind = CommandKind::Deal, .seq = 1}, Command{.kind = CommandKind::RescanHand, .seq = 2},
+                             Command{.kind = CommandKind::Play, .seq = 3, .id = 1}}) {
+        const auto events = table.execute(c);
+        ASSERT_EQ(events.size(), 1u);
+        EXPECT_EQ(events[0].kind, EventKind::Failed);
+        EXPECT_EQ(events[0].reason, FailReason::NoGame);
+        EXPECT_EQ(events[0].seq, c.seq);
+    }
+    EXPECT_EQ(table.execute({.kind = CommandKind::Setup, .seq = 4, .legend = "LEG", .champion = "CHAMP", .deck = 1, .runes = 3})
+                  .back().kind, EventKind::Done);
+    EXPECT_EQ(table.execute({.kind = CommandKind::Deal, .seq = 5}).back().kind, EventKind::Done);
+}

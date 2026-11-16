@@ -83,6 +83,7 @@ enum class FailReason : std::uint8_t {
     Unreadable,  // a card couldn't be read
     Hardware,    // piles that don't add up: scans never agree, a pile ran empty, …
     Invalid,     // a command the table can't run: unknown id, a card that isn't where the command says
+    NoGame,      // no setup since the table started: it restarted and lost its piles (#52)
 };
 std::string_view to_string(FailReason r);
 

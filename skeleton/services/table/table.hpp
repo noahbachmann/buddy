@@ -27,6 +27,7 @@ public:
 private:
     Backend& backend_;
     Tracker tracker_;
+    bool set_up_ = false;  // a game laid out since the start: else every command but setup fails no_game
     std::optional<Command> last_;
     std::vector<Event> last_events_;
 };

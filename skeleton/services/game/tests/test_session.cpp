@@ -346,6 +346,20 @@ TEST(RiftboundSession, TableRestartPausesForGood) {
     EXPECT_EQ(g.session->status(), Status::Over);
 }
 
+// The table restarted while the game service was down (a reboot): its first answer is no_game.
+TEST(RiftboundSession, NoGameOnTheTablePausesForGood) {
+    Game g("zed-vendetta", "vi-unleashed", 0, 396);
+    int plays = 0;
+    g.lose_answer = [&](const table::Command& c) { return c.kind == CommandKind::Play && ++plays == 2; };
+    g.lose_command = true;
+    g.run();
+    ASSERT_NE(g.session->inflight(), nullptr);
+    g.session->on_table({.kind = table::EventKind::Failed, .seq = g.session->inflight()->seq,
+                         .reason = table::FailReason::NoGame, .message = "no game on the table"});
+    EXPECT_EQ(g.session->pause(), Pause::TableRestart);
+    EXPECT_FALSE(g.session->resumable());
+}
+
 TEST(RiftboundSession, DevActionsAreChecked) {
     Game g("vi-unleashed", "zed-vendetta", 1, 380);
     g.stop_when = [&] { return g.session->status() == Status::DevToAct; };

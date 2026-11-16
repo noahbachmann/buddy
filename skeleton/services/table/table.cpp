@@ -10,10 +10,16 @@ std::vector<Event> Table::execute(const Command& c) {
     if (c.kind != CommandKind::Setup && last_ == c) return last_events_;
     Event result;
     result.seq = c.seq;
+    if (!set_up_ && c.kind != CommandKind::Setup) {
+        return {{.kind = EventKind::Failed, .seq = c.seq, .reason = FailReason::NoGame, .message = "no game on the table"}};
+    }
     backend_.begin_command();
     try {
         switch (c.kind) {
-            case CommandKind::Setup: result.cards = tracker_.setup(c.legend, c.champion, c.deck, c.runes); break;
+            case CommandKind::Setup:
+                result.cards = tracker_.setup(c.legend, c.champion, c.deck, c.runes);
+                set_up_ = true;
+                break;
             case CommandKind::Deal: result.cards = tracker_.deal(c.from, c.to, c.n); break;
             case CommandKind::Peek: result.cards = {tracker_.peek()}; break;
             case CommandKind::PeekDone: tracker_.peek_done(c.to); break;

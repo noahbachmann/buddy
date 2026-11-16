@@ -20,7 +20,7 @@ constexpr std::array<std::string_view, 11> kCommands = {
     "setup", "deal", "peek", "peek_done", "play", "move", "exhaust", "shuffle_trash_into_deck", "token", "remove",
     "rescan_hand",
 };
-constexpr std::array<std::string_view, 4> kReasons = {"not_in_hand", "unreadable", "hardware", "invalid"};
+constexpr std::array<std::string_view, 5> kReasons = {"not_in_hand", "unreadable", "hardware", "invalid", "no_game"};
 constexpr std::array<std::string_view, 3> kEvents = {"done", "failed", "hand_corrected"};
 
 template <std::size_t N>

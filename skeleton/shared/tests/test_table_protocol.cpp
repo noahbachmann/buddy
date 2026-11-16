@@ -53,6 +53,7 @@ TEST(TableProtocol, EventsRoundTrip) {
         {.kind = EventKind::Done, .seq = 4, .cards = {{1, "OGN-001"}, {2, "OGN-002"}}},
         {.kind = EventKind::Done, .seq = 5},
         {.kind = EventKind::Failed, .seq = 6, .reason = FailReason::NotInHand, .message = "gone"},
+        {.kind = EventKind::Failed, .seq = 8, .reason = FailReason::NoGame, .message = "no game on the table"},
         {.kind = EventKind::HandCorrected, .seq = 7, .hand = {{1, "A"}, {3, "C"}}, .replaced = {{1, "A"}},
          .extra = {{3, "C"}}, .missing = {2}},
     };

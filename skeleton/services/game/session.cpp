@@ -257,6 +257,7 @@ Pause pause_of(FailReason r) {
         case FailReason::Unreadable: return Pause::Unreadable;
         case FailReason::Hardware: return Pause::Hardware;
         case FailReason::Invalid: return Pause::Invalid;
+        case FailReason::NoGame: return Pause::TableRestart;
     }
     return Pause::Hardware;
 }
