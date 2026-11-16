@@ -152,7 +152,15 @@ void SimGame::run() {
                     announced_.insert(id);
                 }
                 prompt_cards += static_cast<long>(p.objs.size());
-                session->on_reveal(dev.reveal(p));
+                dev.answer(session->state(), p, [&](const auto& cards) {
+                    try {
+                        session->on_reveal(cards);
+                        return true;
+                    } catch (const Refused&) {
+                        ++reanswers;
+                        return false;
+                    }
+                });
                 break;
             }
             case Status::Paused:

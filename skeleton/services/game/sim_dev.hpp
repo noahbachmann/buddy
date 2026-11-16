@@ -8,6 +8,7 @@
 // SimDev swaps the two objects' true cards, as a real Dev would just play the card in their hand.
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <vector>
 
@@ -30,6 +31,12 @@ public:
     DevOption choose(const riftbound::GameState& s, const std::vector<DevOption>& options);
     // The true cards of a prompt.
     std::vector<const riftbound::Card*> reveal(const DevPrompt& p) const;
+    // Names the prompt's cards through `submit` (true: accepted). A Hand prompt the truth can't answer (the
+    // placeholders made the engine discard another object than the one holding Dev's real card, #51) is answered
+    // again with Dev's other hidden hand cards swapped in: they're interchangeable, a real Dev discards the card that
+    // fits. Throws std::logic_error if nothing is accepted.
+    void answer(const riftbound::GameState& s, const DevPrompt& p,
+                const std::function<bool(const std::vector<const riftbound::Card*>&)>& submit);
 
     // `s` with Dev's true cards on every object Buddy doesn't know.
     riftbound::GameState true_state(const riftbound::GameState& s) const;

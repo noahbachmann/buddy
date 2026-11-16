@@ -72,6 +72,7 @@ public:
     std::vector<std::string> voice;
     std::vector<Pause> pauses;
     long checked = 0, leak_checks = 0, prompt_cards = 0;
+    long reanswers = 0;  // SimDev's refused prompt answers (SimDev::answer): the session's refusals count them too
     int collapsed = 0;  // true_replay_problem: Dev's choices the placeholders turned into a prompt
 
     PlayerId dev_seat() const { return 1 - session->buddy(); }

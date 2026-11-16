@@ -60,6 +60,22 @@ std::vector<const Card*> SimDev::reveal(const DevPrompt& p) const {
     return cards;
 }
 
+void SimDev::answer(const GameState& s, const DevPrompt& p,
+                    const std::function<bool(const std::vector<const Card*>&)>& submit) {
+    if (submit(reveal(p))) return;
+    if (p.kind == DevPrompt::Kind::Hand) {
+        for (const ObjId obj : p.objs) {
+            for (const ObjId x : s.player(seat_).hand) {
+                if (!hidden_hand(s, x) || truth_[x] == truth_[obj]) continue;
+                std::swap(truth_[x], truth_[obj]);
+                if (submit(reveal(p))) return;
+                std::swap(truth_[x], truth_[obj]);
+            }
+        }
+    }
+    throw std::logic_error("SimDev: no answer to the " + std::string(to_string(p.kind)) + " prompt is accepted");
+}
+
 // An unnamed option assumes `o.card` on `o.obj`: put a true card there that allows the action (some hidden hand card
 // of Dev's does, or SimDev's player wouldn't have picked it), so a later prompt for that object can answer truly.
 void SimDev::relabel(const GameState& s, const DevOption& o) {
