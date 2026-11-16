@@ -74,6 +74,7 @@ public:
     long checked = 0, leak_checks = 0, prompt_cards = 0;
     long reanswers = 0;  // SimDev's refused prompt answers (SimDev::answer): the session's refusals count them too
     int collapsed = 0;  // true_replay_problem: Dev's choices the placeholders turned into a prompt
+    int expanded = 0;   // true_replay_problem: Dev's picks the true hand made moot (one spell to discard)
 
     PlayerId dev_seat() const { return 1 - session->buddy(); }
     // Runs until the game is over, a pause Dev doesn't resume, or stop_when.

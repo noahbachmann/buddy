@@ -240,6 +240,17 @@ std::string SimGame::true_replay_problem() {
                     }
                 }
             }
+            // The other way round: the placeholders held several spells, so Dev picked the one to discard; Dev's true
+            // hand held one, which the true game discarded unasked: the pick's card is in Dev's trash already.
+            const Action& a = r.actions[i];
+            if (a.kind == ActionKind::Pick && a.obj < st.objects.size() && st.obj(a.obj).owner == dev_seat() &&
+                st.obj(a.obj).zone == Zone::Trash) {
+                const auto now = legal_actions(st);
+                if (std::find(now.begin(), now.end(), a) == now.end()) {
+                    ++expanded;
+                    continue;
+                }
+            }
             try {
                 apply(st, r.actions[i]);
             } catch (const IllegalAction& e) {
@@ -314,6 +325,9 @@ std::string SimGame::compare() const {
             }
             if (rest.empty()) b2.hand = ordered;
         }
+        // A double deal under a peeked card stays unseen until peek_done's post-check (the spot's bottom card is the
+        // peeked one): with a card held, the truth is compared at the next step.
+        if (belief.held) return {};
         if (auto d = sim.compare(b2, table.tracker().hand_pile()); !d.empty()) return "belief ≠ truth: " + d;
     }
     return {};
