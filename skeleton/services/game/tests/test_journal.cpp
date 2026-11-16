@@ -241,6 +241,23 @@ TEST(RiftboundJournal, ARestartedTableIsInTheJournal) {
     EXPECT_FALSE(g.host->command({{"action", "resume"}}).ok);
 }
 
+// Seeds use all 64 bits: one ≥ 2^63 (half of the service's random seeds) must come back from the journal.
+TEST(RiftboundJournal, ASeedAboveInt64Restores) {
+    auto cfg = host_config();
+    cfg.random_seed = [] { return (std::uint64_t{1} << 63) + 5; };
+    game::GameHost host(db(), cfg);
+    ASSERT_TRUE(host.command({{"action", "new"}, {"buddy", "vi"}, {"dev", "human"}}).ok);
+    const auto out = host.take();
+    ASSERT_FALSE(out.journal.empty());
+    EXPECT_NE(out.journal.front().find("9223372036854775813"), std::string::npos) << out.journal.front();
+    game::GameHost fresh(db(), host_config());
+    EXPECT_NO_THROW(fresh.restore(out.journal));
+    EXPECT_EQ(fresh.state(), host.state());
+    game::GameHost typed(db(), host_config());  // the same seed typed on the bus: parsed JSON, unsigned
+    EXPECT_TRUE(typed.command(json::parse(R"({"action":"new","buddy":"vi","dev":"human","seed":9223372036854775813})")).ok);
+    EXPECT_FALSE(typed.command(json::parse(R"({"action":"new","buddy":"vi","dev":"human","seed":-1})")).ok);
+}
+
 // A journal that doesn't fit the game: restore throws, naming the line.
 TEST(RiftboundJournal, ADamagedJournalIsRefused) {
     ServiceGame g({}, {});

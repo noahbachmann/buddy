@@ -39,7 +39,9 @@ std::string text(const json& cmd, const char* field) {
 std::uint64_t number(const json& cmd, const char* field) {
     const auto it = cmd.find(field);
     if (it == cmd.end()) throw Bad{std::string("missing ") + field};
-    if (!it->is_number_integer() || it->get<std::int64_t>() < 0) throw Bad{std::string(field) + " must be a number ≥ 0"};
+    // seeds use all 64 bits: parsed JSON holds them as unsigned, get<int64_t> of one ≥ 2^63 is negative
+    const bool ok = it->is_number_unsigned() || (it->is_number_integer() && it->get<std::int64_t>() >= 0);
+    if (!ok) throw Bad{std::string(field) + " must be a number ≥ 0"};
     return it->get<std::uint64_t>();
 }
 
