@@ -1,4 +1,4 @@
-# Screener – Dev's to-dos before step 0
+# Screener – Dev's to-dos
 
 Temporary: delete this file when everything is ticked. Plan in #66. Your preferences and templates are already on the
 Pi in `~/buddy/config/screener/` (host only, never in Git). This list covers what only you can do.
@@ -71,6 +71,25 @@ Factory reset first if it still has old data. Then:
 - [x] Do Not Disturb on. Auto-rotate off (portrait). Leave font and display size at the default.
 - [x] Plug the phone into the Pi by USB. On the phone, accept **Allow USB debugging** and tick **Always allow from this
       computer**.
+
+## 5. Claude token for the screener (before the step 2 shadow session)
+
+The screener's decisions run on your Claude plan through a long-lived token (not an API key). Create it on the Pi
+with the Claude Code CLI the screener ships with; it prints a link: open it in your browser, log in, paste the code
+back, and it prints the token (starts with `sk-ant-oat`):
+
+```bash
+ssh -t dev@buddy.local '~/buddy/venv/lib/python3.13/site-packages/claude_agent_sdk/_bundled/claude setup-token'
+```
+
+Save it (paste the token, `Ctrl+S`, `Ctrl+Q`), then lock the file down and check it's one line:
+
+```bash
+ssh -t dev@buddy.local micro ~/buddy/config/screener/claude-token
+ssh dev@buddy.local 'chmod 600 ~/buddy/config/screener/claude-token && wc -l ~/buddy/config/screener/claude-token'
+```
+
+- [ ] `claude-token` saved
 
 Step 0 is done (2026-11-16). The phone keeps its keyboard set to the screener's own one (no keys): to type by hand,
 tap the keyboard icon at the bottom right and pick SwiftKey.

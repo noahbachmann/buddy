@@ -5,8 +5,9 @@ Operates a social app on a dedicated Android phone over adb (USB on the Pi). Pla
 comes from `BUDDY_SCREENER_APP` in the host's `buddy.env`. Personal data (dumps, screenshots) only in tmpfs or
 `~/buddy/{config,data}/screener` on the Pi.
 
-Step 1 state: service skeleton (state, `stop|pause|resume`), device layer, screen model, navigator. Nothing acts by
-itself yet and nothing sends: no send like, skip or chat message exists in the code.
+State: step 1 (service skeleton, device layer, screen model, navigator) and step 2 (decision layer + shadow mode).
+The service itself acts on nothing; shadow mode runs as offline commands where Dev taps like/skip/send by hand. No
+code path taps send like, skip or a chat send.
 
 ## Modules (`buddy_screener/`)
 
@@ -16,12 +17,16 @@ itself yet and nothing sends: no send like, skip or chat message exists in the c
 | `vocab.py` | Every app UI string the model relies on (English UI). The sanitizer keeps exactly these |
 | `screens.py` | `classify()` → `Kind` (feed, sheet, likes, matches, chat, other_app, unknown); readers `profile_view` (sections + their like buttons, details, floating obstacles, `at_top`), `sheet_view`, `match_rows`, `chat_view` (side left/right by position); `tappable()` = the allowlist |
 | `profile.py` | `Capture`: one profile stitched across scroll dumps (offset per dump measured by voting on shared sections/texts, checked by `verify_shift`), `Section` refs `photo N` / `prompt N` in content y; `dhash` |
-| `imaging.py` | Pillow: crop of a screenshot → dhash (photos all read "<name>'s photo" in the tree) |
+| `imaging.py` | Pillow: crop of a screenshot → dhash (photos all read "<name>'s photo" in the tree), → JPEG for the decision |
 | `device.py` | adb: `dump` (retries), `screencap`, `tap` (jitter inside the middle half), `swipe`, `key`, `launch`, `foreground`, keyboard type/clear/read (`buddy.screener.ime` broadcasts), `ime_set`, `notifications`, `state`. `guard()` before every input action |
 | `navigator.py` | Moves: `go_tab`, `capture_profile`, `scroll_to(ref)`, `open_sheet` (+ scroll the panel clear), `type_comment` (read back), `back_out`, `open_chat`/`leave_chat`. `NeedsYou` keeps the raw dump in tmpfs |
 | `sanitize.py` | Real dumps → fixtures: one mapping across a walk, names/prompts/texts → placeholders, package → `app.example`; refuses output with a word from `~/buddy/config/screener/forbidden` (host) |
-| `config.py` | `BUDDY_SCREENER_*`, kill switch files (`config/screener/stop`, `data/screener/paused`), tmpfs dir |
-| `main.py` | Service loop (phone check every 30 s, state on change, commands) + `--cmd screen\|dump\|fixture\|profile\|back-out\|walk` |
+| `library.py` | Host input: `preferences.md` (verbatim into the system prompt), `templates.md` section *Like comments* (`- id \| de\|en \| fit hint \| text`; broken line → whole file refused). Loaded per decision |
+| `decide.py` | Agent SDK wrapper (`Decider.call`/`browse`): locked-down CLI options, browse schema, `check_browse` (code re-checks: unknown section/comment → none, dealbreaker → skip, `fixes` kept), usage per call, `limit_until` pause, daily $ cap |
+| `store.py` | SQLite `data/screener/screener.db`: `usage` (kept), `shadow` (bot decision + Dev's label as JSON, profile key only, 30 days) |
+| `shadow.py` | Step 2 commands' logic: `run_shadow` (capture → decide → row; capture pickled to tmpfs without crops), `make_label`, `type_label`, `report` (done-when numbers) |
+| `config.py` | `BUDDY_SCREENER_*` (incl. model, effort, decide timeout, daily $), kill switch files (`config/screener/stop`, `data/screener/paused`), token/limit/db paths, tmpfs dir |
+| `main.py` | Service loop (phone check every 30 s, state on change, commands) + `--cmd screen\|dump\|fixture\|profile\|back-out\|walk\|templates\|shadow\|label\|type\|report` |
 
 ## Rules the code enforces
 
@@ -31,12 +36,32 @@ itself yet and nothing sends: no send like, skip or chat message exists in the c
 - Text only through our keyboard, always read back.
 - Kill switch: stop file, pause file, `systemctl stop`, unplug (adb error) all stop the next input action.
 
+## Decisions (step 2)
+
+- Agent SDK (`claude-agent-sdk`, its wheel bundles the CLI: aarch64 too, no Node). Auth: `claude setup-token`'s token
+  in `config/screener/claude-token` → `CLAUDE_CODE_OAUTH_TOKEN`, CLI state in tmpfs (`CLAUDE_CONFIG_DIR`). An exported
+  `ANTHROPIC_API_KEY` is refused (it would win and bill the API).
+- Locked down per call: `tools=[]`, `setting_sources=[]`, `strict_mcp_config`, `skills=[]`, `--no-session-persistence`,
+  empty tmpfs cwd, `verbatim_prompts` (else `@/path` in profile text is a file mention; with it the text arrives as written: checked).
+- Structured output = the CLI's `--json-schema`: costs a second turn (`num_turns` 2), `max_turns` 3.
+- `RateLimitEvent.rate_limit_info.raw["unifiedWindows"]` has the plan's 5 h / 7 day utilization: logged per call.
+- Photos: JPEG crops (long side 768) taken with the hash screenshot, in `Section.jpeg`, never on disk.
+
+## Shadow session (step 2, Dev taps)
+
+`deploy/run.sh screener --cmd shadow` → prints `#id`, decision, reason, section + comment. Dev decides on the phone;
+`--cmd label <id> like|skip [section comment]` (bare `like` = the bot's choice; `--wrong`, `--dealbreaker`,
+`--sensitive`, `--note`). A comment Dev writes goes into `templates.md` first (id + fit hint from the section it was
+used on), then into the label. `--cmd type <id>` types it into that section's panel and reads it back; Dev taps send
+(or `--cmd back-out`). Only the newest row's capture stays in tmpfs. `--cmd report` = the gate.
+
 ## Tests (`tests/`)
 
 Fixtures are sanitized real dumps (step 1, 2026-11-16): `feed-01..11` one profile top to bottom (6 photos, 3
 prompts), `sheet`/`sheet-typed` (photo panel), `sheet-low` (prompt panel under the skip button), `likes` (empty),
 `matches`, `chat`, `own-profile` (unknown). `fixture_files.py` loads them, `fake_phone.py` replays them as a phone (taps/swipes move between
-dumps, records actions, `sent()` must stay empty). New fixture: `deploy/run.sh screener --cmd dump <name>` on the
+dumps, records actions, `sent()` must stay empty). `test_decide.py` runs the decider against a fake SDK stream
+(real `ResultMessage`/`RateLimitEvent` objects); `test_shadow.py` runs shadow → label → type on the fake phone. New fixture: `deploy/run.sh screener --cmd dump <name>` on the
 Pi, then `--cmd fixture <out dir> <dumps…>` (all dumps of one walk in one call), check the texts, copy over.
 
 ## Gotchas (measured on the phone, 2026-11-16)
