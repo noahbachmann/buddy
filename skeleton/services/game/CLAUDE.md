@@ -142,10 +142,13 @@ input that can't be: `Refused` (the reason), nothing changes.
   three tokens by `code_of` key. The overload with `(s, options)` is for the leak test.
 - **`GameHost`**: one `Session` (+ `SimDev` for `dev: greedy|random`, answered inside at once). `command(json)` →
   `Reply {ok, message}`: `new {buddy: vi|zed, seed?, dev}` (refused while a game runs; Buddy = seat 0, the first
-  player is the engine's coin flip), `act {v, i}`, `reveal {v, cards: [code…]}`, `resume`, `concede`; an unknown
+  player is the engine's coin flip; `voice` default false), `act {v, i}`, `reveal {v, cards: [code…]}`, `resume`,
+  `concede`, `voice {on}`; an unknown
   field or value, a stale `v`, the wrong status → refused, nothing changes (numbers: unsigned too, seeds use 64
   bits, #53). `on_table`, `on_ai` pass through. `table_reconnected()`: the command in flight to resend when the
-  table's link comes back (not while paused for anything but a timeout; no journal line).
+  table's link comes back (not while paused for anything but a timeout; no journal line). **Voice per game** (Dev,
+  2026-11-16): off unless `new {voice: true}` or `voice {on: true}`; off, `absorb()` drops the session's lines, so
+  nothing reaches `buddy/voice/say` (no speech synthesized). Payload `voice`; the switch is a journaled command.
   `take()`: table commands, AI request, voice, replay lines (`new_game` = a new file), the journal lines, and the
   payload when its game part changed (`v` + 1, from 1 per game; catalogue in every payload: web's patches carry only
   changes).
@@ -194,7 +197,7 @@ input that can't be: `Refused` (the reason), nothing changes.
 
 `buddy-game` without flags = `run_service`: one `GameHost`, one queue (`buddy/game/cmd`, `buddy/table/event`,
 `buddy/table/status`, AI answers). Per input: host call → `take()` → `GameStore::append` (journal, then replay) →
-publish (table commands, voice if `BUDDY_GAME_VOICE`, retained `buddy/game/state`). **Files before sending**: a
+publish (table commands, voice lines (none while the game's voice is off), retained `buddy/game/state`). **Files before sending**: a
 restart resends exactly what was open. `AiWorker`: an `IsmctsPlayer` (`BUDDY_GAME_BUDGET_MS` 2000,
 `BUDDY_GAME_THREADS` 3) on its own thread, jobs and answers tagged with the game number (question ids start over per
 game: an old game's answer is dropped). The main loop pings the watchdog every ≤ 5 s, also while the AI thinks.

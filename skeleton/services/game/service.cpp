@@ -41,7 +41,6 @@ struct ServiceConfig {
         return o;
     }();
     int table_timeout_s = env_int("BUDDY_GAME_TABLE_TIMEOUT_S", 30);
-    bool voice = env_int("BUDDY_GAME_VOICE", 1) != 0;
     fs::path games = env_string("BUDDY_GAME_GAMES", env_string("HOME", ".") + "/buddy/data/riftbound/games");
 };
 
@@ -183,9 +182,7 @@ int run_service(const riftbound::CardDb& db, const fs::path& decks_dir) {
         store.append(o.journal, o.replay);
         for (const auto& c : o.table) mqtt.publish(topic::table_cmd, table::to_json(c).dump(), 1);
         if (o.ai) ai.ask(game, std::move(*o.ai));
-        if (cfg.voice) {
-            for (const auto& line : o.voice) mqtt.publish(topic::voice_say, json{{"text", line}}.dump(), 1);
-        }
+        for (const auto& line : o.voice) mqtt.publish(topic::voice_say, json{{"text", line}}.dump(), 1);  // empty: voice off
         if (o.state) mqtt.publish(topic::game_state, o.state->dump(), 1, true);
     };
 

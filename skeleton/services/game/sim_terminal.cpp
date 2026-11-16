@@ -184,7 +184,7 @@ TerminalGame::TerminalGame(const riftbound::CardDb& db, HostConfig cfg, Terminal
 bool TerminalGame::over() const { return host_.session() && host_.session()->status() == Status::Over; }
 
 std::string TerminalGame::start() {
-    return send({{"action", "new"}, {"buddy", o_.buddy_deck}, {"dev", "human"}, {"seed", o_.seed}});
+    return send({{"action", "new"}, {"buddy", o_.buddy_deck}, {"dev", "human"}, {"seed", o_.seed}, {"voice", true}});
 }
 
 std::string TerminalGame::send(const json& cmd) {

@@ -36,6 +36,13 @@ std::string text(const json& cmd, const char* field) {
     return it->get<std::string>();
 }
 
+bool flag(const json& cmd, const char* field, bool fallback) {
+    const auto it = cmd.find(field);
+    if (it == cmd.end()) return fallback;
+    if (!it->is_boolean()) throw Bad{std::string(field) + " must be true or false"};
+    return it->get<bool>();
+}
+
 std::uint64_t number(const json& cmd, const char* field) {
     const auto it = cmd.find(field);
     if (it == cmd.end()) throw Bad{std::string("missing ") + field};
@@ -57,12 +64,18 @@ Reply GameHost::command(const json& cmd) {
         if (!cmd.is_object()) throw Bad{"a command is a JSON object"};
         const std::string action = text(cmd, "action");
         if (action == "new") return start(cmd);  // records itself: the seed filled in
-        if (action != "act" && action != "reveal" && action != "resume" && action != "concede") {
+        if (action != "act" && action != "reveal" && action != "resume" && action != "concede" && action != "voice") {
             throw Bad{"unknown action " + action};
         }
         if (!session_) throw Bad{"no game: start one with new"};
         Session& s = *session_;
-        if (action == "concede") {
+        if (action == "voice") {
+            only(cmd, {"on"});
+            if (!cmd.contains("on")) throw Bad{"missing on"};
+            const bool on = flag(cmd, "on", false);
+            if (on == voice_) throw Bad{on ? "voice is on already" : "voice is off already"};
+            voice_ = on;
+        } else if (action == "concede") {
             only(cmd, {});
             if (s.status() == Status::Over) throw Bad{"the game is over"};
             s.concede(riftbound::opponent(s.buddy()));
@@ -106,7 +119,7 @@ Reply GameHost::command(const json& cmd) {
 }
 
 Reply GameHost::start(const json& cmd) {
-    only(cmd, {"buddy", "seed", "dev"});
+    only(cmd, {"buddy", "seed", "dev", "voice"});
     if (session_ && session_->status() != Status::Over) throw Bad{"a game is running: concede first"};
     const std::string buddy = text(cmd, "buddy");
     const auto mine = cfg_.decks.find(buddy);
@@ -116,6 +129,7 @@ Reply GameHost::start(const json& cmd) {
     const std::string dev = text(cmd, "dev");
     if (dev != "human" && dev != "greedy" && dev != "random") throw Bad{"dev must be human, greedy or random"};
     const std::uint64_t seed = cmd.contains("seed") ? number(cmd, "seed") : cfg_.random_seed();
+    const bool voice = flag(cmd, "voice", false);  // off unless asked: no TTS work for a silent game
 
     // Buddy sits in seat 0: the first player is the engine's coin flip (seed), seats mean nothing else.
     SessionConfig sc;
@@ -126,6 +140,7 @@ Reply GameHost::start(const json& cmd) {
     out_ = {};  // the old game's unsent outputs are moot
     out_.new_game = true;
     v_ = 0;  // per game: a restored host replays only this game's journal (#52)
+    voice_ = voice;
     session_ = std::make_unique<Session>(db_, sc);
     bot_.reset();
     if (dev != "human") {
@@ -137,6 +152,7 @@ Reply GameHost::start(const json& cmd) {
     catalogue_ = catalogue(sc.decks[0], sc.decks[1]);
     json line = cmd;
     line["seed"] = seed;
+    line["voice"] = voice;
     record({{"cmd", line}});
     session_->start();
     if (bot_) bot_->begin(session_->state(), sc.decks[0], sc.decks[1]);
@@ -240,7 +256,9 @@ void GameHost::absorb() {
     Outputs o = session_->take();
     for (auto& c : o.table) out_.table.push_back(std::move(c));
     if (o.ai) out_.ai = std::move(o.ai);
-    for (auto& l : o.voice) out_.voice.push_back(std::move(l));
+    if (voice_) {
+        for (auto& l : o.voice) out_.voice.push_back(std::move(l));
+    }
     for (auto& l : o.replay) out_.replay.push_back(std::move(l));
 }
 
@@ -257,6 +275,7 @@ void GameHost::drive() {
 HostOutputs GameHost::take() {
     if (session_) {
         json game = public_state(*session_);
+        game["voice"] = voice_;
         if (game != game_ || out_.new_game) {
             game_ = std::move(game);
             state_ = game_;

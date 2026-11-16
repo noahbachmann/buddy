@@ -89,7 +89,7 @@ bool said(const HostGame& g, const std::string& part) {
 TEST(RiftboundGameHost, BotGamesPlayToTheEnd) {
     for (const auto& [buddy, dev] : {std::pair{"vi", "greedy"}, std::pair{"zed", "random"}}) {
         HostGame g;
-        const auto r = g.host.command({{"action", "new"}, {"buddy", buddy}, {"dev", dev}, {"seed", 3}});
+        const auto r = g.host.command({{"action", "new"}, {"buddy", buddy}, {"dev", dev}, {"seed", 3}, {"voice", true}});
         ASSERT_TRUE(r.ok) << r.message;
         g.run();
         SCOPED_TRACE(std::string(buddy) + " vs " + dev);
@@ -192,7 +192,7 @@ TEST(RiftboundGameHost, CommandsAreChecked) {
     refused({{"action", "new"}, {"buddy", "vi"}, {"dev", "human"}, {"seed", -1}}, "seed must be");
     refused({{"action", "new"}, {"buddy", "vi"}, {"dev", "human"}, {"seed", "1"}}, "seed must be");
 
-    ASSERT_TRUE(g.host.command({{"action", "new"}, {"buddy", "vi"}, {"dev", "human"}}).ok);  // seed from random_seed
+    ASSERT_TRUE(g.host.command({{"action", "new"}, {"buddy", "vi"}, {"dev", "human"}, {"voice", true}}).ok);  // seed from random_seed
     g.dev = [] { return false; };
     g.run();
     ASSERT_TRUE(g.host.session()->status() == Status::DevToReveal);  // Dev's battlefield first
@@ -235,4 +235,45 @@ TEST(RiftboundGameHost, CommandsAreChecked) {
     EXPECT_EQ(g.host.session()->status(), Status::Over);
     EXPECT_EQ(g.new_games, 2);
     EXPECT_TRUE(g.problems.empty()) << g.problems.front();
+}
+
+// Buddy speaks only when asked (`new {voice: true}` or `voice {on}`): off, no line leaves the host, so nothing goes to
+// buddy/voice/say and no speech is synthesized. The switch is in the payload and in the journal.
+TEST(RiftboundGameHost, VoiceIsOffUnlessAsked) {
+    HostGame quiet;
+    ASSERT_TRUE(quiet.host.command({{"action", "new"}, {"buddy", "vi"}, {"dev", "greedy"}, {"seed", 3}}).ok);
+    quiet.run();
+    EXPECT_EQ(quiet.host.session()->status(), Status::Over);
+    EXPECT_TRUE(quiet.voice.empty()) << quiet.voice.front();
+    EXPECT_EQ(quiet.states.back()["voice"], false);
+
+    HostGame g;
+    ASSERT_TRUE(g.host.command({{"action", "new"}, {"buddy", "vi"}, {"dev", "human"}, {"seed", 5}}).ok);
+    g.take();
+    EXPECT_TRUE(g.voice.empty());
+    EXPECT_FALSE(g.host.command({{"action", "voice"}, {"on", false}}).ok);  // off already
+    EXPECT_FALSE(g.host.command({{"action", "voice"}, {"on", "yes"}}).ok);
+    EXPECT_FALSE(g.host.command({{"action", "voice"}}).ok);
+    EXPECT_FALSE(g.host.command({{"action", "new"}, {"buddy", "vi"}, {"dev", "human"}, {"voice", 1}}).ok);
+    const auto v = g.host.v();
+    ASSERT_TRUE(g.host.command({{"action", "voice"}, {"on", true}}).ok);
+    g.take();
+    EXPECT_EQ(g.host.v(), v + 1);  // the payload moved on: the page sees its command taken
+    EXPECT_EQ(g.states.back()["voice"], true);
+    ASSERT_TRUE(g.host.command({{"action", "concede"}}).ok);
+    g.take();
+    EXPECT_TRUE(said(g, "You concede"));
+
+    std::vector<std::string> journal;  // the switch comes back from the journal (take() after each input, as the service)
+    game::GameHost h(db(), host_config());
+    for (const json& cmd : {json{{"action", "new"}, {"buddy", "vi"}, {"dev", "human"}, {"seed", 5}},
+                            json{{"action", "voice"}, {"on", true}}}) {
+        ASSERT_TRUE(h.command(cmd).ok);
+        const auto out = h.take();
+        journal.insert(journal.end(), out.journal.begin(), out.journal.end());
+    }
+    game::GameHost fresh(db(), host_config());
+    fresh.restore(journal);
+    EXPECT_EQ(fresh.state(), h.state());
+    EXPECT_EQ(fresh.state()["voice"], true);
 }

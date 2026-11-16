@@ -35,7 +35,7 @@
 //                                           writes sim-replay-<seed>.txt
 //
 // Config (env, see deploy/config/buddy.env.example): BUDDY_GAME_CARDS, BUDDY_GAME_DECKS; the service also
-// BUDDY_GAME_BUDGET_MS, BUDDY_GAME_THREADS, BUDDY_GAME_TABLE_TIMEOUT_S, BUDDY_GAME_VOICE, BUDDY_GAME_GAMES
+// BUDDY_GAME_BUDGET_MS, BUDDY_GAME_THREADS, BUDDY_GAME_TABLE_TIMEOUT_S, BUDDY_GAME_GAMES
 #include <algorithm>
 #include <chrono>
 #include <filesystem>

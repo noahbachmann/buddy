@@ -54,7 +54,7 @@ struct Reply {
 struct HostOutputs {
     std::vector<table::Command> table;
     std::optional<AiRequest> ai;
-    std::vector<std::string> voice;
+    std::vector<std::string> voice;   // Buddy's lines for buddy/voice/say; none while the game's voice is off
     std::vector<std::string> replay;  // lines of the current game's replay
     bool new_game = false;            // the replay lines start a new file
     std::optional<nlohmann::json> state;  // the payload, when it changed since the last take() (`v` + 1)
@@ -108,6 +108,7 @@ private:
     nlohmann::json game_;   // the payload's game part as last published
     nlohmann::json state_;  // the full payload as last published
     std::int64_t v_ = 0;
+    bool voice_ = false;  // Buddy speaks this game (`new {voice}`, `voice {on}`); off: no lines leave the host
     HostOutputs out_;
 };
 
