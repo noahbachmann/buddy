@@ -161,7 +161,8 @@ nut_len    = 15;
 nut_flange = [22, 3.5];
 nut_pcd    = 16;
 nut_starts = 4;              // TR8x8: pitch 2, 4 starts = 8 per turn
-nut_slop   = 0.2;            // thread gap per side, PETG on the steel screw. ⚠️ tune: binds → up, wobbles → down
+nut_flank  = 0.15;           // gap per flank, PETG on the steel screw. Flanks carry, not the crests: at TR's 15° half angle a
+                             // radial gap r opens each flank only r·sin 15° (old nut_slop 0.2 radial = 0.05 flank: bound). ⚠️ thread test
 lead       = 8;
 
 // layout: screw axis in the front strip; the motor sits on the notch's skin, above the plate
@@ -256,6 +257,9 @@ fit_slip    = 0.1;           // vertical hole: peg slides in without play (fit t
 fit_press   = 0.05;          // vertical hole: peg pushed in by hand, holds (hole 3)
 fit_slip_h  = 0.05;          // horizontal (teardrop) hole: slip (hole 3)
 fit_press_h = 0;             // horizontal hole: press (hole 2)
+bore_gap    = fit_slip;      // 4023 D-shaft in the motor gear (5, flat at 2.0), per side. ⚠️ thread test
+nut_flank_steps = [0.10, 0.15, 0.20, 0.25];   // thread test: nut rings 1..4
+bore_steps  = [0.10, 0.15, 0.20];             // thread test: D-bore rings 1..3 (per side)
 pin_press_d = 4.95;          // front plate: Ø5 steel pin pushed in by hand (firm), stays in when the plate comes off. ⚠️ not tested yet
 peg_cham    = 0.4;           // lead-in at every peg tip
 nut_peg_h   = tab_t - 0.3;   // nut pegs: into the tab, not through it

@@ -315,6 +315,21 @@ Checked on the borders (2026-11-11): printed from a stale plate 2 with the pre-t
 holes (= hole 2) were too tight and border B's Ø3.1 horizontal holes (= hole 3) let the pin slide out: both as the fit
 test predicts, also in 7 mm deep holes. Current: H Ø3.1, B Ø3.0.
 
+**Thread test** (`plates/0b-thread-test.stl`, ~15 min). The first gear and nuts (2026-11-16) didn't fit: the gear's
+D-bore was Ø5.15 (between press and slip: it predates the fit test), and the nuts had 0.2 mm radial gap, which on a
+TR thread's 15° flanks is only 0.05 mm per flank (the flanks carry, not the crests), below even the press fit. Now
+`bore_gap` = slip (Ø5.2, flat at 2.1) with a 0.4 chamfer at the bed face against elephant foot, and `nut_flank` is
+the gap per flank. Ribs on a ring = its number:
+
+| Ring | 1 | 2 | 3 | 4 |
+|---|---|---|---|---|
+| Nut rings: gap per flank (`nut_flank_steps`) | 0.10 | 0.15 | 0.20 | 0.25 |
+| D-bore rings: gap per side (`bore_steps`) | 0.10 | 0.15 | 0.20 | – |
+
+Nut: the tightest ring that turns along the screw by fingers without binding, ring flat in the fingers (no rocking on
+the screw). Bore: the tightest ring that slides onto the motor shaft by hand. Tell Claude both numbers: they go into
+`nut_flank` and `bore_gap`, then reprint the motor gear and both nuts from `stl/`.
+
 ## Print (Bambu X2D)
 
 **Print from `plates/`**: one STL per print job, parts already in print orientation, laid out and spaced, centred.
@@ -324,6 +339,7 @@ parts (for reprints, e.g. only the left gate). `parts/cad plate dispenser` rebui
 | Plate | Parts | Filament | Settings (rest: Bambu's preset) |
 |---|---|---|---|
 | `0-fit-test.stl` | fit test, 2 test pins: **print first** ("Printed joints") | PETG | 0.20 mm, 4 walls, 10 %, no supports |
+| `0b-thread-test.stl` | TR8 nut rings (1–4 ribs) and motor gear D-bores (1–3 ribs): **before reprinting the gear and the nuts** ("Thread test") | PETG | 0.12 mm, 4 walls, 15 %, no supports |
 | `1-petg-fine.stl` | drive drum, idler drum, motor gear, left gate, pusher nut, lift nut, 4 border pins | PETG | 0.12 mm, 4 walls, 15 %, no supports, **brim: outer only** (the drums stand 107 mm on Ø15–18) |
 | `2-petg.stl` | roller frame, front plate, border H, border B: **after the fit test** | PETG | 0.20 mm, 4 walls, 15 %, no supports |
 | `3-pla.stl` | pusher, lift: **after the fit test** | PLA | 0.20 mm, 4 walls, 15 %, **supports on: tree (auto), on build plate only** |
@@ -366,8 +382,8 @@ Why these settings:
 - **Fit test (plate 0) at 0.20 like plates 2 and 3**, whose holes it tunes. The lift and pusher are PLA: their holes
   get the PETG values, PLA prints holes a little larger ⚠️.
 - **TR8 nuts: PETG**, not PLA: it wears less on the steel screw. Test each on the screw by hand before assembly: it
-  should turn along the whole screw without binding and without wobble. Binds → `nut_slop` + 0.05, wobbles → − 0.05
-  (per side, `params.scad`) ⚠️ untested. A printed nut drags more than brass: set the pusher's StallGuard threshold
+  should turn along the whole screw without binding and without wobble. Binds → `nut_flank` + 0.05, wobbles → − 0.05
+  (per flank, `params.scad`; thread test first). A printed nut drags more than brass: set the pusher's StallGuard threshold
   with these nuts.
 
 ## Assembly
@@ -397,6 +413,13 @@ from the left, and everything else follows from behind and from the front.
 8. **Border H**, last: it reaches down to under the belt top, so the drum gear and the O-rings can't pass under it.
    From the front between the left wall and the right gate until its step stops at the gate's front face, 2 border
    pins through the left wall from outside.
+
+**Coupling** (both screws): Ø19 × 25 aluminium, 5 mm bore on one end (motor shaft), 8 mm on the other (screw). Each
+end clamps with its own screw(s): either small grub screws in radial holes on the side, or a cap screw across a slot
+(clamp type). Hex key that fits snugly (M3 grub: 1.5 mm, M4 grub: 2 mm, M2.5 cap: 2 mm), firm by hand, no extension
+(an aluminium thread strips). Motor shaft: turn it so a grub screw sits on the shaft's flat. Each shaft in by half the
+coupling's length (12.5 mm), so it doesn't reach into the middle flexible part. Tighten one end, then the other: a
+loose end slips and the motor turns without moving anything.
 
 **Lift:** motor under the floor (boss into the floor's hole, 2× M3×6 from inside), coupling on the shaft inside the
 box (z 13.5…38.5), tighten the 5 mm side. Nut under the lift's tab, flange up, its 4 pegs pressed into the tab's holes, body

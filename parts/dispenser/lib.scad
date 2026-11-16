@@ -92,9 +92,7 @@ module motor_gear() {
                   backlash = gear_backlash, anchor = BOTTOM, gear_spin = 180 / motor_teeth);
       translate([0, 0, gear_z0 + gear_w - eps]) cylinder(d = hub[0], h = hub[1] + eps);
     }
-    // D-bore: 5 mm shaft, flat 2.0 from the axis
-    translate([0, 0, gear_z0 - eps]) linear_extrude(gear_w + hub[1] + 2 * eps)
-      intersection() { circle(d = 5.15); translate([-5, -5]) square([5 + 2.1, 10]); }
+    translate([0, 0, gear_z0]) d_bore(gear_w + hub[1]);
     // set screw onto the flat (+X) and its nut slot, open to the hub's end face
     translate([0, 0, hz]) rotate([0, 90, 0]) cylinder(d = screw_clear - 0.2, h = hub[0]);
     translate([3.2, -5.8 / 2, hz - 5.8 / 2]) cube([2.6, 5.8, hub[1]]);
@@ -604,10 +602,17 @@ module lift_nut_outside() {
   translate([0, 0, nut_len - nut_flange[1] - lift_cone]) cylinder(d1 = nut_d, d2 = nut_flange[0], h = lift_cone + eps);
   translate([0, 0, nut_len - nut_flange[1]]) cylinder(d = nut_flange[0], h = nut_flange[1]);
 }
-// internal thread: BOSL2 adds 4 $slop to the diameter, so nut_slop / 2 = nut_slop per side; bevel = lead-in
-module tr8_thread() translate([0, 0, nut_len / 2]) let($slop = nut_slop / 2)
-  trapezoidal_threaded_rod(d = 8, l = nut_len + 2 * eps, pitch = lead / nut_starts, thread_angle = 30,
+// internal thread: BOSL2 adds 2 $slop to the radius. Radial gap = flank gap / sin 15°; bevel = lead-in
+module tr8_thread(len = nut_len, flank = nut_flank) translate([0, 0, len / 2]) let($slop = flank / sin(15) / 2)
+  trapezoidal_threaded_rod(d = 8, l = len + 2 * eps, pitch = lead / nut_starts, thread_angle = 30,
                            starts = nut_starts, internal = true, bevel = true, $fn = 64);
+// D-bore for the 4023's 5 mm shaft (flat 2.0 from the axis), bore_gap per side, from z 0 up; 0.4 chamfer at z 0
+// against elephant foot (bed side)
+module d_bore(h, gap = bore_gap) {
+  module d(o) intersection() { circle(d = 5 + 2 * gap + 2 * o); translate([-5, -5]) square([5 + 2 + gap + o, 10]); }
+  translate([0, 0, -eps]) linear_extrude(h + 2 * eps) d(0);
+  translate([0, 0, -eps]) hull() { linear_extrude(eps) d(0.4); translate([0, 0, 0.4]) linear_extrude(eps) d(0); }
+}
 module pusher_nut() difference() {
   union() {
     nut_outside();
@@ -650,5 +655,20 @@ module fit_test() {
     }
     // marker: chamfered corner at step 1
     translate([0, 0, -1]) linear_extrude(14) polygon([[-1, -1], [4, -1], [-1, 4]]);
+  }
+}
+
+// --- Thread test (plate 0b): TR8 nut rings at nut_flank_steps, D-bore rings at bore_steps -------------------------
+// Ring i has i ribs on its outside. Print at 0.12 like plate 1.
+module thread_test() {
+  ring_h = 8;
+  module ribs(n, r, h) for (k = [0 : n - 1]) rotate(k * 25) translate([r - 0.5, -0.6, 0]) cube([1.5, 1.2, h]);
+  for (i = [0 : len(nut_flank_steps) - 1]) translate([i * 18, 0, 0]) difference() {
+    union() { cylinder(d = 14, h = ring_h, $fn = 64); ribs(i + 1, 7, ring_h); }
+    tr8_thread(ring_h, nut_flank_steps[i]);
+  }
+  for (i = [0 : len(bore_steps) - 1]) translate([i * 16, 20, 0]) difference() {
+    union() { cylinder(d = 11, h = 6, $fn = 48); ribs(i + 1, 5.5, 6); }
+    d_bore(6, bore_steps[i]);
   }
 }
