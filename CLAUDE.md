@@ -98,7 +98,7 @@ Phase 1 → Deferred lists what waits for a reason (wake word CPU, next voice se
 | D2 | Message bus | Mosquitto on the Pi. Services talk only over MQTT. | ✅ |
 | D3 | Compute placement | ears and brain run on the Pi *or* a LAN host. Only the broker address changes. | ✅ |
 | D4 | Storage | microSD only, no NVMe | ✅ |
-| D5 | Languages | C++ (CMake) by default, for services and the Pico firmware. Python where its ecosystem matters: PC tooling and training (`skeleton/tools/`), and Pi services that need Python libraries (LLM, vision later), with the same conventions as C++ services (D15). No Kotlin or Java. | ✅ |
+| D5 | Languages | C++ (CMake) by default, for services and the Pico firmware. Python where its ecosystem matters: PC tooling and training (`skeleton/tools/`), and Pi services that need Python libraries (LLM, vision later), with the same conventions as C++ services (D15). No Kotlin or Java, except Android code on the screener phone (`skeleton/android/`, Kotlin): Android requires it (2026-11-16, #66). | ✅ |
 | D6 | Dev workflow | CLion on the PC, Full Remote Mode over SSH: sources stay local (and on GitHub), CLion syncs them to the Pi, builds with the Pi's CMake/GCC, runs and debugs with the Pi's GDB. | ✅ |
 | D7 | Runtime packaging | systemd user units on the Pi (`buddy@<service>`, lingering on), Mosquitto from apt. Docker only for services offloaded to a LAN host later. | ✅ |
 | D8 | Audio capture | ears reads the raw Jabra mic via ALSA `default` (PipeWire's default source, no echo cancellation: D13), 16 kHz mono s16. Wake word, VAD and STT live in one service (`ears`) sharing that stream. | ✅ |
