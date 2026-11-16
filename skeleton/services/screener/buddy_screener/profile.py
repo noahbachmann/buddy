@@ -33,6 +33,7 @@ class Section:
     lo: int = 0              # content range seen on screen so far (cut parts excluded)
     hi: int = 0
     hash: str = ""           # photo: dhash of a full view
+    jpeg: bytes = field(default=b"", repr=False)   # photo: downscaled crop for the decision call; memory only
 
     @property
     def ref(self) -> str:

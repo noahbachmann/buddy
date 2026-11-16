@@ -28,6 +28,7 @@ SWIPE_MS = 900        # slow: scrolls by about the swipe length, no fling
 MAX_SWIPES = 30
 HASH_MAX_DIST = 10    # of 64 bits: same photo
 Hasher = Callable[[bytes, Rect], str]   # (screenshot PNG, crop) → dhash
+Cropper = Callable[[bytes, Rect], bytes]   # (screenshot PNG, crop) → JPEG for the decision call
 
 
 class NeedsYou(RuntimeError):
@@ -48,6 +49,7 @@ class Navigator:
     package: str
     dump_dir: Path | None = None              # where an unexpected screen's raw dump goes (tmpfs)
     hasher: Hasher | None = None
+    cropper: Cropper | None = None            # set: photos keep a JPEG crop (memory only) for the decision
     pause: Callable[[float], object] = time.sleep
     log: Callable[[str], None] = print
     last: Screen | None = field(default=None, init=False)
@@ -168,6 +170,8 @@ class Navigator:
             png = self.dev.screencap()
             for sv, sec in todo:
                 sec.hash = self.hasher(png, sv.rect)
+                if self.cropper is not None:
+                    sec.jpeg = self.cropper(png, sv.rect)
 
     def capture_profile(self) -> Capture:
         """Scrolls through the whole profile from its top, collecting every section. Ends at the bottom."""

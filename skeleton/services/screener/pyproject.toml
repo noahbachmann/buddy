@@ -5,7 +5,8 @@ description = "Screens chats in a social app on a dedicated Android phone over a
 requires-python = ">=3.12"
 dependencies = [
     "buddy-shared",
-    "pillow>=11",     # screenshot crops: photo hashes now, image input for the decision calls later
+    "pillow>=11",     # screenshot crops: photo hashes, JPEG crops for the decision calls
+    "claude-agent-sdk>=0.2.182",   # decisions on Dev's plan; the wheel bundles the CLI (aarch64 too, no Node)
 ]
 
 [project.scripts]
