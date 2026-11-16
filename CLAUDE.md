@@ -24,6 +24,7 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 | `skeleton/services/web/CLAUDE.md` | Web panel internals: server, state stream, `www/` page structure |
 | `skeleton/services/game/CLAUDE.md` | Riftbound engine as it is now: the loop, hidden information, hook points for cards, invariants, test helpers, gotchas |
 | `skeleton/services/table/CLAUDE.md` | Buddy's physical cards (5.5): tracker procedures, sim faults, soak, gotchas |
+| `skeleton/services/screener/CLAUDE.md` | The screener service (#66): screen model, navigator, fixtures, measured gotchas |
 | `skeleton/android/screener-ime/CLAUDE.md` | The screener phone's keyboard (#66): adb commands, build and install, gotchas |
 | `parts/CLAUDE.md` | CAD toolchain (pinned OpenSCAD nightly, BOSL2, NopSCADlib, Python checks), conventions for printable parts |
 
@@ -248,6 +249,7 @@ buddy/
 │   │   ├── speakers/        ← Nests over Bluetooth: music and voice routing, ducking (D20)
 │   │   ├── messenger/       ← Dev's Telegram chat: notices, questions and answers, service watcher (D22)
 │   │   ├── system/          ← host metrics for the panel: CPU, RAM, disk, temp, fan, net, throttling (D23)
+│   │   ├── screener/        ← Python: a social app on a dedicated phone over adb (#66, side service)
 │   │   ├── motion/          ← joints → Pico serial protocol, gestures
 │   │   ├── table/           ← Riftbound: Buddy's physical cards: piles, hand tracker, sim backend, soak (5.5)
 │   │   └── game/            ← Riftbound: riftbound/ lib (cards, decks, rules, AI), table moves, decks/ (Phase 5)
