@@ -13,12 +13,14 @@
 
 #include <cstdint>
 #include <functional>
+#include <iosfwd>
 #include <memory>
 #include <optional>
 #include <set>
 #include <string>
 #include <vector>
 
+#include "riftbound/ai/ismcts.hpp"
 #include "riftbound/ai/player.hpp"
 #include "riftbound/card_db.hpp"
 #include "riftbound/deck.hpp"
@@ -106,5 +108,47 @@ riftbound::GameState rearranged(const riftbound::GameState& s, PlayerId owner, P
                                 const std::set<ObjId>& fixed, riftbound::Rng& rng);
 // Dev's placeholders the session may rearrange: every hidden one except the kept binds and the named cards.
 std::set<ObjId> dev_fixed(const Session& session);
+
+// The soak (#51): `games` session games, game i = seed + i, Buddy in seat i % 2, the decks swapped every other pair
+// (both decks from both seats, as --table-workload); `jobs` threads, results independent of them.
+struct SoakOptions {
+    int games = 100;
+    std::uint64_t seed = 1;
+    int jobs = 1;
+    table::SimFaults faults;
+    std::string buddy = "greedy";  // greedy | ismcts
+    std::string dev = "greedy";    // greedy | random
+    riftbound::ai::IsmctsOptions ismcts;
+    int leak_every = 7;
+    bool candidates = true;
+};
+
+struct SoakGame {
+    int index = 0;
+    std::uint64_t seed = 0;
+    PlayerId buddy = 0;
+    bool swapped = false;
+    bool over = false;
+    std::optional<bool> buddy_won;
+    int turns = 0;
+    std::vector<std::string> problems, leaks;
+    int desyncs = 0;
+    SessionStats stats;
+    long recoveries = 0, injected = 0, prompt_cards = 0, leak_checks = 0, scans = 0, reanswers = 0;
+    double ms = 0;
+    std::string replay;  // the session's replay, kept for a failing game
+    bool failed() const { return !problems.empty() || !leaks.empty() || desyncs > 0; }
+    // What real cards cost Dev on the panel: an asked decision = 1 tap, a prompt = 1 per card + 1 to confirm.
+    long taps() const { return stats.dev_decisions - stats.dev_forced + prompt_cards + stats.prompts + stats.resumes; }
+};
+
+// One soak game (decks a and b as given: a in seat 0 unless swapped). Never throws: an exception is a problem.
+SoakGame soak_game(const riftbound::CardDb& db, const std::array<std::string, 2>& deck_texts, const SoakOptions& o,
+                   int index);
+std::vector<SoakGame> soak(const riftbound::CardDb& db, const std::array<std::string, 2>& deck_texts,
+                           const SoakOptions& o, const std::function<void(int done)>& progress = {});
+// Unrecovered, desyncs, leaks; per game: re-decides, pauses, recoveries, corrections, table commands, Dev's prompts
+// and taps, time. Returns the number of failed games.
+int print_soak_report(std::ostream& out, const std::vector<SoakGame>& games, double wall_s);
 
 } // namespace buddy::game

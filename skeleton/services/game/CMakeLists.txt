@@ -39,7 +39,7 @@ target_include_directories(game_sim PUBLIC .)
 target_link_libraries(game_sim PUBLIC game_core table_core)
 
 add_executable(buddy-game main.cpp)
-target_link_libraries(buddy-game PRIVATE game_core riftbound buddy_shared)
+target_link_libraries(buddy-game PRIVATE game_sim game_core riftbound buddy_shared)
 install(TARGETS buddy-game RUNTIME DESTINATION bin COMPONENT game)
 install(DIRECTORY decks/ DESTINATION share/game/decks COMPONENT game)
 
@@ -51,4 +51,4 @@ buddy_add_tests(game
 # Engine moves replayed on table's sim (#42): links table_core for the sim and the soak's stand-in.
 buddy_add_tests(game-table tests/test_table_moves.cpp LIBS game_core table_core LABELS riftbound)
 # Session games (#48–#51): Buddy's side on an in-process Table + Sim, Dev a SimDev.
-buddy_add_tests(game-session tests/test_session.cpp tests/test_public_state.cpp tests/test_game_host.cpp LIBS game_sim LABELS riftbound)
+buddy_add_tests(game-session tests/test_session.cpp tests/test_public_state.cpp tests/test_game_host.cpp tests/test_sim_soak.cpp LIBS game_sim LABELS riftbound)

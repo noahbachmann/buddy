@@ -1,10 +1,16 @@
 #include "sim_game.hpp"
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <format>
 #include <map>
+#include <ostream>
+#include <thread>
 #include <tuple>
 
 #include "public_state.hpp"
+#include "riftbound/ai/arena.hpp"
 #include "riftbound/ai/greedy.hpp"
 #include "riftbound/engine.hpp"
 #include "riftbound/random_game.hpp"
@@ -392,6 +398,136 @@ std::set<ObjId> dev_fixed(const Session& session) {
     std::set<ObjId> fixed(session.named().begin(), session.named().end());
     for (const ObjId id : session.kept()) fixed.insert(id);
     return fixed;
+}
+
+// ---- the soak ----
+
+SoakGame soak_game(const CardDb& db, const std::array<std::string, 2>& deck_texts, const SoakOptions& o, int index) {
+    SoakGame out;
+    out.index = index;
+    out.seed = o.seed + static_cast<std::uint64_t>(index);
+    out.buddy = static_cast<PlayerId>(index % 2);
+    out.swapped = (index / 2) % 2 == 1;
+    const auto start = std::chrono::steady_clock::now();
+    try {
+        SimGameConfig c;
+        c.deck_texts = out.swapped ? std::array{deck_texts[1], deck_texts[0]} : deck_texts;
+        c.decks = {parse_deck(db, c.deck_texts[0]), parse_deck(db, c.deck_texts[1])};
+        c.buddy = out.buddy;
+        c.seed = out.seed;
+        c.faults = o.faults;
+        c.sim_seed = out.seed * 7 + 3;
+        c.true_deck = true;
+        if (o.buddy == "ismcts") c.buddy_player = std::make_unique<ai::IsmctsPlayer>(out.seed * 2 + 1, o.ismcts);
+        else if (o.buddy != "greedy") throw std::invalid_argument("no Buddy player \"" + o.buddy + "\"");
+        if (o.dev == "random") c.dev_player = std::make_unique<ai::RandomPlayer>(out.seed * 2 + 2);
+        else if (o.dev != "greedy") throw std::invalid_argument("no Dev player \"" + o.dev + "\"");
+        SimGame g(db, std::move(c));
+        g.leak_every = o.leak_every;
+        g.check_candidates = o.candidates;
+        try {
+            g.run();
+        } catch (const std::exception& e) {
+            g.problems.push_back(std::string("exception: ") + e.what());
+        }
+        const Session& s = *g.session;
+        out.over = s.status() == Status::Over;
+        out.desyncs = static_cast<int>(std::count(g.pauses.begin(), g.pauses.end(), Pause::Desync));
+        out.problems = g.problems;
+        out.leaks = g.leaks;
+        if (out.over) {
+            if (s.state().winner) out.buddy_won = *s.state().winner == s.buddy();
+            if (auto p = g.final_check(); !p.empty()) out.problems.push_back("final rescan: " + p);
+            if (auto p = g.true_replay_problem(); !p.empty()) out.problems.push_back("true game: " + p);
+            if (auto p = g.replay_problem(); !p.empty()) out.problems.push_back("replay: " + p);
+        } else if (out.desyncs == 0) {
+            out.problems.push_back("didn't end: " + std::string(to_string(s.status())) +
+                                   (s.status() == Status::Paused ? " (" + s.pause_message() + ")" : ""));
+        }
+        out.turns = s.state().turn;
+        out.stats = s.stats();
+        out.recoveries = g.table.tracker().counts().recoveries;
+        out.scans = g.table.tracker().counts().scans;
+        out.injected = g.sim.faults().total();
+        out.prompt_cards = g.prompt_cards;
+        out.leak_checks = g.leak_checks;
+        out.reanswers = g.reanswers;
+        if (out.failed()) out.replay = s.replay_text();
+    } catch (const std::exception& e) {
+        out.problems.push_back(std::string("exception: ") + e.what());
+    }
+    out.ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+    return out;
+}
+
+std::vector<SoakGame> soak(const CardDb& db, const std::array<std::string, 2>& deck_texts, const SoakOptions& o,
+                           const std::function<void(int)>& progress) {
+    std::vector<SoakGame> out(static_cast<std::size_t>(o.games));
+    std::atomic<int> next{0}, done{0};
+    const auto work = [&] {
+        for (int i = next++; i < o.games; i = next++) {
+            out[static_cast<std::size_t>(i)] = soak_game(db, deck_texts, o, i);
+            const int d = ++done;
+            if (progress) progress(d);
+        }
+    };
+    std::vector<std::thread> threads;
+    for (int j = 0; j < std::min(o.jobs, o.games); ++j) threads.emplace_back(work);
+    for (auto& t : threads) t.join();
+    return out;
+}
+
+int print_soak_report(std::ostream& out, const std::vector<SoakGame>& games, double wall_s) {
+    int failed = 0, over = 0, buddy_wins = 0, desyncs = 0;
+    long unrecovered = 0, leaks = 0, leak_checks = 0, injected = 0;
+    for (const auto& g : games) {
+        failed += g.failed();
+        over += g.over;
+        buddy_wins += g.buddy_won.value_or(false);
+        desyncs += g.desyncs;
+        unrecovered += static_cast<long>(g.problems.size());
+        leaks += static_cast<long>(g.leaks.size());
+        leak_checks += g.leak_checks;
+        injected += g.injected;
+    }
+    const auto n = static_cast<double>(games.size());
+    out << std::format("  {} games, {} over, {} failed; Buddy won {}; faults injected {:.1f} per game\n", games.size(),
+                       over, failed, buddy_wins, static_cast<double>(injected) / n);
+    out << std::format("  unrecovered {}, desyncs {}, leaks {} ({} leak checks)\n", unrecovered, desyncs, leaks,
+                       leak_checks);
+    const auto row = [&](const char* name, auto value) {
+        std::vector<double> v;
+        double sum = 0;
+        for (const auto& g : games) {
+            v.push_back(static_cast<double>(value(g)));
+            sum += v.back();
+        }
+        out << std::format("  {:<26} avg {:7.2f}  p95 {:7.1f}  max {:7.1f}\n", name, sum / n, ai::percentile(v, 95),
+                           ai::percentile(v, 100));
+    };
+    out << "  per game:\n";
+    row("turns", [](const SoakGame& g) { return g.turns; });
+    row("re-decides", [](const SoakGame& g) { return g.stats.re_decides; });
+    row("pauses", [](const SoakGame& g) { return g.stats.pauses; });
+    row("resumes", [](const SoakGame& g) { return g.stats.resumes; });
+    row("recoveries (table)", [](const SoakGame& g) { return g.recoveries; });
+    row("corrections (table)", [](const SoakGame& g) { return g.stats.corrections; });
+    row("  misread cards", [](const SoakGame& g) { return g.stats.misreads; });
+    row("  reorders", [](const SoakGame& g) { return g.stats.reorders; });
+    row("  extras", [](const SoakGame& g) { return g.stats.extras; });
+    row("retries", [](const SoakGame& g) { return g.stats.retries; });
+    row("table commands", [](const SoakGame& g) { return g.stats.commands; });
+    row("scans", [](const SoakGame& g) { return g.scans; });
+    row("Dev decisions asked", [](const SoakGame& g) { return g.stats.dev_decisions - g.stats.dev_forced; });
+    row("Dev decisions forced", [](const SoakGame& g) { return g.stats.dev_forced; });
+    row("Dev cards named (plays)", [](const SoakGame& g) { return g.stats.dev_named; });
+    row("Dev prompts", [](const SoakGame& g) { return g.stats.prompts; });
+    row("  cards in prompts", [](const SoakGame& g) { return g.prompt_cards; });
+    row("Dev taps", [](const SoakGame& g) { return g.taps(); });
+    row("SimDev re-answers", [](const SoakGame& g) { return g.reanswers; });
+    row("time (ms)", [](const SoakGame& g) { return g.ms; });
+    if (wall_s > 0) out << std::format("  wall {:.1f} s\n", wall_s);
+    return failed;
 }
 
 } // namespace buddy::game

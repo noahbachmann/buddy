@@ -22,6 +22,12 @@
 //                                           Buddy's physical card moves for the table soak (5.5) as JSON lines on
 //                                           stdout: game i = seed S+i, Buddy in seat i % 2, decks swapped every
 //                                           other pair; `| buddy-table --soak -`
+//   buddy-game --sim --games N [--seed S] [--jobs J] [--faults …] [--dev greedy|random] [--buddy greedy|ismcts]
+//              [--iterations N] [--deck A --deck B]
+//                                           the session soak (#51): SimDev (a true shuffled deck) against Buddy on the
+//                                           sim table, both decks from both seats, checks after every step; reports
+//                                           unrecovered, desyncs, leaks and what real cards cost Dev; a failing game
+//                                           writes sim-replay-<seed>.txt
 //
 // Config (env, see deploy/config/buddy.env.example): BUDDY_GAME_CARDS, BUDDY_GAME_DECKS
 #include <algorithm>
@@ -47,6 +53,8 @@
 #include "riftbound/engine.hpp"
 #include "riftbound/random_game.hpp"
 #include "riftbound/replay.hpp"
+#include "sim.hpp"
+#include "sim_game.hpp"
 #include "table_moves.hpp"
 
 namespace {
@@ -435,6 +443,32 @@ int table_workload(const CardDb& db, const std::vector<fs::path>& paths, int gam
     return failed == 0 ? 0 : 1;
 }
 
+int sim_soak(const CardDb& db, const std::vector<fs::path>& paths, const game::SoakOptions& o) {
+    if (paths.size() < 2) throw std::runtime_error("--sim needs two decks");
+    const std::array texts{read_file(paths[0]), read_file(paths[1])};
+    std::cout << std::format("session soak: {} games, Buddy {} vs Dev {}, decks {} and {}, faults {}, seeds {}–{}, {} jobs\n",
+                             o.games, o.buddy == "ismcts" ? std::format("ismcts ({} iterations)", o.ismcts.iterations) : o.buddy,
+                             o.dev, paths[0].stem().string(), paths[1].stem().string(), table::to_string(o.faults), o.seed,
+                             o.seed + static_cast<std::uint64_t>(o.games) - 1, o.jobs);
+    const auto start = std::chrono::steady_clock::now();
+    const auto games = game::soak(db, texts, o, [&](int done) {
+        if (done % 10 == 0 || done == o.games) std::cerr << std::format("  {} / {} games\r", done, o.games) << std::flush;
+    });
+    std::cerr << "\n";
+    const double s = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+    for (const auto& g : games) {
+        if (!g.failed()) continue;
+        const fs::path file = fs::absolute(std::format("sim-replay-{}.txt", g.seed));
+        std::ofstream(file) << g.replay;
+        std::cerr << std::format("✗ game {} (seed {}, Buddy seat {}{}): {} problems, {} leaks, {} desyncs; replay {}\n",
+                                 g.index, g.seed, g.buddy, g.swapped ? ", decks swapped" : "", g.problems.size(),
+                                 g.leaks.size(), g.desyncs, file.string());
+        for (std::size_t i = 0; i < std::min<std::size_t>(3, g.problems.size()); ++i) std::cerr << "    " << g.problems[i] << "\n";
+        for (std::size_t i = 0; i < std::min<std::size_t>(3, g.leaks.size()); ++i) std::cerr << "    leak: " << g.leaks[i].substr(0, 400) << "\n";
+    }
+    return game::print_soak_report(std::cout, games, s) == 0 ? 0 : 1;
+}
+
 int usage(const char* argv0) {
     std::cerr << "usage: " << argv0 << " --deck <name|file> --check | --check | --code <code>… |\n"
               << "       --random [--rules] [--games N] [--seed S] [--deck A --deck B] | --replay <file> |\n"
@@ -442,6 +476,8 @@ int usage(const char* argv0) {
               << "               [--iterations N | --budget-ms M] [--threads T] [--tune key=value,…]\n"
               << "               (players: random, greedy, ismcts)\n"
               << "       --table-workload [greedy|random] [--games N] [--seed S] [--jobs J] [--deck A --deck B]\n"
+              << "       --sim --games N [--seed S] [--jobs J] [--faults none|stress|…] [--dev greedy|random]\n"
+              << "             [--buddy greedy|ismcts] [--iterations N] [--deck A --deck B]\n"
               << "(the game service itself comes in step 5.6)\n";
     return 2;
 }
@@ -451,7 +487,8 @@ int usage(const char* argv0) {
 int main(int argc, char** argv) {
     const std::vector<std::string> args(argv + 1, argv + argc);
     std::vector<std::string> deck_args;
-    bool check = false, random = false, rules = false, workload = false, greedy = true;
+    bool check = false, random = false, rules = false, workload = false, greedy = true, sim = false;
+    std::string faults = "none", dev = "greedy", buddy = "greedy";
     std::string replay;
     std::array<std::string, 2> players;
     bool games_given = false;
@@ -470,6 +507,10 @@ int main(int argc, char** argv) {
                 if (value && (args[i + 1] == "greedy" || args[i + 1] == "random")) greedy = args[++i] == "greedy";
             }
             else if (args[i] == "--replay" && value) replay = args[++i];
+            else if (args[i] == "--sim") sim = true;
+            else if (args[i] == "--faults" && value) faults = args[++i];
+            else if (args[i] == "--dev" && value) dev = args[++i];
+            else if (args[i] == "--buddy" && value) buddy = args[++i];
             else if (args[i] == "--match" && i + 2 < args.size()) {
                 players = {args[i + 1], args[i + 2]};
                 i += 2;
@@ -491,7 +532,8 @@ int main(int argc, char** argv) {
         return usage(argv[0]);
     }
     const bool matching = !players[0].empty();
-    if ((code_index != 0) + check + random + !replay.empty() + matching + workload != 1 || games < 1 || jobs < 1 ||
+    if ((code_index != 0) + check + random + !replay.empty() + matching + workload + sim != 1 || games < 1 || jobs < 1 ||
+        (sim && !games_given) ||
         ismcts.iterations < 1 || ismcts.threads < 1 ||
         (rules && !random)) {
         return usage(argv[0]);
@@ -515,6 +557,13 @@ int main(int argc, char** argv) {
         if (random) return random_games(db, paths, games, seed, !rules);
         if (workload) return table_workload(db, paths, games, seed, jobs, greedy);
         if (matching) return match(db, paths, players, games_given ? games : 200, seed, jobs, ismcts);
+        if (sim) {
+            if (buddy != "greedy" && buddy != "ismcts") throw std::runtime_error("--buddy greedy or ismcts");
+            if (dev != "greedy" && dev != "random") throw std::runtime_error("--dev greedy or random");
+            const table::SimFaults f = table::parse_faults(faults);
+            return sim_soak(db, paths, {.games = games, .seed = seed, .jobs = jobs, .faults = f, .buddy = buddy,
+                                        .dev = dev, .ismcts = ismcts});
+        }
 
         bool ok = true;
         for (const auto& path : paths) {
