@@ -68,6 +68,8 @@ Reveal parse_reveal(std::string_view line) {
     return r;
 }
 
+} // namespace
+
 std::string format_reveal(const Reveal& r) {
     if (r.kind == Reveal::Kind::Bind) return "bind " + std::to_string(r.obj) + " " + r.code;
     std::string out = "order " + std::to_string(r.player);
@@ -82,7 +84,17 @@ std::string format_action(const Action& a) {
     return out;
 }
 
-} // namespace
+std::string format_header(const Replay& replay) {
+    std::string out = "# buddy-game --replay <file>\nseed " + std::to_string(replay.seed) + "\n";
+    if (replay.vanilla) out += "vanilla\n";
+    if (replay.buddy) out += "buddy " + std::to_string(*replay.buddy) + "\n";
+    for (int p = 0; p < player_count; ++p) {
+        out += "deck " + std::to_string(p) + "\n" + replay.decks[p];
+        if (!replay.decks[p].empty() && replay.decks[p].back() != '\n') out += "\n";
+        out += "end\n";
+    }
+    return out + "actions\n";
+}
 
 Replay parse_replay(std::string_view text) {
     Replay r;
@@ -134,17 +146,19 @@ Replay parse_replay(std::string_view text) {
     return r;
 }
 
-void apply_reveal(GameState& s, const Reveal& r, const CardDb& db, PlayerId buddy) {
+void apply_reveal(GameState& s, const Reveal& r, const CardDb& db, PlayerId buddy, std::vector<ObjId>* group) {
     if (r.kind == Reveal::Kind::Order) {
         if (!set_hand_order(s, r.player, r.ids)) throw std::logic_error("order: not player " + std::to_string(r.player) + "'s hand");
         return;
     }
     const auto found = db.find_code(r.code);
     if (found.card == nullptr) throw std::logic_error("bind " + r.code + ": " + found.error);
-    if (r.obj >= s.objects.size() || !bind(s, r.obj, found.card, buddy)) {
+    const std::span<const ObjId> keep = group ? std::span<const ObjId>(*group) : std::span<const ObjId>{};
+    if (r.obj >= s.objects.size() || !bind(s, r.obj, found.card, buddy, keep)) {
         throw std::logic_error("bind " + std::to_string(r.obj) + " " + r.code + ": no unknown " + found.card->name +
                                " to swap with");
     }
+    if (group) group->push_back(r.obj);
 }
 
 ReplayResult run_replay(const Replay& replay, const CardDb& db,
@@ -157,10 +171,12 @@ ReplayResult run_replay(const Replay& replay, const CardDb& db,
         GameChecks checks(result.state);
         if (auto p = checks.check(result.state); !p.empty()) throw std::logic_error(p);
         std::size_t next = 0;  // reveal
+        std::vector<ObjId> group;  // bound before the same action
         const auto reveal_until = [&](std::size_t before) {
+            group.clear();
             for (; next < replay.reveals.size() && replay.reveals[next].before <= before; ++next) {
                 last = format_reveal(replay.reveals[next]);
-                apply_reveal(result.state, replay.reveals[next], db, replay.buddy.value_or(0));
+                apply_reveal(result.state, replay.reveals[next], db, replay.buddy.value_or(0), &group);
             }
         };
         for (const Action& a : replay.actions) {
@@ -181,15 +197,7 @@ ReplayResult run_replay(const Replay& replay, const CardDb& db,
 }
 
 std::string to_text(const Replay& replay, const CardDb& db) {
-    std::string out = "# buddy-game --replay <file>\nseed " + std::to_string(replay.seed) + "\n";
-    if (replay.vanilla) out += "vanilla\n";
-    if (replay.buddy) out += "buddy " + std::to_string(*replay.buddy) + "\n";
-    for (int p = 0; p < player_count; ++p) {
-        out += "deck " + std::to_string(p) + "\n" + replay.decks[p];
-        if (!replay.decks[p].empty() && replay.decks[p].back() != '\n') out += "\n";
-        out += "end\n";
-    }
-    out += "actions\n";
+    std::string out = format_header(replay);
     std::size_t i = 0, next = 0;  // action, reveal
     const auto reveals_until = [&](std::size_t before) {
         for (; next < replay.reveals.size() && replay.reveals[next].before <= before; ++next) {

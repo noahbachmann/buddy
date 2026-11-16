@@ -66,8 +66,15 @@ public:
     using std::runtime_error::runtime_error;
 };
 
-// Applies one reveal; throws std::logic_error if the code is unknown, the bind or the order impossible.
-void apply_reveal(GameState& s, const Reveal& r, const CardDb& db, PlayerId buddy);
+// Applies one reveal; throws std::logic_error if the code is unknown, the bind or the order impossible. `group`: the
+// objects bound by earlier reveals before the same action (bind()'s `keep`); a bind adds its object.
+void apply_reveal(GameState& s, const Reveal& r, const CardDb& db, PlayerId buddy, std::vector<ObjId>* group = nullptr);
+
+// One line of the actions section: "play 41", "bind 41 OGN-007a", "order 1 12 40". A service appends them as it goes.
+std::string format_action(const Action& a);
+std::string format_reveal(const Reveal& r);
+// The header up to and including "actions": seed, vanilla, buddy, both decklists.
+std::string format_header(const Replay& r);
 
 Replay parse_replay(std::string_view text);  // throws ReplayError
 // Every action annotated with turn, player and describe(), as far as the game replays.

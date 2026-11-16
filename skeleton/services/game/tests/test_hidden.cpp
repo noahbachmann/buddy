@@ -183,6 +183,36 @@ TEST(RiftboundHidden, DevsHandIsInTheirPool) {  // Dev plays real cards: their h
     EXPECT_TRUE(bind(s, s.player(1).main_deck.back(), s.obj(hand[1]).card, 0));
 }
 
+// Two copies dealt in one step are both bound on the state before it, where both still sit in the deck: the second
+// bind must not take the first one's card (keep), else the first object ends up holding some other card.
+TEST(RiftboundHidden, BindKeepsTheGroupsEarlierBinds) {
+    GameState s = new_game(vi(), zed(), {.seed = 4, .vanilla = true});
+    const auto& deck = s.player(0).main_deck;
+    std::map<const Card*, std::vector<ObjId>> by_card;
+    for (const ObjId id : deck) by_card[s.obj(id).card].push_back(id);
+    const auto two = std::find_if(by_card.begin(), by_card.end(), [](const auto& kv) { return kv.second.size() >= 2; });
+    ASSERT_NE(two, by_card.end());
+    const Card* x = two->first;
+    std::vector<ObjId> others;  // deck objects that don't hold x
+    for (const ObjId id : deck) {
+        if (s.obj(id).card != x) others.push_back(id);
+    }
+    ASSERT_GE(others.size(), 3u);
+    const ObjId a = others[0], b = others[1];
+    ASSERT_TRUE(bind(s, a, x, 0));
+    const std::vector<ObjId> keep{a};
+    ASSERT_TRUE(buddy::riftbound::bind(s, b, x, 0, keep));
+    EXPECT_EQ(s.obj(a).card, x);
+    EXPECT_EQ(s.obj(b).card, x);
+    EXPECT_EQ(check_invariants(s), std::vector<std::string>{});
+    // and with every holder of x kept, there's no partner: refused, nothing changes
+    std::vector<ObjId> all{a, b};
+    for (const ObjId id : two->second) all.push_back(id);
+    const GameState before = s;
+    EXPECT_FALSE(buddy::riftbound::bind(s, others[2], x, 0, all));
+    EXPECT_EQ(s, before);
+}
+
 TEST(RiftboundHidden, SetHandOrder) {
     GameState s = new_game(vi(), zed(), {.seed = 4, .vanilla = true});
     auto hand = s.player(0).hand;

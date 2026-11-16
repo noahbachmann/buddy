@@ -6,6 +6,7 @@
 #include <array>
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -520,8 +521,10 @@ void recycle(GameState& s, std::vector<ObjId> ids);
 // as unknown as their deck). Zones, gen and known stay, so views and determinizations stay valid. `obj` must not be
 // public (known to everyone); it may be known to `knower`: a misread hand card is corrected the same way (Buddy's
 // hand object takes the true card from an unknown deck object). Runes swap only with runes. false = no such object
-// (the state is unchanged); already `card` = true.
-bool bind(GameState& s, ObjId obj, const Card* card, PlayerId knower);
+// (the state is unchanged); already `card` = true. `keep`: objects bound before in the same reveal group (one step's
+// reveals, or one replay's lines before the same action) never give their card away: two copies dealt in one step
+// are bound one after the other on the state before the step, where both still sit in the pool.
+bool bind(GameState& s, ObjId obj, const Card* card, PlayerId knower, std::span<const ObjId> keep = {});
 // The table's hand order after a disturbed pile (5.6): `ids` must be a permutation of p's hand. false = it isn't.
 bool set_hand_order(GameState& s, PlayerId p, const std::vector<ObjId>& ids);
 

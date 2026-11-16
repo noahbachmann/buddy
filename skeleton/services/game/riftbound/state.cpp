@@ -302,13 +302,14 @@ void recycle(GameState& s, std::vector<ObjId> ids) {
     }
 }
 
-bool bind(GameState& s, ObjId obj, const Card* card, PlayerId knower) {
+bool bind(GameState& s, ObjId obj, const Card* card, PlayerId knower, std::span<const ObjId> keep) {
     Object& o = s.obj(obj);
     if (o.card == card) return true;
     if (o.known == everyone || card == nullptr) return false;
     if ((o.card->type == CardType::Rune) != (card->type == CardType::Rune)) return false;
     const auto in_pool = [&](const Object& x) {
         if (x.owner != o.owner || x.card != card || x.known & 1u << knower) return false;
+        if (std::find(keep.begin(), keep.end(), static_cast<ObjId>(&x - s.objects.data())) != keep.end()) return false;
         return x.zone == Zone::MainDeck || x.zone == Zone::RuneDeck || (x.zone == Zone::Hand && x.owner != knower);
     };
     for (Object& x : s.objects) {
