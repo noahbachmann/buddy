@@ -179,6 +179,12 @@ void GameHost::table_restarted() {
     absorb();
 }
 
+std::optional<table::Command> GameHost::table_reconnected() const {
+    const table::Command* c = session_ ? session_->inflight() : nullptr;
+    if (!c || (session_->status() == Status::Paused && session_->pause() != Pause::Timeout)) return std::nullopt;
+    return *c;
+}
+
 void GameHost::record(json line) { out_.journal.push_back(line.dump()); }
 
 HostOutputs GameHost::restore(const std::vector<std::string>& journal) {

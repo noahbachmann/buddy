@@ -24,6 +24,8 @@ struct Crashes {
     int every_input = 0;    // the service dies between two inputs
     int every_command = 0;  // the service dies after the table ran a command, before its answer arrived
     int timeout_at = 0;     // this command never reaches the table: the clock pauses, Dev resumes
+    int lost_at = 0;        // the table ran this command, its answer was lost; the table's link comes back
+    bool lost_times_out = false;  // … after the clock paused the game
 };
 
 // The service's loop around a host, take() after every input, the way main.cpp runs it: table commands to an
@@ -112,6 +114,13 @@ struct ServiceGame {
                 }
                 if (c.kind == CommandKind::Setup) sim.configure({c.sim_deck, c.sim_runes, c.legend, c.champion, true});
                 const auto events = table.execute(c);
+                if (commands == crashes.lost_at) {
+                    if (crashes.lost_times_out) input([&] { host->table_timeout(); });
+                    const auto again = host->table_reconnected();
+                    if (!again || *again != c) problems.push_back("reconnect doesn't resend the command in flight");
+                    else for (const auto& e : table.execute(*again)) input([&] { host->on_table(e); });
+                    continue;
+                }
                 if (crashes.every_command > 0 && commands % crashes.every_command == 0) {
                     crash();  // the answer never arrived
                     continue;
@@ -239,6 +248,27 @@ TEST(RiftboundJournal, ARestartedTableIsInTheJournal) {
     EXPECT_EQ(g.host->session()->pause(), Pause::TableRestart);
     EXPECT_TRUE(g.pending.empty());
     EXPECT_FALSE(g.host->command({{"action", "resume"}}).ok);
+}
+
+// The table lost the broker for a while (frozen, broker restarted) and its answer with it: the reconnect resends the
+// command, the table answers the repeat, the game goes on as if nothing happened (no journal line). After a timeout
+// pause the repeat's answer is the late answer: the pause ends by itself.
+TEST(RiftboundJournal, AReconnectedTableIsAskedAgain) {
+    ServiceGame plain({}, {});
+    plain.start("vi", "human", 18);
+    ServiceGame g({}, {.lost_at = 30});
+    g.start("vi", "human", 18);
+    EXPECT_TRUE(g.problems.empty()) << g.problems.front();
+    EXPECT_EQ(g.state, plain.state);
+    EXPECT_EQ(g.journal, plain.journal);
+    EXPECT_EQ(g.table.state(), plain.table.state());
+
+    ServiceGame t({}, {.lost_at = 30, .lost_times_out = true});
+    t.start("vi", "human", 18);
+    EXPECT_TRUE(t.problems.empty()) << t.problems.front();
+    EXPECT_EQ(t.host->session()->status(), Status::Over);
+    EXPECT_EQ(t.host->session()->replay_text(), plain.host->session()->replay_text());
+    EXPECT_EQ(t.table.state(), plain.table.state());
 }
 
 // Seeds use all 64 bits: one ≥ 2^63 (half of the service's random seeds) must come back from the journal.

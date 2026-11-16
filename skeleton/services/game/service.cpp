@@ -220,11 +220,17 @@ int run_service(const riftbound::CardDb& db, const fs::path& decks_dir) {
                         host->on_table(table::parse_event(json::parse(in->payload)));
                         break;
                     case Input::Kind::TableStatus:
+                        // offline → online is only a lost broker link (frozen, broker restarted): resend what's in
+                        // flight. A table that really restarted lost its piles and answers `no_game` (then or at the
+                        // next command) → TableRestart.
                         if (in->payload == "offline") {
                             table_was_offline = true;
                         } else if (in->payload == "online" && table_was_offline) {
                             table_was_offline = false;
-                            host->table_restarted();
+                            if (const auto c = host->table_reconnected()) {
+                                std::cout << "[game] table back, resending seq " << c->seq << std::endl;
+                                mqtt.publish(topic::table_cmd, table::to_json(*c).dump(), 1);
+                            }
                         }
                         break;
                     case Input::Kind::AiAnswer:

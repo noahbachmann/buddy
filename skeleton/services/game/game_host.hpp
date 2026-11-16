@@ -77,6 +77,10 @@ public:
     // The table's answer didn't come in time / the table restarted (Session::table_timeout, table_restarted).
     void table_timeout();
     void table_restarted();
+    // The table's MQTT link came back (status offline → online): the command in flight to send again, unless paused
+    // for another reason. A table that only lost the broker answers the repeat (or runs a lost command); a restarted
+    // one answers `no_game` → TableRestart. Changes nothing: no journal line.
+    std::optional<table::Command> table_reconnected() const;
     HostOutputs take();
 
     // A fresh host replays a game's journal (#52). Returns what is still open, to send again: the payload, the table
