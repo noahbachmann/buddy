@@ -2,6 +2,7 @@
 add_library(messenger_core STATIC
     chat.cpp
     command.cpp
+    fleet.cpp
     store.cpp
     telegram.cpp
     watch.cpp
@@ -20,6 +21,6 @@ target_link_libraries(buddy-messenger PRIVATE
 )
 install(TARGETS buddy-messenger RUNTIME DESTINATION bin COMPONENT messenger)
 
-buddy_add_tests(messenger tests/test_chat.cpp tests/test_command.cpp tests/test_store.cpp tests/test_telegram.cpp
+buddy_add_tests(messenger tests/test_chat.cpp tests/test_command.cpp tests/test_fleet.cpp tests/test_store.cpp tests/test_telegram.cpp
     tests/test_watch.cpp
     LIBS messenger_core)

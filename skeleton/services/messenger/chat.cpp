@@ -11,8 +11,8 @@ namespace {
 
 using json = nlohmann::json;
 
-constexpr const char* kHelp = "I write when something needs you, and ask when I need an answer.\n/status: how I'm doing\n/open: "
-                              "open questions again";
+constexpr const char* kHelp = "I write when something needs you, and ask when I need an answer.\n/status: how I'm doing (asking "
+                              "\"what's the status\" works too)\n/open: open questions again";
 constexpr const char* kClosed = "That question is closed.";
 constexpr std::size_t kMaxKeys = 64;
 constexpr std::size_t kAnswerShown = 300;  // bytes of the answer in the edited question
@@ -44,6 +44,19 @@ std::optional<std::pair<int, int>> two_numbers(std::string_view s) {
 }
 
 } // namespace
+
+bool is_status_question(std::string_view text) {
+    std::string norm;  // lowercase words, apostrophes (also UTF-8 ones, byte-dropped) glue: "what's" → "whats"
+    for (const unsigned char c : text) {
+        if (std::isalnum(c)) norm += static_cast<char>(std::tolower(c));
+        else if (c < 0x80 && c != '\'' && !norm.empty() && norm.back() != ' ') norm += ' ';
+    }
+    while (!norm.empty() && norm.back() == ' ') norm.pop_back();
+    constexpr std::string_view known[] = {"status",          "whats the status",  "what is the status",
+                                          "hows the status", "how is the status", "status please",
+                                          "status pls",      "whats your status", "what is your status"};
+    return std::ranges::find(known, norm) != std::ranges::end(known);
+}
 
 json Event::to_json() const {
     json j{{"event", event}, {"id", id}};
@@ -230,6 +243,8 @@ void Chat::incoming(const Incoming& in, Time now) {
         return;
     }
     if (text.front() == '/') return on_bot_command(text);
+    // asking for status beats answering an open question (buttons and reply-to still answer)
+    if (is_status_question(text)) return on_bot_command("/status");
 
     const auto candidates = answerable();
     if (candidates.empty()) return say("Nothing is waiting for an answer.");

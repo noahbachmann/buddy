@@ -87,6 +87,10 @@ struct ChatConfig {
     std::size_t max_queued = 50;  // notices waiting while Telegram is away; more are dropped
 };
 
+// "What's the status?" typed as plain text: Dev asking for /status without the slash. ASCII case-insensitive,
+// punctuation ignored.
+bool is_status_question(std::string_view text);
+
 class Chat {
 public:
     // status: text for the /status command (the services), from whoever knows

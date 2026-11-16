@@ -7,11 +7,12 @@ the bus. User-facing behaviour, pairing, troubleshooting: `docs/guides/01-setup-
 | File | What |
 |---|---|
 | `command.*` | cmd JSON → `Notify` / `Ask` / `Cancel` (`parse_command` throws, never quotes the payload), `clip()` UTF-8-safe, size limits |
-| `chat.*` | Everything about the conversation, no I/O, clock passed in. In: `command()`, `incoming()` (what Dev did), `tick()`. Out: `outbox()` (`Send` / `Edit` / `AnswerCallback`, front first; main reports `sent(tag, message_id)` / `failed(tag, reason)`), `take_events()`, `take_dirty()` + `dump()` / `load()`. Matches answers (button data `q<n>:<i>`, reply-to, single open question, "which question?" prompt `p<pick>:<n>`), `/status`, `/open`, keyed notices, expiry, dedupe by `last_message_id` |
+| `chat.*` | Everything about the conversation, no I/O, clock passed in. In: `command()`, `incoming()` (what Dev did), `tick()`. Out: `outbox()` (`Send` / `Edit` / `AnswerCallback`, front first; main reports `sent(tag, message_id)` / `failed(tag, reason)`), `take_events()`, `take_dirty()` + `dump()` / `load()`. Matches answers (button data `q<n>:<i>`, reply-to, single open question, "which question?" prompt `p<pick>:<n>`), `/status` (plain "what's the status" too, `is_status_question`), `/open`, keyed notices, expiry, dedupe by `last_message_id` |
+| `fleet.*` | `buddy/system*/state` (D23) + online flags → one short line per host for `/status` (CPU, temp, RAM, disk, throttle flags; offline hosts marked) |
 | `watch.*` | `buddy/+/status` + steady clock → notices with key `watch:<svc>` (offline, back, crash loop); `summary()` for `/status` |
 | `telegram.*` | Bot API on `Http`: `send`, `edit`, `answer_callback`, `set_commands`, `confirm`, `updates_url()` + `parse_updates()` for the long poll; `classify()` (what an `ApiError` means for the message), credentials file, `Update::from()` / `carries_code()` |
 | `store.*` | JSON file: tmp + fsync + rename, mode 600 |
-| `main.cpp` | Poll thread (`CurlHttp::stream` on getUpdates, own connection) → `BlockingQueue` ← MQTT callbacks; main thread feeds `Chat`/`Watch`, delivers the outbox (≤ 1 message/s, backoff 1 → 60 s), saves, publishes events and the retained state. `--pair`, `--notify`, `--ask` |
+| `main.cpp` | Poll thread (`CurlHttp::stream` on getUpdates, own connection) → `BlockingQueue` ← MQTT callbacks; main thread feeds `Chat`/`Watch`/`Fleet`, delivers the outbox (≤ 1 message/s, backoff 1 → 60 s), saves, publishes events and the retained state. `--pair`, `--notify`, `--ask` |
 
 ## How a question travels
 

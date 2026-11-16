@@ -2,7 +2,8 @@
 // with Buddy's bot; answers come back on the bus (D22).
 //
 //   buddy-messenger                    live: buddy/messenger/cmd in, buddy/messenger/event + retained
-//                                      buddy/messenger/state out. Also watches buddy/+/status (watch.hpp).
+//                                      buddy/messenger/state out. Also watches buddy/+/status (watch.hpp) and
+//                                      buddy/system*/state for the /status host lines (fleet.hpp).
 //   buddy-messenger --pair             once: asks for the bot token from @BotFather, waits for Dev to send the bot a
 //                                      code, saves the key file. Then restart the unit.
 //   buddy-messenger --notify "text"    test: sends one notice (no MQTT; fine while the unit runs)
@@ -42,6 +43,7 @@
 #include "buddy/topics.hpp"
 #include "chat.hpp"
 #include "command.hpp"
+#include "fleet.hpp"
 #include "store.hpp"
 #include "telegram.hpp"
 #include "watch.hpp"
@@ -121,7 +123,11 @@ struct Status {
     std::string service;
     bool online;
 };
-using Item = std::variant<Cmd, Polled, Link, Status>;
+struct SysState {  // a host's buddy/system*/state, for the fleet lines in /status
+    std::string service;
+    std::string payload;
+};
+using Item = std::variant<Cmd, Polled, Link, Status, SysState>;
 
 struct Ack {
     void done() {
@@ -211,12 +217,23 @@ int serve(const Config& cfg, const std::optional<Credentials>& creds) {
         if (first == last) return;
         queue.push(Status{topic.substr(first + 1, last - first - 1), payload == "online"});
     });
+    mqtt.subscribe("buddy/+/state", [&](const std::string& topic, const std::string& payload) {
+        const auto first = topic.find('/'), last = topic.rfind('/');
+        if (first == last) return;
+        std::string service = topic.substr(first + 1, last - first - 1);
+        if (service != "system" && !service.starts_with("system-")) return;
+        queue.push(SysState{std::move(service), payload});
+    });
     if (!creds)
         std::cout << "[messenger] not paired yet: create a bot with @BotFather, then run ~/buddy/bin/buddy-messenger --pair"
                   << std::endl;
 
     Watch watch(words(cfg.watch), seconds(cfg.offline_s), Clock::now());
-    Chat chat({.default_ttl = seconds(cfg.ttl_s)}, [&] { return watch.summary(); });
+    Fleet fleet;
+    Chat chat({.default_ttl = seconds(cfg.ttl_s)}, [&] {
+        const std::string hosts = fleet.summary();
+        return hosts.empty() ? watch.summary() : hosts + "\n" + watch.summary();
+    });
     const std::string questions_file = cfg.data_dir + "/questions.json";
     try {
         chat.load(load_json(questions_file), std::chrono::system_clock::now());
@@ -321,6 +338,9 @@ int serve(const Config& cfg, const std::optional<Credentials>& creds) {
                 std::cout << "[messenger] telegram: " << l->state << (l->detail.empty() ? "" : " (" + l->detail + ")") << std::endl;
             } else if (auto* s = std::get_if<Status>(&*item)) {
                 watch.status(s->service, s->online, Clock::now());
+                fleet.status(s->service, s->online);
+            } else if (auto* f = std::get_if<SysState>(&*item)) {
+                fleet.state(f->service, f->payload);
             }
         }
         for (const auto& notice : watch.step(Clock::now())) {

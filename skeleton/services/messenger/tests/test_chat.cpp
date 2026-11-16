@@ -419,6 +419,35 @@ TEST(Chat, FullQueueDropsNotices) {
     EXPECT_EQ(chat.outbox().size(), 3u);
 }
 
+TEST(Chat, StatusQuestionPhrases) {
+    EXPECT_TRUE(is_status_question("status"));
+    EXPECT_TRUE(is_status_question("Status?"));
+    EXPECT_TRUE(is_status_question("What's the status?"));
+    EXPECT_TRUE(is_status_question("what is the status"));
+    EXPECT_TRUE(is_status_question("What’s the status"));  // Telegram's apostrophe
+    EXPECT_TRUE(is_status_question("How's the status?"));
+    EXPECT_FALSE(is_status_question("the status of what"));
+    EXPECT_FALSE(is_status_question("tea"));
+    EXPECT_FALSE(is_status_question("done with the status page"));
+}
+
+TEST(Chat, PlainTextStatusBeatsAnswering) {
+    Chat chat({}, [] { return std::string("🟢 buddy · CPU 3%\nAll 11 services online."); });
+    Phone phone;
+    chat.command(ask("a", "Sure?", {"yes"}), t0);
+    phone.deliver(chat);  // 101
+    chat.take_events();
+
+    chat.incoming(message(1, "What's the status?"), t0);
+    phone.deliver(chat);
+    ASSERT_EQ(phone.sends.size(), 1u);
+    EXPECT_EQ(phone.sends[0].text, "🟢 buddy · CPU 3%\nAll 11 services online.\n1 open question.");
+    EXPECT_EQ(chat.open(), 1u);  // not taken as the answer
+
+    chat.incoming(message(2, "yes"), t0);  // other text still answers
+    EXPECT_EQ(chat.open(), 0u);
+}
+
 TEST(Chat, BotCommands) {
     Chat chat({}, [] { return std::string("All 9 services online."); });
     Phone phone;
