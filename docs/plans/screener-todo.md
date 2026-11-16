@@ -64,7 +64,6 @@ Factory reset first if it still has old data. Then:
 - [x] Settings → System → About phone → tap **Build number** 7× → Developer options unlocked.
 - [x] Developer options: **USB debugging** on, **Allow ADB debugging in charge only mode** on (EMUI hides ADB
       without it), **Stay awake** (while charging) on, **Window / Transition / Animator animation scale** all **off**.
-- [ ] Settings → Battery → (More battery settings) → **Smart charging** on.
 - [ ] Settings → Battery → **App launch** → the app → switch **Manage automatically** off and leave **Auto-launch**,
       **Secondary launch** and **Run in background** on. Why: EMUI kills apps in the background, and then the app's
       message notifications (how the bot notices new messages first) don't arrive.
