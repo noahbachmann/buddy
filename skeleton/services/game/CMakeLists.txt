@@ -32,6 +32,12 @@ add_library(game_core STATIC game_host.cpp public_state.cpp session.cpp sim_dev.
 target_include_directories(game_core PUBLIC .)
 target_link_libraries(game_core PUBLIC riftbound buddy_table_protocol)
 
+# game_sim: session games on an in-process sim table with the checks after every step (#51): the session tests, the
+# soak. Not in game_core: the service talks to the table over MQTT.
+add_library(game_sim STATIC sim_game.cpp)
+target_include_directories(game_sim PUBLIC .)
+target_link_libraries(game_sim PUBLIC game_core table_core)
+
 add_executable(buddy-game main.cpp)
 target_link_libraries(buddy-game PRIVATE game_core riftbound buddy_shared)
 install(TARGETS buddy-game RUNTIME DESTINATION bin COMPONENT game)
@@ -44,5 +50,5 @@ buddy_add_tests(game
     LIBS riftbound LABELS riftbound)
 # Engine moves replayed on table's sim (#42): links table_core for the sim and the soak's stand-in.
 buddy_add_tests(game-table tests/test_table_moves.cpp LIBS game_core table_core LABELS riftbound)
-# Session games (#48, #49): Buddy's side on an in-process Table + Sim, Dev a SimDev.
-buddy_add_tests(game-session tests/test_session.cpp tests/test_public_state.cpp tests/test_game_host.cpp LIBS game_core table_core LABELS riftbound)
+# Session games (#48–#51): Buddy's side on an in-process Table + Sim, Dev a SimDev.
+buddy_add_tests(game-session tests/test_session.cpp tests/test_public_state.cpp tests/test_game_host.cpp LIBS game_sim LABELS riftbound)

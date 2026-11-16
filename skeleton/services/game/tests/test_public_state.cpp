@@ -39,23 +39,11 @@ TEST(RiftboundPublicState, SameForEveryArrangementOfHiddenCards) {
             for (const auto& c : codes) {
                 if (!cat.contains(c)) g.problems.push_back("card " + c + " isn't in the catalogue");
             }
-            const PlayerId b = s.buddy();
-            for (int k = 0; k < 2; ++k) {
-                GameState r = rearranged(s.state(), g.dev_seat(), b, dev_fixed(s), rng);
-                r = rearranged(r, b, g.dev_seat(), {}, rng);
-                const auto kept = s.kept();
-                const auto options = s.status() == Status::DevToAct
-                                         ? game::dev_options(r, {b, kept, &s.named(), &g.cfg.decks[g.dev_seat()]})
-                                         : std::vector<game::DevOption>{};
-                const auto got = game::public_state(s, r, options);
-                if (got != want) {
-                    g.problems.push_back("turn " + std::to_string(s.state().turn) + ", " +
-                                         std::string(game::to_string(s.status())) + ": the payload changed: " +
-                                         nlohmann::json::diff(want, got).dump());
-                    return true;
-                }
-                ++compared;
+            if (auto p = g.leak_problem(rng); !p.empty()) {
+                g.problems.push_back(p);
+                return true;
             }
+            compared += 2;
             return false;
         };
         g.run();
