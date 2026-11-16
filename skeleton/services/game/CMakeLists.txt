@@ -38,7 +38,7 @@ add_library(game_sim STATIC sim_game.cpp sim_terminal.cpp)
 target_include_directories(game_sim PUBLIC .)
 target_link_libraries(game_sim PUBLIC game_core table_core)
 
-add_executable(buddy-game main.cpp)
+add_executable(buddy-game main.cpp service.cpp)
 target_link_libraries(buddy-game PRIVATE game_sim game_core riftbound buddy_shared)
 install(TARGETS buddy-game RUNTIME DESTINATION bin COMPONENT game)
 install(DIRECTORY decks/ DESTINATION share/game/decks COMPONENT game)

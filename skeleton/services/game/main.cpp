@@ -1,6 +1,8 @@
-// game: Riftbound against Dev (Phase 5, D21). So far the card data, decks (5.1), the rules engine (5.2), the decks'
-// cards (5.3) and the AI as it grows (5.4); MQTT follows.
+// game: Riftbound against Dev (Phase 5, D21): card data and decks (5.1), the rules engine (5.2), the decks' cards
+// (5.3), the AI (5.4), Buddy's table moves (5.5), the session with Dev's real cards and the service (5.6).
 //
+//   buddy-game                              the service (#52, service.hpp): buddy/game/cmd in, buddy/game/state out,
+//                                           the table over MQTT, the AI on its own thread, a restart resumes the game
 //   buddy-game --deck <name|file> --check   list a deck card by card, check it against the deck rules
 //   buddy-game --check                      the same for every deck in BUDDY_GAME_DECKS
 //   buddy-game --code <code>…               what a printed code is ("OGN-007a/298", "VEN • R01 • EN")
@@ -32,7 +34,8 @@
 //                                           unrecovered, desyncs, leaks and what real cards cost Dev; a failing game
 //                                           writes sim-replay-<seed>.txt
 //
-// Config (env, see deploy/config/buddy.env.example): BUDDY_GAME_CARDS, BUDDY_GAME_DECKS
+// Config (env, see deploy/config/buddy.env.example): BUDDY_GAME_CARDS, BUDDY_GAME_DECKS; the service also
+// BUDDY_GAME_BUDGET_MS, BUDDY_GAME_THREADS, BUDDY_GAME_TABLE_TIMEOUT_S, BUDDY_GAME_VOICE, BUDDY_GAME_GAMES
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
@@ -48,6 +51,7 @@
 #include <nlohmann/json.hpp>
 
 #include "buddy/config.hpp"
+#include "buddy/lifecycle.hpp"
 #include "riftbound/ai/arena.hpp"
 #include "riftbound/ai/greedy.hpp"
 #include "riftbound/ai/ismcts.hpp"
@@ -56,6 +60,7 @@
 #include "riftbound/engine.hpp"
 #include "riftbound/random_game.hpp"
 #include "riftbound/replay.hpp"
+#include "service.hpp"
 #include "sim.hpp"
 #include "sim_game.hpp"
 #include "sim_terminal.hpp"
@@ -501,7 +506,7 @@ int usage(const char* argv0) {
               << "       --table-workload [greedy|random] [--games N] [--seed S] [--jobs J] [--deck A --deck B]\n"
               << "       --sim [--games N] [--seed S] [--jobs J] [--faults none|stress|…] [--dev greedy|random]\n"
               << "             [--buddy greedy|ismcts] [--iterations N] [--deck A --deck B]\n"
-              << "(the game service itself comes in step 5.6)\n";
+              << "       (no flags: the service)\n";
     return 2;
 }
 
@@ -509,6 +514,18 @@ int usage(const char* argv0) {
 
 int main(int argc, char** argv) {
     const std::vector<std::string> args(argv + 1, argv + argc);
+    if (args.empty()) {
+        install_signal_handlers();
+        try {
+            const std::string home = env_string("HOME", ".");
+            const CardDb db = CardDb::load(env_string("BUDDY_GAME_CARDS", home + "/buddy/data/riftbound/cards.json"));
+            for (const auto& w : db.warnings()) std::cerr << "[game] ⚠ " << w << "\n";
+            return game::run_service(db, env_string("BUDDY_GAME_DECKS", home + "/buddy/share/game/decks"));
+        } catch (const std::exception& e) {
+            std::cerr << "[game] " << e.what() << std::endl;
+            return 1;
+        }
+    }
     std::vector<std::string> deck_args;
     bool check = false, random = false, rules = false, workload = false, greedy = true, sim = false;
     std::string faults = "none", dev = "greedy", buddy = "greedy";
