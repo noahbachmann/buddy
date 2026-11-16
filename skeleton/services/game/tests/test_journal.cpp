@@ -203,6 +203,19 @@ TEST(RiftboundJournal, TimeoutPauseSurvivesARestart) {
     same_game("vi", "human", 13, {}, {.every_input = 31, .timeout_at = 40});
 }
 
+// The journal holds one game: a second game in the same host restores to the same `v`.
+TEST(RiftboundJournal, VCountsPerGame) {
+    ServiceGame g({}, {});
+    g.start("vi", "greedy", 16);
+    ASSERT_EQ(g.host->session()->status(), Status::Over);
+    g.journal.clear();
+    g.start("zed", "greedy", 17);
+    EXPECT_TRUE(g.problems.empty()) << g.problems.front();
+    game::GameHost fresh(db(), host_config());
+    fresh.restore(g.journal);
+    EXPECT_EQ(fresh.state(), g.host->state());
+}
+
 TEST(RiftboundJournal, ARestartedTableIsInTheJournal) {
     ServiceGame g({}, {});
     g.command({{"action", "new"}, {"buddy", "zed"}, {"dev", "greedy"}, {"seed", 14}});

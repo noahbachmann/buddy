@@ -42,7 +42,8 @@ struct HostGame {
             buddy_ai.begin(cfg.buddy, cfg.decks[0], cfg.decks[1]);
         }
         if (o.state) {
-            if (!states.empty() && (*o.state)["v"] != states.back()["v"].get<long>() + 1) problems.push_back("v skipped");
+            const long want = o.new_game || states.empty() ? 1 : states.back()["v"].get<long>() + 1;  // per game
+            if ((*o.state)["v"] != want) problems.push_back("v skipped");
             states.push_back(*o.state);
         }
         voice.insert(voice.end(), o.voice.begin(), o.voice.end());

@@ -123,6 +123,7 @@ Reply GameHost::start(const json& cmd) {
     sc.seed = seed;
     out_ = {};  // the old game's unsent outputs are moot
     out_.new_game = true;
+    v_ = 0;  // per game: a restored host replays only this game's journal (#52)
     session_ = std::make_unique<Session>(db_, sc);
     bot_.reset();
     if (dev != "human") {

@@ -84,7 +84,8 @@ public:
     // doesn't parse or doesn't fit (the game went differently: another build, a damaged file); the host is then moot.
     HostOutputs restore(const std::vector<std::string>& journal);
 
-    // The payload as last taken: {v, status, …, catalogue}; before any game {v, status: "idle"}.
+    // The payload as last taken: {v, status, …, catalogue}; before any game {v, status: "idle"}. `v` counts per game:
+    // the first payload of a game is v 1.
     const nlohmann::json& state() const { return state_; }
     std::int64_t v() const { return v_; }
     const Session* session() const { return session_.get(); }
