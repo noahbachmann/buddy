@@ -131,6 +131,22 @@ struct Game {
 
     PlayerId dev() const { return 1 - session->buddy(); }
 
+    // The scripted Dev's action on the placeholders as one of Dev's options: a hidden hand card by its card.
+    game::DevOption option_for(const Action& a) const {
+        const GameState& s = session->state();
+        const auto& opts = session->dev_options();
+        const bool hidden = a.obj != no_obj && a.obj < s.objects.size() && s.obj(a.obj).zone == Zone::Hand &&
+                            s.obj(a.obj).owner == dev() && !(s.obj(a.obj).known & 1u << session->buddy());
+        for (const auto& o : opts) {
+            if (!hidden && o.action == a && (!o.card || !o.named)) return o;
+            if (hidden && o.action.kind == a.kind && o.action.n == a.n &&
+                (s.decision.kind == DecisionKind::Mulligan ? o.card == nullptr : o.named && o.card == s.obj(a.obj).card)) {
+                return o;
+            }
+        }
+        throw std::logic_error("scripted Dev: " + describe(s, a) + " isn't among Dev's options");
+    }
+
     void execute(const table::Command& c) {
         if (c.kind == CommandKind::Setup) {
             table::SimSetup s{c.sim_deck, c.sim_runes, c.legend, c.champion, true};
@@ -171,7 +187,14 @@ struct Game {
                 case Status::DevToAct: {
                     const auto& s = session->state();
                     const auto actions = legal_actions(s);
-                    session->on_dev(actions.size() == 1 ? actions[0] : dev_ai.choose(view(s, dev()), actions));
+                    const Action a = actions.size() == 1 ? actions[0] : dev_ai.choose(view(s, dev()), actions);
+                    session->on_dev(option_for(a));
+                    break;
+                }
+                case Status::DevToReveal: {  // the placeholders are the truth
+                    std::vector<const Card*> cards;
+                    for (const ObjId id : session->prompt()->objs) cards.push_back(session->state().obj(id).card);
+                    session->on_reveal(cards);
                     break;
                 }
                 case Status::Paused:
@@ -425,7 +448,7 @@ TEST(RiftboundSession, UnreadableTwicePausesUntilResume) {
     EXPECT_TRUE(has_voice(g, "can't read"));
     steps_at_pause = g.session->stats().steps;
     const GameState before = g.session->state();
-    EXPECT_THROW(g.session->on_dev({}), std::logic_error);
+    EXPECT_THROW(g.session->on_dev(game::DevOption{}), std::logic_error);
     g.resumes_left = 1;
     g.run();
     EXPECT_EQ(g.session->status(), Status::Over);
@@ -554,10 +577,83 @@ TEST(RiftboundSession, DevActionsAreChecked) {
     g.run();
     ASSERT_EQ(g.session->status(), Status::DevToAct);
     const GameState before = g.session->state();
-    EXPECT_THROW(g.session->on_dev({.kind = ActionKind::Play, .obj = 9999}), IllegalAction);
+    EXPECT_THROW(g.session->on_dev({.action = {.kind = ActionKind::Play, .obj = 9999}}), game::Refused);
     EXPECT_TRUE(g.session->state() == before);
     EXPECT_EQ(g.session->take().table.size(), 0u);
     g.session->concede(0);
     EXPECT_EQ(g.session->status(), Status::Over);
     EXPECT_EQ(g.session->state().winner, std::optional<PlayerId>(1));
+}
+
+// #49: Dev names their battlefield first (before both mulligans); impossible answers are refused and change nothing.
+TEST(RiftboundSession, DevNamesTheBattlefieldFirst) {
+    Game g("vi-unleashed", "zed-vendetta", 0, 390);
+    g.stop_when = [&] { return g.session->status() == Status::DevToReveal; };
+    g.run();
+    ASSERT_EQ(g.session->status(), Status::DevToReveal);
+    const game::DevPrompt p = *g.session->prompt();
+    ASSERT_EQ(p.kind, game::DevPrompt::Kind::Battlefield);
+    ASSERT_EQ(p.objs.size(), 1u);
+    EXPECT_EQ(g.session->state().decision.kind, DecisionKind::Mulligan);
+    EXPECT_EQ(g.session->stats().steps, 0);
+    const GameState& s = g.session->state();
+    const ObjId field = p.objs[0];
+    const Card* other = nullptr;  // one of Dev's battlefields the engine didn't pick
+    for (const Object& o : s.objects) {
+        if (o.owner == g.dev() && o.zone == Zone::Removed && o.card->type == CardType::Battlefield) other = o.card;
+    }
+    ASSERT_NE(other, nullptr);
+    const GameState before = s;
+    const std::string replay = g.session->replay_text();
+    const Card* buddys = s.obj(s.battlefields[0].card).card;
+    const Card* rune = s.obj(s.player(g.dev()).rune_deck.back()).card;
+    for (const auto& wrong : std::vector<std::vector<const Card*>>{{}, {other, other}, {buddys}, {rune}}) {
+        EXPECT_THROW(g.session->on_reveal(wrong), game::Refused);
+        EXPECT_TRUE(g.session->state() == before);
+        EXPECT_EQ(g.session->replay_text(), replay);
+        EXPECT_EQ(g.session->status(), Status::DevToReveal);
+    }
+    EXPECT_EQ(g.session->stats().refusals, 4);
+    g.session->on_reveal({other});
+    EXPECT_EQ(g.session->state().obj(field).card, other);
+    EXPECT_NE(g.session->replay_text().find("bind " + std::to_string(field) + " " + other->home().code.str()),
+              std::string::npos);
+    g.stop_when = nullptr;
+    g.run();
+    EXPECT_EQ(g.session->status(), Status::Over) << g.session->pause_message();
+    EXPECT_TRUE(g.problems.empty()) << g.problems.front();
+    EXPECT_EQ(g.replay_problem(), "");
+}
+
+// #49: channelled runes and burned cards are prompts; a card Dev can't have left or the wrong kind is refused.
+TEST(RiftboundSession, DevPromptsRefuseImpossibleCards) {
+    Game g("zed-vendetta", "vi-unleashed", 1, 391);
+    std::map<game::DevPrompt::Kind, int> seen;
+    bool tried_runes = false;
+    g.stop_when = [&] {
+        if (g.session->status() != Status::DevToReveal) return false;
+        const auto& p = *g.session->prompt();
+        ++seen[p.kind];
+        if (p.kind != game::DevPrompt::Kind::Runes || tried_runes) return false;
+        tried_runes = true;
+        return true;
+    };
+    g.run();
+    ASSERT_EQ(g.session->status(), Status::DevToReveal);
+    const GameState before = g.session->state();
+    const game::DevPrompt p = *g.session->prompt();
+    for (const ObjId id : p.objs) {
+        EXPECT_EQ(before.obj(id).zone, Zone::RuneDeck);
+        EXPECT_FALSE(before.obj(id).known & 1u << g.session->buddy());
+    }
+    const Card* legend = before.obj(before.player(g.dev()).legend.front()).card;
+    std::vector<const Card*> wrong(p.objs.size(), legend);
+    EXPECT_THROW(g.session->on_reveal(wrong), game::Refused);
+    EXPECT_TRUE(g.session->state() == before);
+    g.stop_when = nullptr;
+    g.run();
+    EXPECT_EQ(g.session->status(), Status::Over) << g.session->pause_message();
+    EXPECT_TRUE(g.problems.empty()) << g.problems.front();
+    EXPECT_EQ(g.replay_problem(), "");
+    EXPECT_GT(g.session->stats().prompts, 3);
 }

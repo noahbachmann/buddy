@@ -9,8 +9,13 @@
 
 namespace buddy::game {
 
+using riftbound::ActionKind;
+using riftbound::Card;
+using riftbound::CardType;
+using riftbound::DecisionKind;
 using riftbound::GameState;
 using riftbound::no_obj;
+using riftbound::Zone;
 using table::CommandKind;
 using table::EventKind;
 using table::FailReason;
@@ -20,6 +25,7 @@ std::string_view to_string(Status s) {
     switch (s) {
         case Status::Setup: return "setup";
         case Status::DevToAct: return "dev_to_act";
+        case Status::DevToReveal: return "dev_to_reveal";
         case Status::BuddyThinking: return "thinking";
         case Status::Acting: return "acting";
         case Status::Paused: return "paused";
@@ -38,6 +44,25 @@ std::string_view to_string(Pause p) {
         case Pause::Desync: return "desync";
     }
     return "?";
+}
+
+std::string_view to_string(DevPrompt::Kind k) {
+    switch (k) {
+        case DevPrompt::Kind::Battlefield: return "battlefield";
+        case DevPrompt::Kind::Hand: return "hand";
+        case DevPrompt::Kind::Deck: return "deck";
+        case DevPrompt::Kind::Runes: return "runes";
+    }
+    return "?";
+}
+
+std::string describe(const GameState& s, const DevOption& o) {
+    if (!o.card || !o.named) return riftbound::describe(s, o.action);
+    switch (o.action.kind) {
+        case ActionKind::Play: return "play " + o.card->name;
+        case ActionKind::Pick: return "choose " + o.card->name;
+        default: return riftbound::describe(s, o.action) + " (" + o.card->name + ")";
+    }
 }
 
 namespace {
@@ -148,7 +173,12 @@ void Session::start() {
     setup_ = table_setup(s_, log, cfg_.buddy);
     opening_.emplace();
     opening_->moves = moves_;
-    opening_->list = split(opening_->moves.step(s_, log));
+    for (const auto& bf : s_.battlefields) {  // Dev's battlefield first: before both mulligans (113)
+        if (s_.obj(bf.card).owner != cfg_.buddy) {
+            opening_->list.push_back({{}, DevPrompt{DevPrompt::Kind::Battlefield, {bf.card}}});
+        }
+    }
+    for (TableMove& m : split(opening_->moves.step(s_, log))) opening_->list.push_back({std::move(m), std::nullopt});
     opening_->next = s_;  // unused: the opening's binds go on s_ directly
 
     std::istringstream header(riftbound::format_header(replay_));
@@ -185,13 +215,69 @@ void Session::on_table(const table::Event& e) {
     pump();
 }
 
-void Session::on_dev(const Action& a) {
+void Session::on_dev(const DevOption& o) {
     if (status_ != Status::DevToAct) throw std::logic_error("session: not Dev's decision");
-    const auto actions = riftbound::legal_actions(s_);
-    if (std::find(actions.begin(), actions.end(), a) == actions.end()) {
-        throw riftbound::IllegalAction("session: " + riftbound::format_action(a) + " isn't legal now");
+    if (std::find(dev_options_.begin(), dev_options_.end(), o) == dev_options_.end()) {
+        ++stats_.refusals;
+        throw Refused("not one of your options: " + riftbound::format_action(o.action));
     }
-    begin_step(a, false);
+    ++stats_.dev_decisions;
+    take_dev(o);
+    pump();
+}
+
+const DevPrompt* Session::prompt() const {
+    if (status_ != Status::DevToReveal || !step_ || step_->done >= step_->list.size()) return nullptr;
+    const auto& p = step_->list[step_->done].prompt;
+    return p ? &*p : nullptr;
+}
+
+void Session::on_reveal(const std::vector<const Card*>& cards) {
+    const DevPrompt* p = prompt();
+    if (p == nullptr) throw std::logic_error("session: nothing to name");
+    const auto refuse = [&](const std::string& why) {
+        ++stats_.refusals;
+        throw Refused(why);
+    };
+    if (cards.size() != p->objs.size()) {
+        refuse("expected " + std::to_string(p->objs.size()) + " card(s), got " + std::to_string(cards.size()));
+    }
+    GameState s = s_;
+    riftbound::BindMemory bound = bound_;
+    bool changed = false;
+    for (std::size_t i = 0; i < cards.size(); ++i) {
+        const Card* c = cards[i];
+        if (c == nullptr) refuse("no card given");
+        const bool rune = c->type == CardType::Rune, field = c->type == CardType::Battlefield;
+        if (rune != (p->kind == DevPrompt::Kind::Runes) || field != (p->kind == DevPrompt::Kind::Battlefield)) {
+            refuse(c->name + " can't come from your " + std::string(to_string(p->kind)));
+        }
+        const ObjId obj = p->objs[i];
+        changed = changed || s.obj(obj).card != c;
+        if (!riftbound::bind(s, obj, c, cfg_.buddy, bound.keep(s, cfg_.buddy))) {
+            refuse(field ? c->name + " isn't one of your battlefields"
+                         : "you have no " + c->name + " left that I haven't seen");
+        }
+        bound.add(s, obj);
+    }
+    Step& st = *step_;
+    if (st.action && changed) {
+        Step trial;
+        trial.action = st.action;
+        if (const auto why = compute(s, st.done + 1, trial); !why.empty()) {
+            refuse("that can't be: " + why);
+        }
+        st.next = std::move(trial.next);
+        st.moves = std::move(trial.moves);
+        st.list = std::move(trial.list);
+        ++stats_.reapplies;
+    }
+    s_ = std::move(s);
+    bound_ = std::move(bound);
+    for (std::size_t i = 0; i < cards.size(); ++i) bind_line(p->objs[i], cards[i], true);
+    ++stats_.prompts;
+    ++st.done;
+    status_ = Status::Acting;
     pump();
 }
 
@@ -249,7 +335,8 @@ void Session::pump() {
                 if (!recompute()) return;
             }
             if (step_->done < step_->list.size()) {
-                send_step_command();
+                if (step_->list[step_->done].prompt) status_ = Status::DevToReveal;
+                else send_step_command();
                 return;
             }
             commit();
@@ -266,6 +353,12 @@ bool Session::advance() {
         return false;
     }
     if (s_.decision.player != cfg_.buddy) {
+        dev_options_ = options();
+        if (dev_options_.size() == 1) {  // no card in Dev's hand could change it
+            ++stats_.dev_forced;
+            take_dev(dev_options_[0]);
+            return true;
+        }
         status_ = Status::DevToAct;
         return false;
     }
@@ -290,32 +383,97 @@ void Session::begin_step(const Action& a, bool chosen) {
 
 bool Session::recompute() {
     Step& st = *step_;
-    GameState next = s_;
-    std::vector<TableMove> list;
-    TableMoves moves = moves_;
+    Step fresh;
+    fresh.action = st.action;
+    if (const auto why = compute(s_, st.done, fresh); !why.empty()) {
+        do_pause(Pause::Desync, why);
+        return false;
+    }
+    st.next = std::move(fresh.next);
+    st.moves = std::move(fresh.moves);
+    st.list = std::move(fresh.list);
+    return true;
+}
+
+std::string Session::compute(const GameState& base, std::size_t through, Step& out) const {
+    const Step& st = *step_;
+    out.next = base;
+    out.moves = moves_;
     try {
         std::vector<riftbound::LoggedMove> log;
         {
             MoveRecorder rec;
-            riftbound::apply(next, *st.action);
+            riftbound::apply(out.next, *out.action);
             log = rec.take();
         }
-        list = split(moves.step(next, log));
+        auto list = split(out.moves.step(out.next, log));
+        if (on_moves) on_moves(list);
+        out.list = items(base, out.next, log, std::move(list));
     } catch (const std::exception& e) {
-        do_pause(Pause::Desync, std::string("re-applying ") + riftbound::format_action(*st.action) + ": " + e.what());
-        return false;
+        return std::string("re-applying ") + riftbound::format_action(*out.action) + ": " + e.what();
     }
-    if (on_moves) on_moves(list);
-    for (std::size_t i = 0; i < st.done; ++i) {
-        if (i < list.size() && same(list[i], st.list[i])) continue;
-        do_pause(Pause::Desync, "command " + std::to_string(i + 1) + " was " + describe_move(st.list[i]) + ", now " +
-                                    (i < list.size() ? describe_move(list[i]) : "nothing"));
-        return false;
+    const auto describe_item = [](const Item& it) {
+        if (!it.prompt) return describe_move(it.move);
+        std::string d = "prompt " + std::string(to_string(it.prompt->kind));
+        for (const ObjId id : it.prompt->objs) d += " " + std::to_string(id);
+        return d;
+    };
+    for (std::size_t i = 0; i < through && i < st.list.size(); ++i) {
+        const Item* now = i < out.list.size() ? &out.list[i] : nullptr;
+        const Item& was = st.list[i];
+        if (now && now->prompt.has_value() == was.prompt.has_value() &&
+            (was.prompt ? *now->prompt == *was.prompt : same(now->move, was.move))) {
+            continue;
+        }
+        return "command " + std::to_string(i + 1) + " was " + describe_item(was) + ", now " +
+               (now ? describe_item(*now) : "nothing");
     }
-    st.next = std::move(next);
-    st.moves = std::move(moves);
-    st.list = std::move(list);
-    return true;
+    return {};
+}
+
+// Buddy's commands and Dev's prompts in log order. A prompt: an object of Dev's that Buddy didn't know before the
+// step and knows after it, unless Dev named it; its place in the log is where it first lands in public (else its
+// first move). Prompts in a row from the same place are one prompt (two burned cards, the channelled runes).
+std::vector<Session::Item> Session::items(const GameState& base, const GameState& next,
+                                          const std::vector<riftbound::LoggedMove>& log,
+                                          std::vector<TableMove> moves) const {
+    const auto bit = static_cast<std::uint8_t>(1u << cfg_.buddy);
+    std::vector<std::pair<std::size_t, ObjId>> found;  // log index, obj
+    std::set<ObjId> seen;
+    for (std::size_t k = 0; k < log.size(); ++k) {
+        const ObjId id = log[k].id;
+        if (id >= base.objects.size() || !seen.insert(id).second) continue;  // created this step: a token
+        const auto& was = base.obj(id);
+        if (was.owner == cfg_.buddy || was.known & bit || !(next.obj(id).known & bit) || named_.contains(id)) continue;
+        std::size_t at = k;
+        for (std::size_t j = k; j < log.size(); ++j) {
+            if (log[j].id == id && riftbound::is_public(log[j].to)) {
+                at = j;
+                break;
+            }
+        }
+        found.emplace_back(at, id);
+    }
+    std::stable_sort(found.begin(), found.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+    std::vector<Item> out;
+    std::size_t f = 0;
+    const auto add_prompt = [&](ObjId id) {
+        const Zone z = base.obj(id).zone;
+        const auto kind = z == Zone::Hand       ? DevPrompt::Kind::Hand
+                          : z == Zone::RuneDeck ? DevPrompt::Kind::Runes
+                                                : DevPrompt::Kind::Deck;
+        if (!out.empty() && out.back().prompt && out.back().prompt->kind == kind) {
+            out.back().prompt->objs.push_back(id);
+        } else {
+            out.push_back({{}, DevPrompt{kind, {id}}});
+        }
+    };
+    for (TableMove& m : moves) {
+        for (; f < found.size() && found[f].first < m.at; ++f) add_prompt(found[f].second);
+        out.push_back({std::move(m), std::nullopt});
+    }
+    for (; f < found.size(); ++f) add_prompt(found[f].second);
+    return out;
 }
 
 void Session::send(table::Command c, Kind kind, int attempt) {
@@ -326,7 +484,7 @@ void Session::send(table::Command c, Kind kind, int attempt) {
 }
 
 void Session::send_step_command() {
-    const TableMove& m = step_->list[step_->done];
+    const TableMove& m = step_->list[step_->done].move;
     table::Command c = m.cmd;
     const auto id = [&](ObjId obj) {
         const int t = table_id(obj);
@@ -380,7 +538,7 @@ void Session::done(const Inflight& f, const table::Event& e) {
     }
 
     attempt_ = 0;
-    const TableMove m = step_->list[step_->done];
+    const TableMove m = step_->list[step_->done].move;
     const auto& c = m.cmd;
     switch (c.kind) {
         case CommandKind::Deal:
@@ -483,14 +641,8 @@ void Session::reveal(ObjId obj, const std::string& code) {
         do_pause(Pause::Desync, "no unknown " + found.card->name + " left for object " + std::to_string(obj));
         return;
     }
-    ++stats_.binds;
     bound_.add(s_, obj);
-    riftbound::Reveal r;
-    r.before = replay_.actions.size();
-    r.obj = obj;
-    r.code = code;
-    replay_.reveals.push_back(r);
-    emit_replay(riftbound::format_reveal(r));
+    bind_line(obj, found.card, true);
     if (changed && step_ && step_->action) step_->stale = true;
 }
 
@@ -499,6 +651,7 @@ void Session::commit() {
     step_.reset();
     if (st.action) {
         s_ = std::move(st.next);
+        std::erase_if(named_, [&](ObjId id) { return s_.obj(id).known & 1u << cfg_.buddy; });
         replay_.actions.push_back(*st.action);
         emit_replay(riftbound::format_action(*st.action));
         re_decides_ = 0;
@@ -506,6 +659,109 @@ void Session::commit() {
     moves_ = std::move(st.moves);
     ++stats_.steps;
     reconcile_hand();
+}
+
+void Session::bind_line(ObjId obj, const Card* card, bool kept) {
+    ++stats_.binds;
+    riftbound::Reveal r;
+    r.kind = kept ? riftbound::Reveal::Kind::Bind : riftbound::Reveal::Kind::Assume;
+    r.before = replay_.actions.size();
+    r.obj = obj;
+    r.code = card->home().code.str();
+    replay_.reveals.push_back(r);
+    emit_replay(riftbound::format_reveal(r));
+}
+
+bool Session::dev_hidden(ObjId obj) const {
+    if (obj == no_obj || obj >= s_.objects.size()) return false;
+    const auto& o = s_.obj(obj);
+    return o.owner != cfg_.buddy && o.zone == Zone::Hand && !(o.known & 1u << cfg_.buddy) && !named_.contains(obj);
+}
+
+// Dev's options on the placeholders: actions on cards Buddy knows as they are; Dev's hidden hand cards stand for
+// any card Dev could hold (the decklist minus what Buddy has seen): one option per such card, checked on a copy
+// where the session's pick of the hidden hand (`h`) holds it. Mulligan: by count (which cards go back stays
+// secret). Priority: an action that only some card in Dev's hand allows (Mel's "discard a spell") comes in unnamed.
+std::vector<DevOption> Session::options() const {
+    const auto base = riftbound::legal_actions(s_);
+    const auto& d = s_.decision;
+    const PlayerId dev = d.player;
+    const auto bit = static_cast<std::uint8_t>(1u << cfg_.buddy);
+    std::vector<DevOption> out;
+    ObjId h = no_obj;
+    for (const Action& a : base) {
+        if (!dev_hidden(a.obj)) {
+            out.push_back({a});
+        } else if (h == no_obj) {
+            h = a.obj;  // the first hidden one offered: picks go in option order
+            if (d.kind == DecisionKind::Mulligan) out.push_back({a});
+        }
+    }
+    if (d.kind == DecisionKind::Mulligan) return out;
+    if (d.kind == DecisionKind::Priority) {
+        h = no_obj;
+        for (const ObjId id : s_.player(dev).hand) {
+            if (dev_hidden(id)) {
+                h = id;
+                break;
+            }
+        }
+    }
+    if (h == no_obj) return out;
+
+    const auto keep = bound_.keep(s_, cfg_.buddy);
+    std::vector<const Card*> candidates;  // bind()'s pool for h, in object order
+    for (ObjId id = 0; id < s_.objects.size(); ++id) {
+        const auto& o = s_.obj(id);
+        if (o.owner != dev || o.known & bit || o.card->type == CardType::Rune) continue;
+        if (o.zone != Zone::MainDeck && o.zone != Zone::Hand) continue;
+        if (std::find(keep.begin(), keep.end(), id) != keep.end()) continue;
+        if (std::find(candidates.begin(), candidates.end(), o.card) == candidates.end()) candidates.push_back(o.card);
+    }
+    bool spells_only = false;  // a "discard a spell" cost: its options were filtered on the placeholders
+    if (d.kind == DecisionKind::Choose && d.purpose == riftbound::Purpose::Discard) {
+        for (const auto& item : s_.chain) {
+            if (item.finalized) continue;
+            spells_only = item.cost.discard_spell;
+            break;
+        }
+    }
+    std::vector<DevOption> unnamed;
+    for (const Card* c : candidates) {
+        if (spells_only && c->type != CardType::Spell) continue;
+        GameState copy = s_;
+        if (!riftbound::bind(copy, h, c, cfg_.buddy, keep)) continue;
+        if (d.kind != DecisionKind::Priority) {  // a Choose: its options are fixed, h is one of them
+            out.push_back({{ActionKind::Pick, h}, h, c, true});
+            continue;
+        }
+        for (const Action& a : riftbound::legal_actions(copy)) {
+            if (a.obj == h && a.kind == ActionKind::Play) {
+                out.push_back({a, h, c, true});
+            } else if (!dev_hidden(a.obj) && std::find(base.begin(), base.end(), a) == base.end() &&
+                       std::none_of(unnamed.begin(), unnamed.end(), [&](const DevOption& u) { return u.action == a; })) {
+                unnamed.push_back({a, h, c, false});
+            }
+        }
+    }
+    out.insert(out.end(), unnamed.begin(), unnamed.end());
+    return out;
+}
+
+void Session::take_dev(const DevOption& o) {
+    if (o.card) {
+        if (!riftbound::bind(s_, o.obj, o.card, cfg_.buddy, bound_.keep(s_, cfg_.buddy))) {
+            throw std::logic_error("session: Dev's option " + o.card->name + " no longer binds");  // options() checked it
+        }
+        if (o.named) {
+            bound_.add(s_, o.obj);
+            named_.insert(o.obj);
+            ++stats_.dev_named;
+        }
+        bind_line(o.obj, o.card, o.named);
+    }
+    dev_options_.clear();
+    begin_step(o.action, false);
 }
 
 // The engine's hand order = the table's (a disturbed pile, found by a recovery).
