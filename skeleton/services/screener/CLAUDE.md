@@ -63,25 +63,37 @@ code path taps send like, skip or a chat send.
 used on), then into the label. `--cmd type <id>` types it into that section's panel and reads it back; Dev taps send
 (or `--cmd back-out`). Only the newest row's capture stays in tmpfs. `--cmd report` = the gate.
 
-### Claude's procedure during a shadow session (agreed with Dev, 2026-11-17)
+### Claude's procedure for the shadow sessions (agreed with Dev, 2026-11-17)
 
-Dev taps on the phone and comments on each decision in chat (why like / skip). Per profile:
+Two kinds of session: first **tune** the preferences, then **measure** them frozen. A session runs until the day's
+likes are used up. Dev taps on the phone and comments on decisions in chat (why like / skip).
+
+Every profile, both kinds:
 
 1. `--cmd shadow`, show Dev the bot's decision, reason, section + comment.
-2. Dev decides and comments. Label it: `--note` = Dev's reason (condensed, no names); `--wrong` if the bot missed;
-   `--dealbreaker` if Dev calls it a hard no. Dev's own comment → a line in `templates.md` *Like comments* first
-   (id, de|en, fit hint from the section, text verbatim), `--cmd templates` to check, then label with that id.
+2. Dev decides and comments. Label it: `--note` = Dev's reason (condensed, no names); `--dealbreaker` if Dev calls
+   it a hard no; `--wrong` if the bot's comment reads wrong on its section. Dev's own comment → a line in
+   `templates.md` *Like comments* first (id, de|en, fit hint from the section, text verbatim), `--cmd templates` to
+   check, then label with that id. The library grows live in both kinds.
 3. Compare Dev's reason with the bot's reason and `preferences.md`. Sort the gap:
    - preferences silent on it → add;
    - preferences say something else → reword;
-   - preferences already say it and the bot ignored it → a prompt/code issue (`decide.py`): note it for the issue,
+   - preferences already say it and the bot ignored it → a prompt/code issue (`decide.py`): note it for #66,
      don't patch preferences to compensate.
-4. Change `preferences.md` only for reasons that generalize (a pattern, or Dev states it as a rule). A one-off stays
-   a note; unsure → ask Dev. Never a specific person's details in the preferences.
-5. Every change: copy the old file to `config/screener/history/preferences-<UTC stamp>.md`, edit, show Dev the
-   `diff -u` in chat. The next profile loads the new file (read per decision).
+   Change preferences only for reasons that generalize (a pattern, or Dev states it as a rule). A one-off stays a
+   note; unsure → ask Dev. Never a specific person's details in the preferences.
 
-At the end: summarise the changes and open prompt/code issues in #66 (neutral wording).
+**Session 1, tune:** apply step 3's changes at once. Every change: copy the old file to
+`config/screener/history/preferences-<UTC stamp>.md`, edit, show Dev the `diff -u` in chat (the next profile reads
+the new file). No `report`: its numbers mix preference versions. End: summary of the changes, prompt/code issues
+into #66 (neutral wording).
+
+**Session 2, measure:** `preferences.md` frozen. Note the first shadow row id. Step 3's proposals go into
+`data/screener/session-2.md` (host only), not into the preferences. Continue on the next days with the same frozen
+file until ≥ 50 profiles (`GATE_PROFILES`). End: `report` on this session's rows only (needs a `--since <row id>` filter: not built yet, add before
+session 2), evaluate, then show Dev the
+proposed preference changes as a diff. Dev decides: good enough → automate (step 3), or another measure session
+with the changes applied.
 
 ## Tests (`tests/`)
 
