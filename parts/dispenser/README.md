@@ -349,7 +349,7 @@ parts (for reprints, e.g. only the left gate). `parts/cad plate dispenser` rebui
 |---|---|---|---|
 | `0-fit-test.stl` | fit test, 2 test pins: **print first** ("Printed joints") | PETG | 0.20 mm, 4 walls, 10 %, no supports |
 | `1-petg-fine.stl` | drive drum, idler drum, motor gear, left gate, pusher nut, lift nut, 2 couplings, 4 border pins | PETG | 0.12 mm, 4 walls, 15 %, no supports, **brim: outer only** (the drums stand 107 mm on Ø15–18) |
-| `1b-reprint.stl` | thread test, motor gear, pusher nut, lift nut, 2 couplings: the parts changed on 2026-11-16/17 ("Thread test") | PETG | 0.12 mm, 4 walls, 15 %, no supports |
+| `1b-reprint.stl` | thread test, motor gear, pusher nut, lift nut, 2 couplings: the parts changed on 2026-11-16/17 ("Thread test") | PETG | 0.12 mm, 4 walls, 15 %, no supports, **brim: outer only** (the lift nut) |
 | `2-petg.stl` | roller frame, front plate, border H, border B: **after the fit test** | PETG | 0.20 mm, 4 walls, 15 %, no supports |
 | `3-pla.stl` | pusher, lift: **after the fit test** | PLA | 0.20 mm, 4 walls, 15 %, **supports on: tree (auto), on build plate only** |
 | `stl/case.stl` | case (a plate of its own) | PETG | 0.20 mm, 4 walls, 15 %, no supports, textured PEI |
@@ -360,8 +360,10 @@ Why these settings:
 - **Plate 1 at 0.12 mm:** fits and teeth (bearing seats, gear mesh, the nut's thread, the left gate's gap step). The
   nut needs 0.12 most: the 1.3 mm under its thread root is all perimeters. One layer height for the whole plate (a
   plate prints as one object); the drums only cost time at 0.12, not accuracy.
-- **Brim on plate 1:** the file is one object, so Bambu's "auto" brim judges the whole plate and leaves the drums
-  without one. Outer brim, 5 mm, Bambu's 0.1 mm gap: it peels off the gear teeth.
+- **Brim on plates 1 and 1b:** the file is one object, so Bambu's "auto" brim judges the whole plate and leaves the drums
+  and the lift nut without one. The lift nut stands on its Ø11 body (~30 mm², 16 mm² in the first layer: the thread's
+  lead-in) with the Ø22 flange 15 mm up: without a brim it came loose on 1b (2026-11-17, spaghetti). Outer brim, 5 mm,
+  Bambu's 0.1 mm gap: it peels off the gear teeth.
 - **4 walls everywhere:** every wall is ≤ 3 mm, so 3 or 4 walls both print it solid; one value for all plates.
 - **No supports:** horizontal holes are teardrops, the drum grooves are teardrop-shaped and the lower bearing seat
   ends in a 45° cone. The pusher's U is a bridge.

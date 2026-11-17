@@ -100,6 +100,7 @@ Round holes, PETG at 0.20 mm (fit test, log #3), gap per side:
 | Problem | Fix |
 |---|---|
 | Doesn't stick | Wash plate, check plate setting |
+| Spaghetti mid-print | A part came loose: small footprint under a wide or tall top → brim (outer). On a one-object plate set it by hand: "auto" judges the whole plate |
 | Strings | Dry the filament |
 | PETG ripped the plate | Glue on smooth PEI |
 | Too tight | Contour compensation, then fix the CAD |
@@ -114,3 +115,4 @@ Round holes, PETG at 0.20 mm (fit test, log #3), gap per side:
 | 3 | 2026-11-09 | Dispenser fit test (PETG) | Ø3 pin in holes −0.05…+0.20 per side | Vertical: press +0.05, slip +0.10. Horizontal teardrop: press 0, slip +0.05 | `fit_*` in `dispenser/params.scad` |
 | 4 | 2026-11 | Dispenser borders H, B (PETG) | Stale plate: H vertical +0 per side, B horizontal +0.05 | H too tight, B pins slide out | Fit test confirmed in 7 mm deep holes: H +0.05, B 0 |
 | 5 | 2026-11-16 | Dispenser motor gear, TR8 nuts (PETG, 0.12) | Gear bore Ø5.15 (+0.075/side); nuts 0.2 radial (= 0.05 per flank) | Neither went on | Bore → slip +0.10 with bed chamfer; nuts → 0.15 per flank; thread test rings 0.10–0.25 per flank, bores 0.10–0.20 (`plates/1b-reprint`) ⚠️ results open |
+| 6 | 2026-11-17 | Dispenser 1b reprint (PETG, 0.12), no brim | – | Lift nut came loose: spaghetti | Stands on ~30 mm² (16 in layer 1) under a Ø22 flange 15 mm up: brim (outer, 5 mm), reprint it alone |

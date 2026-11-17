@@ -32,7 +32,7 @@ parts = ["drive-drum", "idler-drum", "motor-gear", "gate-left", "pusher-nut", "l
          "border-pin", "border-pin", "border-pin", "border-pin"]
 
 [plates.1b-reprint]
-note = "PETG · 0.12 mm · 4 walls · 15 % · no supports · reprint 2026-11-17: thread test, motor gear, both nuts, both couplings"
+note = "PETG · 0.12 mm · 4 walls · 15 % · no supports · outer brim (lift nut) · reprint 2026-11-17: thread test, motor gear, both nuts, both couplings"
 parts = ["thread-test", "motor-gear", "pusher-nut", "lift-nut", "coupling", "coupling"]
 
 [plates.2-petg]
