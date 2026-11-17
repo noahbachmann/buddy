@@ -104,6 +104,15 @@ class Device:
             self._sleep(0.5 + 0.5 * i)
         raise (NotIdle if IDLE_ERROR in last else AdbError)(f"uiautomator dump failed: {last}")
 
+    def size(self) -> tuple[int, int]:
+        """Screen width and height in px (an override wins over the physical size)."""
+        out = self.shell("wm", "size")
+        sizes = re.findall(r"(\w+) size: (\d+)x(\d+)", out)
+        if not sizes:
+            raise AdbError(f"wm size: {out.strip()[:80]}")
+        _, w, h = next((x for x in sizes if x[0] == "Override"), sizes[0])
+        return int(w), int(h)
+
     def screencap(self) -> bytes:
         """PNG of the whole screen."""
         return self.adb("exec-out", "screencap", "-p", timeout=30)

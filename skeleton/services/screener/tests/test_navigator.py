@@ -81,6 +81,14 @@ def test_capture_ending_on_a_video_backs_up_to_a_readable_screen():
     assert [x.ref for x in cap.profile.sections] == [x.ref for x in clean.profile.sections]
 
 
+def test_a_command_that_starts_on_a_playing_video_swipes_up_first():
+    phone = FakePhone("feed-06")
+    phone.moving = {"feed-06"}
+    cap = nav(phone).capture_profile()
+    assert phone.actions[0] == ("swipe", "feed-06", -600, 1050)   # towards the top, beside the cards
+    assert phone.screen == "feed-11" and cap.profile.sections[0].ref == "photo 1"
+
+
 def test_scroll_to_crosses_a_playing_video(monkeypatch):
     # the fake moves one dump per swipe whatever its length (~900 px), the phone moves by the swipe: same length as
     # the capture's swipes, so the measured scale holds for the blind gap

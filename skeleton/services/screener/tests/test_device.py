@@ -86,3 +86,9 @@ def test_state_and_foreground():
     d = dev(r)
     assert d.state() == "unauthorized"
     assert d.foreground() == "app.example"
+
+
+@pytest.mark.parametrize("out, size", [(b"Physical size: 1080x2280\n", (1080, 2280)),
+                                       (b"Physical size: 1080x2280\nOverride size: 720x1520\n", (720, 1520))])
+def test_size(out, size):
+    assert dev(Runner((0, out, b""))).size() == size

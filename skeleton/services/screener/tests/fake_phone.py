@@ -32,6 +32,9 @@ class FakePhone:
         x = load(self.screen)
         return x.replace("Alex", "Kim") if self.renamed else x
 
+    def size(self) -> tuple[int, int]:
+        return 1080, 2280
+
     def screencap(self) -> bytes:
         raise AssertionError("no screenshots in the fake")
 

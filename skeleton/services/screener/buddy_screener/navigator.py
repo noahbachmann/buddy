@@ -27,6 +27,7 @@ MAX_MOVE = 700        # px, longest swipe when scrolling to a section: longer on
 SWIPE_MS = 900        # slow: scrolls by about the swipe length, no fling
 MAX_SWIPES = 30
 MIN_MARGIN = 30       # px beside the cards for a swipe to start in
+BLIND_EDGE = 30       # px from the screen's right edge: beside the cards (they end 60 px before it)
 MAX_BLIND = 4        # swipes past an unreadable screen: a video is about one screen high
 MAX_POPUPS = 3        # closed in a row before asking Dev
 ROW_EDGE = 100        # px from a detail row's ends where a sideways swipe starts/ends
@@ -208,6 +209,23 @@ class Navigator:
                 extra += delta
         raise _Unreadable
 
+    def _first_profile(self) -> tuple[Screen, ProfileView]:
+        """A command's first read, with no dump yet to swipe by: the phone may sit on a playing video. Swipe towards
+        the top, beside the cards, until it reads (the screen then isn't a capture's last dump: callers that need
+        that offset go back to the top)."""
+        for i in range(MAX_BLIND + 1):
+            try:
+                return self._profile()
+            except NotIdle:
+                if i == MAX_BLIND:
+                    break
+                self.log("screen unreadable (a playing video?): swiping up")
+                w, h = self.dev.size()
+                y1 = int(h * 0.35)   # inside the list, below the collapsed header
+                self.dev.swipe(w - BLIND_EDGE, y1, y1 + STEP, SWIPE_MS)
+                self.pause(0.6)
+        raise self.needs_you("screen stays unreadable (a playing video?) while swiping up")
+
     def _profile_past_or_ask(self, view: ProfileView, delta: int) -> tuple[Screen, ProfileView, int]:
         try:
             return self._profile_past(view, delta)
@@ -315,7 +333,7 @@ class Navigator:
                 raise self.needs_you("detail row doesn't go back to its start")
 
     def _to_top(self) -> tuple[Screen, ProfileView]:
-        s, view = self._profile()
+        s, view = self._first_profile()
         for _ in range(MAX_SWIPES):
             if view.at_top:
                 return s, view
@@ -338,7 +356,7 @@ class Navigator:
         target = cap.profile.find(ref)
         if target is None or not target.complete:
             raise self.needs_you(f"{ref} not captured")
-        s, view = self._profile()
+        s, view = self._first_profile()
         if not cap.unmoved(view):
             # Dev scrolled since: matching a far jump can line up wrongly (seen in tests), the top is certain
             s, view = self._relocate(cap)
@@ -412,7 +430,7 @@ class Navigator:
 
     def skip_profile(self, name: str) -> str:
         """Skips the profile on screen, which must be `name`. Returns the next profile's name."""
-        s, view = self._profile()
+        s, view = self._first_profile()
         if view.name != name:
             raise self.needs_you("another profile is on screen: not skipping it")
         self._act(s, screens.skip_button(s.root), "skip")
