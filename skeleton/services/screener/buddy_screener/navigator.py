@@ -198,14 +198,7 @@ class Navigator:
 
     def capture_profile(self) -> Capture:
         """Scrolls through the whole profile from its top, collecting every section. Ends at the bottom."""
-        s, view = self._profile()
-        for _ in range(MAX_SWIPES):
-            if view.at_top:
-                break
-            self._swipe_list(view, -STEP)
-            s, view = self._profile()
-        else:
-            raise self.needs_you("profile doesn't scroll back to its top")
+        s, view = self._to_top()
         cap = Capture(view)
         self._hash_photos(cap, view)
         rows_seen: list[int] = []
@@ -261,13 +254,34 @@ class Navigator:
             else:
                 raise self.needs_you("detail row doesn't go back to its start")
 
+    def _to_top(self) -> tuple[Screen, ProfileView]:
+        s, view = self._profile()
+        for _ in range(MAX_SWIPES):
+            if view.at_top:
+                return s, view
+            self._swipe_list(view, -STEP)
+            s, view = self._profile()
+        raise self.needs_you("profile doesn't scroll back to its top")
+
+    def _relocate(self, cap: Capture) -> tuple[Screen, ProfileView]:
+        """The screen isn't the capture's last dump (Dev scrolled meanwhile): back to the top, where the capture
+        started at offset 0."""
+        s, view = self._to_top()
+        if view.name != cap.profile.name:
+            raise self.needs_you("another profile is on screen")
+        cap.restart_at_top(view)
+        self.log("relocated: back at the profile's top")
+        return s, view
+
     def scroll_to(self, cap: Capture, ref: str) -> tuple[Screen, SectionView]:
         """Brings a captured section fully on screen with its like button tappable; checks it is the same one."""
         target = cap.profile.find(ref)
         if target is None or not target.complete:
             raise self.needs_you(f"{ref} not captured")
         s, view = self._profile()
-        self._track(cap, view, cap.offset)
+        if not cap.unmoved(view):
+            # Dev scrolled since: matching a far jump can line up wrongly (seen in tests), the top is certain
+            s, view = self._relocate(cap)
         for _ in range(MAX_SWIPES):
             sv = next((x for x in view.sections if cap.section_at(x) is target), None)
             if sv and not sv.top_cut and not sv.bottom_cut and sv.like and view.safe(sv.like.bounds):
@@ -360,6 +374,9 @@ class Navigator:
         s = self.wait_for(lambda x: x.kind is Kind.UPSELL or
                           (x.kind is Kind.FEED and screens.profile_view(x.root).name != name), "the like to go out")
         if s.kind is Kind.UPSELL:
+            if self.dump_dir is not None:   # raw, tmpfs: for a real fixture (the first one was hand-built)
+                self.dump_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+                (self.dump_dir / "upsell-last.xml").write_text(self._xml)
             self._act(s, screens.send_anyway_button(s.root), "send like anyway")
         return self._next_profile(name, "the next profile after the like", s)
 

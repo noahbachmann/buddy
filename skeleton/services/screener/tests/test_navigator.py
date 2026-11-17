@@ -151,3 +151,13 @@ def test_detail_row_swiped_to_its_end_and_back():
     assert [a[0] for a in phone.actions] == ["swipe_h"] * 4 + ["swipe_h"]
     n._explore_rows(cap, s, view, seen, done)   # same row again: nothing
     assert len(phone.actions) == 5 and phone.sent() == []
+
+
+def test_scroll_to_relocates_after_dev_scrolled():
+    phone = FakePhone("feed-01")
+    n = nav(phone)
+    cap = n.capture_profile()
+    phone.screen = "feed-05"                  # Dev scrolled up meanwhile: shares nothing with the last dump
+    s, sv = n.scroll_to(cap, "photo 1")
+    assert sv.kind == "photo" and phone.screen == "feed-01"
+    assert phone.sent() == []

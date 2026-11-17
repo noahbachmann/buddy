@@ -20,7 +20,7 @@ code path taps a paid option or a chat send.
 | `profile.py` | `Capture`: one profile stitched across scroll dumps (offset per dump measured by voting on shared sections/texts, checked by `verify_shift`), `Section` refs `photo N` / `prompt N` in content y; `dhash` |
 | `imaging.py` | Pillow: crop of a screenshot → dhash (photos all read "<name>'s photo" in the tree), → JPEG for the decision |
 | `device.py` | adb: `dump` (retries), `screencap`, `tap` (jitter inside the middle half), `swipe`, `key`, `launch`, `foreground`, keyboard type/clear/read (`buddy.screener.ime` broadcasts), `ime_set`, `notifications`, `state`. `guard()` before every input action |
-| `navigator.py` | Moves: `go_tab`, `capture_profile` (+ each detail row swiped to its end and flung back), `scroll_to(ref)`, `open_sheet` (+ scroll the panel clear), `type_comment` (read back), `skip_profile`, `send_like` (via `_act`), `back_out`, `open_chat`/`leave_chat`. `NeedsYou` keeps the raw dump in tmpfs |
+| `navigator.py` | Moves: `go_tab`, `capture_profile` (+ each detail row swiped to its end and flung back), `scroll_to(ref)`, `open_sheet` (+ scroll the panel clear), `type_comment` (read back), `skip_profile`, `send_like` (via `_act`; keeps the upsell's raw dump as tmpfs `upsell-last.xml`), `back_out`, `open_chat`/`leave_chat`. `NeedsYou` keeps the raw dump in tmpfs |
 | `sanitize.py` | Real dumps → fixtures: one mapping across a walk, names/prompts/texts → placeholders, package → `app.example`; refuses output with a word from `~/buddy/config/screener/forbidden` (host) |
 | `library.py` | Host input: `preferences.md` (verbatim into the system prompt), `templates.md` section *Like comments* (`- id \| de\|en \| fit hint \| text`; broken line → whole file refused). Loaded per decision |
 | `decide.py` | Agent SDK wrapper (`Decider.decide` = text check, then `browse` with photos): locked-down CLI options, text + browse schemas, `check_text`, `check_browse` (code re-checks: unknown section/comment → none, dealbreaker → skip, `fixes` kept), usage per call, `limit_until` pause, daily $ cap |
@@ -135,8 +135,9 @@ Pi, then `--cmd fixture <out dir> <dumps…>` (all dumps of one walk in one call
   top. Adds ~30 s per profile.
 - A photo with a caption has a "Like photo prompt" button (a photo like, not a prompt); the caption text isn't in
   the tree.
-- `type`/`scroll_to` track from where the capture ended (the profile's bottom): if Dev scrolled meanwhile, the first
-  dump shares nothing with it → "lost track". Scroll back to the bottom, then retry (relocating: not built).
+- `scroll_to` (type, send) trusts the capture's offset only if the screen is exactly its last dump; otherwise (Dev
+  scrolled) it goes back to the profile's top (offset 0, certain) first: matching a far jump can line up wrongly
+  (`Capture.add` accepted feed-05 as feed-10 in a test). Photo hash / prompt text still checked before any tap.
 - `exec-out uiautomator dump /dev/tty` appends "UI hierchary dumped to: /dev/tty": `Device.dump` cuts it.
 - Carried to later steps (not seen yet): an incoming like's card, an app notification's text, our own sent message's
   format in a chat. Each → a sanitized fixture when first seen.

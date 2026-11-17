@@ -105,6 +105,18 @@ class Capture:
         self._prev = first
         self._merge(first)
 
+    def unmoved(self, view: ProfileView) -> bool:
+        """The view shows exactly what the last tracked dump showed: `offset` still holds."""
+        def key(v: ProfileView) -> list:
+            return [(x.kind, x.text, x.rect) for x in v.sections + v.texts]
+        return view.name == self._prev.name and key(view) == key(self._prev)
+
+    def restart_at_top(self, view: ProfileView) -> None:
+        """Tracking resumes from the profile's top (offset 0, where the capture began): after losing track."""
+        if not view.at_top:
+            raise LostTrack("not at the profile's top")
+        self.offset, self._prev = 0, view
+
     def add(self, view: ProfileView, expect: int | None = None) -> int:
         """Measures the new dump's offset, merges its sections, returns the offset."""
         if view.name != self.profile.name:
