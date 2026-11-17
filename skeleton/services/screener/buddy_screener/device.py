@@ -15,12 +15,19 @@ from dataclasses import dataclass
 from .uitree import Rect
 
 KEY_BACK = 4
+IDLE_ERROR = "could not get idle state"
+IDLE_TRIES = 2   # a blinking cursor passes on the 2nd try; a playing video never does
 OUR_IME = "buddy.screener.ime/.ScreenerIme"
 _IME_PKG = OUR_IME.split("/", 1)[0]
 
 
 class AdbError(RuntimeError):
     """adb failed or the phone is gone (unplugged = stop, one of the kill switch layers)."""
+
+
+class NotIdle(AdbError):
+    """uiautomator never saw the screen idle: something on it keeps moving (an autoplaying video). Scrolling it off
+    screen helps, waiting doesn't."""
 
 
 class Stopped(RuntimeError):
@@ -81,16 +88,21 @@ class Device:
 
     def dump(self, tries: int = 5) -> str:
         """The UI tree as XML. uiautomator fails now and then ("could not get idle state", e.g. a blinking cursor):
-        retried with a short pause."""
-        last = ""
+        retried with a short pause. Idle failures give up after IDLE_TRIES (each one already waited ~10 s) →
+        `NotIdle`."""
+        last, idle = "", 0
         for i in range(tries):
             out = self.adb("exec-out", "uiautomator", "dump", "/dev/tty", timeout=30).decode(errors="replace")
             end = out.rfind("</hierarchy>")
             if end >= 0:
                 return out[: end + len("</hierarchy>")]   # drop "UI hierchary dumped to: /dev/tty"
             last = out.strip()[-120:]
+            if IDLE_ERROR in out:
+                idle += 1
+                if idle == IDLE_TRIES:
+                    raise NotIdle(f"uiautomator dump failed: {last}")
             self._sleep(0.5 + 0.5 * i)
-        raise AdbError(f"uiautomator dump failed: {last}")
+        raise (NotIdle if IDLE_ERROR in last else AdbError)(f"uiautomator dump failed: {last}")
 
     def screencap(self) -> bytes:
         """PNG of the whole screen."""

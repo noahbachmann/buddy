@@ -3,7 +3,7 @@ import random
 
 import pytest
 
-from buddy_screener.device import AdbError, Device, Stopped
+from buddy_screener.device import AdbError, Device, NotIdle, Stopped
 from buddy_screener.uitree import Rect
 
 
@@ -31,10 +31,18 @@ def test_dump_retries_idle_state_failures():
     assert len(r.calls) == 2
 
 
-def test_dump_gives_up():
+def test_dump_gives_up_on_a_screen_that_never_idles():
     r = Runner(*[(0, b"ERROR: could not get idle state.", b"")] * 5)
-    with pytest.raises(AdbError):
+    with pytest.raises(NotIdle):
         dev(r).dump()
+    assert len(r.calls) == 2   # each try already waited ~10 s for idle: a video keeps playing
+
+
+def test_dump_gives_up_on_other_failures():
+    r = Runner(*[(0, b"ERROR: null root node returned by UiTestAutomationBridge.", b"")] * 5)
+    with pytest.raises(AdbError) as e:
+        dev(r).dump()
+    assert not isinstance(e.value, NotIdle) and len(r.calls) == 5
 
 
 def test_tap_stays_inside_the_middle_of_the_target():
