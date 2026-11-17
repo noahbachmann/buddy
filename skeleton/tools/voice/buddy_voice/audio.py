@@ -45,5 +45,14 @@ def peak_db(audio: np.ndarray) -> float:
     return dbfs(float(np.max(np.abs(audio)))) if len(audio) else -100.0
 
 
+def clipping(audio: np.ndarray) -> tuple[int, int]:
+    """(samples at full scale, longest run of them). A lone touch is inaudible; long runs are flattened waveform."""
+    full = np.abs(audio) >= 0.999
+    if not full.any():
+        return 0, 0
+    edges = np.diff(np.concatenate(([0], full.astype(np.int8), [0])))
+    return int(full.sum()), int((np.flatnonzero(edges == -1) - np.flatnonzero(edges == 1)).max())
+
+
 def rms_db(audio: np.ndarray) -> float:
     return dbfs(float(np.sqrt(np.mean(audio.astype(np.float64) ** 2)))) if len(audio) else -100.0

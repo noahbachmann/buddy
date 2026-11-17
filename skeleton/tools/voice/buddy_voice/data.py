@@ -19,7 +19,7 @@ from pathlib import Path
 import numpy as np
 
 from . import corpus
-from .audio import SAMPLE_RATE, peak_db, read_wav, rms_db, write_wav
+from .audio import SAMPLE_RATE, clipping, peak_db, read_wav, rms_db, write_wav
 from .score import norm
 from .vad import Vad
 
@@ -140,7 +140,8 @@ class Issue:
 
 
 QUIET_DB = -30.0  # peak below this: too far away or too soft for a reliable clip
-CLIP_DB = -0.5    # peak above this: clipped
+CLIP_SHARE = 0.005  # full-scale samples above this share: distorted
+CLIP_RUN = 10       # or this many in a row (0.6 ms). Live commands touch full scale with a few: harmless, keep them
 
 
 def check(vad: Vad, sessions: list[str] | None = None) -> tuple[dict[str, dict], list[Issue]]:
@@ -166,8 +167,9 @@ def check(vad: Vad, sessions: list[str] | None = None) -> tuple[dict[str, dict],
                 rmss.append(rms_db(audio))
                 if peaks[-1] < QUIET_DB:
                     issues.append(Issue(clip, source, f"too quiet (peak {peaks[-1]:.0f} dBFS)"))
-                if peaks[-1] > CLIP_DB:
-                    issues.append(Issue(clip, source, "clipped"))
+                full, run = clipping(audio)
+                if full > CLIP_SHARE * len(audio) or run >= CLIP_RUN:
+                    issues.append(Issue(clip, source, f"clipped ({full} samples at full scale, {run} in a row)"))
                 cut = trimmed(clip, source, vad)
                 if cut is None:
                     issues.append(Issue(clip, source, "no speech found"))

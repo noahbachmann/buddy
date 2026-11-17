@@ -53,3 +53,28 @@ def test_trim_keeps_lead_and_tail():
 
     cut = FakeVad().trim(np.zeros(16000 * 4, dtype=np.float32))
     assert len(cut) == 16000 + int((vad.LEAD_S + vad.TAIL_S) * 16000)
+
+
+class _NoTrim:
+    def trim(self, audio):
+        return audio
+
+
+def test_check_flags_only_real_clipping(voice_dir):
+    def clip(*ranges):
+        a = np.full(16000, 0.1, dtype=np.float32)
+        for lo, hi in ranges:
+            a[lo:hi] = 1.0
+        return a
+
+    cases = {
+        "00001.wav": clip((100, 101)),                                # lone touch, like live/00073
+        "00002.wav": clip(*[(i, i + 3) for i in range(0, 16000, 1300)]),  # 39 in runs of 3, like live/00092
+        "00003.wav": clip((500, 510)),                                # flattened for 0.6 ms
+        "00004.wav": clip(*[(i, i + 2) for i in range(0, 16000, 300)]),   # 1 % scattered
+    }
+    for name, a in cases.items():
+        audio.write_wav(voice_dir.SESSIONS / "live" / "raw" / name, a)
+    voice_dir.write_session("live", [voice_dir.Clip("live", n, "Pause.", "train") for n in cases])
+    _, issues = voice_dir.check(_NoTrim(), ["live"])
+    assert sorted(i.clip.file for i in issues if i.problem.startswith("clipped")) == ["00003.wav", "00004.wav"]
