@@ -73,8 +73,7 @@ What's left right now, in order. Update it with the progress table; GitHub issue
 2. **Live check** for #12: "Hey Jarvis, play Spotify" ducks, plays, and Buddy answers without delay (idle loops changed).
 3. **Decisions** in `docs/plans/02-05-head-pan-tilt.md` and `02-06-head-body.md` (end of each), then fill in
    `docs/plans/02-06-cad-prompt.md` (measurements after 2.1 and the parts order).
-4. **Voice retrain** (#67): `docs/guides/voice-retrain.md`, after Claude's part.
-5. **Riftbound live game** (#53): `docs/guides/05-live-game.md`: a full game against Buddy with real cards on the
+4. **Riftbound live game** (#53): `docs/guides/05-live-game.md`: a full game against Buddy with real cards on the
    page, notes into #53. Then tick 5.6 and close #53 and #46.
 
 **Claude** (code and guides):
@@ -111,7 +110,7 @@ Phase 1 → Deferred lists what waits for a reason (wake word CPU, next voice se
 | D13 | Background music, no echo cancellation | The box's music is room noise to Buddy. While ears listens or voice speaks the music is ducked: on a Nest by speakers on the Pi (`buddy_music`, D20), on any other device in the room by spotify via the Web API. **No echo cancellation** (removed 2026-10-28): on the same test session the model trained on the raw mic beat the echo-cancelled one (intent 50 vs 47 of 59, WER 7.4 vs 9.5 %), and its only job, removing Buddy's own voice, is covered by ears ignoring the wake word while voice speaks. Stock PipeWire, training on the raw track. | ✅ |
 | D14 | Recovery | `buddy@.service` is `Type=notify` with `WatchdogSec=60` (READY from `Mqtt::start`, pings from each main loop, `shared/systemd.*` / `buddy_shared.systemd`, no libsystemd). Crashes restart with backoff 1 → 30 s and never give up. No core files. | ✅ |
 | D15 | Python services | uv workspace in `skeleton/` (`pyproject.toml` + `uv.lock`, members listed explicitly). `shared/python/buddy_shared` mirrors the C++ shared helpers; `shared/topics.json` is the single topic list (CMake generates `topics.hpp`). On the Pi: uv in `~/.local/bin` (pinned), Debian's Python, one venv `~/buddy/venv`, console script linked into `~/buddy/bin`, same unit template. | ✅ |
-| D16 | Voice data | Recordings are personal data and the repo is public: never in Git. Master copy on Dev's PC in `~/buddy-voice` (backed up); the Pi keeps sessions only until pulled. Training runs on Dev's PC (NVIDIA GPU, CUDA 12.8 PyTorch). | ✅ |
+| D16 | Voice data | Recordings are personal data and the repo is public: never in Git. Master copy on Dev's PC in `~/buddy-voice` (backed up); the Pi keeps the recorded sessions too (pull copies, never deletes), not the labelled live clips. Training runs on Dev's PC (NVIDIA GPU, CUDA 12.8 PyTorch). | ✅ |
 | D17 | Motion controller | Raspberry Pi Pico 2 H on the Pi's USB, servos on its GPIO hardware PWM (50 Hz, 16 outputs), no PCA9685. Firmware C++ with Pico SDK 2.3.1 (FetchContent) in `skeleton/firmware/pico-motion` (one folder per Pico role: `pico-<job>`; this one drives every servo: head, hand, arm), built and flashed on the Pi (`deploy.sh --firmware`, picotool 2.3.1 in `/opt/picotool`). Text protocol v1 over USB CDC (`/dev/buddy-pico`), header shared with motion. The Pico enforces per-channel pulse limits and relaxes all servos 2 s after the last command. Servo power: separate 5 V supply, shared ground, never via the Pi or the Pico's VBUS/VSYS. | ✅ |
 
 | D18 | Lights | Philips Hue via the Hue Bridge's local CLIP v2 API (no cloud, no Hue account): service `hue`. TLS verified against Hue's `root-bridge` CA (compiled in) with the bridge id as host name (`CURLOPT_RESOLVE` → bridge IP). Application key from `buddy-hue --pair` (link button) in `~/buddy/config/hue.json`. Live state from the bridge's eventstream → retained `buddy/hue/state`. Hue Bridge Pro would need its newer CA ⚠️. | ✅ |
@@ -167,10 +166,11 @@ Speech-to-text training: `docs/voice-training.md`.
   with one 0.99 false positive. Longer strides break the classifier (trained on the 80 ms feature hop: scores → 0).
   Remaining option: skip embedding inference while the room is below ears' level gate: only pays while no music plays,
   needs a live A/B with the adaptive gate.
-- **Next voice session** (after #67): the 2026-10-28 eval showed whisper misses words that are rare in `train`; #67
-  grew the corpus to every `test` word 5× in `train` (pytest enforces it) plus Dev's short forms from live use. After
-  2.6 (new mic position): a fresh test session first, then `record.sh <label> new` for lines added since, and
-  `train.sh history` every ~100 live commands.
+- **Next voice session**: #67 (done 2026-11-17) grew the corpus (every `test` word 5× in `train`, Dev's short forms
+  from live use) and retrained: intent 67 → 87 / 89, WER 12.5 → 1.2 % (summary 1.7). Open: whisper heard "switch
+  all" as "switch on" before the last test session was re-recorded; if it comes back, a brain guard ("switch on/one
+  lights off" = all) was weighed and left out (it would be tuned on test clips). Until 2.6: `train.sh history` every
+  ~100 live commands, retrain at a few hundred. After 2.6 (new mic position): a fresh test session first.
 - **Custom "Hey buddy"** (summary guide 1.6): train with box music in the negatives; the training could move into
   `tools/` like speech-to-text.
 - **LLM brain:** implement `IntentParser`; keep the rules as the fast path.
