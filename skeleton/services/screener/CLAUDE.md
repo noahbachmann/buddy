@@ -63,6 +63,26 @@ code path taps send like, skip or a chat send.
 used on), then into the label. `--cmd type <id>` types it into that section's panel and reads it back; Dev taps send
 (or `--cmd back-out`). Only the newest row's capture stays in tmpfs. `--cmd report` = the gate.
 
+### Claude's procedure during a shadow session (agreed with Dev, 2026-11-17)
+
+Dev taps on the phone and comments on each decision in chat (why like / skip). Per profile:
+
+1. `--cmd shadow`, show Dev the bot's decision, reason, section + comment.
+2. Dev decides and comments. Label it: `--note` = Dev's reason (condensed, no names); `--wrong` if the bot missed;
+   `--dealbreaker` if Dev calls it a hard no. Dev's own comment → a line in `templates.md` *Like comments* first
+   (id, de|en, fit hint from the section, text verbatim), `--cmd templates` to check, then label with that id.
+3. Compare Dev's reason with the bot's reason and `preferences.md`. Sort the gap:
+   - preferences silent on it → add;
+   - preferences say something else → reword;
+   - preferences already say it and the bot ignored it → a prompt/code issue (`decide.py`): note it for the issue,
+     don't patch preferences to compensate.
+4. Change `preferences.md` only for reasons that generalize (a pattern, or Dev states it as a rule). A one-off stays
+   a note; unsure → ask Dev. Never a specific person's details in the preferences.
+5. Every change: copy the old file to `config/screener/history/preferences-<UTC stamp>.md`, edit, show Dev the
+   `diff -u` in chat. The next profile loads the new file (read per decision).
+
+At the end: summarise the changes and open prompt/code issues in #66 (neutral wording).
+
 ## Tests (`tests/`)
 
 Fixtures are sanitized real dumps (step 1, 2026-11-16): `feed-01..11` one profile top to bottom (6 photos, 3
