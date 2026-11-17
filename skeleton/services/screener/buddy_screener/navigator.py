@@ -120,7 +120,7 @@ class Navigator:
     def tap(self, s: Screen, node: Node, why: str) -> None:
         if not screens.tappable(s, node):
             raise self.needs_you(f"refused tap on {why}: not on the allowlist")
-        in_list = node.desc in (v.LIKE_PHOTO, v.LIKE_PROMPT, v.EDIT_COMMENT)
+        in_list = node.desc in (*v.LIKE_BUTTONS, v.EDIT_COMMENT)
         if in_list and not screens.profile_view(s.root).safe(node.bounds):
             raise self.needs_you(f"refused tap on {why}: not fully visible or under a floating button")
         self.dev.tap(node.bounds)

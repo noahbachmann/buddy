@@ -151,3 +151,11 @@ def test_detail_row_found():
     view = screens.profile_view(screen("row-0").root)
     assert len(view.rows) == 1 and view.safe(view.rows[0])
     assert [label for label, _ in view.details][:3] == ["Age", "Gender", "Height"]
+
+
+def test_captioned_photo_has_its_like_button():
+    s = screen("photo-caption")
+    view = screens.profile_view(s.root)
+    photo = next(x for x in view.sections if x.kind == "photo")
+    assert photo.like is not None and photo.like.desc == v.LIKE_PHOTO_CAPTION
+    assert view.safe(photo.like.bounds) and screens.tappable(s, photo.like)

@@ -18,6 +18,8 @@ TAB_BADGE = re.compile(r"(\d+) new messages?")
 # Feed (a profile on the Discover tab)
 LIKE_PHOTO = "Like photo"
 LIKE_PROMPT = "Like prompt"
+LIKE_PHOTO_CAPTION = "Like photo prompt"   # a photo with a caption: still a photo
+LIKE_BUTTONS = (LIKE_PHOTO, LIKE_PROMPT, LIKE_PHOTO_CAPTION)
 SKIP = re.compile(r"Skip (.+)", re.S)            # floating button, carries the name
 PHOTO = re.compile(r"(.+)'s photo", re.S)
 PROMPT = re.compile(r"Prompt: (.*?)\. Answer: (.*)", re.S)
@@ -63,6 +65,6 @@ DETAIL_LABELS = frozenset({
 
 # Strings kept verbatim by the sanitizer (besides the patterns above)
 KEEP = frozenset({
-    *TABS, LIKE_PHOTO, LIKE_PROMPT, UNDO_SKIP, MORE, VERIFIED, EDIT_COMMENT, SEND_LIKE, SEND_LIKE_WITH,
+    *TABS, *LIKE_BUTTONS, UNDO_SKIP, MORE, VERIFIED, EDIT_COMMENT, SEND_LIKE, SEND_LIKE_WITH,
     LIKES_HEADER, MATCHES_HEADER, CLOSE, BACK, CHAT_TAB, CHAT_PROFILE_TAB, CHAT_HINT, DOUBLE_TAP_HINT, *DETAIL_LABELS,
 })

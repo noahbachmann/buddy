@@ -102,7 +102,8 @@ with the changes applied.
 Fixtures are sanitized real dumps (step 1, 2026-11-16): `feed-01..11` one profile top to bottom (6 photos, 3
 prompts), `sheet`/`sheet-typed` (photo panel), `sheet-low` (prompt panel under the skip button), `likes` (empty),
 `matches`, `chat`, `popup` (feature ad on launch, 2026-11-17), `row-0..3` (another profile's detail row swiped
-sideways to its end, 2026-11-17), `own-profile` (unknown). `fixture_files.py` loads them, `fake_phone.py` replays them as a phone (taps/swipes move between
+sideways to its end, 2026-11-17), `photo-caption` (a captioned photo: its button reads "Like photo prompt"),
+`own-profile` (unknown). `fixture_files.py` loads them, `fake_phone.py` replays them as a phone (taps/swipes move between
 dumps, records actions, `sent()` must stay empty). `test_decide.py` runs the decider against a fake SDK stream
 (real `ResultMessage`/`RateLimitEvent` objects); `test_shadow.py` runs shadow → label → type on the fake phone. New fixture: `deploy/run.sh screener --cmd dump <name>` on the
 Pi, then `--cmd fixture <out dir> <dumps…>` (all dumps of one walk in one call), check the texts, copy over.
@@ -126,6 +127,10 @@ Pi, then `--cmd fixture <out dir> <dumps…>` (all dumps of one walk in one call
   until 2026-11-17. A 900 ms swipe moves it one screen; the end = an unchanged dump; a 150 ms fling right restores
   the exact start dump. Bounds are clipped to the list: a row touching the list's edge is cut, its y unusable at the
   top. Adds ~30 s per profile.
+- A photo with a caption has a "Like photo prompt" button (a photo like, not a prompt); the caption text isn't in
+  the tree.
+- `type`/`scroll_to` track from where the capture ended (the profile's bottom): if Dev scrolled meanwhile, the first
+  dump shares nothing with it → "lost track". Scroll back to the bottom, then retry (relocating: not built).
 - `exec-out uiautomator dump /dev/tty` appends "UI hierchary dumped to: /dev/tty": `Device.dump` cuts it.
 - Carried to later steps (not seen yet): an incoming like's card, an app notification's text, our own sent message's
   format in a chat. Each → a sanitized fixture when first seen.

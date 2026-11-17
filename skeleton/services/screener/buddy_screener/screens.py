@@ -96,7 +96,7 @@ def classify(root: Node, package: str) -> Screen:
 
 
 def _is_like_button(n: Node) -> bool:
-    return n.cls == "Button" and n.desc in (v.LIKE_PHOTO, v.LIKE_PROMPT)
+    return n.cls == "Button" and n.desc in v.LIKE_BUTTONS
 
 
 def _is_section(n: Node) -> bool:
@@ -181,7 +181,7 @@ def profile_view(root: Node) -> ProfileView:
     # A section's like button lies over its lower right corner; when the section is cut at the bottom the button can
     # stick out below the list (seen over the tab bar). Attach each to the same-kind section it overlaps most.
     for b in box.find(_is_like_button):
-        kind = "photo" if b.desc == v.LIKE_PHOTO else "prompt"
+        kind = "prompt" if b.desc == v.LIKE_PROMPT else "photo"
         best = max((s for s in sections if s.kind == kind and s.like is None and s.rect.v_overlap(b.bounds) > 0),
                    key=lambda s: s.rect.v_overlap(b.bounds), default=None)
         if best is not None:
