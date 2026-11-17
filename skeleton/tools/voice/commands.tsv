@@ -396,6 +396,12 @@ train	Turn living room lights on.	on		living room
 train	Turn lights off.	off
 train	Switch lights off.	off
 train	Switch all lights on.	on		all
+train	Switch all the lights off.	off		all
+train	Switch off all lights.	off		all
+train	Switch off all the lights.	off		all
+train	Switch on all lights.	on		all
+train	Switch all the lights on.	on		all
+train	Switch all lights to blue.	color	blue	all
 train	Switch on bedroom lights.	on		bedroom
 train	All lights to 50%.	brightness	50	all
 train	Living room lights to 70%.	brightness	70	living room
