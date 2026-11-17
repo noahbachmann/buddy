@@ -4,6 +4,7 @@ from buddy_screener import screens
 from buddy_screener import vocab as v
 from buddy_screener.device import Stopped
 from buddy_screener.navigator import Navigator, NeedsYou
+from buddy_screener.profile import Capture
 from buddy_screener.screens import Kind
 from fake_phone import FakePhone
 from fixture_files import PACKAGE
@@ -19,6 +20,8 @@ def test_capture_whole_profile_and_stop_at_the_end():
     assert len(cap.profile.sections) == 9
     assert phone.screen == "feed-11"
     assert phone.sent() == []
+    # the detail row once, where it's whole (feed-02 cuts it at the bottom, feed-04 at the top): to its end and back
+    assert [(a[1], a[2] > 0) for a in phone.actions if a[0] == "swipe_h"] == [("feed-03", True), ("feed-03", False)]
 
 
 def test_capture_scrolls_back_to_the_top_first():
@@ -131,3 +134,20 @@ def test_kill_switch_stops_the_next_action():
     with pytest.raises(Stopped):
         nav(phone).capture_profile()   # at the top already: the first swipe is the first action
     assert phone.actions == []
+
+
+def test_detail_row_swiped_to_its_end_and_back():
+    phone = FakePhone("row-0")
+    n = nav(phone)
+    s, view = n._profile()
+    cap = Capture(view)
+    seen, done = [], []
+    n._explore_rows(cap, s, view, seen, done)
+    labels = {label for label, _ in cap.profile.details}
+    assert {"Age", "Gender", "Height", "Location", "Children", "Family Plans", "Zodiac Sign"} <= labels
+    unlabelled = [value for label, value in cap.profile.details if not label]
+    assert unlabelled == ["Text 5"]       # row values all got their label; Text 5 sits below the row, no icon label
+    assert phone.screen == "row-0"        # back where it started
+    assert [a[0] for a in phone.actions] == ["swipe_h"] * 4 + ["swipe_h"]
+    n._explore_rows(cap, s, view, seen, done)   # same row again: nothing
+    assert len(phone.actions) == 5 and phone.sent() == []

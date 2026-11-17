@@ -139,6 +139,7 @@ class ProfileView:
     texts: list[SectionView]  # every other text node in the list (details): extra anchors for measuring a scroll
     obstacles: list[Rect]    # clickable things floating over or outside the list (skip, header buttons, tabs)
     at_top: bool = False     # header expanded: the list is scrolled to its start
+    rows: list[Rect] = field(default_factory=list)   # sideways-scrolling detail rows: most details hide off screen
 
     def safe(self, target: Rect) -> bool:
         """A tap target fully inside the list and clear of every floating button."""
@@ -196,7 +197,8 @@ def profile_view(root: Node) -> ProfileView:
         for sv in sections + texts:
             sv.top_cut = False
     obstacles = [n.bounds for n in root.iter() if n.clickable and not _inside(n, box) and n is not box]
-    return ProfileView(name, vp, sections, _details(box), texts, obstacles, at_top)
+    rows = [n.bounds for n in box.iter() if n.scrollable and n.cls == "View" and n is not box and not n.bounds.empty]
+    return ProfileView(name, vp, sections, _details(box), texts, obstacles, at_top, rows)
 
 
 def _details(box: Node) -> list[tuple[str, str]]:

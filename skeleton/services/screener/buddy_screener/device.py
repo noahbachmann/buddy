@@ -134,6 +134,10 @@ class Device:
         self.guard()
         self.shell("input", "swipe", str(x), str(y1), str(x), str(y2), str(ms))
 
+    def swipe_h(self, y: int, x1: int, x2: int, ms: int) -> None:
+        self.guard()
+        self.shell("input", "swipe", str(x1), str(y), str(x2), str(y), str(ms))
+
     def key(self, code: int) -> None:
         self.guard()
         self.shell("input", "keyevent", str(code))

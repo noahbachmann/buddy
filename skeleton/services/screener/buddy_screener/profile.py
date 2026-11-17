@@ -142,6 +142,10 @@ class Capture:
         for s in self.profile.sections:
             count[s.kind] += 1
             s.index = count[s.kind]
+        self.add_details(view)
+
+    def add_details(self, view: ProfileView) -> None:
+        """Merges the view's details; a value seen without its label (icon scrolled off) gets it later."""
         details = self.profile.details
         for label, value in view.details:
             same = next((i for i, (l, v) in enumerate(details) if v == value and (l == label or not l or not label)), None)

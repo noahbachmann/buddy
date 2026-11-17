@@ -3,7 +3,7 @@ real app did when the dumps were taken (step 1). Records every input action; any
 
 from buddy_screener.device import ImeResult
 from buddy_screener.uitree import Rect, parse
-from fixture_files import FEED, PACKAGE, load
+from fixture_files import FEED, PACKAGE, ROW, load
 
 
 class FakePhone:
@@ -74,6 +74,13 @@ class FakePhone:
             self.screen = FEED[max(0, min(len(FEED) - 1, i))]
         elif self.screen == "sheet-low" and y2 < y1:
             self.screen = "sheet"   # the panel moved up, clear of the skip button
+
+    def swipe_h(self, y: int, x1: int, x2: int, ms: int) -> None:
+        self.guard()
+        self.actions.append(("swipe_h", self.screen, x1 - x2))
+        if self.screen in ROW:
+            i = ROW.index(self.screen)
+            self.screen = ROW[min(len(ROW) - 1, i + 1)] if x2 < x1 else ROW[0]   # back = a fling to the start
 
     def key(self, code: int) -> None:
         self.guard()

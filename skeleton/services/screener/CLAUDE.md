@@ -19,7 +19,7 @@ code path taps send like, skip or a chat send.
 | `profile.py` | `Capture`: one profile stitched across scroll dumps (offset per dump measured by voting on shared sections/texts, checked by `verify_shift`), `Section` refs `photo N` / `prompt N` in content y; `dhash` |
 | `imaging.py` | Pillow: crop of a screenshot → dhash (photos all read "<name>'s photo" in the tree), → JPEG for the decision |
 | `device.py` | adb: `dump` (retries), `screencap`, `tap` (jitter inside the middle half), `swipe`, `key`, `launch`, `foreground`, keyboard type/clear/read (`buddy.screener.ime` broadcasts), `ime_set`, `notifications`, `state`. `guard()` before every input action |
-| `navigator.py` | Moves: `go_tab`, `capture_profile`, `scroll_to(ref)`, `open_sheet` (+ scroll the panel clear), `type_comment` (read back), `back_out`, `open_chat`/`leave_chat`. `NeedsYou` keeps the raw dump in tmpfs |
+| `navigator.py` | Moves: `go_tab`, `capture_profile` (+ each detail row swiped to its end and flung back), `scroll_to(ref)`, `open_sheet` (+ scroll the panel clear), `type_comment` (read back), `back_out`, `open_chat`/`leave_chat`. `NeedsYou` keeps the raw dump in tmpfs |
 | `sanitize.py` | Real dumps → fixtures: one mapping across a walk, names/prompts/texts → placeholders, package → `app.example`; refuses output with a word from `~/buddy/config/screener/forbidden` (host) |
 | `library.py` | Host input: `preferences.md` (verbatim into the system prompt), `templates.md` section *Like comments* (`- id \| de\|en \| fit hint \| text`; broken line → whole file refused). Loaded per decision |
 | `decide.py` | Agent SDK wrapper (`Decider.decide` = text check, then `browse` with photos): locked-down CLI options, text + browse schemas, `check_text`, `check_browse` (code re-checks: unknown section/comment → none, dealbreaker → skip, `fixes` kept), usage per call, `limit_until` pause, daily $ cap |
@@ -101,7 +101,8 @@ with the changes applied.
 
 Fixtures are sanitized real dumps (step 1, 2026-11-16): `feed-01..11` one profile top to bottom (6 photos, 3
 prompts), `sheet`/`sheet-typed` (photo panel), `sheet-low` (prompt panel under the skip button), `likes` (empty),
-`matches`, `chat`, `popup` (feature ad on launch, 2026-11-17), `own-profile` (unknown). `fixture_files.py` loads them, `fake_phone.py` replays them as a phone (taps/swipes move between
+`matches`, `chat`, `popup` (feature ad on launch, 2026-11-17), `row-0..3` (another profile's detail row swiped
+sideways to its end, 2026-11-17), `own-profile` (unknown). `fixture_files.py` loads them, `fake_phone.py` replays them as a phone (taps/swipes move between
 dumps, records actions, `sent()` must stay empty). `test_decide.py` runs the decider against a fake SDK stream
 (real `ResultMessage`/`RateLimitEvent` objects); `test_shadow.py` runs shadow → label → type on the fake phone. New fixture: `deploy/run.sh screener --cmd dump <name>` on the
 Pi, then `--cmd fixture <out dir> <dumps…>` (all dumps of one walk in one call), check the texts, copy over.
@@ -120,6 +121,11 @@ Pi, then `--cmd fixture <out dir> <dumps…>` (all dumps of one walk in one call
 - `back_out`: BACK hides the keyboard, the next leaves the app, BACK never closes the panel; relaunch drops it. The
   relaunch can show **another** profile (seen once after the profile had been open ~30 min): neither liked nor
   skipped (the likes banner stayed at "Step 1 of 5").
+- The details under prompt 1 start with a row that scrolls **sideways** (age, gender, height → location, children →
+  family plans, zodiac): uiautomator lists only what's on screen, so the dealbreaker details hid off to the right
+  until 2026-11-17. A 900 ms swipe moves it one screen; the end = an unchanged dump; a 150 ms fling right restores
+  the exact start dump. Bounds are clipped to the list: a row touching the list's edge is cut, its y unusable at the
+  top. Adds ~30 s per profile.
 - `exec-out uiautomator dump /dev/tty` appends "UI hierchary dumped to: /dev/tty": `Device.dump` cuts it.
 - Carried to later steps (not seen yet): an incoming like's card, an app notification's text, our own sent message's
   format in a chat. Each → a sanitized fixture when first seen.

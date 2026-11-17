@@ -145,3 +145,9 @@ def test_popup_allows_only_close():
 def test_summary_has_no_names():
     for name in ("feed-01", "matches", "chat"):
         assert "Alex" not in screens.summary(screen(name)) and "Sam" not in screens.summary(screen(name))
+
+
+def test_detail_row_found():
+    view = screens.profile_view(screen("row-0").root)
+    assert len(view.rows) == 1 and view.safe(view.rows[0])
+    assert [label for label, _ in view.details][:3] == ["Age", "Gender", "Height"]

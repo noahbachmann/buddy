@@ -58,6 +58,7 @@ DATE_SEPARATOR = re.compile(
 DETAIL_LABELS = frozenset({
     "Age", "Gender", "Sexuality", "Height", "Job", "Work", "School", "Hometown", "Location", "Politics", "Religion",
     "Relationship Type", "Pronouns", "Children", "Family Plans", "Drinking", "Smoking", "Pets", "Languages",
+    "Dating Intentions", "Ethnicity", "Zodiac Sign",
 })
 
 # Strings kept verbatim by the sanitizer (besides the patterns above)

@@ -27,6 +27,10 @@ MAX_MOVE = 700        # px, longest swipe when scrolling to a section: longer on
 SWIPE_MS = 900        # slow: scrolls by about the swipe length, no fling
 MAX_SWIPES = 30
 MAX_POPUPS = 3        # closed in a row before asking Dev
+ROW_EDGE = 100        # px from a detail row's ends where a sideways swipe starts/ends
+ROW_FLING_MS = 150    # fast: flings the row back to its start in one go (measured)
+MAX_ROW_SWIPES = 8
+ROW_SAME = 100        # px of content y: the same row in another dump
 HASH_MAX_DIST = 10    # of 64 bits: same photo
 Hasher = Callable[[bytes, Rect], str]   # (screenshot PNG, crop) → dhash
 Cropper = Callable[[bytes, Rect], bytes]   # (screenshot PNG, crop) → JPEG for the decision call
@@ -197,6 +201,9 @@ class Navigator:
             raise self.needs_you("profile doesn't scroll back to its top")
         cap = Capture(view)
         self._hash_photos(cap, view)
+        rows_seen: list[int] = []
+        rows_done: list[int] = []
+        self._explore_rows(cap, s, view, rows_seen, rows_done)
         sig = _signature(s.root)
         for _ in range(MAX_SWIPES):
             self._swipe_list(view, STEP)
@@ -206,10 +213,46 @@ class Navigator:
             sig = _signature(s.root)
             self._track(cap, nxt, cap.offset + STEP)
             self._hash_photos(cap, nxt)
+            self._explore_rows(cap, s, nxt, rows_seen, rows_done)
             view = nxt
         else:
             raise self.needs_you("profile has no end")
+        if len(rows_done) < len(rows_seen):
+            raise self.needs_you("a detail row was never clear of the floating buttons: its details are missing")
         return cap
+
+    def _explore_rows(self, cap: Capture, s: Screen, view: ProfileView, seen: list[int], done: list[int]) -> None:
+        """Swipes each detail row on screen to its end and merges what it reveals (location, children, … hide off
+        screen), then flings it back: the vertical stitching needs the screen as it was. Rows by content y."""
+        vp = view.viewport
+        for row in view.rows:
+            if row.top <= vp.top:
+                continue   # cut at the top: bounds clipped, its y unknown
+            y0 = row.top + cap.offset
+            if not any(abs(y0 - y) < ROW_SAME for y in seen):
+                seen.append(y0)
+            whole = row.bottom < vp.bottom   # bounds are clipped to the list: touching its edge = cut
+            if any(abs(y0 - y) < ROW_SAME for y in done) or not whole or not view.safe(row):
+                continue   # explored, or cut / under a floating button: a later dump shows it whole
+            done.append(y0)
+            start = sig = _signature(s.root)
+            y = row.center[1]
+            for _ in range(MAX_ROW_SWIPES):
+                self.dev.swipe_h(y, row.right - ROW_EDGE, row.left + ROW_EDGE, SWIPE_MS)
+                s2, v2 = self._profile()
+                if _signature(s2.root) == sig:
+                    break   # row's end
+                sig = _signature(s2.root)
+                cap.add_details(v2)
+            else:
+                raise self.needs_you("detail row has no end")
+            for _ in range(3):
+                self.dev.swipe_h(y, row.left + ROW_EDGE // 2, row.right - ROW_EDGE // 2, ROW_FLING_MS)
+                s2, _ = self._profile()
+                if _signature(s2.root) == start:
+                    break
+            else:
+                raise self.needs_you("detail row doesn't go back to its start")
 
     def scroll_to(self, cap: Capture, ref: str) -> tuple[Screen, SectionView]:
         """Brings a captured section fully on screen with its like button tappable; checks it is the same one."""
