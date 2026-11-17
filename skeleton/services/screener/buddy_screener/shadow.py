@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from . import vocab
-from .decide import Browse, Decider, Usage
+from .decide import TASK_BROWSE, TASK_TEXT, Browse, Decider, Usage
 from .library import Library
 from .navigator import Navigator
 from .profile import Capture
@@ -56,7 +56,7 @@ def run_shadow(nav: Navigator, decider: Decider, lib: Library, store: Store, tmp
     cap = nav.capture_profile()
     capture_s = time.monotonic() - t
     p = cap.profile
-    browse, usage = decider.browse(p, lib)
+    browse, usage = decider.decide(p, lib)
     first_prompt = next((s.text for s in p.sections if s.kind == "prompt"), "")
     bot = browse.to_dict() | {"chat_lang": browse.chat_lang}
     row_id = store.add_shadow(profile_key(p.name, p.details, first_prompt), capture_s, bot, usage)
@@ -75,7 +75,9 @@ def run_shadow(nav: Navigator, decider: Decider, lib: Library, store: Store, tmp
 def describe(r: ShadowResult, lib: Library) -> list[str]:
     """For the host terminal: what the bot decided and on what. Contains profile text."""
     b, p, u = r.browse, r.capture.profile, r.usage
-    out = [f"#{r.row_id} {p.name}: {b.decision.upper()}  ({r.capture_s:.0f} s capture, {u.ms / 1000:.0f} s decide, "
+    stage = " by the text check" if b.stage == "text" else ""
+    out = [f"#{r.row_id} {p.name}: {b.decision.upper()}{stage}  ({r.capture_s:.0f} s capture, "
+           f"{u.ms / 1000:.0f} s decide, "
            f"{u.input + u.cache_read + u.cache_write} in / {u.output} out tokens, ${u.cost:.3f}"
            + (f", plan 5 h {u.five_hour:.0%}" if u.five_hour is not None else "") + ")"]
     out.append(f"  reason: {b.reason}")
@@ -144,6 +146,18 @@ def type_label(nav: Navigator, row: ShadowRow, cap: Capture, lib: Library) -> st
     return c.text
 
 
+def _text_first(rows: list[ShadowRow], usage_rows: list[tuple]) -> list[str]:
+    """Does the text check pay? Saved = early skips × a full call's mean cost; spent = all text checks."""
+    text = [u[6] or 0 for u in usage_rows if u[0] == TASK_TEXT]
+    full = [u[6] or 0 for u in usage_rows if u[0] == TASK_BROWSE]
+    if not text or not full:
+        return []
+    early = sum(r.bot.get("stage") == "text" for r in rows)
+    saved, spent = early * statistics.mean(full), sum(text)
+    return [f"  text first: {early} of {len(text)} profiles skipped before photos, saved ~${saved:.2f}, the text "
+            f"checks cost ${spent:.2f} → {'pays' if saved > spent else 'does not pay (BUDDY_SCREENER_TEXT_FIRST=0)'}"]
+
+
 def report(rows: list[ShadowRow], usage_rows: list[tuple]) -> list[str]:
     done = [r for r in rows if r.dev]
     out = [f"shadow rows: {len(rows)}, labelled: {len(done)} ({len({r.key for r in done})} profiles)"]
@@ -172,6 +186,10 @@ def report(rows: list[ShadowRow], usage_rows: list[tuple]) -> list[str]:
             f"{sum(r.dev['decision'] == 'like' for r in done)}; no fitting comment (bot): {len(missing)}",
         ]
         out += [f"    missing: {m}" for m in missing[-15:]]
+        early = [r for r in done if r.bot.get("stage") == "text"]
+        if early:
+            out.append(f"  skipped by the text check: {len(early)}, Dev liked "
+                       f"{sum(r.dev['decision'] == 'like' for r in early)} of them")
         fixes = sum(bool(r.bot.get("fixes")) for r in done)
         if fixes:
             out.append(f"  decisions code had to fix: {fixes}")
@@ -187,6 +205,7 @@ def report(rows: list[ShadowRow], usage_rows: list[tuple]) -> list[str]:
             by_model.setdefault(u[1], []).append(u)
         for model, us in by_model.items():
             out.append(f"  {model}: {len(us)} calls, ${sum(u[6] or 0 for u in us):.2f} API-equivalent")
+        out += _text_first(rows, usage_rows)
         last = usage_rows[-1]
         if last[8] is not None:
             out.append(f"  plan after the last call: 5 h {last[8]:.0%}"

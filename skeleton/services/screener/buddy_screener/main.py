@@ -54,7 +54,7 @@ def _navigator(cfg: Config, dev: Device) -> Navigator:
 
 def _decider(cfg: Config, store: Store) -> Decider:
     return Decider(DecideConfig(cfg.model, cfg.effort, cfg.decide_timeout_s, cfg.daily_usd, cfg.token_file,
-                                cfg.limit_file, cfg.tmp_dir / "claude"), store)
+                                cfg.limit_file, cfg.tmp_dir / "claude", cfg.text_first), store)
 
 
 def _ensure_our_ime(dev: Device) -> None:

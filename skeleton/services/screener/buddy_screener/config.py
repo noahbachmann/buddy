@@ -22,6 +22,7 @@ class Config:
     decide_timeout_s: float = 180.0
     daily_usd: float = 5.0       # cap on the SDK's API-equivalent $ per 24 h (the plan isn't billed per call)
     photo_px: int = 512          # long side of a photo crop for the decision (~440 image tokens at 512)
+    text_first: bool = True      # text-only dealbreaker check before sending photos
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -38,6 +39,7 @@ class Config:
             decide_timeout_s=env_float("BUDDY_SCREENER_DECIDE_TIMEOUT_S", d.decide_timeout_s),
             daily_usd=env_float("BUDDY_SCREENER_DAILY_USD", d.daily_usd),
             photo_px=env_int("BUDDY_SCREENER_PHOTO_PX", d.photo_px),
+            text_first=env_int("BUDDY_SCREENER_TEXT_FIRST", int(d.text_first)) != 0,
         )
         if not 256 <= c.photo_px <= 1568:
             raise ValueError(f"BUDDY_SCREENER_PHOTO_PX={c.photo_px}: 256..1568")

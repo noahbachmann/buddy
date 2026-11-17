@@ -22,7 +22,7 @@ code path taps send like, skip or a chat send.
 | `navigator.py` | Moves: `go_tab`, `capture_profile`, `scroll_to(ref)`, `open_sheet` (+ scroll the panel clear), `type_comment` (read back), `back_out`, `open_chat`/`leave_chat`. `NeedsYou` keeps the raw dump in tmpfs |
 | `sanitize.py` | Real dumps → fixtures: one mapping across a walk, names/prompts/texts → placeholders, package → `app.example`; refuses output with a word from `~/buddy/config/screener/forbidden` (host) |
 | `library.py` | Host input: `preferences.md` (verbatim into the system prompt), `templates.md` section *Like comments* (`- id \| de\|en \| fit hint \| text`; broken line → whole file refused). Loaded per decision |
-| `decide.py` | Agent SDK wrapper (`Decider.call`/`browse`): locked-down CLI options, browse schema, `check_browse` (code re-checks: unknown section/comment → none, dealbreaker → skip, `fixes` kept), usage per call, `limit_until` pause, daily $ cap |
+| `decide.py` | Agent SDK wrapper (`Decider.decide` = text check, then `browse` with photos): locked-down CLI options, text + browse schemas, `check_text`, `check_browse` (code re-checks: unknown section/comment → none, dealbreaker → skip, `fixes` kept), usage per call, `limit_until` pause, daily $ cap |
 | `store.py` | SQLite `data/screener/screener.db`: `usage` (kept), `shadow` (bot decision + Dev's label as JSON, profile key only, 30 days) |
 | `shadow.py` | Step 2 commands' logic: `run_shadow` (capture → decide → row; capture pickled to tmpfs without crops), `make_label`, `type_label`, `report` (done-when numbers) |
 | `config.py` | `BUDDY_SCREENER_*` (incl. model, effort, decide timeout, daily $), kill switch files (`config/screener/stop`, `data/screener/paused`), token/limit/db paths, tmpfs dir |
@@ -44,6 +44,13 @@ code path taps send like, skip or a chat send.
 - Locked down per call: `tools=[]`, `setting_sources=[]`, `strict_mcp_config`, `skills=[]`, `--no-session-persistence`,
   empty tmpfs cwd, `verbatim_prompts` (else `@/path` in profile text is a file mention; with it the text arrives as written: checked).
 - Structured output = the CLI's `--json-schema`: costs a second turn (`num_turns` 2), `max_turns` 3.
+- Text first (`BUDDY_SCREENER_TEXT_FIRST`, on): a text-only call (`task` "text") returns stated dealbreakers; one →
+  skip (`Browse.stage` "text"), photos never sent. Both stages use the same system prompt (the stage is the user
+  message's first line), so the cached prefix serves both. `report` says whether it pays (early skips × a full call's
+  mean $ vs all text checks).
+- Fresh context per profile, not one chat per day: resent history grows quadratically, profiles anchor on each
+  other, one injected text would stay for the rest of the day. The shared part (preferences + library) is the cached
+  system prompt anyway.
 - `RateLimitEvent.rate_limit_info.raw["unifiedWindows"]` has the plan's 5 h / 7 day utilization: logged per call.
 - Photos: JPEG crops (long side `BUDDY_SCREENER_PHOTO_PX`, 512 ≈ 440 tokens; 768 was ≈ 980) taken with the hash
   screenshot, in `Section.jpeg`, never on disk. Photos are most of a profile's tokens.

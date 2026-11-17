@@ -5,8 +5,8 @@ import pytest
 from claude_agent_sdk import RateLimitEvent, ResultMessage
 from claude_agent_sdk.types import RateLimitInfo
 
-from buddy_screener.decide import (BudgetSpent, DecideConfig, DecideError, Decider, UsageLimited, check_browse,
-                                   profile_content, system_prompt)
+from buddy_screener.decide import (STAGE_TEXT, BudgetSpent, DecideConfig, DecideError, Decider, UsageLimited,
+                                   check_browse, check_text, profile_content, system_prompt)
 from buddy_screener.library import Library, LikeComment
 from buddy_screener.profile import Profile, Section
 from buddy_screener.store import Store
@@ -33,6 +33,21 @@ def test_profile_content_keeps_capture_order_and_no_name():
     assert blocks[2]["text"].splitlines() == ["prompt 1: My hot take — Pineapple belongs on pizza",
                                               "photo 2: (photo not available)", "prompt 2: Sunday — Hiking"]
     assert "Alex" not in str(blocks)
+
+
+def test_text_check_content_has_no_photos():
+    blocks = profile_content(profile(), photos=False)
+    assert [b["type"] for b in blocks] == ["text"]
+    lines = blocks[0]["text"].splitlines()
+    assert lines[0] == STAGE_TEXT and "photo 1: (photo)" in lines and "photo 2: (photo)" in lines
+
+
+def test_check_text():
+    assert check_text({"reason": "nothing stated", "dealbreakers": []}) is None
+    b = check_text({"reason": "says so", "dealbreakers": [" smokes "]})
+    assert (b.decision, b.dealbreakers, b.stage, b.comment_on) == ("skip", ["smokes"], "text", "none")
+    with pytest.raises(DecideError):
+        check_text(None)
 
 
 def test_system_prompt_has_preferences_and_library():
@@ -101,16 +116,18 @@ def limit(status="allowed", five=0.4, resets=2_000_000_000):
 
 
 class FakeSdk:
-    def __init__(self, *messages, delay=0.0):
-        self.messages, self.delay, self.calls = messages, delay, []
+    """Every call yields `messages`; `script` = one message tuple per call instead."""
+    def __init__(self, *messages, delay=0.0, script=None):
+        self.messages, self.delay, self.calls, self.script = messages, delay, [], list(script or [])
 
     def __call__(self, content, options):
         self.calls.append((content, options))
+        messages = self.script.pop(0) if self.script else self.messages
 
         async def gen():
             if self.delay:
                 await asyncio.sleep(self.delay)
-            for m in self.messages:
+            for m in messages:
                 yield m
         return gen()
 
@@ -184,3 +201,34 @@ def test_error_result_and_timeout(cfg, store, monkeypatch):
     cfg.timeout_s = 0.05
     with pytest.raises(DecideError, match="no answer within"):
         decider(cfg, store, FakeSdk(result(raw()), delay=1.0)).browse(profile(), LIB)
+
+
+def images(content):
+    return sum(b["type"] == "image" for b in content)
+
+
+def test_text_first_skips_without_photos(cfg, store, monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    sdk = FakeSdk(script=[(result({"reason": "says so", "dealbreakers": ["smokes"]}, cost=0.003),)])
+    b, u = decider(cfg, store, sdk).decide(profile(), LIB)
+    assert (b.decision, b.stage) == ("skip", "text") and len(sdk.calls) == 1 and images(sdk.calls[0][0]) == 0
+    assert u.task == "text" and u.cost == 0.003
+
+
+def test_text_first_passes_to_the_full_call(cfg, store, monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    sdk = FakeSdk(script=[(result({"reason": "none stated", "dealbreakers": []}, cost=0.003),),
+                          (limit(five=0.5), result(raw(), cost=0.02))])
+    b, u = decider(cfg, store, sdk).decide(profile(), LIB)
+    assert (b.decision, b.stage) == ("like", "full") and [images(c) for c, _ in sdk.calls] == [0, 1]
+    assert sdk.calls[0][1].system_prompt == sdk.calls[1][1].system_prompt      # one cached prefix for both
+    assert (u.task, u.cost, u.five_hour) == ("text+browse", pytest.approx(0.023), 0.5)
+    assert [r[0] for r in store.usage_rows()] == ["text", "browse"]
+
+
+def test_text_first_off(cfg, store, monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    cfg.text_first = False
+    sdk = FakeSdk(result(raw()))
+    decider(cfg, store, sdk).decide(profile(), LIB)
+    assert len(sdk.calls) == 1 and images(sdk.calls[0][0]) == 1

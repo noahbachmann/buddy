@@ -16,7 +16,7 @@ class FakeDecider:
     def __init__(self, browse: Browse):
         self.result, self.seen = browse, None
 
-    def browse(self, p, lib):
+    def decide(self, p, lib):
         self.seen = p
         return self.result, Usage("browse", "m", 10, 2000, 0, 300, 0.01, 5000, 0.3, 0.1)
 
@@ -103,3 +103,15 @@ def test_report_numbers(store):
     assert "dealbreaker: 1 [NOT YET]" in out
     assert "section + comment as Dev chose: 1/2 = 50%" in out
     assert "missing: a pet photo" in out
+
+
+def test_report_says_whether_text_first_pays(store):
+    early = Browse("skip", "none", "none", "", [], [], ["smokes"], "states it", stage="text")
+    store.label(row(store, early).id, {"decision": "like", "comment_on": "prompt 1", "comment": "none", "note": "",
+                                       "wrong": False, "dealbreaker": False, "sensitive": False})
+    row(store, like())
+    for task, cost in (("text", 0.004), ("text", 0.004), ("browse", 0.02)):
+        store.add_usage(1.0, Usage(task, "m", cost=cost))
+    out = "\n".join(shadow.report(store.shadow(), store.usage_rows()))
+    assert "skipped by the text check: 1, Dev liked 1 of them" in out
+    assert "text first: 1 of 2 profiles skipped before photos, saved ~$0.02, the text checks cost $0.01 → pays" in out
