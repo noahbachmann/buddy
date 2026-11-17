@@ -93,7 +93,8 @@ Round holes, PETG at 0.20 mm (fit test, log #3), gap per side:
 |---|---|---|
 | Vertical (axis Z) | +0.05 | +0.10 |
 | Horizontal teardrop | 0 | +0.05 |
-| TR8 nut, per flank (standing) | ? | 0.15 ⚠️ thread test (log #5) |
+| TR8 nut, per flank (standing, 0.12 mm) | ? | 0.10 (thread test, log #7) |
+| D-bore on a 5 mm motor shaft (0.12 mm) | 0.10 | 0.125 ⚠️ (0.15 very slightly loose) |
 
 ## Problems
 
@@ -114,5 +115,6 @@ Round holes, PETG at 0.20 mm (fit test, log #3), gap per side:
 | 2 | 2026-11 | Desiccant trays (PLA) | lid rim 0.07 per side | Press fit, holds | Keep 0.07 for PLA press fits |
 | 3 | 2026-11-09 | Dispenser fit test (PETG) | Ø3 pin in holes −0.05…+0.20 per side | Vertical: press +0.05, slip +0.10. Horizontal teardrop: press 0, slip +0.05 | `fit_*` in `dispenser/params.scad` |
 | 4 | 2026-11 | Dispenser borders H, B (PETG) | Stale plate: H vertical +0 per side, B horizontal +0.05 | H too tight, B pins slide out | Fit test confirmed in 7 mm deep holes: H +0.05, B 0 |
-| 5 | 2026-11-16 | Dispenser motor gear, TR8 nuts (PETG, 0.12) | Gear bore Ø5.15 (+0.075/side); nuts 0.2 radial (= 0.05 per flank) | Neither went on | Bore → slip +0.10 with bed chamfer; nuts → 0.15 per flank; thread test rings 0.10–0.25 per flank, bores 0.10–0.20 (`plates/1b-reprint`) ⚠️ results open |
+| 5 | 2026-11-16 | Dispenser motor gear, TR8 nuts (PETG, 0.12) | Gear bore Ø5.15 (+0.075/side); nuts 0.2 radial (= 0.05 per flank) | Neither went on | Bore → slip +0.10 with bed chamfer; nuts → 0.15 per flank; thread test rings 0.10–0.25 per flank, bores 0.10–0.20 (log #7) |
 | 6 | 2026-11-17 | Dispenser 1b reprint (PETG, 0.12), no brim | – | Lift nut came loose: spaghetti | Stands on ~30 mm² (16 in layer 1) under a Ø22 flange 15 mm up: brim (outer, 5 mm), reprint it alone |
+| 7 | 2026-11-17 | Thread test (PETG, 0.12) | TR8 nut rings 0.10–0.25 per flank, D-bore rings 0.10–0.20 per side | Nut 0.10: turns by hand, no rocking. Bore 0.10 too tight, 0.15 very slightly loose | `nut_flank` 0.10, `bore_gap` 0.125; gear and nuts → `plates/1c-reprint` |

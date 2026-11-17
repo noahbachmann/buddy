@@ -316,7 +316,7 @@ Checked on the borders (2026-11-11): printed from a stale plate 2 with the pre-t
 holes (= hole 2) were too tight and border B's Ø3.1 horizontal holes (= hole 3) let the pin slide out: both as the fit
 test predicts, also in 7 mm deep holes. Current: H Ø3.1, B Ø3.0.
 
-**Thread test** (on `plates/1b-reprint.stl`). The first gear and nuts (2026-11-16) didn't fit: the gear's
+**Thread test** (printed 2026-11-17 on the 1b reprint plate). The first gear and nuts (2026-11-16) didn't fit: the gear's
 D-bore was Ø5.15 (between press and slip: it predates the fit test), and the nuts had 0.2 mm radial gap, which on a
 TR thread's 15° flanks is only 0.05 mm per flank (the flanks carry, not the crests), below even the press fit. Now
 `bore_gap` = slip (Ø5.2, flat at 2.1) with a 0.4 chamfer at the bed face against elephant foot, and `nut_flank` is
@@ -331,6 +331,10 @@ Nut: the tightest ring that turns along the screw by fingers without binding, ri
 the screw). Bore: the tightest ring that slides onto the motor shaft by hand. The gear and nuts on the same plate have the
 middle values (nut ring 2, bore ring 1): if they fit, done. If a ring other than that one is the right one, tell Claude
 its number: it goes into `nut_flank` / `bore_gap`, and that part is reprinted from `stl/`.
+
+**Result (Dev, 2026-11-17):** nut ring 1 fits (0.10 per flank), so `nut_flank` = 0.10. Bore ring 1 (0.10) is too tight,
+ring 2 (0.15) very slightly loose, so `bore_gap` = 0.125 ⚠️ (between two tested steps). The gear and nuts from 1b
+(bore 0.10, nuts 0.15) are replaced by `plates/1c-reprint.stl`.
 
 **Couplings: printed and rigid** (2026-11-17). The Purecrea flexible couplings let the screws flop: a flexible
 coupling only works when the screw has its own bearing at the far end, and the lift's screw has none (its top is
@@ -349,7 +353,7 @@ parts (for reprints, e.g. only the left gate). `parts/cad plate dispenser` rebui
 |---|---|---|---|
 | `0-fit-test.stl` | fit test, 2 test pins: **print first** ("Printed joints") | PETG | 0.20 mm, 4 walls, 10 %, no supports |
 | `1-petg-fine.stl` | drive drum, idler drum, motor gear, left gate, pusher nut, lift nut, 2 couplings, 4 border pins | PETG | 0.12 mm, 4 walls, 15 %, no supports, **brim: outer only** (the drums stand 107 mm on Ø15–18) |
-| `1b-reprint.stl` | thread test, motor gear, pusher nut, lift nut, 2 couplings: the parts changed on 2026-11-16/17 ("Thread test") | PETG | 0.12 mm, 4 walls, 15 %, no supports, **brim: outer only** (the lift nut) |
+| `1c-reprint.stl` | motor gear, pusher nut, lift nut with the thread test's values ("Thread test") | PETG | 0.12 mm, 4 walls, 15 %, no supports, **brim: outer only** (the lift nut) |
 | `2-petg.stl` | roller frame, front plate, border H, border B: **after the fit test** | PETG | 0.20 mm, 4 walls, 15 %, no supports |
 | `3-pla.stl` | pusher, lift: **after the fit test** | PLA | 0.20 mm, 4 walls, 15 %, **supports on: tree (auto), on build plate only** |
 | `stl/case.stl` | case (a plate of its own) | PETG | 0.20 mm, 4 walls, 15 %, no supports, textured PEI |
@@ -360,9 +364,9 @@ Why these settings:
 - **Plate 1 at 0.12 mm:** fits and teeth (bearing seats, gear mesh, the nut's thread, the left gate's gap step). The
   nut needs 0.12 most: the 1.3 mm under its thread root is all perimeters. One layer height for the whole plate (a
   plate prints as one object); the drums only cost time at 0.12, not accuracy.
-- **Brim on plates 1 and 1b:** the file is one object, so Bambu's "auto" brim judges the whole plate and leaves the drums
+- **Brim on plates 1 and 1c:** the file is one object, so Bambu's "auto" brim judges the whole plate and leaves the drums
   and the lift nut without one. The lift nut stands on its Ø11 body (~30 mm², 16 mm² in the first layer: the thread's
-  lead-in) with the Ø22 flange 15 mm up: without a brim it came loose on 1b (2026-11-17, spaghetti). Outer brim, 5 mm,
+  lead-in) with the Ø22 flange 15 mm up: without a brim it came loose on the 1b reprint (2026-11-17, spaghetti). Outer brim, 5 mm,
   Bambu's 0.1 mm gap: it peels off the gear teeth.
 - **4 walls everywhere:** every wall is ≤ 3 mm, so 3 or 4 walls both print it solid; one value for all plates.
 - **No supports:** horizontal holes are teardrops, the drum grooves are teardrop-shaped and the lower bearing seat
@@ -394,7 +398,7 @@ Why these settings:
   get the PETG values, PLA prints holes a little larger ⚠️.
 - **TR8 nuts: PETG**, not PLA: it wears less on the steel screw. Test each on the screw by hand before assembly: it
   should turn along the whole screw without binding and without wobble. Binds → `nut_flank` + 0.05, wobbles → − 0.05
-  (per flank, `params.scad`; thread test first). A printed nut drags more than brass: set the pusher's StallGuard threshold
+  (per flank, `params.scad`; from the thread test: 0.10). A printed nut drags more than brass: set the pusher's StallGuard threshold
   with these nuts.
 
 ## Assembly
