@@ -36,7 +36,7 @@ whisper.cpp build. Phase 1 history and numbers: `guides/01-setup-summary.md` →
 | NVIDIA driver ≥ 570 | PyTorch's CUDA 12.8 wheels (any NVIDIA GPU of the last ~10 years). On WSL2: the Windows driver, nothing inside WSL |
 | cmake + C++ compiler (optional) | Builds whisper.cpp's quantize tool once for the `q8_0` model; skipped without |
 | `ssh buddy` works | Same alias as `deploy/deploy.sh` (`BUDDY_HOST` to override) |
-| Dataset folder | `~/buddy-voice` (`BUDDY_VOICE_DIR` to override). **Back it up**: it's the only part you can't regenerate |
+| Dataset folder | `~/buddy-voice` (`BUDDY_VOICE_DIR` to override). **Back it up** after every recording or `history` run: labelled live clips exist nowhere else (the Pi deletes them). In WSL: `rsync -a ~/buddy-voice/ /mnt/c/Users/Noah/buddy-voice-backup/`, where the Windows backup sees it |
 
 The first `deploy/train.sh` installs the Python packages (PyTorch ~2.5 GB) with uv. Check the GPU:
 `uv run --project skeleton --package buddy-voice --extra cuda python -c "import torch; print(torch.cuda.get_device_name())"`.
@@ -44,7 +44,8 @@ The first `deploy/train.sh` installs the Python packages (PyTorch ~2.5 GB) with 
 ## The corpus: `skeleton/tools/voice/commands.tsv`
 
 One list for everything: recording prompts, brain's regression test (`deploy/test.sh -R Corpus`), and the intent score. Columns:
-`set` (`train` / `test` / `wake`), `sentence` (written as it should be transcribed, digits for numbers), `intent`, `query`.
+`set` (`train` / `test` / `wake` / `extra` = brain test only), `sentence` (written as it should be transcribed, digits
+for numbers), `intent`, `query`, `device` (speaker or room/light brain splits off).
 
 - Put your real artists, songs and playlists in; 5+ sentences per name, spread over train and test.
 - `test` sentences are rephrasings that are never recorded for training: the score on them is the honest one.
@@ -69,7 +70,10 @@ finished; `r` redoes the last clip, `s` skips, `q` quits. The same label on the 
 - Vary what ears will hear: distance (desk, 2–3 m), loudness, the **music box playing** at normal and loud volume, music
   with vocals (hardest), time of day. One condition per session, so the eval can show each one separately.
 - Only the raw mic is recorded (what ears hears, D13). Sessions up to 2026-10-28 also have an `aec/` track (`--source aec`).
-- Test sessions (`deploy/record.sh <label> test`) on another day, half of them with the box playing.
+- Test sessions (`deploy/record.sh <label> test`) on another day, half of them with the box playing. Listen to a
+  few clips before trusting one: a single bad test session (clips cut off, noise) once held a good model at 9/15
+  while its box twin scored 15/15. Bad → delete it on the Pi *and* the PC (else the next pull brings it back) and
+  record it again. `eval` doesn't pull: `deploy/train.sh pull` first.
 - **After the corpus grew:** `new` / `test-new` record only the `train` / `test` sentences without a clip of that set
   from before today (any session in `~/buddy-voice`, live labels included, and sessions still on the Pi), no wake
   words by default. Today's sessions don't count, so `desk new` and then `box new` the same day both get every new
@@ -210,6 +214,9 @@ Each run trains on all sessions; nothing is ever thrown away.
 | check: `clipped` | Recorder: a bit softer, then `r`. Live clip: delete its row in `sessions/live/metadata.csv` |
 | check: many `too quiet` | Closer, louder, or the Jabra's mic gain (`wpctl set-volume @DEFAULT_AUDIO_SOURCE@ 1.0`) |
 | `kept epoch 0` (no improvement) | Too little or too uniform data: more sessions, more conditions |
+| eval: a new test session is missing | `eval` scores only what's on the PC: `deploy/train.sh pull` first |
+| One test session far worse than its twin (same sentences) | Listen to its trimmed clips (`~/buddy-voice/trimmed/<session>/raw/`): cut off or noisy → delete the session on the Pi and the PC, re-record |
+| `pw-play`: `Host is down` (WSL) | No PipeWire in WSL: `explorer.exe "$(wslpath -w <clip.wav>)"` plays it in Windows |
 | eval: `no output (model missing…)` | Name not in `~/buddy/models`; pass the local path instead |
 | eval: garbage with `ctx=auto` | Stock model or one trained with `--ctx full`: use `ctx=0` |
 | New model worse on new sentences | Overfitted: more varied clips, `--epochs 5` |

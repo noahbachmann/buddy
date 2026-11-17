@@ -212,6 +212,10 @@ After the wake word, ears records until you stop talking, transcribes on the Pi'
 | buddy-base.en, `audio_ctx=auto` | 35/57 | 26/43 | 14.3 % | **0.20 s** |
 | base.en, `audio_ctx=auto` | 18/57 | 16/43 | 36.2 % | 2.45 s (p90 11 s) |
 
+- **Current** (2026-11-17, #67): `ggml-buddy-base.en-20261117-1921.bin`, `audio_ctx=auto`, trained on ~1000 clips
+  (recorded sessions + labelled live commands). On 89 test clips from 3 sessions (2026-10-28 mixed, 2026-11-17 desk
+  and box): exact 85/89, intent 87/89, WER 1.2 %, 0.19 s (p90 0.26 s).
+
 - **`BUDDY_STT_AUDIO_CTX`**: whisper always encodes a 30 s window unless told otherwise. `auto` sizes it to the command
   (50 frames per second + 16): ~9× faster. Stock models fall apart with it (hallucination loops); models trained with
   `deploy/train.sh` (default `--ctx auto`) are made for it, and `train.sh install` sets it with the model.
