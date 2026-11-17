@@ -73,7 +73,7 @@ finished; `r` redoes the last clip, `s` skips, `q` quits. The same label on the 
 - Test sessions (`deploy/record.sh <label> test`) on another day, half of them with the box playing. Listen to a
   few clips before trusting one: a single bad test session (clips cut off, noise) once held a good model at 9/15
   while its box twin scored 15/15. Bad → delete it on the Pi *and* the PC (else the next pull brings it back) and
-  record it again. `eval` doesn't pull: `deploy/train.sh pull` first.
+  record it again.
 - **After the corpus grew:** `new` / `test-new` record only the `train` / `test` sentences without a clip of that set
   from before today (any session in `~/buddy-voice`, live labels included, and sessions still on the Pi), no wake
   words by default. Today's sessions don't count, so `desk new` and then `box new` the same day both get every new
@@ -101,10 +101,11 @@ What it does, so the output makes sense:
    (+ `-q8_0.bin`, smaller, sometimes faster) in `~/buddy-voice/runs/<time>-<base>/` with `report.json`.
 5. **eval** on the Pi (below) against what's installed, then asks which model to install.
 
-## Eval: `deploy/train.sh eval <model>… [--ctx 0,auto] [--fallback 0,1] [--source raw|aec] [--prompt …] [-v]`
+## Eval: `deploy/train.sh eval <model>… [--ctx 0,auto] [--fallback 0,1] [--source raw|aec] [--prompt …] [-v] [--no-pull]`
 
 Models: names in the Pi's `~/buddy/models`, local `.bin` paths (copied over first), or `current` (exactly what
-`buddy.env` says). Comma lists make a matrix. Clips: every `test` clip, trimmed, copied to the Pi's `/tmp`.
+`buddy.env` says). Comma lists make a matrix. Pulls first, so a test session just recorded counts (`--no-pull`:
+only what's on the PC). Clips: every `test` clip, trimmed, copied to the Pi's `/tmp`.
 
 ```
 variant                                   exact     intent     WER   ms avg/p90
@@ -214,7 +215,6 @@ Each run trains on all sessions; nothing is ever thrown away.
 | check: `clipped` | Recorder: a bit softer, then `r`. Live clip: delete its row in `sessions/live/metadata.csv` |
 | check: many `too quiet` | Closer, louder, or the Jabra's mic gain (`wpctl set-volume @DEFAULT_AUDIO_SOURCE@ 1.0`) |
 | `kept epoch 0` (no improvement) | Too little or too uniform data: more sessions, more conditions |
-| eval: a new test session is missing | `eval` scores only what's on the PC: `deploy/train.sh pull` first |
 | One test session far worse than its twin (same sentences) | Listen to its trimmed clips (`~/buddy-voice/trimmed/<session>/raw/`): cut off or noisy → delete the session on the Pi and the PC, re-record |
 | `pw-play`: `Host is down` (WSL) | No PipeWire in WSL: `explorer.exe "$(wslpath -w <clip.wav>)"` plays it in Windows |
 | eval: `no output (model missing…)` | Name not in `~/buddy/models`; pass the local path instead |

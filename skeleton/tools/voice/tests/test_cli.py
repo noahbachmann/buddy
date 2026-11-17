@@ -117,3 +117,16 @@ def test_history_plays_on_the_pi_and_replays_on_r(live, monkeypatch):
     cli.cmd_history(argparse.Namespace(source="raw"))
     first = "/home/dev/buddy/voice-live/20261028-100000.wav"
     assert played == [first, first, first, "/home/dev/buddy/voice-live/20261028-100100.wav"]
+
+
+@pytest.mark.parametrize("no_pull, pulls", [(False, 1), (True, 0)])
+def test_eval_pulls_first(monkeypatch, no_pull, pulls):  # 2026-11-17: a fresh test session was left out
+    from buddy_voice import evaluate
+
+    calls = []
+    monkeypatch.setattr(cli, "cmd_pull", lambda _args=None: calls.append("pull"))
+    monkeypatch.setattr(evaluate, "upload_model", lambda m: m)
+    monkeypatch.setattr(evaluate, "evaluate", lambda *_a, **_k: calls.append("eval"))
+    cli.cmd_eval(argparse.Namespace(models=["current"], ctx="", fallback="", source="raw", sessions=[], prompt=None,
+                                    verbose=False, no_pull=no_pull))
+    assert calls == ["pull"] * pulls + ["eval"]

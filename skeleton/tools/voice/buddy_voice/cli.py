@@ -3,7 +3,7 @@
     train [options]          pull → check → fine-tune → convert → eval against the current model → install?
     pull                     sessions (and saved live commands) from the Pi → ~/buddy-voice
     check                    dataset report: levels, missing files, clips without speech
-    eval <model>… [options]  score models on the test clips on the Pi
+    eval <model>… [options]  pull, then score models on the test clips on the Pi
     install <model> [--ctx]  copy to the Pi, set BUDDY_STT_MODEL / BUDDY_STT_AUDIO_CTX, restart ears
     history                  live commands ears saved (BUDDY_EARS_SAVE_DIR): pull, label, delete on the Pi, live score
     prompts <set>            train/test sentences not recorded before today (deploy/record.sh <label> new|test-new)
@@ -99,6 +99,8 @@ def _upload(path: Path) -> str:
 def cmd_eval(args) -> None:
     from .evaluate import Variant, evaluate, upload_model  # noqa: PLC0415
 
+    if not args.no_pull:
+        cmd_pull()  # a test session just recorded is still on the Pi
     variants = [Variant(upload_model(m), ctx=c, fallback=f)
                 for m in args.models for c in args.ctx.split(",") for f in args.fallback.split(",")]
     evaluate(variants, source=args.source, sessions=args.sessions or None, prompt=args.prompt, verbose=args.verbose)
@@ -244,6 +246,7 @@ def main() -> int:
     sp.add_argument("--source", default="raw", choices=["raw", "aec"])
     sp.add_argument("--prompt", default=None, help="BUDDY_STT_PROMPT for this run ('' = none)")
     sp.add_argument("-v", "--verbose", action="store_true", help="list the clips with a wrong intent")
+    sp.add_argument("--no-pull", action="store_true", help="score only what's on the PC already")
     sp.set_defaults(fn=cmd_eval)
 
     sp = sub.add_parser("install")
