@@ -64,8 +64,9 @@ std::string number_words_to_digits(const std::string& text) {
     return out;
 }
 
-// Speaker names: "desktop one" → "desktop 1", "pixel eight" → "pixel 8". Only here: elsewhere "one" stays a word.
-std::string device_digits(const std::string& device) {
+// Speaker names: "desktop one" → "desktop 1", "pixel eight" → "pixel 8" (only here: elsewhere "one" stays a word);
+// "bathroom speakers" → "bathroom speaker": whisper adds the "s" at times, every name Buddy plays on has one speaker.
+std::string speaker_name(const std::string& device) {
     static const std::map<std::string, std::string> digits = {{"one", "1"}, {"two", "2"},   {"three", "3"},
                                                               {"four", "4"}, {"five", "5"}, {"six", "6"},
                                                               {"seven", "7"}, {"eight", "8"}, {"nine", "9"}};
@@ -75,6 +76,7 @@ std::string device_digits(const std::string& device) {
         if (const auto d = digits.find(w); d != digits.end()) w = d->second;
         out += (out.empty() ? "" : " ") + w;
     }
+    if (out.ends_with(" speakers")) out.pop_back();
     return out;
 }
 
@@ -248,13 +250,13 @@ std::optional<Intent> RuleParser::parse_device(const std::string& t) const {
         Intent intent;
         intent.name = "play";  // empty query + device: keep playing, there
         intent.skill = "spotify";
-        intent.device = device_digits(m[m.size() - 1].str());
+        intent.device = speaker_name(m[m.size() - 1].str());
         return intent;
     }
     if (std::regex_match(t, m, suffix) && !std::regex_match(m[4].str(), not_a_device)) {
         auto intent = parse_core(m[1].str());
         if (intent && (intent->name == "play" || intent->name == "play_playlist" || intent->name == "play_liked")) {
-            intent->device = device_digits(m[4].str());
+            intent->device = speaker_name(m[4].str());
             // "play shine" + "on you crazy diamond": maybe a title. "play (it) on X", playlists, liked songs: a speaker.
             if (intent->name == "play" && !intent->query.empty()) {
                 if (const auto whole = parse_core(t)) {
@@ -270,7 +272,7 @@ std::optional<Intent> RuleParser::parse_device(const std::string& t) const {
     if (std::regex_match(t, m, bare_in) && !std::regex_match(m[3].str(), not_a_device)) {
         auto intent = parse_core(m[1].str());
         if (intent && intent->name == "play" && intent->query.empty()) {
-            intent->device = device_digits(m[3].str());
+            intent->device = speaker_name(m[3].str());
             return intent;
         }
     }

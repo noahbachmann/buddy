@@ -60,6 +60,13 @@ TEST(RuleParser, SpokenNumbersInSpeakerNames) {  // whisper writes "desktop one"
     EXPECT_EQ(parser.parse("Skip this one.")->name, "next");
 }
 
+TEST(RuleParser, PluralSpeakerName) {  // eval 2026-11-17: "Send music to bathroom speakers."
+    const buddy::brain::RuleParser parser;
+    EXPECT_EQ(parser.parse("Send music to bathroom speakers.")->device, "bathroom speaker");
+    EXPECT_EQ(parser.parse("Play Daft Punk on the bathroom speakers.")->device, "bathroom speaker");
+    EXPECT_EQ(parser.parse("Play Speakers.")->query, "speakers");  // a title, no device
+}
+
 TEST(RuleParser, BareInBeforeSpeaker) {  // live 2026-11-08: went to the default speaker as a search
     const buddy::brain::RuleParser parser;
     const auto i = parser.parse("Play Spotify in bathroom speaker.");
