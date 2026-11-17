@@ -17,8 +17,9 @@ def crop_hash(png: bytes, rect: Rect) -> str:
     return dhash([px[r * 9:(r + 1) * 9] for r in range(8)])
 
 
-def crop_jpeg(png: bytes, rect: Rect, max_side: int = 768, quality: int = 80) -> bytes:
-    """The photo for the decision call: downscaled so its long side is `max_side` (~600–800 image tokens)."""
+def crop_jpeg(png: bytes, rect: Rect, max_side: int = 512, quality: int = 80) -> bytes:
+    """The photo for the decision call: downscaled so its long side is `max_side`. Image tokens ≈ w × h / 750:
+    a 4:5 photo is ~440 at 512, ~980 at 768."""
     with Image.open(io.BytesIO(png)) as img:
         crop = img.crop((rect.left, rect.top, rect.right, rect.bottom)).convert("RGB")
     crop.thumbnail((max_side, max_side), Image.LANCZOS)

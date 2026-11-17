@@ -48,7 +48,8 @@ def _device(cfg: Config) -> Device:
 
 def _navigator(cfg: Config, dev: Device) -> Navigator:
     from .imaging import crop_hash, crop_jpeg
-    return Navigator(dev, cfg.package, dump_dir=cfg.tmp_dir, hasher=crop_hash, cropper=crop_jpeg)
+    return Navigator(dev, cfg.package, dump_dir=cfg.tmp_dir, hasher=crop_hash,
+                     cropper=lambda png, rect: crop_jpeg(png, rect, cfg.photo_px))
 
 
 def _decider(cfg: Config, store: Store) -> Decider:

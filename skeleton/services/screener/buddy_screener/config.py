@@ -21,6 +21,7 @@ class Config:
     effort: str = "medium"
     decide_timeout_s: float = 180.0
     daily_usd: float = 5.0       # cap on the SDK's API-equivalent $ per 24 h (the plan isn't billed per call)
+    photo_px: int = 512          # long side of a photo crop for the decision (~440 image tokens at 512)
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -36,7 +37,10 @@ class Config:
             effort=env_string("BUDDY_SCREENER_EFFORT", d.effort),
             decide_timeout_s=env_float("BUDDY_SCREENER_DECIDE_TIMEOUT_S", d.decide_timeout_s),
             daily_usd=env_float("BUDDY_SCREENER_DAILY_USD", d.daily_usd),
+            photo_px=env_int("BUDDY_SCREENER_PHOTO_PX", d.photo_px),
         )
+        if not 256 <= c.photo_px <= 1568:
+            raise ValueError(f"BUDDY_SCREENER_PHOTO_PX={c.photo_px}: 256..1568")
         if c.effort not in ("low", "medium", "high", "xhigh", "max"):
             raise ValueError(f"BUDDY_SCREENER_EFFORT={c.effort!r}: low|medium|high|xhigh|max")
         if not c.package:

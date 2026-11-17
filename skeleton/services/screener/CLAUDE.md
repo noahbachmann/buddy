@@ -45,7 +45,8 @@ code path taps send like, skip or a chat send.
   empty tmpfs cwd, `verbatim_prompts` (else `@/path` in profile text is a file mention; with it the text arrives as written: checked).
 - Structured output = the CLI's `--json-schema`: costs a second turn (`num_turns` 2), `max_turns` 3.
 - `RateLimitEvent.rate_limit_info.raw["unifiedWindows"]` has the plan's 5 h / 7 day utilization: logged per call.
-- Photos: JPEG crops (long side 768) taken with the hash screenshot, in `Section.jpeg`, never on disk.
+- Photos: JPEG crops (long side `BUDDY_SCREENER_PHOTO_PX`, 512 ≈ 440 tokens; 768 was ≈ 980) taken with the hash
+  screenshot, in `Section.jpeg`, never on disk. Photos are most of a profile's tokens.
 
 ## Shadow session (step 2, Dev taps)
 
