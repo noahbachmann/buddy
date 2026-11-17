@@ -60,7 +60,7 @@ Never train on these: they're what the eval measures.
 deploy/train.sh
 ```
 
-Pulls, checks (fix `⚠` clips with `r` in the recorder or `--force`), trains, then the eval table: `current` vs. the
+Pulls, checks (fix `⚠` clips with `r` in the recorder, live ones by deleting their row, or `--force`), trains, then the eval table: `current` vs. the
 new model, one row per test session. Install (`1` / `2` at the prompt) only if **intent** is clearly higher overall
 and not lower on the box sessions, and `ms avg` stays ≲ 300. Otherwise Enter keeps the current one; send Claude the
 table.

@@ -85,7 +85,9 @@ Runs pull → check → train → convert → eval → install? in one go (~5–
 What it does, so the output makes sense:
 
 1. **check**: per session clips, median peak/RMS, seconds of speech; warns about missing files, clips without speech,
-   too quiet, clipped. Stops on warnings unless `--force` (fix with `r` in the recorder or delete the row).
+   too quiet, clipped (> 0.5 % of samples at full scale or 10+ in a row; a few lone ones are harmless and normal in
+   live commands). Stops on warnings unless `--force` (fix with `r` in the recorder or delete the row; live clips
+   can only be deleted).
 2. **trim**: Silero VAD (the same model as ears) cuts each clip to 0.1 s before and 0.3 s after the speech. That drops
    the Enter-key clicks and matches what ears hands to whisper. Cached in `~/buddy-voice/trimmed/`.
 3. **train**: validation = ~15 % of the *sentences* (never their clips in training, whatever the session). SpecAugment,
@@ -205,6 +207,7 @@ Each run trains on all sessions; nothing is ever thrown away.
 | `no CUDA GPU: training on the CPU` | Driver/WSL GPU missing: `nvidia-smi` must work; `BUDDY_TORCH=cpu` only for smoke tests |
 | `CUDA out of memory` | `--batch 8` (small.en: 4) |
 | check: `no speech found` | Recording empty or Enter pressed twice quickly: re-record (`r`), or delete the row in `metadata.csv` |
+| check: `clipped` | Recorder: a bit softer, then `r`. Live clip: delete its row in `sessions/live/metadata.csv` |
 | check: many `too quiet` | Closer, louder, or the Jabra's mic gain (`wpctl set-volume @DEFAULT_AUDIO_SOURCE@ 1.0`) |
 | `kept epoch 0` (no improvement) | Too little or too uniform data: more sessions, more conditions |
 | eval: `no output (model missing…)` | Name not in `~/buddy/models`; pass the local path instead |
