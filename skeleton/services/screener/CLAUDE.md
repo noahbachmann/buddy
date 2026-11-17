@@ -19,7 +19,7 @@ code path taps a paid option or a chat send.
 | `screens.py` | `classify()` → `Kind` (feed, sheet, likes, matches, chat, popup, upsell, other_app, unknown); readers `profile_view` (sections + their like buttons, details, floating obstacles, `at_top`), `sheet_view`, `match_rows`, `chat_view` (side left/right by position); `tappable()` = the allowlist, `actable()` = the acting one |
 | `profile.py` | `Capture`: one profile stitched across scroll dumps (offset per dump measured by voting on shared sections/texts, checked by `verify_shift`), `Section` refs `photo N` / `prompt N` in content y; `dhash` |
 | `imaging.py` | Pillow: crop of a screenshot → dhash (photos all read "<name>'s photo" in the tree), → JPEG for the decision |
-| `device.py` | adb: `dump` (retries), `screencap`, `tap` (jitter inside the middle half), `swipe`, `key`, `launch`, `foreground`, keyboard type/clear/read (`buddy.screener.ime` broadcasts), `ime_set`, `notifications`, `state`. `guard()` before every input action |
+| `device.py` | adb: `dump` (retries; `NotIdle` = a video plays), `screencap`, `tap` (jitter inside the middle half), `swipe`, `key`, `launch`, `foreground`, keyboard type/clear/read (`buddy.screener.ime` broadcasts), `ime_set`, `notifications`, `state`. `guard()` before every input action |
 | `navigator.py` | Moves: `go_tab`, `capture_profile` (+ each detail row swiped to its end and flung back), `scroll_to(ref)`, `open_sheet` (+ scroll the panel clear), `type_comment` (read back), `skip_profile`, `send_like` (via `_act`; keeps the upsell's raw dump as tmpfs `upsell-last.xml`), `back_out`, `open_chat`/`leave_chat`. `NeedsYou` keeps the raw dump in tmpfs |
 | `sanitize.py` | Real dumps → fixtures: one mapping across a walk, names/prompts/texts → placeholders, package → `app.example`; refuses output with a word from `~/buddy/config/screener/forbidden` (host) |
 | `library.py` | Host input: `preferences.md` (verbatim into the system prompt), `templates.md` section *Like comments* (`- id \| de\|en \| fit hint \| text`; broken line → whole file refused). Loaded per decision |
@@ -138,6 +138,12 @@ Pi, then `--cmd fixture <out dir> <dumps…>` (all dumps of one walk in one call
 - `scroll_to` (type, send) trusts the capture's offset only if the screen is exactly its last dump; otherwise (Dev
   scrolled) it goes back to the profile's top (offset 0, certain) first: matching a far jump can line up wrongly
   (`Capture.add` accepted feed-05 as feed-10 in a test). Photo hash / prompt text still checked before any tap.
+- A video section autoplays: while it's on screen uiautomator never sees the screen idle ("could not get idle
+  state"), the app has no setting to stop it (2026-11-17). `Device.dump` gives up after 2 idle failures (`NotIdle`,
+  ~25 s); the navigator swipes on past it (`MAX_BLIND`) and stitches the gap by the swipes' median measured scale
+  (`Capture.add(blind=True)`: an anchor only refines it within `BLIND_TOLERANCE`). The video section itself and
+  whatever the gap hid are lost or incomplete (never liked). A profile ending on a video: capture backs up until
+  readable. Untested on the phone: whether a partly visible video already plays.
 - `exec-out uiautomator dump /dev/tty` appends "UI hierchary dumped to: /dev/tty": `Device.dump` cuts it.
 - Carried to later steps (not seen yet): an incoming like's card, an app notification's text, our own sent message's
   format in a chat. Each → a sanitized fixture when first seen.

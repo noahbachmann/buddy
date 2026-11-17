@@ -1,7 +1,7 @@
 """A phone made of fixtures: the screen is one sanitized dump; taps, swipes and keys move between dumps like the
 real app did when the dumps were taken (step 1). Records every input action; anything unscripted fails the test."""
 
-from buddy_screener.device import ImeResult
+from buddy_screener.device import ImeResult, NotIdle
 from buddy_screener.uitree import Rect, parse
 from fixture_files import FEED, PACKAGE, ROW, load
 
@@ -18,6 +18,7 @@ class FakePhone:
         self.popup_sticks = False        # Close shows the popup again
         self.upsell = True               # send like → the upsell sheet first
         self.renamed = False             # after a skip or a like: the next profile (same dumps, another name)
+        self.moving: set[str] = set()    # screens with a playing video: uiautomator never gets them idle
 
     # read side
 
@@ -25,6 +26,8 @@ class FakePhone:
         if self.foreground_pkg != PACKAGE:
             return "<?xml version='1.0' ?><hierarchy rotation=\"0\"><node package=\"launcher.example\" " \
                    "class=\"android.widget.FrameLayout\" bounds=\"[0,0][1080,2280]\" /></hierarchy>"
+        if self.screen in self.moving:
+            raise NotIdle("uiautomator dump failed: ERROR: could not get idle state.")
         x = load(self.screen)
         return x.replace("Alex", "Kim") if self.renamed else x
 

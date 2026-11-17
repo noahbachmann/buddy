@@ -17,7 +17,7 @@ from pathlib import Path
 
 from . import screens
 from . import vocab as v
-from .device import KEY_BACK, Device
+from .device import KEY_BACK, Device, NotIdle
 from .profile import Capture, LostTrack, Section, hash_distance
 from .screens import Kind, ProfileView, Screen, SectionView
 from .uitree import Node, Rect, parse
@@ -26,6 +26,7 @@ STEP = 600            # px per scroll swipe: consecutive dumps share sections (a
 MAX_MOVE = 700        # px, longest swipe when scrolling to a section: longer ones left no anchor in common
 SWIPE_MS = 900        # slow: scrolls by about the swipe length, no fling
 MAX_SWIPES = 30
+MAX_BLIND = 4        # swipes past an unreadable screen: a video is about one screen high
 MAX_POPUPS = 3        # closed in a row before asking Dev
 ROW_EDGE = 100        # px from a detail row's ends where a sideways swipe starts/ends
 ROW_FLING_MS = 150    # fast: flings the row back to its start in one go (measured)
@@ -34,6 +35,10 @@ ROW_SAME = 100        # px of content y: the same row in another dump
 HASH_MAX_DIST = 10    # of 64 bits: same photo
 Hasher = Callable[[bytes, Rect], str]   # (screenshot PNG, crop) → dhash
 Cropper = Callable[[bytes, Rect], bytes]   # (screenshot PNG, crop) → JPEG for the decision call
+
+
+class _Unreadable(Exception):
+    """Still no dump after MAX_BLIND swipes past a moving screen."""
 
 
 class NeedsYou(RuntimeError):
@@ -178,9 +183,31 @@ class Navigator:
         s = self.expect(Kind.FEED)
         return s, screens.profile_view(s.root)
 
-    def _track(self, cap: Capture, view: ProfileView, expect: int) -> None:
+    def _profile_past(self, view: ProfileView, delta: int) -> tuple[Screen, ProfileView, int]:
+        """`_profile()` after a swipe by `delta`. An autoplaying video keeps the screen from ever being idle, so
+        uiautomator can't read it: swipe on by `delta` until it's off screen. Returns the px swiped blind."""
+        extra = 0
+        for i in range(MAX_BLIND + 1):
+            try:
+                s, nxt = self._profile()
+                return s, nxt, extra
+            except NotIdle:
+                if i == MAX_BLIND:
+                    break
+                self.log("screen unreadable (a playing video?): swiping on")
+                self._swipe_list(view, delta)
+                extra += delta
+        raise _Unreadable
+
+    def _profile_past_or_ask(self, view: ProfileView, delta: int) -> tuple[Screen, ProfileView, int]:
         try:
-            cap.add(view, expect=expect)
+            return self._profile_past(view, delta)
+        except _Unreadable:
+            raise self.needs_you("screen stays unreadable (a playing video?) after swiping past it") from None
+
+    def _track(self, cap: Capture, view: ProfileView, expect: int, blind: bool = False) -> None:
+        try:
+            cap.add(view, expect=expect, blind=blind)
         except LostTrack as e:
             raise self.needs_you(f"lost track of the profile: {e}") from None
 
@@ -207,11 +234,16 @@ class Navigator:
         sig = _signature(s.root)
         for _ in range(MAX_SWIPES):
             self._swipe_list(view, STEP)
-            s, nxt = self._profile()
+            try:
+                s, nxt, extra = self._profile_past(view, STEP)
+            except _Unreadable:
+                # swiped well past any video and still moving: the list stopped at the bottom with a video in view
+                self._back_to_readable(cap, view)
+                break
             if _signature(s.root) == sig:
                 break   # bottom reached: the swipe moved nothing
             sig = _signature(s.root)
-            self._track(cap, nxt, cap.offset + STEP)
+            self._track(cap, nxt, cap.offset + STEP + extra, blind=extra != 0)
             self._hash_photos(cap, nxt)
             self._explore_rows(cap, s, nxt, rows_seen, rows_done)
             view = nxt
@@ -220,6 +252,20 @@ class Navigator:
         if len(rows_done) < len(rows_seen):
             raise self.needs_you("a detail row was never clear of the floating buttons: its details are missing")
         return cap
+
+    def _back_to_readable(self, cap: Capture, view: ProfileView) -> None:
+        """Ended at the bottom on a video: back up until the screen reads again, so the next command (skip, send)
+        finds a readable screen that is the capture's last dump. How far the unseen swipes went is unknown: the
+        screen is matched against the last dump by what both show (it is content seen before the video)."""
+        for _ in range(MAX_BLIND + 1):
+            self._swipe_list(view, -STEP)
+            try:
+                _, nxt = self._profile()
+            except NotIdle:
+                continue
+            self._track(cap, nxt, cap.offset)
+            return
+        raise self.needs_you("profile ends on a video and the screen stays unreadable")
 
     def _explore_rows(self, cap: Capture, s: Screen, view: ProfileView, seen: list[int], done: list[int]) -> None:
         """Swipes each detail row on screen to its end and merges what it reveals (location, children, … hide off
@@ -260,7 +306,7 @@ class Navigator:
             if view.at_top:
                 return s, view
             self._swipe_list(view, -STEP)
-            s, view = self._profile()
+            s, view, _ = self._profile_past_or_ask(view, -STEP)
         raise self.needs_you("profile doesn't scroll back to its top")
 
     def _relocate(self, cap: Capture) -> tuple[Screen, ProfileView]:
@@ -292,8 +338,8 @@ class Navigator:
             if abs(delta) < 40:
                 raise self.needs_you(f"can't bring {ref} to a tappable spot")
             self._swipe_list(view, delta)
-            s, view = self._profile()
-            self._track(cap, view, cap.offset + delta)
+            s, view, extra = self._profile_past_or_ask(view, delta)
+            self._track(cap, view, cap.offset + delta + extra, blind=extra != 0)
         raise self.needs_you(f"{ref}: too many swipes")
 
     def _check_identity(self, target: Section, sv: SectionView) -> None:

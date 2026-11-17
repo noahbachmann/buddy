@@ -10,6 +10,7 @@ Photos all look alike in the tree ("<name>'s photo"), so a photo's identity is i
 pixels (`dhash`), taken once while it's fully on screen.
 """
 
+import statistics
 from collections import Counter
 from dataclasses import dataclass, field
 
@@ -17,6 +18,7 @@ from .screens import ProfileView, SectionView
 from .uitree import Rect
 
 TOLERANCE = 6   # px: the same edge in two dumps after a measured shift
+BLIND_TOLERANCE = 150   # px: an anchor after a blind gap within this of the estimate (swipes vary ~15 px each; photos ~1000 px apart)
 
 
 class LostTrack(RuntimeError):
@@ -117,10 +119,23 @@ class Capture:
             raise LostTrack("not at the profile's top")
         self.offset, self._prev = 0, view
 
-    def add(self, view: ProfileView, expect: int | None = None) -> int:
-        """Measures the new dump's offset, merges its sections, returns the offset."""
+    def add(self, view: ProfileView, expect: int | None = None, blind: bool = False) -> int:
+        """Measures the new dump's offset, merges its sections, returns the offset. `blind`: swipes since the last
+        dump went unseen (a video kept the screen from being read), so the two may share nothing: then the offset
+        is `expect` scaled by how far the measured swipes really went; a shared anchor only refines it nearby
+        (photos all look alike: a far jump lines up with the wrong one)."""
         if view.name != self.profile.name:
             raise LostTrack("another profile is on screen")
+        if blind and expect is not None:
+            # median: the first swipe also collapses the header (an outlier)
+            ratios = [m / n for n, m in self.moves if n and m / n > 0]
+            estimate = self.offset + round((expect - self.offset) * (statistics.median(ratios) if ratios else 1.0))
+            offset = next((o for o in shift_candidates(self._prev, self.offset, view, estimate)
+                           if abs(o - estimate) <= BLIND_TOLERANCE
+                           and verify_shift(self._prev, self.offset, view, o)), estimate)
+            self.offset, self._prev = offset, view   # not a measured move: stays out of `moves`
+            self._merge(view)
+            return offset
         offset = next((o for o in shift_candidates(self._prev, self.offset, view, expect)
                        if verify_shift(self._prev, self.offset, view, o)), None)
         if offset is None:

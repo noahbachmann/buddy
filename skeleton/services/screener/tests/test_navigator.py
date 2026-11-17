@@ -1,6 +1,6 @@
 import pytest
 
-from buddy_screener import screens
+from buddy_screener import navigator, screens
 from buddy_screener import vocab as v
 from buddy_screener.device import Stopped
 from buddy_screener.navigator import Navigator, NeedsYou
@@ -28,6 +28,54 @@ def test_capture_scrolls_back_to_the_top_first():
     phone = FakePhone("feed-05")
     cap = nav(phone).capture_profile()
     assert cap.profile.sections[0].ref == "photo 1" and cap.profile.sections[0].complete
+
+
+@pytest.mark.parametrize("video", [["feed-06"], ["feed-06", "feed-07"]])
+def test_capture_swipes_past_a_playing_video(video):
+    clean = nav(FakePhone("feed-01")).capture_profile().profile.sections
+    phone = FakePhone("feed-01")
+    phone.moving = set(video)
+    cap = nav(phone).capture_profile()
+    assert phone.screen == "feed-11"
+    # what the gap hid is lost or cut (incomplete: never liked); every complete section is a clean one, in place
+    # (the fixtures' steps are ~900 px: the gap is stitched by the swipes' measured scale, not by anchors)
+    done = [x for x in cap.profile.sections if x.complete]
+    for x in done:
+        assert any(c.kind == x.kind and c.text == x.text and abs(c.lo - x.lo) <= 40 and abs(c.hi - x.hi) <= 40
+                   for c in clean), (x, clean)
+    assert len(done) >= len(clean) - 1 - len(video)
+    assert all(x.complete for x in cap.profile.sections[-2:])   # after the gap: tracked again
+
+
+def test_capture_ending_on_a_video_backs_up_to_a_readable_screen():
+    clean = nav(FakePhone("feed-01")).capture_profile()
+    phone = FakePhone("feed-01")
+    phone.moving = {"feed-11"}
+    n = nav(phone)
+    cap = n.capture_profile()
+    assert phone.screen == "feed-10"
+    assert cap.unmoved(screens.profile_view(n.stable().root))   # the next command trusts the offset
+    assert [x.ref for x in cap.profile.sections] == [x.ref for x in clean.profile.sections]
+
+
+def test_scroll_to_crosses_a_playing_video(monkeypatch):
+    # the fake moves one dump per swipe whatever its length (~900 px), the phone moves by the swipe: same length as
+    # the capture's swipes, so the measured scale holds for the blind gap
+    monkeypatch.setattr(navigator, "MAX_MOVE", navigator.STEP)
+    phone = FakePhone("feed-01")
+    phone.moving = {"feed-06"}
+    n = nav(phone)
+    cap = n.capture_profile()
+    s, sv = n.scroll_to(cap, "photo 1")
+    assert phone.screen == "feed-01" and sv.kind == "photo"
+    assert phone.sent() == []
+
+
+def test_a_video_that_never_leaves_the_screen_needs_you(tmp_path):
+    phone = FakePhone("feed-03")
+    phone.moving = {"feed-01", "feed-02"}    # scrolling up hits the video, and the top is under it
+    with pytest.raises(NeedsYou, match="unreadable"):
+        nav(phone, tmp_path).capture_profile()
 
 
 def test_scroll_to_a_section_open_its_sheet_type_and_back_out():
