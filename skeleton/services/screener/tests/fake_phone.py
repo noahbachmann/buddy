@@ -19,6 +19,7 @@ class FakePhone:
         self.upsell = True               # send like → the upsell sheet first
         self.renamed = False             # after a skip or a like: the next profile (same dumps, another name)
         self.moving: set[str] = set()    # screens with a playing video: uiautomator never gets them idle
+        self.swallow = 0                 # next N swipes move nothing (a video's player took them)
 
     # read side
 
@@ -84,8 +85,10 @@ class FakePhone:
 
     def swipe(self, x: int, y1: int, y2: int, ms: int) -> None:
         self.guard()
-        self.actions.append(("swipe", self.screen, y1 - y2))
-        if self.screen in FEED:
+        self.actions.append(("swipe", self.screen, y1 - y2, x))
+        if self.swallow:
+            self.swallow -= 1
+        elif self.screen in FEED:
             i = FEED.index(self.screen) + (1 if y2 < y1 else -1)
             self.screen = FEED[max(0, min(len(FEED) - 1, i))]
         elif self.screen == "sheet-low" and y2 < y1:

@@ -26,6 +26,7 @@ STEP = 600            # px per scroll swipe: consecutive dumps share sections (a
 MAX_MOVE = 700        # px, longest swipe when scrolling to a section: longer ones left no anchor in common
 SWIPE_MS = 900        # slow: scrolls by about the swipe length, no fling
 MAX_SWIPES = 30
+MIN_MARGIN = 30       # px beside the cards for a swipe to start in
 MAX_BLIND = 4        # swipes past an unreadable screen: a video is about one screen high
 MAX_POPUPS = 3        # closed in a row before asking Dev
 ROW_EDGE = 100        # px from a detail row's ends where a sideways swipe starts/ends
@@ -47,6 +48,13 @@ class NeedsYou(RuntimeError):
     def __init__(self, reason: str, dump: Path | None = None):
         super().__init__(reason + (f" (dump: {dump})" if dump else ""))
         self.reason, self.dump = reason, dump
+
+
+def _margin_x(view: ProfileView) -> int:
+    """x of the gap between the cards' right edge and the list's, else the list's middle column."""
+    vp = view.viewport
+    edge = max((sv.rect.right for sv in view.sections), default=vp.right)
+    return (edge + vp.right) // 2 if vp.right - edge >= MIN_MARGIN else vp.center[0]
 
 
 def _signature(root: Node) -> tuple:
@@ -168,9 +176,10 @@ class Navigator:
     # --- profile ---
 
     def _swipe_list(self, view: ProfileView, delta: int) -> None:
-        """Scroll the content by `delta` px (> 0: further down the profile). Starts in the list's middle column, away
-        from the like buttons (right) and the skip button (left)."""
-        x = view.viewport.center[0]
+        """Scroll the content by `delta` px (> 0: further down the profile). Starts in the list's right margin, beside
+        the cards: a video's player takes a swipe that starts on it (the capture took that for the profile's end),
+        and the like buttons and the skip button sit on or left of the cards."""
+        x = _margin_x(view)
         if delta > 0:
             y1 = view.viewport.bottom - 150
             self.dev.swipe(x, y1, max(view.viewport.top + 50, y1 - delta), SWIPE_MS)
@@ -232,6 +241,7 @@ class Navigator:
         rows_done: list[int] = []
         self._explore_rows(cap, s, view, rows_seen, rows_done)
         sig = _signature(s.root)
+        still = 0
         for _ in range(MAX_SWIPES):
             self._swipe_list(view, STEP)
             try:
@@ -241,7 +251,11 @@ class Navigator:
                 self._back_to_readable(cap, view)
                 break
             if _signature(s.root) == sig:
-                break   # bottom reached: the swipe moved nothing
+                still += 1
+                if still == 2:
+                    break   # bottom: two swipes in a row moved nothing (one can be swallowed)
+                continue
+            still = 0
             sig = _signature(s.root)
             self._track(cap, nxt, cap.offset + STEP + extra, blind=extra != 0)
             self._hash_photos(cap, nxt)

@@ -17,7 +17,7 @@ code path taps a paid option or a chat send.
 | `uitree.py` | `uiautomator` XML → `Node` tree (`desc`, `text`, `rid` without package, `Rect` bounds, flags) |
 | `vocab.py` | Every app UI string the model relies on (English UI). The sanitizer keeps exactly these |
 | `screens.py` | `classify()` → `Kind` (feed, sheet, likes, matches, chat, popup, upsell, other_app, unknown); readers `profile_view` (sections + their like buttons, details, floating obstacles, `at_top`), `sheet_view`, `match_rows`, `chat_view` (side left/right by position); `tappable()` = the allowlist, `actable()` = the acting one |
-| `profile.py` | `Capture`: one profile stitched across scroll dumps (offset per dump measured by voting on shared sections/texts, checked by `verify_shift`), `Section` refs `photo N` / `prompt N` in content y; `dhash` |
+| `profile.py` | `Capture`: one profile stitched across scroll dumps (offset per dump measured by voting on shared sections/texts, checked by `verify_shift`; a blind gap past a video by the swipes' scale), `Section` refs `photo N` / `prompt N` / `video N` in content y; `dhash` |
 | `imaging.py` | Pillow: crop of a screenshot → dhash (photos all read "<name>'s photo" in the tree), → JPEG for the decision |
 | `device.py` | adb: `dump` (retries; `NotIdle` = a video plays), `screencap`, `tap` (jitter inside the middle half), `swipe`, `key`, `launch`, `foreground`, keyboard type/clear/read (`buddy.screener.ime` broadcasts), `ime_set`, `notifications`, `state`. `guard()` before every input action |
 | `navigator.py` | Moves: `go_tab`, `capture_profile` (+ each detail row swiped to its end and flung back), `scroll_to(ref)`, `open_sheet` (+ scroll the panel clear), `type_comment` (read back), `skip_profile`, `send_like` (via `_act`; keeps the upsell's raw dump as tmpfs `upsell-last.xml`), `back_out`, `open_chat`/`leave_chat`. `NeedsYou` keeps the raw dump in tmpfs |
@@ -109,7 +109,7 @@ prompts), `sheet`/`sheet-typed` (photo panel), `sheet-low` (prompt panel under t
 `matches`, `chat`, `popup` (feature ad on launch, 2026-11-17), `row-0..3` (another profile's detail row swiped
 sideways to its end, 2026-11-17), `photo-caption` (a captioned photo: its button reads "Like photo prompt"), `upsell` (hand-built from a live
 dump's node list: replace with a real dump when next seen),
-`own-profile` (unknown). `fixture_files.py` loads them, `fake_phone.py` replays them as a phone (taps/swipes move between
+`own-profile` (unknown), `feed-video` (a video between a photo and a prompt, 2026-11-17). `fixture_files.py` loads them, `fake_phone.py` replays them as a phone (taps/swipes move between
 dumps, records actions, `sent()` must stay empty). `test_decide.py` runs the decider against a fake SDK stream
 (real `ResultMessage`/`RateLimitEvent` objects); `test_shadow.py` runs shadow → label → type on the fake phone. New fixture: `deploy/run.sh screener --cmd dump <name>` on the
 Pi, then `--cmd fixture <out dir> <dumps…>` (all dumps of one walk in one call), check the texts, copy over.
@@ -138,7 +138,11 @@ Pi, then `--cmd fixture <out dir> <dumps…>` (all dumps of one walk in one call
 - `scroll_to` (type, send) trusts the capture's offset only if the screen is exactly its last dump; otherwise (Dev
   scrolled) it goes back to the profile's top (offset 0, certain) first: matching a far jump can line up wrongly
   (`Capture.add` accepted feed-05 as feed-10 in a test). Photo hash / prompt text still checked before any tap.
-- A video section autoplays: while it's on screen uiautomator never sees the screen idle ("could not get idle
+- A video is a section (`video N`: View "<name>'s video", button "Like video"): listed to the bot, never commented
+  on or liked. Its player adds a native layer larger than the card that can swallow a swipe starting on it: the
+  capture took that for the profile's end and stopped at the first video (2026-11-17). Swipes start in the list's
+  right margin (`_margin_x`, beside the cards), and the end = two swipes in a row that move nothing.
+- A video autoplays: while it's on screen uiautomator often never sees the screen idle ("could not get idle
   state"), the app has no setting to stop it (2026-11-17). `Device.dump` gives up after 2 idle failures (`NotIdle`,
   ~25 s); the navigator swipes on past it (`MAX_BLIND`) and stitches the gap by the swipes' median measured scale
   (`Capture.add(blind=True)`: an anchor only refines it within `BLIND_TOLERANCE`). The video section itself and

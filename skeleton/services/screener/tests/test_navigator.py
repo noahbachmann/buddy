@@ -30,6 +30,29 @@ def test_capture_scrolls_back_to_the_top_first():
     assert cap.profile.sections[0].ref == "photo 1" and cap.profile.sections[0].complete
 
 
+def test_swipes_start_beside_the_cards():
+    phone = FakePhone("feed-01")
+    nav(phone).capture_profile()
+    xs = {a[3] for a in phone.actions if a[0] == "swipe"}
+    assert xs == {1050}   # cards end at 1020, the list at 1080: a swipe on a video's player gets swallowed
+
+
+def test_one_swallowed_swipe_is_not_the_profiles_end():
+    phone = FakePhone("feed-05")
+    n = nav(phone)
+    cap = n.capture_profile()
+    clean = len(cap.profile.sections)
+    phone2 = FakePhone("feed-01")
+    orig = phone2.swipe
+    def swipe(x, y1, y2, ms):   # the 3rd swipe down is taken by a video
+        if y2 < y1 and sum(a[0] == "swipe" for a in phone2.actions) == 2:
+            phone2.swallow = 1
+        orig(x, y1, y2, ms)
+    phone2.swipe = swipe
+    cap2 = nav(phone2).capture_profile()
+    assert phone2.screen == "feed-11" and len(cap2.profile.sections) == clean
+
+
 @pytest.mark.parametrize("video", [["feed-06"], ["feed-06", "feed-07"]])
 def test_capture_swipes_past_a_playing_video(video):
     clean = nav(FakePhone("feed-01")).capture_profile().profile.sections
