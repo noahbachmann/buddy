@@ -52,7 +52,7 @@ Or tell Claude what to change.
 
 ## 3. App profile
 
-- [ ] Add a short line to your app profile saying an AI assistant asks the first few questions for you (the ground
+- [x] Add a short line to your app profile saying an AI assistant asks the first few questions for you (the ground
       rule in #66: the profile discloses it too, not only the first message).
 
 ## 4. Set up the phone (Huawei P20 Lite)
