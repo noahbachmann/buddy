@@ -159,3 +159,24 @@ def test_captioned_photo_has_its_like_button():
     photo = next(x for x in view.sections if x.kind == "photo")
     assert photo.like is not None and photo.like.desc == v.LIKE_PHOTO_CAPTION
     assert view.safe(photo.like.bounds) and screens.tappable(s, photo.like)
+
+
+def test_upsell_acts_only_on_the_plain_like():
+    s = screen("upsell")
+    assert s.kind is Kind.UPSELL
+    rose = s.root.first(lambda n: n.text == "Send a Rose").parent
+    close = s.root.first(lambda n: n.desc == v.CLOSE_SHEET)
+    anyway = screens.send_anyway_button(s.root)
+    assert screens.actable(s, anyway)
+    assert not screens.actable(s, rose) and not screens.actable(s, close)
+    assert not any(screens.tappable(s, n) for n in (anyway, rose, close))   # never through the browse allowlist
+
+
+def test_acting_allowlist():
+    feed, sheet = screen("feed-02"), screen("sheet")
+    skip = screens.skip_button(feed.root)
+    assert screens.actable(feed, skip) and not screens.tappable(feed, skip)
+    send = sheet.root.first(lambda n: n.desc == v.SEND_LIKE)
+    paid = sheet.root.first(lambda n: n.cls == "Button" and n.bounds.left == 108)
+    assert screens.actable(sheet, send) and not screens.actable(sheet, paid)
+    assert not screens.actable(feed, feed.root.first(lambda n: n.desc == v.LIKE_PHOTO))

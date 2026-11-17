@@ -126,6 +126,13 @@ class Navigator:
         self.dev.tap(node.bounds)
         self.pause(0.8)
 
+    def _act(self, s: Screen, node: Node | None, why: str) -> None:
+        """A tap that acts (skip, send): only for Dev's explicit commands, on the acting allowlist."""
+        if node is None or not screens.actable(s, node):
+            raise self.needs_you(f"refused {why}: not on the acting allowlist")
+        self.dev.tap(node.bounds)
+        self.pause(0.8)
+
     def ensure_app(self) -> Screen:
         """The app in front on a known screen; launched if another app is."""
         s = self.stable()
@@ -321,6 +328,40 @@ class Navigator:
         back = self.dev.ime_read()
         if not back.ok or back.text != text:
             raise self.needs_you("read-back differs from the typed text")
+
+    def _next_profile(self, name: str, what: str, s: Screen | None = None) -> str:
+        """Waits for the feed to show another profile than `name` (the app moves on after a skip or a like)."""
+        def moved(x: Screen) -> bool:
+            return x.kind is Kind.FEED and screens.profile_view(x.root).name != name
+        s = s if s is not None and moved(s) else self.wait_for(moved, what)
+        return screens.profile_view(s.root).name
+
+    def skip_profile(self, name: str) -> str:
+        """Skips the profile on screen, which must be `name`. Returns the next profile's name."""
+        s, view = self._profile()
+        if view.name != name:
+            raise self.needs_you("another profile is on screen: not skipping it")
+        self._act(s, screens.skip_button(s.root), "skip")
+        return self._next_profile(name, "the next profile after skip")
+
+    def send_like(self, name: str, text: str) -> str:
+        """Sends the like from the open comment panel of `name`'s profile, whose field must hold exactly `text`
+        (typed by `type_comment`). An upsell sheet gets "send like anyway", never the paid option."""
+        s = self.expect(Kind.SHEET)
+        view, panel = screens.profile_view(s.root), screens.sheet_view(s.root)
+        if view.name != name:
+            raise self.needs_you("the panel belongs to another profile: not sending")
+        back = self.dev.ime_read()
+        if not back.ok or back.text != text:
+            raise self.needs_you("the comment field doesn't hold the comment: not sending")
+        if not view.safe(panel.send.bounds):
+            raise self.needs_you("send button not clear of the floating buttons")
+        self._act(s, panel.send, "send like")
+        s = self.wait_for(lambda x: x.kind is Kind.UPSELL or
+                          (x.kind is Kind.FEED and screens.profile_view(x.root).name != name), "the like to go out")
+        if s.kind is Kind.UPSELL:
+            self._act(s, screens.send_anyway_button(s.root), "send like anyway")
+        return self._next_profile(name, "the next profile after the like", s)
 
     def back_out(self, name: str) -> tuple[Screen, bool]:
         """Leave a comment sheet without sending: clear the field, leave the app (BACK hides the keyboard, the next

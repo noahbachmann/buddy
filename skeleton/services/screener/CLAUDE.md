@@ -6,8 +6,9 @@ comes from `BUDDY_SCREENER_APP` in the host's `buddy.env`. Personal data (dumps,
 `~/buddy/{config,data}/screener` on the Pi.
 
 State: step 1 (service skeleton, device layer, screen model, navigator) and step 2 (decision layer + shadow mode).
-The service itself acts on nothing; shadow mode runs as offline commands where Dev taps like/skip/send by hand. No
-code path taps send like, skip or a chat send.
+The service itself acts on nothing; shadow mode runs as offline commands. Skip and send are taps only through
+`--cmd skip|send <id>`, each carrying out Dev's label of that row (2026-11-17, Dev's call: the start of step 3). No
+code path taps a paid option or a chat send.
 
 ## Modules (`buddy_screener/`)
 
@@ -15,16 +16,16 @@ code path taps send like, skip or a chat send.
 |---|---|
 | `uitree.py` | `uiautomator` XML → `Node` tree (`desc`, `text`, `rid` without package, `Rect` bounds, flags) |
 | `vocab.py` | Every app UI string the model relies on (English UI). The sanitizer keeps exactly these |
-| `screens.py` | `classify()` → `Kind` (feed, sheet, likes, matches, chat, popup, other_app, unknown); readers `profile_view` (sections + their like buttons, details, floating obstacles, `at_top`), `sheet_view`, `match_rows`, `chat_view` (side left/right by position); `tappable()` = the allowlist |
+| `screens.py` | `classify()` → `Kind` (feed, sheet, likes, matches, chat, popup, upsell, other_app, unknown); readers `profile_view` (sections + their like buttons, details, floating obstacles, `at_top`), `sheet_view`, `match_rows`, `chat_view` (side left/right by position); `tappable()` = the allowlist, `actable()` = the acting one |
 | `profile.py` | `Capture`: one profile stitched across scroll dumps (offset per dump measured by voting on shared sections/texts, checked by `verify_shift`), `Section` refs `photo N` / `prompt N` in content y; `dhash` |
 | `imaging.py` | Pillow: crop of a screenshot → dhash (photos all read "<name>'s photo" in the tree), → JPEG for the decision |
 | `device.py` | adb: `dump` (retries), `screencap`, `tap` (jitter inside the middle half), `swipe`, `key`, `launch`, `foreground`, keyboard type/clear/read (`buddy.screener.ime` broadcasts), `ime_set`, `notifications`, `state`. `guard()` before every input action |
-| `navigator.py` | Moves: `go_tab`, `capture_profile` (+ each detail row swiped to its end and flung back), `scroll_to(ref)`, `open_sheet` (+ scroll the panel clear), `type_comment` (read back), `back_out`, `open_chat`/`leave_chat`. `NeedsYou` keeps the raw dump in tmpfs |
+| `navigator.py` | Moves: `go_tab`, `capture_profile` (+ each detail row swiped to its end and flung back), `scroll_to(ref)`, `open_sheet` (+ scroll the panel clear), `type_comment` (read back), `skip_profile`, `send_like` (via `_act`), `back_out`, `open_chat`/`leave_chat`. `NeedsYou` keeps the raw dump in tmpfs |
 | `sanitize.py` | Real dumps → fixtures: one mapping across a walk, names/prompts/texts → placeholders, package → `app.example`; refuses output with a word from `~/buddy/config/screener/forbidden` (host) |
 | `library.py` | Host input: `preferences.md` (verbatim into the system prompt), `templates.md` section *Like comments* (`- id \| de\|en \| fit hint \| text`; broken line → whole file refused). Loaded per decision |
 | `decide.py` | Agent SDK wrapper (`Decider.decide` = text check, then `browse` with photos): locked-down CLI options, text + browse schemas, `check_text`, `check_browse` (code re-checks: unknown section/comment → none, dealbreaker → skip, `fixes` kept), usage per call, `limit_until` pause, daily $ cap |
 | `store.py` | SQLite `data/screener/screener.db`: `usage` (kept), `shadow` (bot decision + Dev's label as JSON, profile key only, 30 days) |
-| `shadow.py` | Step 2 commands' logic: `run_shadow` (capture → decide → row; capture pickled to tmpfs without crops), `make_label`, `type_label`, `report` (done-when numbers) |
+| `shadow.py` | Step 2 commands' logic: `run_shadow` (capture → decide → row; capture pickled to tmpfs without crops), `make_label`, `type_label`, `act_label` (skip/send on Dev's label), `report` (done-when numbers) |
 | `config.py` | `BUDDY_SCREENER_*` (incl. model, effort, decide timeout, daily $), kill switch files (`config/screener/stop`, `data/screener/paused`), token/limit/db paths, tmpfs dir |
 | `main.py` | Service loop (phone check every 30 s, state on change, commands) + `--cmd screen\|dump\|fixture\|profile\|back-out\|walk\|templates\|shadow\|label\|type\|report` |
 
@@ -35,6 +36,9 @@ code path taps send like, skip or a chat send.
   `wait_for`/`ensure_app`; more than `MAX_POPUPS` in a row → `NeedsYou`.
 - Tap only what `tappable()` allows (tabs, back, match rows, like buttons, comment field); a target in the list must
   be fully inside it and clear of the floating skip/header buttons (`ProfileView.safe`).
+- Acting taps (skip button, plain send-like button, the upsell's "Send Like anyway") only via `Navigator._act` on
+  `actable()`, only from `--cmd skip|send` on Dev's label, only on the captured profile (name check), send only when
+  the field reads back the labelled comment. Never "Send a Rose…" (paid) or "Close sheet" (unclear if it drops the like).
 - Text only through our keyboard, always read back.
 - Kill switch: stop file, pause file, `systemctl stop`, unplug (adb error) all stop the next input action.
 
@@ -62,8 +66,9 @@ code path taps send like, skip or a chat send.
 `deploy/run.sh screener --cmd shadow` → prints `#id`, decision, reason, section + comment. Dev decides on the phone;
 `--cmd label <id> like|skip [section comment]` (bare `like` = the bot's choice; `--wrong`, `--dealbreaker`,
 `--sensitive`, `--note`). A comment Dev writes goes into `templates.md` first (id + fit hint from the section it was
-used on), then into the label. `--cmd type <id>` types it into that section's panel and reads it back; Dev taps send
-(or `--cmd back-out`). Only the newest row's capture stays in tmpfs. `--cmd report` = the gate.
+used on), then into the label. `--cmd type <id>` types it into that section's panel and reads it back; `--cmd send
+<id>` sends it (or Dev taps, or `--cmd back-out`); `--cmd skip <id>` skips a skip-labelled profile. After a sent
+like the app offers a paid upgrade (upsell sheet): `send` takes "Send Like anyway". Only the newest row's capture stays in tmpfs. `--cmd report` = the gate.
 
 ### Claude's procedure for the shadow sessions (agreed with Dev, 2026-11-17)
 
@@ -102,7 +107,8 @@ with the changes applied.
 Fixtures are sanitized real dumps (step 1, 2026-11-16): `feed-01..11` one profile top to bottom (6 photos, 3
 prompts), `sheet`/`sheet-typed` (photo panel), `sheet-low` (prompt panel under the skip button), `likes` (empty),
 `matches`, `chat`, `popup` (feature ad on launch, 2026-11-17), `row-0..3` (another profile's detail row swiped
-sideways to its end, 2026-11-17), `photo-caption` (a captioned photo: its button reads "Like photo prompt"),
+sideways to its end, 2026-11-17), `photo-caption` (a captioned photo: its button reads "Like photo prompt"), `upsell` (hand-built from a live
+dump's node list: replace with a real dump when next seen),
 `own-profile` (unknown). `fixture_files.py` loads them, `fake_phone.py` replays them as a phone (taps/swipes move between
 dumps, records actions, `sent()` must stay empty). `test_decide.py` runs the decider against a fake SDK stream
 (real `ResultMessage`/`RateLimitEvent` objects); `test_shadow.py` runs shadow → label → type on the fake phone. New fixture: `deploy/run.sh screener --cmd dump <name>` on the

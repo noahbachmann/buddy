@@ -22,6 +22,7 @@ class Kind(str, Enum):
     MATCHES = "matches"      # matches list
     CHAT = "chat"            # one conversation
     POPUP = "popup"          # promo layer over the app, closable
+    UPSELL = "upsell"        # paid upgrade offered after "send like": "send like anyway" is the way on
     OTHER_APP = "other_app"  # launcher, system dialog, another app
     UNKNOWN = "unknown"
 
@@ -78,11 +79,13 @@ def classify(root: Node, package: str) -> Screen:
     s = Screen(Kind.UNKNOWN, root, tabs)
     selected = s.selected_tab
 
-    if root.first(lambda n: n.rid == v.CHAT_INPUT) and _has_desc(root, v.BACK):
+    if send_anyway_button(root) is not None:   # over the sheet: check first
+        s.kind = Kind.UPSELL
+    elif root.first(lambda n: n.rid == v.CHAT_INPUT) and _has_desc(root, v.BACK):
         s.kind = Kind.CHAT
     elif selected == v.TAB_DISCOVER and _has_desc(root, v.EDIT_COMMENT) and root.first(_is_send_like):
         s.kind = Kind.SHEET
-    elif selected == v.TAB_DISCOVER and _skip_button(root) and root.first(_is_section):
+    elif selected == v.TAB_DISCOVER and skip_button(root) and root.first(_is_section):
         s.kind = Kind.FEED
     elif selected == v.TAB_LIKES and _header(root, v.LIKES_HEADER):
         s.kind = Kind.LIKES
@@ -108,11 +111,18 @@ def _is_send_like(n: Node) -> bool:
     return n.cls == "Button" and n.desc in (v.SEND_LIKE, v.SEND_LIKE_WITH)
 
 
+def send_anyway_button(root: Node) -> Node | None:
+    t = root.first(lambda n: n.text == v.SEND_ANYWAY)
+    while t is not None and not t.clickable:
+        t = t.parent
+    return t
+
+
 def close_button(root: Node) -> Node | None:
     return root.first(lambda n: n.cls == "Button" and n.clickable and n.desc == v.CLOSE)
 
 
-def _skip_button(root: Node) -> Node | None:
+def skip_button(root: Node) -> Node | None:
     return root.first(lambda n: n.cls == "Button" and n.clickable and v.SKIP.fullmatch(n.desc) is not None)
 
 
@@ -164,7 +174,7 @@ def _inside(n: Node, ancestor: Node) -> bool:
 def profile_view(root: Node) -> ProfileView:
     """Sections, details and tap obstacles of the profile on screen (FEED or SHEET)."""
     box = _scroll_container(root)
-    skip = _skip_button(root)
+    skip = skip_button(root)
     if box is None or skip is None:
         raise ValueError("not a profile: no list or no skip button")
     vp = box.bounds
@@ -306,6 +316,18 @@ def tappable(screen: Screen, node: Node) -> bool:
         return node.desc == v.BACK and node.clickable
     if screen.kind is Kind.POPUP:
         return node is close_button(screen.root)
+    return False
+
+
+def actable(screen: Screen, node: Node) -> bool:
+    """The acting allowlist, only for Dev's explicit skip/send commands (never `tappable()`): the skip button, the
+    plain send-like button, the upsell's "send like anyway". Never a paid button."""
+    if screen.kind is Kind.FEED:
+        return node is skip_button(screen.root)
+    if screen.kind is Kind.SHEET:
+        return _is_send_like(node)
+    if screen.kind is Kind.UPSELL:
+        return node is send_anyway_button(screen.root)
     return False
 
 

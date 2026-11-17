@@ -1,0 +1,20 @@
+<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>
+<hierarchy rotation="0">
+ <node class="android.widget.FrameLayout" package="app.example" bounds="[0,90][1080,2060]">
+  <node class="android.widget.FrameLayout" package="app.example" bounds="[0,90][1080,2060]">
+   <node resource-id="android:id/content" class="android.widget.FrameLayout" package="app.example" bounds="[0,90][1080,2060]">
+    <node class="android.view.View" package="app.example" content-desc="Close sheet" clickable="true" bounds="[0,0][1080,980]" />
+    <node class="android.view.View" package="app.example" bounds="[0,980][1080,2060]">
+     <node class="android.widget.TextView" package="app.example" text="Send a Rose instead?" bounds="[120,1100][960,1200]" />
+     <node class="android.widget.TextView" package="app.example" text="Text 1" bounds="[120,1260][960,1500]" />
+     <node class="android.view.View" package="app.example" clickable="true" bounds="[333,1747][746,1891]">
+      <node class="android.widget.TextView" package="app.example" text="Send a Rose" bounds="[405,1790][674,1847]" />
+     </node>
+     <node class="android.view.View" package="app.example" clickable="true" bounds="[273,1924][806,2060]">
+      <node class="android.widget.TextView" package="app.example" text="Send Like anyway" bounds="[345,1967][734,2024]" />
+     </node>
+    </node>
+   </node>
+  </node>
+ </node>
+</hierarchy>

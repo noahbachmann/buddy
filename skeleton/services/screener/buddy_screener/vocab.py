@@ -32,6 +32,10 @@ EDIT_COMMENT = "Edit comment"                    # the field (its text is invisi
 SEND_LIKE = "Send like"
 SEND_LIKE_WITH = "Send like with message"
 
+# Upsell sheet after "Send like": a paid upgrade instead of the like. Only the plain like is ever tapped
+SEND_ANYWAY = "Send Like anyway"
+CLOSE_SHEET = "Close sheet"                      # never tapped: unclear whether it drops the like
+
 # Promo popups over the app (feature ads, upsells): a full-screen layer without tabs, its only safe exit this button
 CLOSE = "Close"
 
@@ -66,5 +70,5 @@ DETAIL_LABELS = frozenset({
 # Strings kept verbatim by the sanitizer (besides the patterns above)
 KEEP = frozenset({
     *TABS, *LIKE_BUTTONS, UNDO_SKIP, MORE, VERIFIED, EDIT_COMMENT, SEND_LIKE, SEND_LIKE_WITH,
-    LIKES_HEADER, MATCHES_HEADER, CLOSE, BACK, CHAT_TAB, CHAT_PROFILE_TAB, CHAT_HINT, DOUBLE_TAP_HINT, *DETAIL_LABELS,
+    LIKES_HEADER, MATCHES_HEADER, CLOSE, SEND_ANYWAY, CLOSE_SHEET, BACK, CHAT_TAB, CHAT_PROFILE_TAB, CHAT_HINT, DOUBLE_TAP_HINT, *DETAIL_LABELS,
 })

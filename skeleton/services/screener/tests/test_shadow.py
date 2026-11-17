@@ -3,7 +3,7 @@ import pytest
 from buddy_screener import shadow
 from buddy_screener.decide import Browse, Usage
 from buddy_screener.library import Library, LikeComment
-from buddy_screener.navigator import Navigator
+from buddy_screener.navigator import Navigator, NeedsYou
 from buddy_screener.store import Store
 from fake_phone import FakePhone
 from fixture_files import PACKAGE
@@ -115,3 +115,35 @@ def test_report_says_whether_text_first_pays(store):
     out = "\n".join(shadow.report(store.shadow(), store.usage_rows()))
     assert "skipped by the text check: 1, Dev liked 1 of them" in out
     assert "text first: 1 of 2 profiles skipped before photos, saved ~$0.02, the text checks cost $0.01 → pays" in out
+
+
+def test_skip_and_send_carry_out_devs_label(store, tmp_path):
+    phone = FakePhone("feed-01")
+    n = nav(phone)
+    r = shadow.run_shadow(n, FakeDecider(like()), LIB, store, tmp_path)
+    row = store.shadow(r.row_id)[0]
+    with pytest.raises(shadow.LabelError):
+        shadow.act_label(n, row, r.capture, LIB, "send")             # not labelled: nothing happens
+    store.label(r.row_id, shadow.make_label(row, "like", None, None, LIB))
+    row = store.shadow(r.row_id)[0]
+    with pytest.raises(shadow.LabelError):
+        shadow.act_label(n, row, r.capture, LIB, "skip")             # label says like
+    shadow.type_label(n, row, r.capture, LIB)
+    acted, nxt = shadow.act_label(n, row, r.capture, LIB, "send")
+    assert acted["acted"] == "send" and nxt == "Kim"
+    assert [a[2] for a in phone.sent()] == ["Send like", "Send Like anyway"]
+
+
+def test_skip_only_the_captured_profile(store, tmp_path):
+    phone = FakePhone("feed-01")
+    n = nav(phone)
+    r = shadow.run_shadow(n, FakeDecider(like()), LIB, store, tmp_path)
+    store.label(r.row_id, shadow.make_label(store.shadow(r.row_id)[0], "skip", None, None, LIB))
+    row = store.shadow(r.row_id)[0]
+    phone.renamed = True                                             # another profile came up meanwhile
+    with pytest.raises(NeedsYou):
+        shadow.act_label(n, row, r.capture, LIB, "skip")
+    assert phone.sent() == []
+    phone.renamed = False
+    _, nxt = shadow.act_label(n, row, r.capture, LIB, "skip")
+    assert nxt == "Kim" and [a[2] for a in phone.sent()] == ["Skip Alex"]

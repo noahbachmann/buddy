@@ -16,6 +16,8 @@ class FakePhone:
         self.guard = lambda: None
         self.launch_screen = "feed-01"   # what the app opens on
         self.popup_sticks = False        # Close shows the popup again
+        self.upsell = True               # send like → the upsell sheet first
+        self.renamed = False             # after a skip or a like: the next profile (same dumps, another name)
 
     # read side
 
@@ -23,7 +25,8 @@ class FakePhone:
         if self.foreground_pkg != PACKAGE:
             return "<?xml version='1.0' ?><hierarchy rotation=\"0\"><node package=\"launcher.example\" " \
                    "class=\"android.widget.FrameLayout\" bounds=\"[0,0][1080,2280]\" /></hierarchy>"
-        return load(self.screen)
+        x = load(self.screen)
+        return x.replace("Alex", "Kim") if self.renamed else x
 
     def screencap(self) -> bytes:
         raise AssertionError("no screenshots in the fake")
@@ -60,6 +63,16 @@ class FakePhone:
             self.screen = "chat"
         elif label == "Back" and self.screen == "chat":
             self.screen = "matches"
+        elif label.startswith("Skip ") and self.screen in FEED + ROW:
+            self.screen, self.renamed = "feed-01", True
+        elif label.startswith("Send like") and self.screen in ("sheet", "sheet-typed"):
+            self.field, self.ime_shown = None, False
+            if self.upsell:
+                self.screen = "upsell"
+            else:
+                self.screen, self.renamed = "feed-01", True
+        elif label == "Send Like anyway" and self.screen == "upsell":
+            self.screen, self.renamed = "feed-01", True
         elif label == "Close" and self.screen == "popup":
             self.screen = "popup" if self.popup_sticks else "feed-01"
         else:

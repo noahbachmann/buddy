@@ -146,6 +146,28 @@ def type_label(nav: Navigator, row: ShadowRow, cap: Capture, lib: Library) -> st
     return c.text
 
 
+def act_label(nav: Navigator, row: ShadowRow, cap: Capture, lib: Library, action: str) -> tuple[dict, str]:
+    """Carries out Dev's label on the phone: `skip` on a skip label, `send` on a like label whose comment `type_label`
+    typed (panel still open). Only on the captured profile. Returns the label marked as acted and the next name."""
+    dev = row.dev
+    if not dev:
+        raise LabelError("label the row first: only Dev's decision is carried out")
+    if action == "skip":
+        if dev["decision"] != "skip":
+            raise LabelError("the label isn't a skip")
+        nxt = nav.skip_profile(cap.profile.name)
+    elif action == "send":
+        if dev["decision"] != "like" or dev["comment"] == "none":
+            raise LabelError("the label isn't a like with a comment (type it first)")
+        c = lib.comment(dev["comment"])
+        if c is None:
+            raise LabelError(f"comment {dev['comment']!r} is gone from templates.md")
+        nxt = nav.send_like(cap.profile.name, c.text)
+    else:
+        raise LabelError("skip or send")
+    return dev | {"acted": action}, nxt
+
+
 def _text_first(rows: list[ShadowRow], usage_rows: list[tuple]) -> list[str]:
     """Does the text check pay? Saved = early skips × a full call's mean cost; spent = all text checks."""
     text = [u[6] or 0 for u in usage_rows if u[0] == TASK_TEXT]

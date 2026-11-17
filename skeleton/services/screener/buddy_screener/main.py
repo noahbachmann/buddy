@@ -9,10 +9,12 @@ Offline (no MQTT; on the Pi with buddy.env: `deploy/run.sh screener --cmd …`):
     --cmd walk                    step 1 check: feed → whole profile → a section's comment sheet (type, read back,
                                   back out without sending) → likes → matches → a chat → back
     --cmd templates               check templates.md, list the like comments
-Shadow mode (step 2; Dev taps, nothing here likes, skips or sends; details in shadow.py):
+Shadow mode (step 2; only skip/send act, and only on Dev's label; details in shadow.py):
     --cmd shadow                  capture the profile on screen, decide, store and print it (row id)
     --cmd label <id> like|skip [section comment] [--note …] [--wrong] [--dealbreaker] [--sensitive]
-    --cmd type <id>               type the labelled comment into the labelled section's panel; Dev taps send
+    --cmd type <id>               type the labelled comment into the labelled section's panel
+    --cmd skip <id>               carry out Dev's skip label: skip that profile (the captured one only)
+    --cmd send <id>               carry out Dev's like label: send the typed comment (upsell → plain like, never paid)
     --cmd report                  step 2's done-when numbers, missing comments, usage
 
 Service (no flags): retained state, `stop|pause|resume` on buddy/screener/cmd, phone check. Step 1 acts on nothing
@@ -114,7 +116,7 @@ def cmd_walk(cfg: Config, dev: Device, nav: Navigator) -> None:
 
 
 def cmd_shadow(cfg: Config, args: argparse.Namespace) -> int:
-    """Shadow mode commands: no input action that likes, skips or sends."""
+    """Shadow mode commands: only skip/send act, each on Dev's label of that row."""
     from . import shadow
 
     lib = Library.load(cfg.config_dir)
@@ -170,13 +172,28 @@ def cmd_shadow(cfg: Config, args: argparse.Namespace) -> int:
             print(f"type: {e}", file=sys.stderr)
             return 2
         print(f"#{row_id}: {rows[0].dev['comment_on']} panel open, typed and read back {len(text)} chars. "
-              "Tap send on the phone (or --cmd back-out).")
+              f"Send with --cmd send {row_id} (or tap it, or --cmd back-out).")
+        return 0
+    if args.cmd in ("skip", "send"):
+        row_id = int(args.args[0])
+        rows = store.shadow(row_id)
+        cap = shadow.load_capture(cfg.tmp_dir, row_id)
+        if not rows or cap is None:
+            print(f"#{row_id}: no capture in tmpfs (only the newest shadow row's)", file=sys.stderr)
+            return 2
+        try:
+            acted, nxt = shadow.act_label(nav, rows[0], cap, lib, args.cmd)
+        except shadow.LabelError as e:
+            print(f"{args.cmd}: {e}", file=sys.stderr)
+            return 2
+        store.label(row_id, acted)
+        print(f"#{row_id}: {'skipped' if args.cmd == 'skip' else 'like sent'}; next profile: {nxt}")
         return 0
     raise AssertionError(args.cmd)
 
 
 def offline(cfg: Config, args: argparse.Namespace) -> int:
-    if args.cmd in ("templates", "report", "label", "shadow", "type"):
+    if args.cmd in ("templates", "report", "label", "shadow", "type", "skip", "send"):
         try:
             return cmd_shadow(cfg, args)
         except LibraryError as e:
@@ -309,7 +326,8 @@ def main() -> int:
     lifecycle.install_signal_handlers()
     p = argparse.ArgumentParser(prog="buddy-screener")
     p.add_argument("--cmd", help="screen | dump [name] | fixture <out> <xml…> | profile | back-out | walk | templates"
-                                 " | shadow | label <id> like|skip [section comment] | type <id> | report")
+                                 " | shadow | label <id> like|skip [section comment] | type <id> | skip <id> | send <id>"
+                                 " | report")
     p.add_argument("--show", action="store_true", help="profile: print texts (host terminal only)")
     p.add_argument("--note", default="", help="label: Dev's note (why)")
     p.add_argument("--wrong", action="store_true", help="label: the bot's comment reads wrong on its section")
