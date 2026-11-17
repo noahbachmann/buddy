@@ -48,7 +48,7 @@ class _Mapper:
 
     def collect(self, s: str) -> None:
         """First pass: names from the patterns that carry them."""
-        for rx in (v.SKIP, v.PHOTO, v.MATCH_ORIGIN):
+        for rx in (v.SKIP, v.PHOTO, v.VIDEO, v.MATCH_ORIGIN):
             if (m := rx.fullmatch(s)) is not None:
                 self.name(m.group(1))
         if (m := v.MESSAGE.fullmatch(s)) is not None:
@@ -69,6 +69,8 @@ class _Mapper:
             return f"You liked {self.name(m.group(1))}'s {m.group(2)}."
         if (m := v.PHOTO.fullmatch(s)) is not None:
             return f"{self.name(m.group(1))}'s photo"
+        if (m := v.VIDEO.fullmatch(s)) is not None:
+            return f"{self.name(m.group(1))}'s video"
         if (m := v.PROMPT.fullmatch(s)) is not None:
             return f"Prompt: {self.placeholder(m.group(1), 'Question')}. Answer: {self.placeholder(m.group(2), 'Answer')}"
         if (m := v.MESSAGE.fullmatch(s)) is not None:

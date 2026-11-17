@@ -180,3 +180,11 @@ def test_acting_allowlist():
     paid = sheet.root.first(lambda n: n.cls == "Button" and n.bounds.left == 108)
     assert screens.actable(sheet, send) and not screens.actable(sheet, paid)
     assert not screens.actable(feed, feed.root.first(lambda n: n.desc == v.LIKE_PHOTO))
+
+
+def test_a_video_is_a_section_without_a_like():
+    view = screens.profile_view(screen("feed-video").root)   # real dump, a video between a photo and a prompt
+    assert [x.kind for x in view.sections] == ["photo", "video", "prompt"]
+    video = view.sections[1]
+    assert video.like is None and view.sections[0].like is not None
+    assert screen("feed-video").kind is Kind.FEED

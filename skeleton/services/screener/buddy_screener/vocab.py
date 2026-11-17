@@ -22,6 +22,9 @@ LIKE_PHOTO_CAPTION = "Like photo prompt"   # a photo with a caption: still a pho
 LIKE_BUTTONS = (LIKE_PHOTO, LIKE_PROMPT, LIKE_PHOTO_CAPTION)
 SKIP = re.compile(r"Skip (.+)", re.S)            # floating button, carries the name
 PHOTO = re.compile(r"(.+)'s photo", re.S)
+VIDEO = re.compile(r"(.+)'s video", re.S)    # autoplays: the screen never idles while it's on it
+LIKE_VIDEO = "Like video"                      # not in LIKE_BUTTONS: the bot can't watch it, never liked
+VIDEO_CONTROLS = ("Show caption", "Unmute video", "Mute video")
 PROMPT = re.compile(r"Prompt: (.*?)\. Answer: (.*)", re.S)
 UNDO_SKIP = "Undo last skip"
 MORE = "More"
@@ -69,6 +72,6 @@ DETAIL_LABELS = frozenset({
 
 # Strings kept verbatim by the sanitizer (besides the patterns above)
 KEEP = frozenset({
-    *TABS, *LIKE_BUTTONS, UNDO_SKIP, MORE, VERIFIED, EDIT_COMMENT, SEND_LIKE, SEND_LIKE_WITH,
+    *TABS, *LIKE_BUTTONS, LIKE_VIDEO, *VIDEO_CONTROLS, UNDO_SKIP, MORE, VERIFIED, EDIT_COMMENT, SEND_LIKE, SEND_LIKE_WITH,
     LIKES_HEADER, MATCHES_HEADER, CLOSE, SEND_ANYWAY, CLOSE_SHEET, BACK, CHAT_TAB, CHAT_PROFILE_TAB, CHAT_HINT, DOUBLE_TAP_HINT, *DETAIL_LABELS,
 })
