@@ -83,3 +83,5 @@ section through every fit (bearing seat, slot, channel). Numbers can't see a mis
   from GitHub: a stale plate there printed the borders with the pre-test fits (2026-11-11).
 - Manifold booleans need watertight input: an open reference mesh (e.g. `dispenser/ref/lift.stl`) silently intersects
   as 0. Check `is_watertight` before trusting an overlap volume.
+- BOSL2's thread `$slop` is radial (4·$slop on the diameter). On a TR thread that's ¼ at the flanks: size thread gaps per
+  flank and convert (`tr8_thread()` in `dispenser/lib.scad`). Every bore from the fit values, never a picked number.
