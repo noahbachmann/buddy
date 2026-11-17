@@ -52,6 +52,10 @@ def cmd_check(args) -> bool:
         print(f"  ⚠ {i.clip.id} ({i.source}): {i.problem} — \"{i.clip.sentence}\"")
     if len(issues) > len(serious) and not args.verbose:
         print(f"  ({len(issues) - len(serious)} sentences not in commands.tsv; -v lists them)")
+    if serious:
+        print("⚠ re-record the clips above (r in deploy/record.sh), or train anyway with --force")
+    if any(i.clip.session == "live" for i in serious):
+        print(f"  live clips can't be re-recorded: delete their rows from {data.SESSIONS / 'live' / 'metadata.csv'}")
     return not serious
 
 
@@ -64,10 +68,8 @@ def cmd_train(args) -> None:
 
     if not args.no_pull:
         cmd_pull()
-    if not cmd_check(args):
-        print("⚠ fix or re-record the clips above (r in deploy/record.sh), or train anyway with --force")
-        if not args.force:
-            raise SystemExit(1)
+    if not cmd_check(args) and not args.force:
+        raise SystemExit(1)
     cfg = Config(base=args.base, source=args.source, ctx=args.ctx, epochs=args.epochs, lr=args.lr,
                  batch=args.batch, max_steps=args.max_steps, quantize=not args.no_quantize,
                  sessions=args.sessions or [])
