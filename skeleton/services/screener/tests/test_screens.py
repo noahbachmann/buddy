@@ -14,7 +14,7 @@ def screen(name: str) -> screens.Screen:
 @pytest.mark.parametrize("name, kind", [
     *[(f, Kind.FEED) for f in FEED],
     ("sheet", Kind.SHEET), ("sheet-typed", Kind.SHEET),
-    ("likes", Kind.LIKES), ("matches", Kind.MATCHES), ("chat", Kind.CHAT),
+    ("likes", Kind.LIKES), ("matches", Kind.MATCHES), ("chat", Kind.CHAT), ("popup", Kind.POPUP),
 ])
 def test_every_fixture_is_recognised(name, kind):
     assert screen(name).kind is kind
@@ -132,6 +132,14 @@ def test_allowlist_refuses_send_skip_and_paid():
     chat = screen("chat")
     assert not screens.tappable(chat, chat.root.first(lambda n: n.rid == v.CHAT_VOICE))
     assert not screens.tappable(chat, chat.root.first(lambda n: v.MESSAGE.fullmatch(n.desc) is not None))
+
+
+def test_popup_allows_only_close():
+    s = screen("popup")
+    close = s.root.first(lambda n: n.desc == v.CLOSE)
+    others = [n for n in s.root.iter() if n.clickable and n is not close]   # "try it", "learn more"
+    assert screens.tappable(s, close)
+    assert others and not any(screens.tappable(s, n) for n in others)
 
 
 def test_summary_has_no_names():

@@ -80,6 +80,28 @@ def test_unknown_screen_stops_without_input():
     assert phone.actions == []
 
 
+def test_popup_in_front_is_closed():
+    phone = FakePhone("popup")
+    s = nav(phone).go_tab(v.TAB_DISCOVER)
+    assert s.kind is Kind.FEED
+    assert phone.actions == [("tap", "popup", "Close")]
+
+
+def test_popup_after_launch_is_closed():
+    phone = FakePhone("feed-01")
+    phone.foreground_pkg, phone.launch_screen = "launcher.example", "popup"
+    assert nav(phone).ensure_app().kind is Kind.FEED
+    assert [a[0] for a in phone.actions] == ["launch", "tap"]
+
+
+def test_popups_that_keep_coming_need_you():
+    phone = FakePhone("popup")
+    phone.popup_sticks = True
+    with pytest.raises(NeedsYou):
+        nav(phone).go_tab(v.TAB_DISCOVER)
+    assert len(phone.actions) == 3
+
+
 def test_refuses_a_tap_off_the_allowlist():
     phone = FakePhone("sheet")
     n = nav(phone)

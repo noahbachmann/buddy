@@ -14,6 +14,8 @@ class FakePhone:
         self.field: str | None = None   # comment field text while focused, None = no field
         self.ime_shown = False
         self.guard = lambda: None
+        self.launch_screen = "feed-01"   # what the app opens on
+        self.popup_sticks = False        # Close shows the popup again
 
     # read side
 
@@ -58,6 +60,8 @@ class FakePhone:
             self.screen = "chat"
         elif label == "Back" and self.screen == "chat":
             self.screen = "matches"
+        elif label == "Close" and self.screen == "popup":
+            self.screen = "popup" if self.popup_sticks else "feed-01"
         else:
             raise AssertionError(f"unscripted tap on {label!r} in {self.screen}")
         return x, y
@@ -84,7 +88,7 @@ class FakePhone:
         self.guard()
         self.actions.append(("launch", self.screen, package))
         assert package == PACKAGE
-        self.foreground_pkg, self.screen, self.field = PACKAGE, "feed-01", None
+        self.foreground_pkg, self.screen, self.field = PACKAGE, self.launch_screen, None
 
     def ime_type(self, text: str) -> ImeResult:
         self.guard()

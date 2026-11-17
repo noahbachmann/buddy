@@ -21,6 +21,7 @@ class Kind(str, Enum):
     LIKES = "likes"          # incoming likes list
     MATCHES = "matches"      # matches list
     CHAT = "chat"            # one conversation
+    POPUP = "popup"          # promo layer over the app, closable
     OTHER_APP = "other_app"  # launcher, system dialog, another app
     UNKNOWN = "unknown"
 
@@ -87,6 +88,8 @@ def classify(root: Node, package: str) -> Screen:
         s.kind = Kind.LIKES
     elif selected == v.TAB_MATCHES and _header(root, v.MATCHES_HEADER):
         s.kind = Kind.MATCHES
+    elif not tabs and close_button(root):
+        s.kind = Kind.POPUP
     else:
         s.reason = f"no known screen (tab: {selected or 'none'})"
     return s
@@ -103,6 +106,10 @@ def _is_section(n: Node) -> bool:
 
 def _is_send_like(n: Node) -> bool:
     return n.cls == "Button" and n.desc in (v.SEND_LIKE, v.SEND_LIKE_WITH)
+
+
+def close_button(root: Node) -> Node | None:
+    return root.first(lambda n: n.cls == "Button" and n.clickable and n.desc == v.CLOSE)
 
 
 def _skip_button(root: Node) -> Node | None:
@@ -295,6 +302,8 @@ def tappable(screen: Screen, node: Node) -> bool:
         return any(r.node is node for r in match_rows(screen.root))
     if screen.kind is Kind.CHAT:
         return node.desc == v.BACK and node.clickable
+    if screen.kind is Kind.POPUP:
+        return node is close_button(screen.root)
     return False
 
 

@@ -30,6 +30,9 @@ EDIT_COMMENT = "Edit comment"                    # the field (its text is invisi
 SEND_LIKE = "Send like"
 SEND_LIKE_WITH = "Send like with message"
 
+# Promo popups over the app (feature ads, upsells): a full-screen layer without tabs, its only safe exit this button
+CLOSE = "Close"
+
 # Lists
 LIKES_HEADER = "Likes You"
 NO_LIKES = "No likes yet"                        # prefix of the empty state's title
@@ -60,5 +63,5 @@ DETAIL_LABELS = frozenset({
 # Strings kept verbatim by the sanitizer (besides the patterns above)
 KEEP = frozenset({
     *TABS, LIKE_PHOTO, LIKE_PROMPT, UNDO_SKIP, MORE, VERIFIED, EDIT_COMMENT, SEND_LIKE, SEND_LIKE_WITH,
-    LIKES_HEADER, MATCHES_HEADER, BACK, CHAT_TAB, CHAT_PROFILE_TAB, CHAT_HINT, DOUBLE_TAP_HINT, *DETAIL_LABELS,
+    LIKES_HEADER, MATCHES_HEADER, CLOSE, BACK, CHAT_TAB, CHAT_PROFILE_TAB, CHAT_HINT, DOUBLE_TAP_HINT, *DETAIL_LABELS,
 })

@@ -15,7 +15,7 @@ code path taps send like, skip or a chat send.
 |---|---|
 | `uitree.py` | `uiautomator` XML → `Node` tree (`desc`, `text`, `rid` without package, `Rect` bounds, flags) |
 | `vocab.py` | Every app UI string the model relies on (English UI). The sanitizer keeps exactly these |
-| `screens.py` | `classify()` → `Kind` (feed, sheet, likes, matches, chat, other_app, unknown); readers `profile_view` (sections + their like buttons, details, floating obstacles, `at_top`), `sheet_view`, `match_rows`, `chat_view` (side left/right by position); `tappable()` = the allowlist |
+| `screens.py` | `classify()` → `Kind` (feed, sheet, likes, matches, chat, popup, other_app, unknown); readers `profile_view` (sections + their like buttons, details, floating obstacles, `at_top`), `sheet_view`, `match_rows`, `chat_view` (side left/right by position); `tappable()` = the allowlist |
 | `profile.py` | `Capture`: one profile stitched across scroll dumps (offset per dump measured by voting on shared sections/texts, checked by `verify_shift`), `Section` refs `photo N` / `prompt N` in content y; `dhash` |
 | `imaging.py` | Pillow: crop of a screenshot → dhash (photos all read "<name>'s photo" in the tree), → JPEG for the decision |
 | `device.py` | adb: `dump` (retries), `screencap`, `tap` (jitter inside the middle half), `swipe`, `key`, `launch`, `foreground`, keyboard type/clear/read (`buddy.screener.ime` broadcasts), `ime_set`, `notifications`, `state`. `guard()` before every input action |
@@ -31,6 +31,8 @@ code path taps send like, skip or a chat send.
 ## Rules the code enforces
 
 - Act only on a screen stable over two dumps; unknown screen → `NeedsYou`, never a blind tap.
+- Promo popups (no tabs, a clickable "Close" button, nothing else known) are closed with that button only, by
+  `wait_for`/`ensure_app`; more than `MAX_POPUPS` in a row → `NeedsYou`.
 - Tap only what `tappable()` allows (tabs, back, match rows, like buttons, comment field); a target in the list must
   be fully inside it and clear of the floating skip/header buttons (`ProfileView.safe`).
 - Text only through our keyboard, always read back.
@@ -99,7 +101,7 @@ with the changes applied.
 
 Fixtures are sanitized real dumps (step 1, 2026-11-16): `feed-01..11` one profile top to bottom (6 photos, 3
 prompts), `sheet`/`sheet-typed` (photo panel), `sheet-low` (prompt panel under the skip button), `likes` (empty),
-`matches`, `chat`, `own-profile` (unknown). `fixture_files.py` loads them, `fake_phone.py` replays them as a phone (taps/swipes move between
+`matches`, `chat`, `popup` (feature ad on launch, 2026-11-17), `own-profile` (unknown). `fixture_files.py` loads them, `fake_phone.py` replays them as a phone (taps/swipes move between
 dumps, records actions, `sent()` must stay empty). `test_decide.py` runs the decider against a fake SDK stream
 (real `ResultMessage`/`RateLimitEvent` objects); `test_shadow.py` runs shadow → label → type on the fake phone. New fixture: `deploy/run.sh screener --cmd dump <name>` on the
 Pi, then `--cmd fixture <out dir> <dumps…>` (all dumps of one walk in one call), check the texts, copy over.

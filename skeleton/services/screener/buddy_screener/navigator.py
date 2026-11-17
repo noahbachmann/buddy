@@ -26,6 +26,7 @@ STEP = 600            # px per scroll swipe: consecutive dumps share sections (a
 MAX_MOVE = 700        # px, longest swipe when scrolling to a section: longer ones left no anchor in common
 SWIPE_MS = 900        # slow: scrolls by about the swipe length, no fling
 MAX_SWIPES = 30
+MAX_POPUPS = 3        # closed in a row before asking Dev
 HASH_MAX_DIST = 10    # of 64 bits: same photo
 Hasher = Callable[[bytes, Rect], str]   # (screenshot PNG, crop) → dhash
 Cropper = Callable[[bytes, Rect], bytes]   # (screenshot PNG, crop) → JPEG for the decision call
@@ -84,11 +85,20 @@ class Navigator:
         return s
 
     def wait_for(self, pred: Callable[[Screen], bool], what: str, timeout: float = 12) -> Screen:
+        """Polls until `pred` holds. Promo popups on the way are closed (they show up on launch, at any tab)."""
         end = time.monotonic() + timeout
+        closed = 0
         while True:
             s = self.stable()
             if pred(s):
                 return s
+            if s.kind is Kind.POPUP:
+                if closed == MAX_POPUPS:
+                    raise self.needs_you(f"{closed} popups in a row")
+                self.tap(s, screens.close_button(s.root), "popup close")
+                self.log("closed a popup")
+                closed += 1
+                continue
             if time.monotonic() >= end:
                 raise self.needs_you(f"waited for {what}, got {screens.summary(s)}")
             self.pause(1.0)
@@ -117,7 +127,9 @@ class Navigator:
         s = self.stable()
         if s.kind is Kind.OTHER_APP:
             self.dev.launch(self.package)
-            s = self.wait_for(lambda x: x.kind not in (Kind.OTHER_APP, Kind.UNKNOWN), "the app")
+            s = self.wait_for(lambda x: x.kind not in (Kind.OTHER_APP, Kind.UNKNOWN, Kind.POPUP), "the app")
+        elif s.kind is Kind.POPUP:
+            s = self.wait_for(lambda x: x.kind is not Kind.POPUP, "the app behind the popup")
         if s.kind is Kind.UNKNOWN:
             raise self.needs_you(f"unknown screen: {s.reason}")
         return s

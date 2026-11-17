@@ -1,5 +1,5 @@
 """The sanitized dumps in fixtures/ (step 1, 2026-11-16): one profile walked top to bottom, the comment sheet,
-the lists, a chat, and screens the model must not recognise."""
+the lists, a chat, a promo popup (2026-11-17), and screens the model must not recognise."""
 
 from pathlib import Path
 
