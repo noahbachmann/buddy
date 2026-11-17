@@ -19,7 +19,7 @@ cat ~/buddy/config/screener/number ~/buddy/config/screener/instagram   # check: 
 exit
 ```
 
-- [ ] `number` and `instagram` saved
+- [x] `number` and `instagram` saved
 
 ## 2. Read through preferences and templates
 
@@ -89,7 +89,7 @@ ssh -t dev@buddy.local micro ~/buddy/config/screener/claude-token
 ssh dev@buddy.local 'chmod 600 ~/buddy/config/screener/claude-token && wc -l ~/buddy/config/screener/claude-token'
 ```
 
-- [ ] `claude-token` saved
+- [x] `claude-token` saved
 
 Step 0 is done (2026-11-16). The phone keeps its keyboard set to the screener's own one (no keys): to type by hand,
 tap the keyboard icon at the bottom right and pick SwiftKey.
