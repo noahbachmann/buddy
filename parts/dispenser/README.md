@@ -111,7 +111,7 @@ the lift in place and the 4023 turned. It also holds bought parts as stand-ins (
   sits on the notch's skin above it (plate top + 0.5 + 2), which sets the screw at z 155.69.
 - **Motor:** a 17HS4401 screwed flat onto the right wall's outer face (4× M3 from inside the box). The wall is
   extended 15 mm forward around it, because the motor is wider than the front strip. A wedge under the motor (16 mm
-  wide, 45° underside) carries it, so it doesn't hang on its screws alone. The coupling (Ø19 × 25)
+  wide, 45° underside) carries it, so it doesn't hang on its screws alone. The printed rigid coupling (Ø22 × 25, `coupling.scad`)
   joins the 5 mm shaft and the screw inside the box; the screw runs to the left wall, turns in a plain hole there and,
   200 mm and uncut, sticks 75 mm out of the box's left side.
 - **Home:** the plate sits in a notch in the right wall, face flush with the inner face (x 143), resting on the notch
@@ -202,7 +202,7 @@ which prints solid). Same print: on its back, no supports. `case.scad` stays as 
   the motor and the screw, 45° in between (prints as a 45° edge).
 - **Back wall windows** (on the bed, any shape): above pile H's back border (x 6…69, z 102.04…129.54), and behind
   pile B: open from the floor to a crossbar at z 64.29…70.29, above it a solid post behind the lift tab's path
-  (x 96.3…123.3; the tab runs 1.4 mm off the wall, the screw on its flexible coupling can lean it that far, and it
+  (x 96.3…123.3; the tab runs 1.4 mm off the wall, the screw can lean it that far, and it
   must rub on a wall, not catch a window's edge), the slots beside the post X-braced (3 mm struts). The wall under pile H (4023, cable, camera) stays closed:
   no stray light under the bed.
 - **Floor under the lift:** a window pointed to the front (its roof in print), flat at the back 3 mm short of the
@@ -261,7 +261,8 @@ cd parts/tools && uv run python ../dispenser/check_pusher.py # after a pusher, l
 
 | Qty | Part | Note |
 |---|---|---|
-| 2 | 17HS4401 + Purecrea flexible coupling 8/5 + TR8x8 lead screw 200 mm | The two sets on the shopping list: pusher and lift. Screws uncut, nuts printed (`pusher-nut.scad`, `lift-nut.scad`) |
+| 2 | 17HS4401 + TR8x8 lead screw 200 mm | Pusher and lift. Screws uncut; nuts and couplings printed (`pusher-nut.scad`, `lift-nut.scad`, `coupling.scad`). The Purecrea flexible couplings from the shopping list aren't used (below) |
+| 4 | M3×12 socket head + M3 nut | Clamp bolts of the 2 printed couplings, one per end |
 | 4 | M3×6 socket head | Through the 3 mm right wall into the pusher motor's face, from inside (M3×8 would bottom out) |
 | 2 | M3×6 socket head | Through the 3 mm floor into the lift motor's face, from inside (M3×8 would bottom out) |
 
@@ -315,7 +316,7 @@ Checked on the borders (2026-11-11): printed from a stale plate 2 with the pre-t
 holes (= hole 2) were too tight and border B's Ø3.1 horizontal holes (= hole 3) let the pin slide out: both as the fit
 test predicts, also in 7 mm deep holes. Current: H Ø3.1, B Ø3.0.
 
-**Thread test** (`plates/0b-thread-test.stl`, ~15 min). The first gear and nuts (2026-11-16) didn't fit: the gear's
+**Thread test** (on `plates/1b-reprint.stl`). The first gear and nuts (2026-11-16) didn't fit: the gear's
 D-bore was Ø5.15 (between press and slip: it predates the fit test), and the nuts had 0.2 mm radial gap, which on a
 TR thread's 15° flanks is only 0.05 mm per flank (the flanks carry, not the crests), below even the press fit. Now
 `bore_gap` = slip (Ø5.2, flat at 2.1) with a 0.4 chamfer at the bed face against elephant foot, and `nut_flank` is
@@ -327,8 +328,16 @@ the gap per flank. Ribs on a ring = its number:
 | D-bore rings: gap per side (`bore_steps`) | 0.10 | 0.15 | 0.20 | – |
 
 Nut: the tightest ring that turns along the screw by fingers without binding, ring flat in the fingers (no rocking on
-the screw). Bore: the tightest ring that slides onto the motor shaft by hand. Tell Claude both numbers: they go into
-`nut_flank` and `bore_gap`, then reprint the motor gear and both nuts from `stl/`.
+the screw). Bore: the tightest ring that slides onto the motor shaft by hand. The gear and nuts on the same plate have the
+middle values (nut ring 2, bore ring 1): if they fit, done. If a ring other than that one is the right one, tell Claude
+its number: it goes into `nut_flank` / `bore_gap`, and that part is reprinted from `stl/`.
+
+**Couplings: printed and rigid** (2026-11-17). The Purecrea flexible couplings let the screws flop: a flexible
+coupling only works when the screw has its own bearing at the far end, and the lift's screw has none (its top is
+free). A rigid coupling lets the motor's bearings hold the screw straight. No bought rigid coupling fit, so it's
+printed: Ø22 × 25 PETG, round bores (5 and 8, `cpl_gap` 0.15 per side) meeting at a step in the middle (the screw
+stops on it), one slot along the whole length, and per end one M3×12 across the slot that clamps the bore shut
+(the clamp centres the shaft along its whole length, a grub screw would tilt it). `check_pusher.py`: no collisions at Ø22.
 
 ## Print (Bambu X2D)
 
@@ -339,8 +348,8 @@ parts (for reprints, e.g. only the left gate). `parts/cad plate dispenser` rebui
 | Plate | Parts | Filament | Settings (rest: Bambu's preset) |
 |---|---|---|---|
 | `0-fit-test.stl` | fit test, 2 test pins: **print first** ("Printed joints") | PETG | 0.20 mm, 4 walls, 10 %, no supports |
-| `0b-thread-test.stl` | TR8 nut rings (1–4 ribs) and motor gear D-bores (1–3 ribs): **before reprinting the gear and the nuts** ("Thread test") | PETG | 0.12 mm, 4 walls, 15 %, no supports |
-| `1-petg-fine.stl` | drive drum, idler drum, motor gear, left gate, pusher nut, lift nut, 4 border pins | PETG | 0.12 mm, 4 walls, 15 %, no supports, **brim: outer only** (the drums stand 107 mm on Ø15–18) |
+| `1-petg-fine.stl` | drive drum, idler drum, motor gear, left gate, pusher nut, lift nut, 2 couplings, 4 border pins | PETG | 0.12 mm, 4 walls, 15 %, no supports, **brim: outer only** (the drums stand 107 mm on Ø15–18) |
+| `1b-reprint.stl` | thread test, motor gear, pusher nut, lift nut, 2 couplings: the parts changed on 2026-11-16/17 ("Thread test") | PETG | 0.12 mm, 4 walls, 15 %, no supports |
 | `2-petg.stl` | roller frame, front plate, border H, border B: **after the fit test** | PETG | 0.20 mm, 4 walls, 15 %, no supports |
 | `3-pla.stl` | pusher, lift: **after the fit test** | PLA | 0.20 mm, 4 walls, 15 %, **supports on: tree (auto), on build plate only** |
 | `stl/case.stl` | case (a plate of its own) | PETG | 0.20 mm, 4 walls, 15 %, no supports, textured PEI |
@@ -414,29 +423,31 @@ from the left, and everything else follows from behind and from the front.
    From the front between the left wall and the right gate until its step stops at the gate's front face, 2 border
    pins through the left wall from outside.
 
-**Coupling** (both screws): Ø19 × 25 aluminium, 5 mm bore on one end (motor shaft), 8 mm on the other (screw). Each
-end clamps with its own screw(s): either small grub screws in radial holes on the side, or a cap screw across a slot
-(clamp type). Hex key that fits snugly (M3 grub: 1.5 mm, M4 grub: 2 mm, M2.5 cap: 2 mm), firm by hand, no extension
-(an aluminium thread strips). Motor shaft: turn it so a grub screw sits on the shaft's flat. Each shaft in by half the
-coupling's length (12.5 mm), so it doesn't reach into the middle flexible part. Tighten one end, then the other: a
-loose end slips and the motor turns without moving anything.
+**Coupling** (printed, both screws): small bore (5 mm) on the motor shaft, big bore (8 mm) on the screw. Per end an
+M3 nut into the hex pocket on one side of the slot, an M3×12 from the round pocket on the other side through both
+jaws into the nut. Shaft and screw each go in until they meet at the step in the middle (12.5 mm each). Tighten
+until the slot visibly narrows and the shaft can't turn in the coupling by hand, no more: PETG cracks before the
+bolt strips. A loose end slips and the motor turns without moving anything.
 
 **Lift:** motor under the floor (boss into the floor's hole, 2× M3×6 from inside), coupling on the shaft inside the
 box (z 13.5…38.5), tighten the 5 mm side. Nut under the lift's tab, flange up, its 4 pegs pressed into the tab's holes, body
 down. Outside the box, turn the
 screw through the nut (the lift can't turn once it's in). Lower lift and screw in together, screw end into the
-coupling, tighten the 8 mm side.
+coupling, turn it until the bolt pocket faces the open front, tighten the 8 mm side.
 
 **Pusher:**
 
 1. **Motor:** coupling on the shaft (its middle at the shaft's tip, 24 mm from the face), tighten the 5 mm side.
-   Motor onto the right wall's outer face, boss in the wall's hole, 4× M3×6 from inside the box.
+   Motor onto the right wall's outer face, boss in the wall's hole, 4× M3×6 from inside the box, **loosely** for now.
 2. **Nut:** body through the tab from the right (motor side), its 2 pegs pressed into the tab's holes above and below.
 3. **Carriage in:** borders in, lift at push height (turn its screw by hand). The ridge is in the way of sliding the
    carriage straight into the notch, so put it in halfway along instead (plate over the lift, around x 100): from the
    front, held ~3 mm high, then set down with the groove over the ridge and the plate on the lift. Hold it there.
 4. **Screw in:** through the left wall's hole from outside, thread it through the nut by turning it, into the coupling.
-   Tighten the 8 mm side through the open front. Turn the screw to bring the carriage home into the notch.
+   Tighten the 8 mm side through the open front. Now the motor's 4 screws: the coupling is rigid and the screw also
+   turns in the left wall's hole, so the motor has to line up with that hole. Turn the screw by hand while
+   tightening them one by one; if it gets stiff, loosen, nudge the motor (its boss has 0.3 mm play), retry. Then turn
+   the screw to bring the carriage home into the notch.
 5. **Check:** turn the screw by hand with the lift at push height. The plate must slide on the lift, step down onto the
    divider, and come back over the lift's edge and into the notch without catching.
 
@@ -554,5 +565,4 @@ but then two cards sit in the slot. No roller left of the divider can push furth
   at the back (y ≈ −46.4), and change the height in 0.05 mm steps until both are caught. Bowed cards may still slip
   under the plate's front end; if they do, the fix is a comb (slots in the lift plate) so the plate's
   edge can dip below the lift top.
-- Pusher: the screw turns in a plain Ø8.6 hole in the left wall (PETG on steel, slow, light load). Coupling (Ø19 × 25)
-  and nut dimensions (TR8 nut Ø22 flange on a Ø16 bolt circle) are taken from Dev's model and the usual sizes.
+- Pusher: the screw turns in a plain Ø8.6 hole in the left wall (PETG on steel, slow, light load). Nut dimensions (TR8 nut Ø22 flange on a Ø16 bolt circle) are taken from Dev's model and the usual sizes.

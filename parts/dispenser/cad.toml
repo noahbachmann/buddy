@@ -18,6 +18,7 @@ assembly = "assembly.scad"
 [parts.border-pin]
 [parts.fit-test]
 [parts.thread-test]
+[parts.coupling]
 
 # Print plates (`parts/cad plate dispenser` → plates/): one STL per print job, drag into Bambu Studio and print.
 # The case prints alone from stl/case.stl (or stl/case-spares.stl, less filament). Settings per plate: dispenser README → Print.
@@ -25,14 +26,14 @@ assembly = "assembly.scad"
 note = "PETG · 0.20 mm · 4 walls · 10 % · no supports · print first, fits → params.scad, rebuild plates 2 and 3"
 parts = ["fit-test", "border-pin", "border-pin"]
 
-[plates.0b-thread-test]
-note = "PETG · 0.12 mm · 4 walls · 15 % · no supports · TR8 nut rings and motor gear D-bores: fits → params.scad, reprint the gear and both nuts"
-parts = ["thread-test"]
-
 [plates.1-petg-fine]
 note = "PETG · 0.12 mm · 4 walls · 15 % · no supports · outer brim"
-parts = ["drive-drum", "idler-drum", "motor-gear", "gate-left", "pusher-nut", "lift-nut",
+parts = ["drive-drum", "idler-drum", "motor-gear", "gate-left", "pusher-nut", "lift-nut", "coupling", "coupling",
          "border-pin", "border-pin", "border-pin", "border-pin"]
+
+[plates.1b-reprint]
+note = "PETG · 0.12 mm · 4 walls · 15 % · no supports · reprint 2026-11-17: thread test, motor gear, both nuts, both couplings"
+parts = ["thread-test", "motor-gear", "pusher-nut", "lift-nut", "coupling", "coupling"]
 
 [plates.2-petg]
 note = "PETG · 0.20 mm · 4 walls · 15 % · no supports"

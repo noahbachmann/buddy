@@ -147,7 +147,7 @@ push_cham  = [0.8, 1.5];     // lower edge, push side / return side: ramps over 
 push_end   = divider_x;      // plate face at the end: plate on the divider, pile at x 9..72 over H's chute
 push_stroke = right_wall[0] - push_end;
 
-// bought: 17HS4401 (42 x 42 x 40), Purecrea flexible coupling 8/5, TR8x8 lead screw. Nut printed (tr8-nut.scad):
+// bought: 17HS4401 (42 x 42 x 40), TR8x8 lead screw. Coupling and nut printed. Nut (pusher-nut.scad, lift-nut.scad):
 // the brass nut's flange and bolt circle, flange at one end (no spigot), body 11 (brass 10.2: only 0.9 of PETG
 // would be left under the thread root, 11 leaves 1.3)
 m44_sq     = 42.3;
@@ -155,7 +155,11 @@ m44_body   = 40;
 m44_boss   = [22, 2];
 m44_shaft  = [5, 24];        // from the face
 m44_holes  = 31;
-coupling   = [19, 25];       // diameter, length (half on the shaft, half on the screw)
+coupling   = [22, 25];       // printed rigid clamp coupling: diameter, length (half on the shaft, half on the screw).
+                             // Rigid: the lift's screw has no top support, the motor's bearings hold it straight
+cpl_gap    = 0.15;           // bores (round 5 and 8), per side: the clamp closes the rest
+cpl_slot   = 1.5;            // slot along the whole length, one side
+cpl_bolt   = [6.7, 4.5];     // M3x12 clamp bolts, one per end: distance from the axis, head and nut faces at +-x
 nut_d      = 11;             // TR8 nut: body, length incl. flange, flange, screw circle
 nut_len    = 15;
 nut_flange = [22, 3.5];

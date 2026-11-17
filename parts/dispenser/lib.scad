@@ -524,7 +524,31 @@ module m44_local() {
   translate([0, 0, -eps]) cylinder(d = m44_boss[0], h = m44_boss[1] + eps);
   cylinder(d = m44_shaft[0], h = m44_shaft[1]);
 }
-module coupling_local() translate([0, 0, m44_shaft[1] - coupling[1] / 2]) cylinder(d = coupling[0], h = coupling[1]);
+module coupling_local() translate([0, 0, m44_shaft[1] - coupling[1] / 2]) rigid_coupling();
+
+// Printed rigid coupling, local: axis Z, z 0 = motor end. Bores meet at the middle (screw end stops on the step).
+// One slot along +Y; per end one M3x12 across it (along X): head pocket at +x, hex nut pocket at -x, both open to
+// the outside. Prints standing, motor end down: bores round, horizontal holes teardrops (tip up).
+module rigid_coupling() {
+  h = coupling[1];
+  d5 = 5 + 2 * cpl_gap;
+  d8 = 8 + 2 * cpl_gap;
+  module along_x(x0, x1) translate([x0, 0, 0]) rotate([90, 0, 90]) linear_extrude(x1 - x0) children();
+  difference() {
+    cylinder(d = coupling[0], h = h, $fn = 96);
+    translate([0, 0, -eps]) cylinder(d = d5, h = h / 2 + 2 * eps, $fn = 48);
+    translate([0, 0, h / 2]) cylinder(d = d8, h = h / 2 + eps, $fn = 64);
+    translate([0, 0, -eps]) cylinder(d1 = d5 + 0.8, d2 = d5, h = 0.4, $fn = 48);          // elephant foot
+    translate([0, 0, h - 0.6 + eps]) cylinder(d1 = d8, d2 = d8 + 1.2, h = 0.6, $fn = 64);  // lead-in
+    translate([-cpl_slot / 2, 0, -eps]) cube([cpl_slot, coupling[0], h + 2 * eps]);
+    for (z = [h / 4, 3 * h / 4]) translate([0, cpl_bolt[0], z]) {
+      along_x(-coupling[0], coupling[0]) teardrop2d(screw_clear, 1);
+      along_x(cpl_bolt[1], coupling[0]) teardrop2d(6.2, 1);                              // head Ø5.5
+      along_x(-coupling[0], -cpl_bolt[1]) let(r = 5.8 / sqrt(3))                            // nut 5.5 AF, 45° roof
+        hull() { rotate(90) circle(r = r, $fn = 6); translate([0, r / 2 + 2.9]) square(0.01, center = true); }
+    }
+  }
+}
 module pu_tf() translate([m44_face, pu_y, pu_screw_z]) rotate([0, -90, 0]) children();
 module lift_tf() translate([lift_axis[0], lift_axis[1], lift_face]) children();
 
