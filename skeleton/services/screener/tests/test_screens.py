@@ -188,3 +188,11 @@ def test_a_video_is_a_section_without_a_like():
     video = view.sections[1]
     assert video.like is None and view.sections[0].like is not None
     assert screen("feed-video").kind is Kind.FEED
+
+
+def test_a_video_prompt_is_a_video_section_with_its_question():
+    s = screen("feed-video-prompt")   # real dump: the profile's top, a video prompt playing under photo 1
+    view = screens.profile_view(s.root)
+    assert s.kind is Kind.FEED and view.at_top
+    assert [(x.kind, x.text) for x in view.sections] == [("photo", ""), ("video", "Question 1")]
+    assert view.sections[1].like is None

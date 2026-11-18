@@ -19,7 +19,7 @@ code path taps a paid option or a chat send.
 | `screens.py` | `classify()` → `Kind` (feed, sheet, likes, matches, chat, popup, upsell, other_app, unknown); readers `profile_view` (sections + their like buttons, details, floating obstacles, `at_top`), `sheet_view`, `match_rows`, `chat_view` (side left/right by position); `tappable()` = the allowlist, `actable()` = the acting one |
 | `profile.py` | `Capture`: one profile stitched across scroll dumps (offset per dump measured by voting on shared sections/texts, checked by `verify_shift`; a blind gap past a video by the swipes' scale), `Section` refs `photo N` / `prompt N` / `video N` in content y; `dhash` |
 | `imaging.py` | Pillow: crop of a screenshot → dhash (photos all read "<name>'s photo" in the tree), → JPEG for the decision |
-| `device.py` | adb: `dump` (retries; `NotIdle` = a video plays), `screencap`, `tap` (jitter inside the middle half), `swipe`, `key`, `launch`, `foreground`, keyboard type/clear/read (`buddy.screener.ime` broadcasts), `ime_set`, `notifications`, `state`. `guard()` before every input action |
+| `device.py` | adb: `dump` (our reader `android/screener-dump`, else `uiautomator dump` with retries and `NotIdle`), `screencap`, `tap` (jitter inside the middle half), `swipe`/`swipe_h` (jittered start, drift, speed; length only shorter), `key`, `launch`, `foreground`, keyboard type/clear/read (`buddy.screener.ime` broadcasts), `ime_set`, `notifications`, `state`. `guard()` before every input action |
 | `navigator.py` | Moves: `go_tab`, `capture_profile` (+ each detail row swiped to its end and flung back), `scroll_to(ref)`, `open_sheet` (+ scroll the panel clear), `type_comment` (read back), `skip_profile`, `send_like` (via `_act`; keeps the upsell's raw dump as tmpfs `upsell-last.xml`), `back_out`, `open_chat`/`leave_chat`. `NeedsYou` keeps the raw dump in tmpfs |
 | `sanitize.py` | Real dumps → fixtures: one mapping across a walk, names/prompts/texts → placeholders, package → `app.example`; refuses output with a word from `~/buddy/config/screener/forbidden` (host) |
 | `library.py` | Host input: `preferences.md` (verbatim into the system prompt), `templates.md` section *Like comments* (`- id \| de\|en \| fit hint \| text`; broken line → whole file refused). Loaded per decision |
@@ -109,14 +109,18 @@ prompts), `sheet`/`sheet-typed` (photo panel), `sheet-low` (prompt panel under t
 `matches`, `chat`, `popup` (feature ad on launch, 2026-11-17), `row-0..3` (another profile's detail row swiped
 sideways to its end, 2026-11-17), `photo-caption` (a captioned photo: its button reads "Like photo prompt"), `upsell` (hand-built from a live
 dump's node list: replace with a real dump when next seen),
-`own-profile` (unknown), `feed-video` (a video between a photo and a prompt, 2026-11-17). `fixture_files.py` loads them, `fake_phone.py` replays them as a phone (taps/swipes move between
+`own-profile` (unknown), `feed-video` (a video between a photo and a prompt, 2026-11-17), `feed-video-prompt` (a
+profile's top with a playing video prompt under photo 1, 2026-11-18). `fixture_files.py` loads them, `fake_phone.py` replays them as a phone (taps/swipes move between
 dumps, records actions, `sent()` must stay empty). `test_decide.py` runs the decider against a fake SDK stream
 (real `ResultMessage`/`RateLimitEvent` objects); `test_shadow.py` runs shadow → label → type on the fake phone. New fixture: `deploy/run.sh screener --cmd dump <name>` on the
 Pi, then `--cmd fixture <out dir> <dumps…>` (all dumps of one walk in one call), check the texts, copy over.
 
 ## Gotchas (measured on the phone, 2026-11-16)
 
-- `uiautomator dump` takes ~2 s; a stable screen = 2 dumps. A profile capture: ~15 swipes, 2–3 min with photo hashes.
+- Screen reads go through our own reader (`android/screener-dump`, 2026-11-18): same XML as `uiautomator dump`
+  (byte-identical on a still screen), ~1.5 s instead of ~1.9 s, and it reads while a video plays (idle wait best
+  effort, 2.5 s max). It must be installed on the phone; without it `Device.dump` falls back to uiautomator.
+- A stable screen = 2 dumps. A profile capture: ~15 swipes, 2–3 min with photo hashes.
 - Slow swipes (600 px over 900 ms) scroll 611–624 px; the first one on a profile also collapses the header. Swipes
   > ~1000 px left consecutive dumps without a common anchor: `MAX_MOVE` 700.
 - Details (age, job, …) are the only anchors between prompt 1 and photo 2: `verify_shift` checks texts too, else a
@@ -138,12 +142,19 @@ Pi, then `--cmd fixture <out dir> <dumps…>` (all dumps of one walk in one call
 - `scroll_to` (type, send) trusts the capture's offset only if the screen is exactly its last dump; otherwise (Dev
   scrolled) it goes back to the profile's top (offset 0, certain) first: matching a far jump can line up wrongly
   (`Capture.add` accepted feed-05 as feed-10 in a test). Photo hash / prompt text still checked before any tap.
-- A video is a section (`video N`: View "<name>'s video", button "Like video"): listed to the bot, never commented
+- A video is a section (`video N`: View "<name>'s video", button "Like video"; or View "Video prompt: <question>",
+  text = the question, first seen right under photo 1, 2026-11-18): listed to the bot, never commented
   on or liked. Its player adds a native layer larger than the card that can swallow a swipe starting on it: the
   capture took that for the profile's end and stopped at the first video (2026-11-17). Swipes start in the list's
   right margin (`_margin_x`, beside the cards), and the end = two swipes in a row that move nothing.
-- A video autoplays: while it's on screen uiautomator often never sees the screen idle ("could not get idle
-  state"), the app has no setting to stop it (2026-11-17). `Device.dump` gives up after 2 idle failures (`NotIdle`,
+- A playing video's "Elapsed time: N seconds" label ticks every second: `_signature` ignores it, else no screen
+  with a video counts as still (stable reads, the bottom check).
+- Input is jittered like a person (Dev, 2026-11-18: avoid looking like a bot): taps inside the target's middle half,
+  swipes (start ±15 px, drift ±6, speed 0.85–1.2×, length 92–100 %), waits (`human_pause`: 0.9–1.6×, 10 % of them
+  +0.5–2 s). Tests inject `pause` and a seeded `rng`.
+- Fallback only (no own reader): a video autoplays: while it's on screen uiautomator often never sees the screen idle ("could not get idle
+  state"), the app has no setting to stop it (2026-11-17). With a video prompt under photo 1 not even the profile's
+  top reads (2026-11-18). `Device.dump` gives up after 2 idle failures (`NotIdle`,
   ~25 s); the navigator swipes on past it (`MAX_BLIND`) and stitches the gap by the swipes' median measured scale
   (`Capture.add(blind=True)`: an anchor only refines it within `BLIND_TOLERANCE`). The video section itself and
   whatever the gap hid are lost or incomplete (never liked). A profile ending on a video: capture backs up until
