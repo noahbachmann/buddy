@@ -1,0 +1,9 @@
+# cad build hex-driver / cad render hex-driver (parts/CLAUDE.md)
+
+[parts.hex-driver-30]
+[parts.hex-driver-29]
+[parts.hex-driver-28]
+
+[plates.0-pla]
+note = "PLA · 0.12 mm · 4 walls · 100 % · no supports · all three, tips up"
+parts = ["hex-driver-30", "hex-driver-29", "hex-driver-28"]
