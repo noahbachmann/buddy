@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application android:label="Screener reader" android:allowBackup="false" android:hasCode="true" />
+    <!-- targets itself: `am instrument` force-stops the target, which must not be the app or the keyboard -->
+    <instrumentation
+        android:name=".Dump"
+        android:label="Screener reader"
+        android:targetPackage="buddy.screener.dump" />
+</manifest>
