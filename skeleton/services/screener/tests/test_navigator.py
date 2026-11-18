@@ -240,3 +240,9 @@ def test_scroll_to_relocates_after_dev_scrolled():
     s, sv = n.scroll_to(cap, "photo 1")
     assert sv.kind == "photo" and phone.screen == "feed-01"
     assert phone.sent() == []
+
+
+def test_a_playing_videos_clock_doesnt_make_the_screen_unstable():
+    from buddy_screener.uitree import parse
+    xml = '<hierarchy><node class="android.view.View" content-desc="Elapsed time: {} seconds" bounds="[0,0][9,9]"/></hierarchy>'
+    assert navigator._signature(parse(xml.format(7))) == navigator._signature(parse(xml.format(8)))

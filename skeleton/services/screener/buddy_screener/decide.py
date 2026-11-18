@@ -141,7 +141,8 @@ def profile_content(p: Profile, photos: bool = True) -> list[dict[str, Any]]:
             q, _, a = s.text.partition("\n")
             text.append(f"{s.ref}: {q} — {a}")
         elif s.kind == "video":
-            text.append(f"{s.ref}: (a video: can't be shown, can't be commented on)")
+            topic = f" answering the prompt \"{s.text}\"" if s.text else ""
+            text.append(f"{s.ref}: (a video{topic}: can't be shown, can't be commented on)")
         elif not photos:
             text.append(f"{s.ref}: (photo)")
         elif s.jpeg:

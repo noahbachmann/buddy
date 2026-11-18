@@ -241,3 +241,10 @@ def test_a_video_is_listed_but_never_commented_on():
     assert "video 1: (a video: can't be shown, can't be commented on)" in text
     b = check_browse(raw(comment_on="video 1"), p, LIB)
     assert b.comment_on == "prompt 1" and b.comment == "none" and b.fixes
+
+
+def test_a_video_prompt_names_its_question():
+    p = profile()
+    p.sections.insert(1, Section("video", 1, "Typical Sunday", 910, 940))
+    text = " ".join(b["text"] for b in profile_content(p) if b["type"] == "text")
+    assert 'video 1: (a video answering the prompt "Typical Sunday": can\'t be shown' in text

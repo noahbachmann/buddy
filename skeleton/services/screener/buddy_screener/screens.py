@@ -104,7 +104,7 @@ def _is_like_button(n: Node) -> bool:
 
 def _is_section(n: Node) -> bool:
     return ((n.cls == "ImageView" and v.PHOTO.fullmatch(n.desc) is not None)
-            or (n.cls == "View" and v.VIDEO.fullmatch(n.desc) is not None)
+            or (n.cls == "View" and (v.VIDEO.fullmatch(n.desc) or v.VIDEO_PROMPT.fullmatch(n.desc)) is not None)
             or v.PROMPT.fullmatch(n.desc) is not None)
 
 
@@ -187,6 +187,8 @@ def profile_view(root: Node) -> ProfileView:
             kind, text = "prompt", f"{m.group(1)}\n{m.group(2)}"
         elif v.VIDEO.fullmatch(n.desc) is not None:
             kind, text = "video", ""   # no like attached (LIKE_VIDEO isn't a like button): never liked
+        elif (m := v.VIDEO_PROMPT.fullmatch(n.desc)) is not None:
+            kind, text = "video", m.group(1)   # the question it answers
         else:
             kind, text = "photo", ""
         sections.append(SectionView(kind, text, n.bounds, n.bounds.top <= vp.top, n.bounds.bottom >= vp.bottom, None))

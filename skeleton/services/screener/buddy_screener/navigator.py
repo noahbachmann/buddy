@@ -59,7 +59,9 @@ def _margin_x(view: ProfileView) -> int:
 
 
 def _signature(root: Node) -> tuple:
-    return tuple((n.cls, n.desc, n.text, n.rid, n.bounds, n.selected) for n in root.iter())
+    """What a still screen keeps between dumps; a playing video's clock is left out (it ticks every second)."""
+    return tuple((n.cls, n.desc, n.text, n.rid, n.bounds, n.selected) for n in root.iter()
+                 if not v.ELAPSED.fullmatch(n.desc))
 
 
 @dataclass
