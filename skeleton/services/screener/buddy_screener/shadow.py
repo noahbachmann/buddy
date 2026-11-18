@@ -80,6 +80,8 @@ def describe(r: ShadowResult, lib: Library) -> list[str]:
            f"{u.ms / 1000:.0f} s decide, "
            f"{u.input + u.cache_read + u.cache_write} in / {u.output} out tokens, ${u.cost:.3f}"
            + (f", plan 5 h {u.five_hour:.0%}" if u.five_hour is not None else "") + ")"]
+    # the whole horizontal row: screenshots only show its first screen
+    out.append("  details: " + (" · ".join(f"{l}: {v}" if l else v for l, v in p.details) or "-"))
     out.append(f"  reason: {b.reason}")
     if b.dealbreakers:
         out.append(f"  dealbreakers: {'; '.join(b.dealbreakers)}")

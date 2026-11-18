@@ -41,6 +41,7 @@ def test_shadow_label_type_sends_nothing(store, tmp_path):
     assert len(r.capture.profile.sections) == 9 and phone.screen == "feed-11"
     lines = shadow.describe(r, LIB)
     assert "LIKE" in lines[0] and any("Wo ist das?" in x for x in lines)
+    assert lines[1].startswith("  details: ") and len(lines[1].split(" · ")) == len(r.capture.profile.details) > 1
 
     row = store.shadow(r.row_id)[0]
     assert row.bot["comment"] == "photo_place" and row.bot["chat_lang"] == "de" and row.tokens == 2310
