@@ -5,5 +5,5 @@
 [parts.hex-driver-28]
 
 [plates.0-pla]
-note = "PLA · 0.12 mm · 4 walls · 100 % · no supports · all three, tips up"
+note = "PLA · 0.12 mm · 4 walls · 100 % · no supports · all three, lying flat"
 parts = ["hex-driver-30", "hex-driver-29", "hex-driver-28"]
