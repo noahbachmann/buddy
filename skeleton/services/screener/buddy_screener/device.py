@@ -175,14 +175,30 @@ class Device:
         self.shell("input", "tap", str(x), str(y))
         return x, y
 
-    def swipe(self, x: int, y1: int, y2: int, ms: int) -> None:
-        """Slow swipes scroll by about their length; fast ones fling."""
+    def swipe(self, x: int, y1: int, y2: int, ms: int) -> tuple[int, int, int, int, int]:
+        """Slow swipes scroll by about their length; fast ones fling. Never the same twice, like a finger: start
+        jittered, a slight sideways drift, speed ±, length only ever shorter (callers' maxima keep dumps
+        overlapping; scroll distances are measured, not assumed). x stays within ±12 (a 30 px margin strip)."""
         self.guard()
-        self.shell("input", "swipe", str(x), str(y1), str(x), str(y2), str(ms))
+        r = self._rng
+        sx = x + round(r.uniform(-6, 6))
+        ex = sx + round(r.uniform(-6, 6))
+        sy = y1 + round(r.uniform(-15, 15))
+        ey = sy + round((y2 - y1) * r.uniform(0.92, 1.0))
+        ms = round(ms * r.uniform(0.85, 1.2))
+        self.shell("input", "swipe", str(sx), str(sy), str(ex), str(ey), str(ms))
+        return sx, sy, ex, ey, ms
 
-    def swipe_h(self, y: int, x1: int, x2: int, ms: int) -> None:
+    def swipe_h(self, y: int, x1: int, x2: int, ms: int) -> tuple[int, int, int, int, int]:
+        """Sideways, jittered like `swipe` (rows are explored until they stop moving: length needn't be exact)."""
         self.guard()
-        self.shell("input", "swipe", str(x1), str(y), str(x2), str(y), str(ms))
+        r = self._rng
+        sy = y + round(r.uniform(-8, 8))
+        ey = sy + round(r.uniform(-6, 6))
+        sx, ex = x1 + round(r.uniform(-15, 15)), x2 + round(r.uniform(-15, 15))
+        ms = round(ms * r.uniform(0.85, 1.2))
+        self.shell("input", "swipe", str(sx), str(sy), str(ex), str(ey), str(ms))
+        return sx, sy, ex, ey, ms
 
     def key(self, code: int) -> None:
         self.guard()

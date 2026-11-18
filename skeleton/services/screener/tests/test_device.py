@@ -126,3 +126,19 @@ def test_state_and_foreground():
                                        (b"Physical size: 1080x2280\nOverride size: 720x1520\n", (720, 1520))])
 def test_size(out, size):
     assert dev(Runner((0, out, b""))).size() == size
+
+
+def test_swipes_never_repeat_and_stay_in_bounds():
+    seen = set()
+    for seed in range(50):
+        r = Runner((0, b"", b""), (0, b"", b""))
+        d = Device(guard=lambda: None, run=r, rng=random.Random(seed))
+        sx, sy, ex, ey, ms = d.swipe(1050, 1820, 1220, 900)
+        assert abs(sx - 1050) <= 6 and abs(ex - 1050) <= 12        # inside a 30 px margin strip
+        assert abs(sy - 1820) <= 15 and 0.92 * 600 - 1 <= sy - ey <= 600   # never longer: dumps keep overlapping
+        assert 765 <= ms <= 1080
+        assert r.calls[0][-5:] == [str(sx), str(sy), str(ex), str(ey), str(ms)]
+        seen.add((sx, sy, ex, ey, ms))
+        sx, sy, ex, ey, ms = d.swipe_h(1000, 900, 180, 150)
+        assert abs(sy - 1000) <= 8 and abs(ey - sy) <= 6 and abs(sx - 900) <= 15 and abs(ex - 180) <= 15
+    assert len(seen) == 50

@@ -10,6 +10,7 @@ Rules every move follows:
 Nothing here sends anything: no send like, no skip, no chat message (step 3+ adds those, behind their own checks).
 """
 
+import random
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -51,6 +52,15 @@ class NeedsYou(RuntimeError):
         self.reason, self.dump = reason, dump
 
 
+_rng = random.Random()
+
+
+def human_pause(seconds: float) -> None:
+    """Waits like a person, not a metronome: a bit longer than asked, never the same, now and then a longer look."""
+    extra = _rng.uniform(0.5, 2.0) if _rng.random() < 0.1 else 0.0
+    time.sleep(seconds * _rng.uniform(0.9, 1.6) + extra)
+
+
 def _margin_x(view: ProfileView) -> int:
     """x of the gap between the cards' right edge and the list's, else the list's middle column."""
     vp = view.viewport
@@ -71,7 +81,7 @@ class Navigator:
     dump_dir: Path | None = None              # where an unexpected screen's raw dump goes (tmpfs)
     hasher: Hasher | None = None
     cropper: Cropper | None = None            # set: photos keep a JPEG crop (memory only) for the decision
-    pause: Callable[[float], object] = time.sleep
+    pause: Callable[[float], object] = human_pause
     log: Callable[[str], None] = print
     last: Screen | None = field(default=None, init=False)
     _xml: str = field(default="", init=False)
