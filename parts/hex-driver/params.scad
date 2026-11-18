@@ -4,7 +4,7 @@
 $fn = 96;
 
 // --- tip: corner-to-corner sizes, one key each (the printer rounds corners, so the fit comes from trying) ---
-tip_c2c     = [3.0, 2.9, 2.8];
+tip_c2c     = [2.6, 2.3];  // flat print: 2.8 still too big (Dev, 2026-11-18)
 tip_len     = 10;      // exposed hex at both ends; short = stiffer in torsion, still reaches a 3 mm deep head
 tip_chamfer = 0.3;     // eases the tip into the socket
 
