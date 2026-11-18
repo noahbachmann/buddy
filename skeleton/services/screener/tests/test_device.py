@@ -1,4 +1,5 @@
 import base64
+import gzip
 import random
 
 import pytest
@@ -19,8 +20,41 @@ class Runner:
         return self.answers.pop(0)
 
 
-def dev(runner, guard=lambda: None) -> Device:
-    return Device("SER", guard=guard, run=runner, rng=random.Random(1), sleep=lambda s: None)
+def dev(runner, guard=lambda: None, dumper="") -> Device:
+    return Device("SER", guard=guard, run=runner, rng=random.Random(1), sleep=lambda s: None, dumper=dumper)
+
+
+def own(xml: str) -> bytes:
+    return (f"INSTRUMENTATION_RESULT: xml={base64.b64encode(gzip.compress(xml.encode())).decode()}\n"
+            "INSTRUMENTATION_CODE: -1\n").encode()
+
+
+def test_dump_reads_with_our_dumper():
+    r = Runner((0, own("<hierarchy rotation=\"0\"><node text=\"Grüezi 😀\"/></hierarchy>"), b""))
+    d = dev(r, dumper="buddy.screener.dump/.Dump")
+    assert d.dump() == "<hierarchy rotation=\"0\"><node text=\"Grüezi 😀\"/></hierarchy>"
+    assert r.calls[0][3:] == ["shell", "am", "instrument", "-w", "buddy.screener.dump/.Dump"]
+
+
+def test_dump_falls_back_to_uiautomator_when_the_dumper_is_missing():
+    missing = (b"INSTRUMENTATION_STATUS: Error=Unable to find instrumentation info for: ComponentInfo{x/.Dump}\n"
+               b"android.util.AndroidException: INSTRUMENTATION_FAILED: x/.Dump\n")
+    ui = (0, b"<hierarchy><node/></hierarchy>UI hierchary dumped to: /dev/tty", b"")
+    r = Runner((0, missing, b""), ui, ui)
+    d = dev(r, dumper="buddy.screener.dump/.Dump")
+    assert d.dump() == "<hierarchy><node/></hierarchy>" and d.dumper == ""
+    d.dump()
+    assert len(r.calls) == 3   # missing once: uiautomator from then on
+
+
+def test_dump_retries_dumper_errors():
+    r = Runner((0, b"INSTRUMENTATION_RESULT: error=IllegalStateException: no_window\n", b""),
+               (0, own("<hierarchy/>"), b""))
+    assert dev(r, dumper="d/.Dump").dump() == "<hierarchy/>"
+    r = Runner(*[(0, b"INSTRUMENTATION_RESULT: error=IllegalStateException: no_window\n", b"")] * 5)
+    with pytest.raises(AdbError) as e:
+        dev(r, dumper="d/.Dump").dump()
+    assert not isinstance(e.value, NotIdle) and "no_window" in str(e.value)
 
 
 def test_dump_retries_idle_state_failures():

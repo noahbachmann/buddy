@@ -5,6 +5,7 @@ shutdown) raises `Stopped` there, so no action can slip out after a stop. Reads 
 """
 
 import base64
+import gzip
 import random
 import re
 import subprocess
@@ -18,6 +19,9 @@ KEY_BACK = 4
 IDLE_ERROR = "could not get idle state"
 IDLE_TRIES = 2   # a blinking cursor passes on the 2nd try; a playing video never does
 OUR_IME = "buddy.screener.ime/.ScreenerIme"
+OUR_DUMPER = "buddy.screener.dump/.Dump"   # reads without waiting for idle (android/screener-dump)
+_DUMPER_MISSING = ("Unable to find instrumentation", "INSTRUMENTATION_FAILED")
+_DUMP_XML = re.compile(r"INSTRUMENTATION_RESULT: xml=(\S+)")
 _IME_PKG = OUR_IME.split("/", 1)[0]
 
 
@@ -27,7 +31,7 @@ class AdbError(RuntimeError):
 
 class NotIdle(AdbError):
     """uiautomator never saw the screen idle: something on it keeps moving (an autoplaying video). Scrolling it off
-    screen helps, waiting doesn't."""
+    screen helps, waiting doesn't. Only from the fallback reader: our own doesn't wait for idle."""
 
 
 class Stopped(RuntimeError):
@@ -55,8 +59,10 @@ def _run(cmd: list[str], stdin: bytes | None, timeout: float) -> tuple[int, byte
 
 class Device:
     def __init__(self, serial: str = "", guard: Callable[[], None] = lambda: None, run: Runner = _run,
-                 rng: random.Random | None = None, sleep: Callable[[float], object] = time.sleep):
+                 rng: random.Random | None = None, sleep: Callable[[float], object] = time.sleep,
+                 dumper: str = OUR_DUMPER):
         self._base = ["adb"] + (["-s", serial] if serial else [])
+        self.dumper = dumper   # "" = uiautomator only (also after the dumper turned out missing)
         self.guard = guard
         self._run = run
         self._rng = rng or random.Random()
@@ -87,9 +93,14 @@ class Device:
     # --- reading ---
 
     def dump(self, tries: int = 5) -> str:
-        """The UI tree as XML. uiautomator fails now and then ("could not get idle state", e.g. a blinking cursor):
-        retried with a short pause. Idle failures give up after IDLE_TRIES (each one already waited ~10 s) →
-        `NotIdle`."""
+        """The UI tree as XML, in `uiautomator dump`'s format. Read by our dumper (no idle wait: a playing video
+        can't block it), else by uiautomator, which fails now and then ("could not get idle state", e.g. a blinking
+        cursor): retried with a short pause. Idle failures give up after IDLE_TRIES (each one already waited ~10 s)
+        → `NotIdle`."""
+        if self.dumper:
+            xml = self._dump_own(tries)
+            if xml is not None:
+                return xml
         last, idle = "", 0
         for i in range(tries):
             out = self.adb("exec-out", "uiautomator", "dump", "/dev/tty", timeout=30).decode(errors="replace")
@@ -103,6 +114,20 @@ class Device:
                     raise NotIdle(f"uiautomator dump failed: {last}")
             self._sleep(0.5 + 0.5 * i)
         raise (NotIdle if IDLE_ERROR in last else AdbError)(f"uiautomator dump failed: {last}")
+
+    def _dump_own(self, tries: int) -> str | None:
+        """None = the dumper isn't installed (then uiautomator from now on)."""
+        last = ""
+        for i in range(tries):
+            out = self.shell("am", "instrument", "-w", self.dumper, timeout=30)
+            if m := _DUMP_XML.search(out):
+                return gzip.decompress(base64.b64decode(m.group(1))).decode()
+            if any(x in out for x in _DUMPER_MISSING):
+                self.dumper = ""
+                return None
+            last = out.strip()[-120:]
+            self._sleep(0.5 + 0.5 * i)
+        raise AdbError(f"dumper failed: {last}")
 
     def size(self) -> tuple[int, int]:
         """Screen width and height in px (an override wins over the physical size)."""
