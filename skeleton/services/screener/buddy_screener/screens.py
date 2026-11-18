@@ -105,7 +105,12 @@ def _is_like_button(n: Node) -> bool:
 def _is_section(n: Node) -> bool:
     return ((n.cls == "ImageView" and v.PHOTO.fullmatch(n.desc) is not None)
             or (n.cls == "View" and (v.VIDEO.fullmatch(n.desc) or v.VIDEO_PROMPT.fullmatch(n.desc)) is not None)
-            or v.PROMPT.fullmatch(n.desc) is not None)
+            or v.PROMPT.fullmatch(n.desc) is not None or _is_poll(n))
+
+
+def _is_poll(n: Node) -> bool:
+    """A poll's question node (its card = the parent). A poll can't be liked here: listed, never commented on."""
+    return v.PROMPT.fullmatch(n.desc) is None and v.POLL.fullmatch(n.desc) is not None and n.parent is not None
 
 
 def _is_send_like(n: Node) -> bool:
@@ -133,8 +138,8 @@ def skip_button(root: Node) -> Node | None:
 class SectionView:
     """A photo or prompt as one dump shows it. `rect` is clipped to the screen; `top_cut`/`bottom_cut` say which
     edges are the viewport's, not the section's."""
-    kind: str                # "photo" | "prompt"
-    text: str                # prompt: "question\nanswer"; photo: ""
+    kind: str                # "photo" | "prompt" | "video" | "poll"
+    text: str                # prompt: "question\nanswer"; video prompt, poll: the question; photo: ""
     rect: Rect
     top_cut: bool
     bottom_cut: bool
@@ -183,7 +188,11 @@ def profile_view(root: Node) -> ProfileView:
     for n in box.find(_is_section):
         if n.bounds.empty:
             continue
-        if (m := v.PROMPT.fullmatch(n.desc)) is not None:
+        rect = n.bounds
+        if _is_poll(n):
+            # question only: the options below may be cut off, the text must match across dumps
+            kind, text, rect = "poll", v.POLL.fullmatch(n.desc).group(1), n.parent.bounds
+        elif (m := v.PROMPT.fullmatch(n.desc)) is not None:
             kind, text = "prompt", f"{m.group(1)}\n{m.group(2)}"
         elif v.VIDEO.fullmatch(n.desc) is not None:
             kind, text = "video", ""   # no like attached (LIKE_VIDEO isn't a like button): never liked
@@ -191,7 +200,7 @@ def profile_view(root: Node) -> ProfileView:
             kind, text = "video", m.group(1)   # the question it answers
         else:
             kind, text = "photo", ""
-        sections.append(SectionView(kind, text, n.bounds, n.bounds.top <= vp.top, n.bounds.bottom >= vp.bottom, None))
+        sections.append(SectionView(kind, text, rect, rect.top <= vp.top, rect.bottom >= vp.bottom, None))
 
     # A section's like button lies over its lower right corner; when the section is cut at the bottom the button can
     # stick out below the list (seen over the tab bar). Attach each to the same-kind section it overlaps most.
@@ -219,14 +228,33 @@ def profile_view(root: Node) -> ProfileView:
 def _details(box: Node) -> list[tuple[str, str]]:
     """Icon labels (small Views with a content-desc) paired with the value TextView on their row."""
     labels = [n for n in box.iter() if n.cls == "View" and n.desc and n.bounds.width <= 100 and not n.children]
+    promo = _promo_texts(box)
     out = []
     for t in box.iter():
-        if t.cls != "TextView" or not t.text:
+        if t.cls != "TextView" or not t.text or id(t) in promo:
             continue
         cy = t.bounds.center[1]
         row = [l for l in labels if l.bounds.right <= t.bounds.left and l.bounds.top - 20 <= cy <= l.bounds.bottom + 20]
         label = max(row, key=lambda l: l.bounds.right).desc if row else ""   # nearest on the left
         out.append((label, t.text))
+    return out
+
+
+def _promo_texts(box: Node) -> set[int]:
+    """TextViews of the app's feature ads ("Add a new layer to your profile…", "Try it"): the smallest card around
+    the "Try it" that holds another text."""
+    out: set[int] = set()
+    for t in box.iter():
+        if t.cls != "TextView" or t.text != v.PROMO_ACTION:
+            continue
+        card = t.parent
+        while card is not None and card is not box \
+                and not any(x.cls == "TextView" and x.text and x is not t for x in card.iter()):
+            card = card.parent
+        if card is not None and card is not box:
+            out |= {id(x) for x in card.iter() if x.cls == "TextView"}
+        else:
+            out.add(id(t))
     return out
 
 

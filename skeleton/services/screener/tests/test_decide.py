@@ -249,3 +249,12 @@ def test_a_video_prompt_names_its_question():
     p.sections.insert(1, Section("video", 1, "Typical Sunday", 910, 940))
     text = " ".join(b["text"] for b in profile_content(p) if b["type"] == "text")
     assert 'video 1: (a video answering the prompt "Typical Sunday": can\'t be shown' in text
+
+
+def test_a_poll_is_listed_but_never_commented_on():
+    p = profile()
+    p.sections.insert(1, Section("poll", 1, "Pick our first getaway", 910, 940))
+    text = " ".join(b["text"] for b in profile_content(p) if b["type"] == "text")
+    assert 'poll 1: (a poll asking "Pick our first getaway": can\'t be commented on)' in text
+    b = check_browse(raw(comment_on="poll 1"), p, LIB)
+    assert b.comment_on == "prompt 1" and b.comment == "none" and b.fixes

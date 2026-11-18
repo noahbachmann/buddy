@@ -28,6 +28,9 @@ VIDEO_PROMPT = re.compile(r"Video prompt: (.+)", re.S)   # a video answering a p
 VIDEO_CONTROLS = ("Show caption", "Unmute video", "Mute video")
 ELAPSED = re.compile(r"Elapsed time: \d+ seconds?")      # a playing video's clock: changes every second
 PROMPT = re.compile(r"Prompt: (.*?)\. Answer: (.*)", re.S)
+POLL = re.compile(r"Prompt: (.+)", re.S)       # no answer (PROMPT checked first): a poll's question, options below
+POLL_OPTION = re.compile(r"Option: (.+)", re.S)
+PROMO_ACTION = "Try it"                       # the app's own feature ads inside a profile: not her details
 UNDO_SKIP = "Undo last skip"
 MORE = "More"
 VERIFIED = "Selfie Verified"
@@ -75,5 +78,5 @@ DETAIL_LABELS = frozenset({
 # Strings kept verbatim by the sanitizer (besides the patterns above)
 KEEP = frozenset({
     *TABS, *LIKE_BUTTONS, LIKE_VIDEO, *VIDEO_CONTROLS, UNDO_SKIP, MORE, VERIFIED, EDIT_COMMENT, SEND_LIKE, SEND_LIKE_WITH,
-    LIKES_HEADER, MATCHES_HEADER, CLOSE, SEND_ANYWAY, CLOSE_SHEET, BACK, CHAT_TAB, CHAT_PROFILE_TAB, CHAT_HINT, DOUBLE_TAP_HINT, *DETAIL_LABELS,
+    LIKES_HEADER, MATCHES_HEADER, CLOSE, SEND_ANYWAY, CLOSE_SHEET, BACK, CHAT_TAB, CHAT_PROFILE_TAB, CHAT_HINT, DOUBLE_TAP_HINT, PROMO_ACTION, *DETAIL_LABELS,
 })

@@ -196,3 +196,13 @@ def test_a_video_prompt_is_a_video_section_with_its_question():
     assert s.kind is Kind.FEED and view.at_top
     assert [(x.kind, x.text) for x in view.sections] == [("photo", ""), ("video", "Question 1")]
     assert view.sections[1].like is None
+
+
+def test_a_poll_is_a_section_and_feature_ads_are_no_details():
+    s = screen("feed-poll")   # real dump: a poll's card (question cut at the top), a feature ad, prompt 1
+    view = screens.profile_view(s.root)
+    assert [(x.kind, x.text) for x in view.sections] == [("poll", "Question 1"), ("prompt", "Question 2\nAnswer 1")]
+    poll = view.sections[0]
+    assert poll.top_cut and not poll.bottom_cut and poll.like is None and poll.rect.height > 900   # the card
+    assert view.details == []   # the ad's texts ("Text 1", "Try it") aren't hers
+    assert s.kind is Kind.FEED

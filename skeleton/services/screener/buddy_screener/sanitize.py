@@ -77,6 +77,10 @@ class _Mapper:
             return s
         if (m := v.PROMPT.fullmatch(s)) is not None:
             return f"Prompt: {self.placeholder(m.group(1), 'Question')}. Answer: {self.placeholder(m.group(2), 'Answer')}"
+        if (m := v.POLL.fullmatch(s)) is not None:
+            return f"Prompt: {self.placeholder(m.group(1), 'Question')}"
+        if (m := v.POLL_OPTION.fullmatch(s)) is not None:
+            return f"Option: {self.placeholder(m.group(1), 'Option')}"
         if (m := v.MESSAGE.fullmatch(s)) is not None:
             return f" {self.name(m.group(1))}: {self.placeholder(m.group(2), 'Message')}. "
         if v.DATE_SEPARATOR.fullmatch(s):
