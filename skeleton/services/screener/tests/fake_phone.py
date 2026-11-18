@@ -17,6 +17,8 @@ class FakePhone:
         self.launch_screen = "feed-01"   # what the app opens on
         self.popup_sticks = False        # Close shows the popup again
         self.upsell = True               # send like → the upsell sheet first
+        self.out_of_likes = False        # send like → the out-of-likes paywall, nothing sent
+        self.unfocused: str | None = None   # field text kept while the field has no focus (reads empty)
         self.renamed = False             # after a skip or a like: the next profile (same dumps, another name)
         self.moving: set[str] = set()    # screens with a playing video: uiautomator never gets them idle
         self.swallow = 0                 # next N swipes move nothing (a video's player took them)
@@ -59,7 +61,7 @@ class FakePhone:
         if label == "Like photo" and self.screen == "feed-01":
             self.screen = "sheet"
         elif label == "Edit comment" and self.screen == "sheet":
-            self.field, self.ime_shown = "", True
+            self.field, self.ime_shown, self.unfocused = self.unfocused or "", True, None
         elif label == "Likes You":
             self.screen = "likes"
         elif label.startswith("Matches"):
@@ -72,6 +74,10 @@ class FakePhone:
             self.screen = "matches"
         elif label.startswith("Skip ") and self.screen in FEED + ROW:
             self.screen, self.renamed = "feed-01", True
+        elif label.startswith("Send like") and self.screen in ("sheet", "sheet-typed") and self.out_of_likes:
+            self.unfocused, self.field, self.ime_shown, self.screen = self.field, None, False, "out-of-likes"
+        elif label == "Close" and self.screen == "out-of-likes":
+            self.screen = "sheet"
         elif label.startswith("Send like") and self.screen in ("sheet", "sheet-typed"):
             self.field, self.ime_shown = None, False
             if self.upsell:
@@ -139,4 +145,6 @@ class FakePhone:
 
     def sent(self) -> list[tuple]:
         """Every tap on something that sends: must stay empty in step 1."""
-        return [a for a in self.actions if a[0] == "tap" and ("Send" in a[2] or a[2].startswith("Skip"))]
+        acts = self.actions
+        return [a for i, a in enumerate(acts) if a[0] == "tap" and ("Send" in a[2] or a[2].startswith("Skip"))
+                and not any(b[1] == "out-of-likes" for b in acts[i + 1:i + 2])]   # bounced off the paywall

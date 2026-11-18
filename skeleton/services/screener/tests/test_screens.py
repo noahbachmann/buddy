@@ -206,3 +206,10 @@ def test_a_poll_is_a_section_and_feature_ads_are_no_details():
     assert poll.top_cut and not poll.bottom_cut and poll.like is None and poll.rect.height > 900   # the card
     assert view.details == []   # the ad's texts ("Text 1", "Try it") aren't hers
     assert s.kind is Kind.FEED
+
+
+def test_out_of_likes_is_no_popup():
+    s = screen("out-of-likes")   # real dump: the paywall after "send like" when the day's free likes are gone
+    assert s.kind is Kind.OUT_OF_LIKES
+    close = screens.close_button(s.root)
+    assert screens.tappable(s, close) and not any(screens.tappable(s, n) for n in s.root.iter() if n is not close)

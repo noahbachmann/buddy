@@ -148,3 +148,20 @@ def test_skip_only_the_captured_profile(store, tmp_path):
     phone.renamed = False
     _, nxt = shadow.act_label(n, row, r.capture, LIB, "skip")
     assert nxt == "Kim" and [a[2] for a in phone.sent()] == ["Skip Alex"]
+
+
+def test_out_of_likes_keeps_the_comment_for_later(store, tmp_path):
+    phone = FakePhone("feed-01")
+    n = nav(phone)
+    r = shadow.run_shadow(n, FakeDecider(like()), LIB, store, tmp_path)
+    store.label(r.row_id, shadow.make_label(store.shadow(r.row_id)[0], "like", None, None, LIB))
+    row = store.shadow(r.row_id)[0]
+    shadow.type_label(n, row, r.capture, LIB)
+    phone.out_of_likes = True
+    with pytest.raises(NeedsYou, match="out of free likes"):
+        shadow.act_label(n, row, r.capture, LIB, "send")
+    assert phone.screen == "sheet" and phone.sent() == []           # paywall closed, never a paid option
+    phone.out_of_likes = False                                       # the next day
+    _, nxt = shadow.act_label(n, row, r.capture, LIB, "send")
+    assert nxt == "Kim" and [a[2] for a in phone.sent()] == ["Send like", "Send Like anyway"]
+    assert [a[2] for a in phone.actions if a[0] == "tap"].count("Edit comment") == 2   # refocused, read back

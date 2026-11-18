@@ -23,6 +23,7 @@ class Kind(str, Enum):
     CHAT = "chat"            # one conversation
     POPUP = "popup"          # promo layer over the app, closable
     UPSELL = "upsell"        # paid upgrade offered after "send like": "send like anyway" is the way on
+    OUT_OF_LIKES = "out_of_likes"   # paywall after "send like" once the day's free likes are used up: not sent
     OTHER_APP = "other_app"  # launcher, system dialog, another app
     UNKNOWN = "unknown"
 
@@ -91,6 +92,8 @@ def classify(root: Node, package: str) -> Screen:
         s.kind = Kind.LIKES
     elif selected == v.TAB_MATCHES and _header(root, v.MATCHES_HEADER):
         s.kind = Kind.MATCHES
+    elif not tabs and close_button(root) and root.first(lambda n: n.text == v.OUT_OF_LIKES):
+        s.kind = Kind.OUT_OF_LIKES   # before POPUP: closing it isn't "on the way", the like didn't go out
     elif not tabs and close_button(root):
         s.kind = Kind.POPUP
     else:
@@ -347,7 +350,7 @@ def tappable(screen: Screen, node: Node) -> bool:
         return any(r.node is node for r in match_rows(screen.root))
     if screen.kind is Kind.CHAT:
         return node.desc == v.BACK and node.clickable
-    if screen.kind is Kind.POPUP:
+    if screen.kind in (Kind.POPUP, Kind.OUT_OF_LIKES):
         return node is close_button(screen.root)
     return False
 

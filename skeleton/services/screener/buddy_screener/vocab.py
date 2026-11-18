@@ -42,6 +42,7 @@ SEND_LIKE_WITH = "Send like with message"
 
 # Upsell sheet after "Send like": a paid upgrade instead of the like. Only the plain like is ever tapped
 SEND_ANYWAY = "Send Like anyway"
+OUT_OF_LIKES = "You're out of free likes for today"   # paywall after "send like": the day's likes are used up
 CLOSE_SHEET = "Close sheet"                      # never tapped: unclear whether it drops the like
 
 # Promo popups over the app (feature ads, upsells): a full-screen layer without tabs, its only safe exit this button
@@ -78,5 +79,5 @@ DETAIL_LABELS = frozenset({
 # Strings kept verbatim by the sanitizer (besides the patterns above)
 KEEP = frozenset({
     *TABS, *LIKE_BUTTONS, LIKE_VIDEO, *VIDEO_CONTROLS, UNDO_SKIP, MORE, VERIFIED, EDIT_COMMENT, SEND_LIKE, SEND_LIKE_WITH,
-    LIKES_HEADER, MATCHES_HEADER, CLOSE, SEND_ANYWAY, CLOSE_SHEET, BACK, CHAT_TAB, CHAT_PROFILE_TAB, CHAT_HINT, DOUBLE_TAP_HINT, PROMO_ACTION, *DETAIL_LABELS,
+    LIKES_HEADER, MATCHES_HEADER, CLOSE, SEND_ANYWAY, OUT_OF_LIKES, CLOSE_SHEET, BACK, CHAT_TAB, CHAT_PROFILE_TAB, CHAT_HINT, DOUBLE_TAP_HINT, PROMO_ACTION, *DETAIL_LABELS,
 })

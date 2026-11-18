@@ -456,13 +456,22 @@ class Navigator:
         if view.name != name:
             raise self.needs_you("the panel belongs to another profile: not sending")
         back = self.dev.ime_read()
+        if back.ok and back.text == "" and text:
+            # field lost focus (a paywall closed over it, Dev tapped elsewhere): reads empty until focused again
+            self.tap(s, panel.field, "comment field")
+            back = self.dev.ime_read()
         if not back.ok or back.text != text:
             raise self.needs_you("the comment field doesn't hold the comment: not sending")
         if not view.safe(panel.send.bounds):
             raise self.needs_you("send button not clear of the floating buttons")
         self._act(s, panel.send, "send like")
-        s = self.wait_for(lambda x: x.kind is Kind.UPSELL or
+        s = self.wait_for(lambda x: x.kind in (Kind.UPSELL, Kind.OUT_OF_LIKES) or
                           (x.kind is Kind.FEED and screens.profile_view(x.root).name != name), "the like to go out")
+        if s.kind is Kind.OUT_OF_LIKES:
+            self.tap(s, screens.close_button(s.root), "out-of-likes close")
+            self.wait_for(lambda x: x.kind is Kind.SHEET, "the comment panel back")
+            raise self.needs_you("out of free likes for today: not sent, the comment stays in the panel "
+                                 "(send it once the likes are back)")
         if s.kind is Kind.UPSELL:
             if self.dump_dir is not None:   # raw, tmpfs: for a real fixture (the first one was hand-built)
                 self.dump_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
