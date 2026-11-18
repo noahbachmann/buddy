@@ -31,7 +31,7 @@ TASK_BROWSE = "browse"
 TASK_TEXT = "text"
 STAGE_TEXT = "Stage: text check (photos not shown)."
 STAGE_FULL = "Stage: full decision."
-LANGS = ("de", "en", "other")
+LANGS = ("de-ch", "de", "en", "other")   # de-ch: Swiss German dialect, the most common here
 
 
 class DecideError(RuntimeError):
@@ -88,7 +88,9 @@ tone), without quoting the profile. Otherwise `missing_hook` is "".
 - A skip: `comment_on` "none", `comment` "none", `missing_hook` "".
 
 ## Languages
-`prompt_langs`: the language of each prompt answer in order (prompt 1, prompt 2, …): "de", "en" or "other".
+`prompt_langs`: the language of each prompt answer in order (prompt 1, prompt 2, …): "de-ch" (Swiss German \
+dialect, the most common here: e.g. "isch", "ned", "chan", "gsi", "öppis", "mer"), "de" (standard German), "en", or \
+"other" (any other language).
 
 # The owner's preferences
 
@@ -175,8 +177,9 @@ class Browse:
 
     @property
     def chat_lang(self) -> str:
-        """#66 Flows 3: English only with no German prompt and at least one English one."""
-        return "en" if "de" not in self.prompt_langs and "en" in self.prompt_langs else "de"
+        """#66 Flows 3: English only with no German (standard or Swiss) prompt and at least one English one."""
+        german = "de" in self.prompt_langs or "de-ch" in self.prompt_langs
+        return "en" if not german and "en" in self.prompt_langs else "de"
 
     def to_dict(self) -> dict[str, Any]:
         return dict(self.__dict__)
