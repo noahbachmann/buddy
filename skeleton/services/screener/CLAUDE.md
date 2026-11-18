@@ -110,7 +110,7 @@ prompts), `sheet`/`sheet-typed` (photo panel), `sheet-low` (prompt panel under t
 sideways to its end, 2026-11-17), `photo-caption` (a captioned photo: its button reads "Like photo prompt"), `upsell` (hand-built from a live
 dump's node list: replace with a real dump when next seen),
 `own-profile` (unknown), `feed-video` (a video between a photo and a prompt, 2026-11-17), `feed-video-prompt` (a
-profile's top with a playing video prompt under photo 1, 2026-11-18). `fixture_files.py` loads them, `fake_phone.py` replays them as a phone (taps/swipes move between
+profile's top with a playing video prompt under photo 1, 2026-11-18), `feed-poll` (a poll's card, a feature ad, prompt 1, 2026-11-18). `fixture_files.py` loads them, `fake_phone.py` replays them as a phone (taps/swipes move between
 dumps, records actions, `sent()` must stay empty). `test_decide.py` runs the decider against a fake SDK stream
 (real `ResultMessage`/`RateLimitEvent` objects); `test_shadow.py` runs shadow → label → type on the fake phone. New fixture: `deploy/run.sh screener --cmd dump <name>` on the
 Pi, then `--cmd fixture <out dir> <dumps…>` (all dumps of one walk in one call), check the texts, copy over.
@@ -147,6 +147,10 @@ Pi, then `--cmd fixture <out dir> <dumps…>` (all dumps of one walk in one call
   on or liked. Its player adds a native layer larger than the card that can swallow a swipe starting on it: the
   capture took that for the profile's end and stopped at the first video (2026-11-17). Swipes start in the list's
   right margin (`_margin_x`, beside the cards), and the end = two swipes in a row that move nothing.
+- A poll is a section (`poll N`: a View "Prompt: <question>" without ". Answer:", its parent = the card, options
+  "Option: …" below; keyed by the question only, options may be cut off): listed, never commented on. Unknown until
+  2026-11-18: the bot never saw it and `scroll_to` lost track on its card. The app's feature ads ("Try it" cards)
+  sit between sections: their texts are anchors but not details.
 - A playing video's "Elapsed time: N seconds" label ticks every second: `_signature` ignores it, else no screen
   with a video counts as still (stable reads, the bottom check).
 - Input is jittered like a person (Dev, 2026-11-18: avoid looking like a bot): taps inside the target's middle half,
