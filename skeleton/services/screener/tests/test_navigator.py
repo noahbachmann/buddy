@@ -26,7 +26,7 @@ def test_capture_whole_profile_and_stop_at_the_end():
 
 def test_screenshots_from_the_top_to_the_end_tap_nothing():
     phone = FakePhone("feed-05")
-    phone.screencap = lambda: phone.screen.encode()   # which screen was shot
+    phone.screencap = lambda half=False: phone.screen.encode()   # which screen was shot
     shots = nav(phone).screenshots()
     assert shots[0] == b"feed-01" and len(shots) == 11 and phone.screen == "feed-11"   # each fixture one swipe on
     assert [a for a in phone.actions if a[0] != "swipe"] == []
@@ -40,13 +40,9 @@ def test_shot_pages_four_screens_side_by_side():
 
     from buddy_screener.imaging import shot_pages
 
-    def png():
-        out = io.BytesIO()
-        Image.new("RGB", (1080, 2280), "gray").save(out, "PNG")
-        return out.getvalue()
-    pages = shot_pages([png()] * 5)
+    pages = shot_pages([Image.new("RGB", (540, 1140), "gray")] * 5)   # half size, as taken
     sizes = [Image.open(io.BytesIO(p)).size for p in pages]
-    assert sizes == [(4 * 540 + 3 * 10, 1094), (540, 1094)]
+    assert sizes == [(4 * 540 + 3 * 10, 1095), (540, 1095)]
 
 
 def test_capture_scrolls_back_to_the_top_first():

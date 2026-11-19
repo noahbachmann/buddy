@@ -244,3 +244,19 @@ def test_dumper_without_serve_mode_falls_back_to_one_shot_reads(monkeypatch):
     d = served_dev(phone, run)
     assert d.dump() == "<hierarchy/>" and d.dump() == "<hierarchy/>"
     assert len(phone.spawned) == 1   # tried once, one-shot from then on
+
+
+def test_raw_screencap_parsed_into_an_image():
+    from PIL import Image
+    px = bytes([10, 20, 30, 255]) * (4 * 2)
+    for head in (b"", b"\x00\x00\x00\x00"):   # Android 9 builds write 12 or 16 header bytes
+        raw = (4).to_bytes(4, "little") + (2).to_bytes(4, "little") + (1).to_bytes(4, "little") + head + px
+        r = Runner((0, b"Physical size: 4x2\n", b""), (0, raw, b""), (0, raw, b""))
+        d = dev(r)
+        img = d.screencap()
+        assert img.size == (4, 2) and img.mode == "RGB" and img.getpixel((3, 1)) == (10, 20, 30)
+        assert d.screencap(half=True).size == (2, 1)
+        assert r.calls[1][3:] == ["exec-out", "screencap"] and len(r.calls) == 3   # size asked once
+    bad = Runner((0, b"Physical size: 4x2\n", b""), (0, b"\x89PNG" + px, b""))
+    with pytest.raises(AdbError):
+        dev(bad).screencap()

@@ -13,6 +13,7 @@ Nothing here sends anything: no send like, no skip, no chat message (step 3+ add
 import random
 import time
 from collections.abc import Callable
+from typing import Any
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -37,8 +38,8 @@ ROW_FLING_MS = 150    # fast: flings the row back to its start in one go (measur
 MAX_ROW_SWIPES = 8
 ROW_SAME = 100        # px of content y: the same row in another dump
 HASH_MAX_DIST = 10    # of 64 bits: same photo
-Hasher = Callable[[bytes, Rect], str]   # (screenshot PNG, crop) → dhash
-Cropper = Callable[[bytes, Rect], bytes]   # (screenshot PNG, crop) → JPEG for the decision call
+Hasher = Callable[[Any, Rect], str]   # (screenshot, crop) → dhash
+Cropper = Callable[[Any, Rect], bytes]   # (screenshot, crop) → JPEG for the decision call
 
 
 class _Unreadable(Exception):
@@ -257,11 +258,11 @@ class Navigator:
         todo = [(sv, sec) for sv in view.sections if sv.kind == "photo" and not sv.top_cut and not sv.bottom_cut
                 and (sec := cap.section_at(sv)) is not None and not sec.hash]
         if todo:
-            png = self.dev.screencap()
+            shot = self.dev.screencap()
             for sv, sec in todo:
-                sec.hash = self.hasher(png, sv.rect)
+                sec.hash = self.hasher(shot, sv.rect)
                 if self.cropper is not None:
-                    sec.jpeg = self.cropper(png, sv.rect)
+                    sec.jpeg = self.cropper(shot, sv.rect)
 
     def capture_profile(self) -> Capture:
         """Scrolls through the whole profile from its top, collecting every section. Ends at the bottom."""
@@ -298,11 +299,11 @@ class Navigator:
             raise self.needs_you("a detail row was never clear of the floating buttons: its details are missing")
         return cap
 
-    def screenshots(self) -> list[bytes]:
-        """The profile on screen as Dev sees it, top to end: one PNG per screen, the next a screen's height further
-        (a little overlap). For a remote session, where Dev can't look at the phone. Moves the list, taps nothing."""
+    def screenshots(self) -> list[Any]:
+        """The profile on screen as Dev sees it, top to end: one half-size image per screen, the next a screen's
+        height further (a little overlap). For a remote session, where Dev can't look at the phone. Moves the list, taps nothing."""
         s, view = self._to_top()
-        shots = [self.dev.screencap()]
+        shots = [self.dev.screencap(half=True)]
         sig, still = _signature(s.root), 0
         for _ in range(MAX_SWIPES):
             delta = view.viewport.height - SHOT_OVERLAP
@@ -317,7 +318,7 @@ class Navigator:
                     break   # bottom: two swipes in a row moved nothing
                 continue
             still, sig, view = 0, _signature(s.root), nxt
-            shots.append(self.dev.screencap())
+            shots.append(self.dev.screencap(half=True))
         else:
             raise self.needs_you("profile has no end")
         return shots

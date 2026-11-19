@@ -15,6 +15,8 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from PIL import Image
+
 from .uitree import Rect
 
 KEY_BACK = 4
@@ -28,6 +30,16 @@ SERVE_START_S = 8.0    # first answer of a fresh serve mode; an old APK without 
 _DUMPER_MISSING = ("Unable to find instrumentation", "INSTRUMENTATION_FAILED")
 _DUMP_XML = re.compile(r"INSTRUMENTATION_RESULT: xml=(\S+)")
 _IME_PKG = OUR_IME.split("/", 1)[0]
+
+
+def raw_image(raw: bytes, w: int, h: int, half: bool = False) -> Image.Image:
+    """`screencap`'s raw output: a header (12 or 16 bytes by Android version: w, h, format[, colour space]),
+    then RGBA_8888 rows."""
+    head = len(raw) - w * h * 4
+    if head not in (12, 16) or int.from_bytes(raw[0:4], "little") != w or int.from_bytes(raw[8:12], "little") != 1:
+        raise AdbError(f"screencap: not {w}x{h} RGBA ({len(raw)} bytes)")
+    img = Image.frombuffer("RGBA", (w, h), raw, "raw", "RGBA", 0, 1).convert("RGB")
+    return img.reduce(2) if half else img
 
 
 class AdbError(RuntimeError):
@@ -185,6 +197,7 @@ class Device:
         self._base = ["adb"] + (["-s", serial] if serial else [])
         self.dumper = dumper   # "" = uiautomator only (also after the dumper turned out missing)
         # the dumper's serve mode first; off for good once a fresh start never answers
+        self._screen: tuple[int, int] | None = None   # size, for raw screenshots
         self._served = served or (_Served(self._base, dumper, run, sleep=sleep) if serve and dumper else None)
         self.guard = guard
         self._run = run
@@ -289,9 +302,13 @@ class Device:
         _, w, h = next((x for x in sizes if x[0] == "Override"), sizes[0])
         return int(w), int(h)
 
-    def screencap(self) -> bytes:
-        """PNG of the whole screen."""
-        return self.adb("exec-out", "screencap", "-p", timeout=30)
+    def screencap(self, half: bool = False) -> Image.Image:
+        """The whole screen as an RGB image (`half`: at half size). Raw pixels, not `-p`: the phone's PNG encoding
+        made it 2.2 s (raw: 0.9). The ~10 MB buffer is dropped here; callers keep crops, not frames."""
+        if self._screen is None:
+            self._screen = self.size()
+        w, h = self._screen
+        return raw_image(self.adb("exec-out", "screencap", timeout=30), w, h, half)
 
     def foreground(self) -> str:
         """Package of the focused window ("" if none)."""

@@ -38,7 +38,7 @@ class FakePhone:
     def size(self) -> tuple[int, int]:
         return 1080, 2280
 
-    def screencap(self) -> bytes:
+    def screencap(self, half: bool = False):
         raise AssertionError("no screenshots in the fake")
 
     def foreground(self) -> str:
