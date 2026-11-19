@@ -69,9 +69,15 @@ CASES = [
     ], (CLOSED, HANDOVER)),
     Case("media", ["de"], PROFILE_DE, [Her(media=True)], (HANDOVER,), group="media"),
     Case("voice_note", ["en"], PROFILE_EN, [Her("Hi!"), Her(media=True)], (HANDOVER,), group="media"),
+    # Dev, 2026-11-19: first explain and ask whether she really wants to stop; only her yes hands over
     Case("insists_human", ["de"], PROFILE_DE, [
         Her("Kannst du mich direkt mit ihm verbinden? Ich schreibe gern, aber lieber mit ihm selbst als mit dir."),
+        Her("Ja, wirklich. Ich möchte direkt mit ihm schreiben."),
     ], (HANDOVER,), group="insist"),
+    Case("wants_human_then_continues", ["en"], PROFILE_EN, [
+        Her("Can't I just talk to him directly?"),
+        Her("Ah okay, no, fine, ask away."),
+    ], (SCREENING, CLOSED), reason="no_reply"),
     Case("meet_now", ["en"], PROFILE_EN, [
         Her("Honestly, let's skip the questions. Want to grab a drink tonight? I'm free at 8."),
     ], (HANDOVER,), group="meet"),
