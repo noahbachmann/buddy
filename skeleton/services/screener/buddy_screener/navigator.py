@@ -27,6 +27,7 @@ STEP = 600            # px per scroll swipe: consecutive dumps share sections (a
 MAX_MOVE = 700        # px, longest swipe when scrolling to a section: longer ones left no anchor in common
 SWIPE_MS = 900        # slow: scrolls by about the swipe length, no fling
 MAX_SWIPES = 30
+SHOT_OVERLAP = 250   # px a screenshot shares with the one before (a swipe starts 150 px above the list's bottom)
 MIN_MARGIN = 30       # px beside the cards for a swipe to start in
 BLIND_EDGE = 30       # px from the screen's right edge: beside the cards (they end 60 px before it)
 MAX_BLIND = 4        # swipes past an unreadable screen: a video is about one screen high
@@ -296,6 +297,30 @@ class Navigator:
         if len(rows_done) < len(rows_seen):
             raise self.needs_you("a detail row was never clear of the floating buttons: its details are missing")
         return cap
+
+    def screenshots(self) -> list[bytes]:
+        """The profile on screen as Dev sees it, top to end: one PNG per screen, the next a screen's height further
+        (a little overlap). For a remote session, where Dev can't look at the phone. Moves the list, taps nothing."""
+        s, view = self._to_top()
+        shots = [self.dev.screencap()]
+        sig, still = _signature(s.root), 0
+        for _ in range(MAX_SWIPES):
+            delta = view.viewport.height - SHOT_OVERLAP
+            self._swipe_list(view, delta)
+            try:
+                s, nxt, _ = self._profile_past(view, delta)
+            except _Unreadable:
+                break   # stopped at the bottom with a video in view: the last readable screen is in already
+            if _signature(s.root) == sig:
+                still += 1
+                if still == 2:
+                    break   # bottom: two swipes in a row moved nothing
+                continue
+            still, sig, view = 0, _signature(s.root), nxt
+            shots.append(self.dev.screencap())
+        else:
+            raise self.needs_you("profile has no end")
+        return shots
 
     def _back_to_readable(self, cap: Capture, view: ProfileView) -> None:
         """Ended at the bottom on a video: back up until the screen reads again, so the next command (skip, send)

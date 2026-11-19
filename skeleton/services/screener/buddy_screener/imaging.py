@@ -1,5 +1,5 @@
-"""Screenshot crops: the photo hash that tells photos apart (their tree nodes all read "<name>'s photo"), and the
-JPEG a decision call sees."""
+"""Screenshot crops: the photo hash that tells photos apart (their tree nodes all read "<name>'s photo"), the JPEG a
+decision call sees, and the pages of screenshots for a remote shadow session."""
 
 import io
 
@@ -26,3 +26,27 @@ def crop_jpeg(png: bytes, rect: Rect, max_side: int = 512, quality: int = 80) ->
     out = io.BytesIO()
     crop.save(out, "JPEG", quality=quality)
     return out.getvalue()
+
+
+def shot_pages(pngs: list[bytes], per_page: int = 4, status_bar: float = 0.04, scale: float = 0.5,
+               gap: int = 10, quality: int = 80) -> list[bytes]:
+    """Screenshots side by side, `per_page` to a JPEG: without the status bar, at `scale`. Readable on a phone."""
+    crops = []
+    for png in pngs:
+        with Image.open(io.BytesIO(png)) as img:
+            w, h = img.size
+            crop = img.convert("RGB").crop((0, int(h * status_bar), w, h))
+        crops.append(crop.resize((int(crop.width * scale), int(crop.height * scale)), Image.LANCZOS))
+    pages = []
+    for i in range(0, len(crops), per_page):
+        part = crops[i:i + per_page]
+        page = Image.new("RGB", (sum(c.width for c in part) + gap * (len(part) - 1), max(c.height for c in part)),
+                         "white")
+        x = 0
+        for c in part:
+            page.paste(c, (x, 0))
+            x += c.width + gap
+        out = io.BytesIO()
+        page.save(out, "JPEG", quality=quality)
+        pages.append(out.getvalue())
+    return pages

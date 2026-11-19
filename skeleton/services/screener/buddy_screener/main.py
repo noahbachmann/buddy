@@ -9,6 +9,8 @@ Offline (no MQTT; on the Pi with buddy.env: `deploy/run.sh screener --cmd …`):
     --cmd walk                    step 1 check: feed → whole profile → a section's comment sheet (type, read back,
                                   back out without sending) → likes → matches → a chat → back
     --cmd templates               check templates.md, list the like comments
+    --cmd shots [out dir]         the profile on screen as screenshots, 4 screens per JPEG page (default: tmpfs
+                                  shots/; a remote session sends Dev these; taps nothing)
 Shadow mode (step 2; only skip/send act, and only on Dev's label; details in shadow.py):
     --cmd shadow                  capture the profile on screen, decide, store and print it (row id)
     --cmd label <id> like|skip|unjudged [section comment] [--text …] [--note …] [--wrong] [--dealbreaker] [--sensitive]
@@ -116,6 +118,21 @@ def cmd_walk(cfg: Config, dev: Device, nav: Navigator) -> None:
         print("back:", screens.summary(nav.leave_chat()))
     print("feed:", screens.summary(nav.go_tab(vocab.TAB_DISCOVER)))
     print("walk done")
+
+
+def cmd_shots(nav: Navigator, out: Path) -> None:
+    from .imaging import shot_pages
+    nav.go_tab(vocab.TAB_DISCOVER)
+    shots = nav.screenshots()
+    out.mkdir(parents=True, exist_ok=True, mode=0o700)
+    for old in out.glob("page-*.jpg"):
+        old.unlink()   # pages of the profile before
+    for i, page in enumerate(shot_pages(shots), 1):
+        path = out / f"page-{i}.jpg"
+        path.write_bytes(page)
+        path.chmod(0o600)
+        print(path)
+    print(f"{len(shots)} screens")
 
 
 def cmd_shadow(cfg: Config, args: argparse.Namespace) -> int:
@@ -244,6 +261,8 @@ def offline(cfg: Config, args: argparse.Namespace) -> int:
             print(f"{screens.summary(s)}; {'same' if same else 'another'} profile")
         elif args.cmd == "walk":
             cmd_walk(cfg, dev, nav)
+        elif args.cmd == "shots":
+            cmd_shots(nav, Path(args.args[0]) if args.args else cfg.tmp_dir / "shots")
         else:
             print(f"unknown --cmd {args.cmd}", file=sys.stderr)
             return 2
@@ -329,7 +348,7 @@ def handle(cfg: Config, dev: Device, action: str) -> str | None:
 def main() -> int:
     lifecycle.install_signal_handlers()
     p = argparse.ArgumentParser(prog="buddy-screener")
-    p.add_argument("--cmd", help="screen | dump [name] | fixture <out> <xml…> | profile | back-out | walk | templates"
+    p.add_argument("--cmd", help="screen | dump [name] | fixture <out> <xml…> | profile | back-out | walk | templates | shots [dir]"
                                  " | shadow | label <id> like|skip|unjudged [section comment] | type <id> | skip <id>"
                                  " | send <id> | report")
     p.add_argument("--show", action="store_true", help="profile: print texts (host terminal only)")
