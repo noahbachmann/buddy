@@ -142,9 +142,12 @@ def make_label(row: ShadowRow, decision: str, section: str | None, comment: str 
         text = lib.comment(comment).text
     elif (why := refusal(" ".join(text.split()), COMMENT_MAX)) is not None:
         raise LabelError(f"text refused: {why}")
-    return {"decision": decision, "comment_on": section, "comment": comment, "note": note, "wrong": wrong,
-            "dealbreaker": dealbreaker, "sensitive": sensitive,
-            "text": " ".join(text.split()) if text else None}
+    label = {"decision": decision, "comment_on": section, "comment": comment, "note": note, "wrong": wrong,
+             "dealbreaker": dealbreaker, "sensitive": sensitive,
+             "text": " ".join(text.split()) if text else None}
+    if row.dev and row.dev.get("acted"):
+        label["acted"] = row.dev["acted"]   # a relabel doesn't undo what happened on the phone
+    return label
 
 
 def _label_text(dev: dict, lib: Library) -> str:

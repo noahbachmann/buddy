@@ -233,3 +233,15 @@ def test_skip_works_on_an_unjudged_row(store, tmp_path):
         shadow.act_label(n, row, r.capture, LIB, "send")
     acted, nxt = shadow.act_label(n, row, r.capture, LIB, "skip")
     assert (acted["decision"], acted["acted"], nxt) == ("unjudged", "skip", "Kim")
+
+
+def test_relabel_keeps_acted(store, tmp_path):
+    phone = FakePhone("feed-01")
+    n = nav(phone)
+    r = shadow.run_shadow(n, FakeDecider(like()), LIB, store, tmp_path)
+    store.label(r.row_id, shadow.make_label(store.shadow(r.row_id)[0], "skip", None, None, LIB))
+    acted, _ = shadow.act_label(n, store.shadow(r.row_id)[0], r.capture, LIB, "skip")
+    store.label(r.row_id, acted)
+    lab = shadow.make_label(store.shadow(r.row_id)[0], "skip", None, None, LIB, note="added later")
+    assert (lab["acted"], lab["note"]) == ("skip", "added later")
+    assert "acted" not in shadow.make_label(row(store, like()), "skip", None, None, LIB)
