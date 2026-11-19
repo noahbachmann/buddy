@@ -40,6 +40,28 @@ _LINK = re.compile(r"https?://[^\s\"')<>]+|\bwww\.\S+", re.I)
 _SPACE = re.compile(r"\s+")
 
 
+def refusal(text: str, limit: int, contacts=(), urls=()) -> str | None:
+    """Why a generated text must not go out (None = fine): code's last line, whatever the model was told. Used for
+    chat messages and adapted like comments."""
+    if not text:
+        return "empty"
+    if len(text) > limit:
+        return f"{len(text)} chars > {limit}"
+    flat = re.sub(r"\D", "", text)
+    low = text.lower()
+    for v in contacts:
+        digits = re.sub(r"\D", "", v)
+        if (len(digits) >= 6 and digits in flat) or v.lower().lstrip("@") in low:
+            return "a contact value"
+    if _DIGITS.search(text):
+        return "a number"
+    if _HANDLE.search(text):
+        return "a handle"
+    if any(u not in urls for u in _LINK.findall(text)):
+        return "a link"
+    return None
+
+
 @dataclass(frozen=True)
 class ChatLimits:
     min_exchanges: int = 3       # her answered turns before a match can be verified
@@ -359,24 +381,7 @@ class ChatFlow:
         return self._send(chat, kind, text)
 
     def _refuse(self, text: str, limit: int) -> str | None:
-        """A generated text that must not go out: code's last line, whatever the model was told."""
-        if not text:
-            return "empty"
-        if len(text) > limit:
-            return f"{len(text)} chars > {limit}"
-        flat = re.sub(r"\D", "", text)
-        low = text.lower()
-        for v in self.contacts.values():
-            digits = re.sub(r"\D", "", v)
-            if (len(digits) >= 6 and digits in flat) or v.lower().lstrip("@") in low:
-                return "a contact value"
-        if _DIGITS.search(text):
-            return "a number"
-        if _HANDLE.search(text):
-            return "a handle"
-        if any(u not in self.rules.urls for u in _LINK.findall(text)):
-            return "a link"
-        return None
+        return refusal(text, limit, self.contacts.values(), self.rules.urls)
 
     def _send(self, chat: Chat, kind: str, text: str) -> Action:
         return Action("send", template=kind, text=text)
