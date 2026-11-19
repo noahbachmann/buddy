@@ -12,8 +12,8 @@ android {
         applicationId = "buddy.screener.dump"
         minSdk = 28 // the phone runs Android 9
         targetSdk = 34
-        versionCode = 1
-        versionName = "1"
+        versionCode = 2
+        versionName = "2"
     }
     buildTypes {
         // debug-signed is enough: sideloaded via adb, never published
