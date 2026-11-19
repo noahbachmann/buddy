@@ -104,6 +104,8 @@ CASES = [
          reason="contact_instagram", group="contact"),
     Case("contact_both", ["en"], PROFILE_EN, [], (DONE,), ["Both? Why not 😄"], CONTACT_CHOICE,
          reason="contact_number", group="contact"),
+    Case("contact_either", ["de"], PROFILE_DE, [], (DONE,), ["Ist mir eigentlich egal, beides passt."],
+         CONTACT_CHOICE, reason="contact_number", group="contact"),
     Case("contact_neither", ["en"], PROFILE_EN, [], (HANDOVER,),
          ["Hmm, neither for now, I'd rather keep writing here a bit."], CONTACT_CHOICE, group="contact"),
     Case("contact_other", ["de"], PROFILE_DE, [], (HANDOVER,),
