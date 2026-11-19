@@ -58,14 +58,25 @@ def test_system_prompt_has_preferences_and_library():
 
 def raw(**kw):
     d = {"reason": "Likes hiking.", "decision": "like", "comment_on": "prompt 1", "comment": "hot_take",
-         "missing_hook": "", "prompt_langs": ["en", "en"], "soft_flags": [], "dealbreakers": []}
+         "comment_text": "Bold. Count me in.", "missing_hook": "", "prompt_langs": ["en", "en"], "soft_flags": [], "dealbreakers": []}
     return d | kw
 
 
 def test_check_browse_accepts_a_good_answer():
     b = check_browse(raw(), profile(), LIB)
     assert (b.decision, b.comment_on, b.comment, b.fixes) == ("like", "prompt 1", "hot_take", [])
-    assert b.chat_lang == "en"
+    assert b.chat_lang == "en" and b.comment_text == "Bold. Count me in."
+
+
+@pytest.mark.parametrize("text", ["", "call me 079 123 45 67", "@me.here", "see www.example.com", "x" * 201])
+def test_refused_adapted_comment_falls_back_to_the_template_in_the_chats_language(text):
+    b = check_browse(raw(comment_text=text), profile(), LIB)   # hot_take is en, the chat en
+    assert (b.comment, b.comment_text) == ("hot_take", "Bold. I'm in.") and b.fixes
+
+
+def test_refused_adapted_comment_in_another_language_drops_the_comment():
+    b = check_browse(raw(comment="travel_far", comment_text=""), profile(), LIB)   # de template, en chat
+    assert (b.comment, b.comment_text, b.missing_hook) == ("none", "", "travel photo")
 
 
 @pytest.mark.parametrize("langs, chat", [(["en", "de"], "de"), (["en", "de-ch"], "de"), (["other", "other"], "en"),
