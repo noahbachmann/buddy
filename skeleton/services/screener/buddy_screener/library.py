@@ -105,7 +105,7 @@ class Library:
 
 # template → placeholders it must contain beyond the always-allowed {name}
 CHAT_TEMPLATES = {"disclosure": set(), "contact_offer": {"fit_line"}, "contact_number": {"number"},
-                  "contact_instagram": {"instagram"}, "closing": set(), "opt_out": set()}
+                  "contact_instagram": {"instagram"}, "closing": set(), "opt_out": set(), "question": {"question"}}
 CHAT_LANGS = ("en", "de")
 # preferences.md sections the chat calls see (heading prefixes); not "Physical": a chat shows no photos
 CHAT_PREFS = ("about dev", "looking for", "good fit", "soft negatives", "soft positives", "dealbreakers")
@@ -157,20 +157,42 @@ def fill(template: str, **values: str) -> str:
 
 @dataclass(frozen=True)
 class Question:
+    """One of the owner's screening questions: code sends it word for word (`text` or `de`), never the model."""
     n: int
-    text: str
+    text: str                    # English, the quoted text
     required: bool
+    de: str = ""                 # German, from the `DE: "…"` line under it
+    note: str = ""               # the rest: a hint for the model (e.g. how to judge the answer)
+
+    def in_lang(self, lang: str) -> str:
+        return self.de if lang == "de" else self.text
+
+
+_QUOTED = re.compile(r'"(.+)"')
+_DE_LINE = re.compile(r'\s+DE:\s*"(.+)"\s*$')
 
 
 def parse_questions(md: str) -> tuple[Question, ...]:
+    """`N. [**(required)**] "English"`, then indented lines: `DE: "German"` and free notes."""
     body = sections(md).get("screening questions", "")
-    qs: list[list] = []
+    qs: list[dict] = []
+    errors = []
     for line in body.splitlines():
         if m := _QUESTION.match(line):
-            qs.append([int(m.group(1)), m.group(2).strip()])
+            q = _QUOTED.search(m.group(2))
+            if q is None:
+                errors.append(f"question {m.group(1)}: no \"quoted\" text")
+                continue
+            qs.append({"n": int(m.group(1)), "text": q.group(1).strip(), "required": REQUIRED in m.group(2),
+                       "de": "", "note": []})
+        elif qs and (d := _DE_LINE.match(line)):
+            qs[-1]["de"] = d.group(1).strip()
         elif qs and line.startswith((" ", "\t")) and line.strip():
-            qs[-1][1] += " " + line.strip()
-    out = tuple(Question(n, t.replace(REQUIRED, "").strip(), REQUIRED in t) for n, t in qs)
+            qs[-1]["note"].append(line.strip())
+    errors += [f"question {q['n']}: no DE: \"…\" line" for q in qs if not q["de"]]
+    if errors:
+        raise LibraryError("chat.md: " + "; ".join(errors))
+    out = tuple(Question(q["n"], q["text"], q["required"], q["de"], " ".join(q["note"])) for q in qs)
     if not out:
         raise LibraryError("chat.md: no numbered screening questions")
     if not any(q.required for q in out):
@@ -205,6 +227,9 @@ class ChatRules:
     @property
     def required(self) -> tuple[int, ...]:
         return tuple(q.n for q in self.questions if q.required)
+
+    def question(self, n: int) -> Question | None:
+        return next((q for q in self.questions if q.n == n), None)
 
     @classmethod
     def load(cls, config_dir: Path) -> "ChatRules":

@@ -37,7 +37,7 @@ def fake_model(content, options):
     en = bool(re.search(r"\b(the|you|can|I|Hi|Honestly|This|Phone|Both|Hmm)\b", last)) or (
         "Write `reply` in: English" in text and not last)
     a = {"reply": "And what are you looking for?" if en else "Und was suchst du?", "state": "screening",
-         "opt_out": False, "fit_line": "", "answers": {"1": None, "2": None, "3": None}, "flags": [],
+         "opt_out": False, "fit_line": "", "answers": {"1": None, "2": None, "3": None}, "ask": 0, "flags": [],
          "soft_flags": [], "contact": "none", "lang": ("en" if en else "de") if last else "", "reason": "fake"}
     if "Chat state: contact choice" in text:
         a["contact"] = ("phone" if "Phone" in last or "Nummer" in last else "instagram" if "Insta" in last
@@ -69,7 +69,7 @@ class Model:
 def host(tmp_path):
     d = tmp_path / "config"
     d.mkdir()
-    (d / "chat.md").write_text(CHAT_MD + "4. \"Weekend?\"\n")
+    (d / "chat.md").write_text(CHAT_MD)
     (d / "preferences.md").write_text(PREFS)
     (d / "templates.md").write_text(CHAT_TEMPLATES)
     (d / "number").write_text(REAL_NUMBER)

@@ -21,13 +21,14 @@ TEMPLATES = {
     "contact_instagram": {"en": "Instagram: {instagram}", "de": "Instagram: {instagram}"},
     "closing": {"en": "Not a fit.", "de": "Passt nicht."},
     "opt_out": {"en": "No problem!", "de": "Kein Problem!"},
+    "question": {"en": 'He asks: "{question}"', "de": "Er fragt: «{question}»"},
 }
 RULES = ChatRules("## Screening questions\n1. **(required)** Looking for?\n2. Pets?", "## About Dev\nBuilds robots.",
-                  (Question(1, "Looking for?", True), Question(2, "Pets?", False)), TEMPLATES)
+                  (Question(1, "Looking for?", True, "Was suchst du?"), Question(2, "Pets?", False, "Haustiere?")), TEMPLATES)
 
 
 def answer(**kw):
-    d = {"reply": "Und, was suchst du?", "state": "screening", "opt_out": False, "fit_line": "",
+    d = {"reply": "Hallo!", "ask": 1, "state": "screening", "opt_out": False, "fit_line": "",
          "answers": {"1": None, "2": None}, "flags": [], "soft_flags": [], "contact": "none", "lang": "de",
          "reason": "asking"}
     d.update(kw)
@@ -88,6 +89,9 @@ def test_check_converse_good():
     ({"answers": {"1": "x", "9": "y"}}, "reply", "screening", lambda c: c.answers == {1: "x"}, "unknown question"),
     ({"state": "match", "fit_line": "Fit."}, "first", "new", lambda c: c.state == "screening", "first message"),
     ({"state": "no_match"}, "nudge", "screening", lambda c: c.state == "screening", "on a nudge"),
+    ({"ask": 9}, "reply", "screening", lambda c: c.ask == 0, "isn't a question number"),
+    ({"ask": True}, "reply", "screening", lambda c: c.ask == 0, "isn't a question number"),
+    ({"ask": 1}, "reply", CONTACT_CHOICE, lambda c: c.ask == 0, "in the contact choice"),
 ])
 def test_check_converse_fixes(kw, task, state, check, fix):
     c, fixes = check_converse(answer(**kw), RULES, task, state)

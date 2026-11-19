@@ -45,18 +45,23 @@ never promise a meeting, a call or a date.
 your output.
 
 ## The conversation
-- One question per message, short, in the tone the rules ask for. React briefly to what she wrote before asking \
-the next one; a personal touch from her profile is welcome.
-- Ask the screening questions you still need, roughly in order; the required ones must be asked. Skip a question \
-her messages already answered.
+- The screening questions are the owner's own, asked by him through you. You never write one yourself, not even \
+rephrased or translated: put its number in `ask`, and code appends it word for word, marked as his.
+- Ask the screening questions you still need, roughly in order, one per message; the required ones must be asked. \
+Skip a question her messages already answered.
+- With `ask`, `reply` is only a short reaction to what she wrote (a personal touch from her profile is welcome), \
+without a question of its own; it may be "" when there is nothing to react to. Without `ask` (all screening \
+questions through, or the contact step), `reply` is the whole message and may ask your own follow-up question.
+- Tone: as the rules ask for, short.
 - Language of `reply`: the message names it. German always means standard German, never dialect, also when she \
 writes Swiss German. "Her latest message's language": German for German or Swiss German, English for English or \
 any other language.
 
 ## Your output
-- `reply`: the next message to send if the chat continues. Always fill it, also with a match: code may keep \
-screening instead of sharing the contact, so it must keep the conversation going (a question, e.g. a follow-up \
-on her answers once the screening questions are through), never a wrap-up.
+- `reply` + `ask`: the next message if the chat continues. Always fill them, also with a match: code may keep \
+screening instead of sharing the contact, so the message must keep the conversation going (a screening question \
+in `ask`, or a follow-up question on her answers once they are through), never a wrap-up.
+- `ask`: the number of the screening question to append, or 0.
 - `state`: "screening" (keep going), "match" (the match rule is met: all required questions answered, no \
 dealbreaker, a good overall fit), "no_match" (a dealbreaker or clearly not a fit), "handover" (the owner must take \
 over: see the handover rules; also when you are unsure or something isn't covered).
@@ -76,8 +81,9 @@ hasn't written.
 The message starts with the task:
 - first: the chat just started, write the first question (the disclosure is already sent).
 - reply: she wrote; answer and decide the state.
-- nudge: she hasn't answered for days: one light message that picks up the open question again, no pressure, \
-nothing new (no teasing, no remarks on her profile).
+- nudge: she hasn't answered for days: one light line, no pressure, nothing new (no teasing, no remarks on her \
+profile); `ask` = the open screening question (it is appended again), or 0 if the open question was your own \
+follow-up (then restate that one in `reply`).
 
 # The owner's chat rules
 
@@ -120,6 +126,7 @@ def converse_schema(rules: ChatRules) -> dict[str, Any]:
         "type": "object",
         "properties": {
             "reply": {"type": "string"},
+            "ask": {"type": "integer", "description": "screening question number to append, 0 = none"},
             "state": {"type": "string", "enum": list(STATES)},
             "opt_out": {"type": "boolean"},
             "fit_line": {"type": "string"},
@@ -130,7 +137,7 @@ def converse_schema(rules: ChatRules) -> dict[str, Any]:
             "lang": {"type": "string", "enum": [*LANGS, ""]},
             "reason": {"type": "string"},
         },
-        "required": ["reply", "state", "opt_out", "fit_line", "answers", "flags", "soft_flags", "contact", "lang",
+        "required": ["reply", "ask", "state", "opt_out", "fit_line", "answers", "flags", "soft_flags", "contact", "lang",
                      "reason"],
         "additionalProperties": False,
     }
@@ -223,8 +230,15 @@ def check_converse(raw: Any, rules: ChatRules, task: str, state: str) -> tuple[C
     if task == TASK_NUDGE and st not in ("screening", "handover"):
         fixes.append(f"{st} on a nudge → screening")
         st = "screening"
+    ask = raw.get("ask", 0)
+    if not isinstance(ask, int) or isinstance(ask, bool) or (ask != 0 and ask not in known):
+        fixes.append(f"ask {str(ask)[:10]!r} isn't a question number → 0")
+        ask = 0
+    if ask and state == CONTACT_CHOICE:
+        fixes.append("a screening question in the contact choice → 0")
+        ask = 0
     c = Converse(text("reply"), st, raw.get("opt_out") is True, text("fit_line") if st == "match" else "", answers,
-                 strings("flags"), strings("soft_flags"), contact, lang, text("reason"))
+                 strings("flags"), strings("soft_flags"), contact, lang, text("reason"), ask)
     return c, fixes
 
 

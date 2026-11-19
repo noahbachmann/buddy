@@ -99,6 +99,10 @@ DE: Passt nicht, alles Gute.
 EN: No problem!
 DE: Kein Problem!
 
+## question
+EN: He asks: "{question}"
+DE: Er fragt: «{question}»
+
 ## Like comments
 - hot_take | en | bold opinion | Bold. I'm in.
 """
@@ -109,8 +113,11 @@ CHAT_MD = """\
 ## Screening questions
 Ask naturally.
 1. **(required)** "What are you looking for?"
+   DE: "Was suchst du?"
 2. "Pets?"
+   DE: "Haustiere?"
 3. "This song? https://example.org/track/1"
+   DE: "Dieser Song? https://example.org/track/1"
    (judge the vibe)
 
 ## Match rule
@@ -133,7 +140,8 @@ def test_chat_templates_join_wrapped_lines_and_skip_notes():
     assert t["disclosure"] == {"en": "Hi {name}! I'm an AI assistant, asking a few questions.",
                                "de": "Hi {name}! Ich bin ein KI-Assistent."}
     assert t["contact_offer"]["en"] == "{fit_line} Phone or Instagram?"
-    assert set(t) == {"disclosure", "contact_offer", "contact_number", "contact_instagram", "closing", "opt_out"}
+    assert set(t) == {"disclosure", "contact_offer", "contact_number", "contact_instagram", "closing", "opt_out",
+                      "question"}
 
 
 @pytest.mark.parametrize("old, new, why", [
@@ -155,8 +163,13 @@ def test_fill_is_one_pass():
 def test_questions():
     qs = parse_questions(CHAT_MD)
     assert [(q.n, q.required) for q in qs] == [(1, True), (2, False), (3, False)]
-    assert qs[0].text == '"What are you looking for?"'
-    assert qs[2].text.endswith("(judge the vibe)")
+    assert (qs[0].text, qs[0].de, qs[0].note) == ("What are you looking for?", "Was suchst du?", "")
+    assert qs[2].note == "(judge the vibe)" and qs[2].in_lang("de") == "Dieser Song? https://example.org/track/1"
+    assert qs[2].in_lang("en") == "This song? https://example.org/track/1"
+    with pytest.raises(LibraryError, match="question 2: no DE"):
+        parse_questions(CHAT_MD.replace('   DE: "Haustiere?"\n', ""))
+    with pytest.raises(LibraryError, match="no \"quoted\""):
+        parse_questions(CHAT_MD.replace('2. "Pets?"', "2. Pets?"))
     with pytest.raises(LibraryError, match="required"):
         parse_questions(CHAT_MD.replace("**(required)** ", ""))
     with pytest.raises(LibraryError, match="no numbered"):

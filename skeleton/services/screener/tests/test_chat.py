@@ -15,8 +15,11 @@ TEMPLATES = {
     "contact_instagram": {"en": "Instagram: {instagram}", "de": "Instagram: {instagram}"},
     "closing": {"en": "Not a fit, all the best.", "de": "Passt nicht, alles Gute."},
     "opt_out": {"en": "No problem!", "de": "Kein Problem!"},
+    "question": {"en": 'He asks: "{question}"', "de": "Er fragt: «{question}»"},
 }
-RULES = ChatRules("rules", "## About Dev\nx", (Question(1, "Looking for?", True), Question(2, "Pets?", False)),
+RULES = ChatRules("rules", "## About Dev\nx", (Question(1, "Looking for?", True, "Was suchst du?"),
+                                               Question(2, "Pets? https://example.org/track/1", False,
+                                                        "Haustiere? https://example.org/track/1")),
                   TEMPLATES, frozenset({"https://example.org/track/1"}))
 
 
@@ -415,3 +418,37 @@ def test_round_trip_through_dict():
 
 def test_states_start_new():
     assert Driver().chat.state == NEW
+
+
+# --- the owner's questions, word for word (Dev, 2026-11-19) ---------------------------------------------------------
+
+def test_question_appended_verbatim_in_the_chats_language():
+    d = Driver(langs=["en"])
+    d.run(Converse("Love the shower thought!", "screening", ask=1))
+    assert d.ours()[-1] == 'Love the shower thought! He asks: "Looking for?"'
+    d.her("Ich suche etwas Festes")
+    d.run(Converse("", "screening", lang="de", ask=2))
+    assert d.ours()[-1] == "Er fragt: «Haustiere? https://example.org/track/1»"      # just the question
+    assert d.chat.log.count("asks question 1") == 1
+
+
+def test_question_needs_a_clean_reaction():
+    d = Driver()
+    d.run(Converse("Ruf ihn an: 079 123 45 67", "screening", ask=1))
+    assert d.chat.state == HANDOVER and "Er fragt" not in " ".join(d.ours())
+
+
+def test_held_reply_keeps_its_question():
+    d = Driver()
+    matched(d)
+    d.run(Converse("Schön!", "match", fit_line="Passt.", lang="de", ask=2), verdicts=[Verdict(False)])
+    assert d.ours()[-1] == "Schön! Er fragt: «Haustiere? https://example.org/track/1»"
+    assert d.chat.pending_ask == 0
+
+
+def test_nudge_repeats_the_question_verbatim():
+    d = Driver()
+    d.run(ask("", ask=1))
+    d.now += 2.1 * DAY
+    d.run(Converse("Kleiner Nachtrag, ganz ohne Druck.", "screening", ask=1))
+    assert d.kinds()[-1] == "nudge" and d.ours()[-1] == "Kleiner Nachtrag, ganz ohne Druck. Er fragt: «Was suchst du?»"

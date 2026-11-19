@@ -15,7 +15,9 @@ A driver (the sim now, the live loop after step 3) runs it:
 
 Everything that matters is decided here, by code, never by the model: the disclosure first, the contact only after
 the code checks and the verifier, only the template the match picked (filled here, never generated), every
-generated text checked before it goes out, a message of ours that isn't in our log → `manual` for good.
+generated text checked before it goes out, a message of ours that isn't in our log → `manual` for good. The
+owner's screening questions are his words: the model only names one (`ask`), code appends it verbatim, attributed to
+him by the `question` template (Dev, 2026-11-19: never rephrased).
 """
 
 import re
@@ -78,6 +80,7 @@ class Converse:
     contact: str = "none"        # phone | instagram | both | unclear | none
     lang: str = ""               # her latest message: de-ch | de | en | other
     reason: str = ""
+    ask: int = 0                 # a screening question to append word for word (code), 0 = none
 
 
 @dataclass
@@ -102,6 +105,7 @@ class Chat:
     pending_seen: int = 0        # … once the running converse call is through
     pending_task: str = ""
     pending_reply: str = ""      # the reply to send if the verifier disagrees
+    pending_ask: int = 0         # … and the question it asks
     pending_fit: str = ""
     turns: int = 0               # her turns answered (exchanges)
     unclear: int = 0             # unclear contact answers so far
@@ -237,7 +241,7 @@ class ChatFlow:
         if c.state == "handover":
             return self._end(chat, HANDOVER, now, f"model: {c.reason}")
         if task == TASK_NUDGE:
-            return self._generated(chat, now, "nudge", c.reply)
+            return self._generated(chat, now, "nudge", c.reply, c.ask)
         if task == TASK_REPLY:
             chat.turns += 1
         if chat.state == CONTACT_CHOICE:
@@ -246,17 +250,18 @@ class ChatFlow:
             return self._send(chat, "closing", fill(self._t("closing", chat), name=chat.name))
         if c.state == "match":
             if (why := self._not_ready(chat)) is None:
-                chat.pending_reply, chat.pending_fit = c.reply, c.fit_line
+                chat.pending_reply, chat.pending_ask, chat.pending_fit = c.reply, c.ask, c.fit_line
                 return Action("verify", transcript=self.transcript(chat, self._screens.pop(chat.key, [])))
             chat.log.append(f"match refused by code: {why}")
-        return self._generated(chat, now, "reply", c.reply)
+        return self._generated(chat, now, "reply", c.reply, c.ask)
 
     def verified(self, chat: Chat, v: Verdict, now: float) -> Action:
-        reply, fit = chat.pending_reply, chat.pending_fit
+        reply, ask, fit = chat.pending_reply, chat.pending_ask, chat.pending_fit
         chat.pending_reply = chat.pending_fit = ""
+        chat.pending_ask = 0
         chat.log.append(f"verify: {'agree' if v.agree else 'disagree'} — {v.reason}")
         if not v.agree:
-            return self._generated(chat, now, "reply", reply)
+            return self._generated(chat, now, "reply", reply, ask)
         fit = _norm(fit)
         if (why := self._refuse(fit, self.limits.fit_max)) is not None:
             return self._end(chat, HANDOVER, now, f"fit line refused: {why}")
@@ -338,12 +343,19 @@ class ChatFlow:
             return self._end(chat, HANDOVER, now, "contact choice unclear twice")
         return self._generated(chat, now, "reply", c.reply)
 
-    def _generated(self, chat: Chat, now: float, kind: str, text: str) -> Action:
+    def _generated(self, chat: Chat, now: float, kind: str, text: str, ask: int = 0) -> Action:
+        """The model's text, checked; with `ask` the owner's question appended verbatim (only the model's part is
+        checked: the question is his, links in it included)."""
         if chat.bot_msgs >= self.limits.max_bot:
             return self._end(chat, HANDOVER, now, f"{self.limits.max_bot} bot messages without a decision")
         text = text.strip()
-        if (why := self._refuse(text, self.limits.reply_max)) is not None:
+        q = self.rules.question(ask) if ask else None
+        if not (q and not text) and (why := self._refuse(text, self.limits.reply_max)) is not None:
             return self._end(chat, HANDOVER, now, f"{kind} refused: {why}")
+        if q:
+            asked = fill(self._t("question", chat), name=chat.name, question=q.in_lang(chat.lang))
+            text = f"{text} {asked}" if text else asked
+            chat.log.append(f"asks question {q.n}")
         return self._send(chat, kind, text)
 
     def _refuse(self, text: str, limit: int) -> str | None:
