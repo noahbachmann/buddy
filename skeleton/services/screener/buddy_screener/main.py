@@ -11,9 +11,9 @@ Offline (no MQTT; on the Pi with buddy.env: `deploy/run.sh screener --cmd …`):
     --cmd templates               check templates.md, list the like comments
 Shadow mode (step 2; only skip/send act, and only on Dev's label; details in shadow.py):
     --cmd shadow                  capture the profile on screen, decide, store and print it (row id)
-    --cmd label <id> like|skip [section comment] [--text …] [--note …] [--wrong] [--dealbreaker] [--sensitive]
+    --cmd label <id> like|skip|unjudged [section comment] [--text …] [--note …] [--wrong] [--dealbreaker] [--sensitive]
     --cmd type <id>               type the labelled comment into the labelled section's panel
-    --cmd skip <id>               carry out Dev's skip label: skip that profile (the captured one only)
+    --cmd skip <id>               carry out Dev's skip (or unjudged) label: skip that profile (the captured one only)
     --cmd send <id>               carry out Dev's like label: send the typed comment (upsell → plain like, never paid)
     --cmd report [--since <id>]   step 2's done-when numbers, missing comments, usage (one session: rows ≥ id)
 Chat sim (step 4, #77; no phone, real chat calls with sentinel contacts, transcripts to tmpfs):
@@ -135,7 +135,7 @@ def cmd_shadow(cfg: Config, args: argparse.Namespace) -> int:
         return 0
     if args.cmd == "label":
         if len(args.args) not in (2, 4):
-            print("label <id> like|skip [section comment]", file=sys.stderr)
+            print("label <id> like|skip|unjudged [section comment]", file=sys.stderr)
             return 2
         row_id = int(args.args[0])
         rows = store.shadow(row_id)
@@ -330,8 +330,8 @@ def main() -> int:
     lifecycle.install_signal_handlers()
     p = argparse.ArgumentParser(prog="buddy-screener")
     p.add_argument("--cmd", help="screen | dump [name] | fixture <out> <xml…> | profile | back-out | walk | templates"
-                                 " | shadow | label <id> like|skip [section comment] | type <id> | skip <id> | send <id>"
-                                 " | report")
+                                 " | shadow | label <id> like|skip|unjudged [section comment] | type <id> | skip <id>"
+                                 " | send <id> | report")
     p.add_argument("--show", action="store_true", help="profile: print texts (host terminal only)")
     p.add_argument("--since", type=int, help="report: only shadow rows from this id on (one session)")
     p.add_argument("--note", default="", help="label: Dev's note (why)")

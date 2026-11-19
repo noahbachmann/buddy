@@ -5,6 +5,7 @@ A session is a sequence of offline commands (run from Claude's session or a term
 1. `shadow`: capture the profile on screen, decide, store the bot's decision, print it (texts: host terminal only).
 2. Dev decides on the phone. `label <id> like|skip [section] [comment]`: Dev's choice; a like without section and
    comment takes the bot's. A comment Dev writes themselves goes into `templates.md` first, then gets labelled by id.
+   `label <id> unjudged`: Dev couldn't see the profile; `report` leaves the row out, `skip` still works on it.
 3. `type <id>` (a like with a comment): scroll to the labelled section, open its panel, type the comment through our
    keyboard and read it back. **Dev taps send**: nothing here sends, skips or likes.
 4. `report`: the done-when numbers.
@@ -32,6 +33,9 @@ from .store import ShadowRow, Store, profile_key
 GATE_PROFILES = 50
 GATE_AGREEMENT = 0.85
 GATE_TEMPLATE = 0.80
+
+
+UNJUDGED = "unjudged"   # Dev couldn't see the profile: nothing to measure against
 
 
 class LabelError(ValueError):
@@ -111,12 +115,12 @@ def make_label(row: ShadowRow, decision: str, section: str | None, comment: str 
     """Dev's choice for a row. `refs` = the captured sections (from the tmpfs capture) when still there. `text` = what
     goes out: Dev's own version of the comment; default the bot's adapted text when Dev takes the bot's comment,
     else the template's own text."""
-    if decision not in ("like", "skip"):
-        raise LabelError("like or skip")
+    if decision not in ("like", "skip", UNJUDGED):
+        raise LabelError(f"like, skip or {UNJUDGED}")
     if section is not None:
         section = re.sub(r"^(photo|prompt)\W*(\d+)$", r"\1 \2", section.strip().lower())
     bot = row.bot
-    if decision == "skip":
+    if decision in ("skip", UNJUDGED):
         section = comment = "none"
     elif section is None:
         if bot["decision"] != "like":
@@ -179,7 +183,7 @@ def act_label(nav: Navigator, row: ShadowRow, cap: Capture, lib: Library, action
     if not dev:
         raise LabelError("label the row first: only Dev's decision is carried out")
     if action == "skip":
-        if dev["decision"] != "skip":
+        if dev["decision"] not in ("skip", UNJUDGED):
             raise LabelError("the label isn't a skip")
         nxt = nav.skip_profile(cap.profile.name)
     elif action == "send":
@@ -214,8 +218,10 @@ def session_rows(rows: list[ShadowRow], usage_rows_since, since_id: int | None) 
 
 
 def report(rows: list[ShadowRow], usage_rows: list[tuple]) -> list[str]:
-    done = [r for r in rows if r.dev]
-    out = [f"shadow rows: {len(rows)}, labelled: {len(done)} ({len({r.key for r in done})} profiles)"]
+    unjudged = sum(bool(r.dev) and r.dev["decision"] == UNJUDGED for r in rows)
+    done = [r for r in rows if r.dev and r.dev["decision"] != UNJUDGED]
+    out = [f"shadow rows: {len(rows)}, labelled: {len(done)} ({len({r.key for r in done})} profiles)"
+           + (f", not judged (left out): {unjudged}" if unjudged else "")]
     if done:
         agree = sum(r.bot["decision"] == r.dev["decision"] for r in done)
         bot_like_db = sum(r.bot["decision"] == "like" and r.dev["dealbreaker"] for r in done)

@@ -128,6 +128,17 @@ def test_report_numbers(store):
     assert "missing: a pet photo" in out
 
 
+def test_unjudged_rows_stay_out_of_the_report(store):
+    r = row(store, like())
+    store.label(r.id, shadow.make_label(r, "like", None, None, LIB))
+    r = row(store, like())
+    lab = shadow.make_label(r, "unjudged", None, None, LIB, note="couldn't see it")
+    assert (lab["decision"], lab["comment_on"], lab["comment"], lab["text"]) == ("unjudged", "none", "none", None)
+    store.label(r.id, lab)
+    out = "\n".join(shadow.report(store.shadow(), []))
+    assert "labelled: 1 (1 profiles), not judged (left out): 1" in out and "agreement like/skip: 1/1" in out
+
+
 def test_report_since_counts_one_session(store):
     for decision in ("like", "skip", "skip"):
         r = row(store, like())
@@ -210,3 +221,15 @@ def test_out_of_likes_can_move_on_to_the_next_profile(store, tmp_path):
     with pytest.raises(NeedsYou, match="moved on to the next profile \\(Kim\\)"):
         shadow.act_label(n, row, r.capture, LIB, "send")
     assert phone.sent() == []
+
+
+def test_skip_works_on_an_unjudged_row(store, tmp_path):
+    phone = FakePhone("feed-01")
+    n = nav(phone)
+    r = shadow.run_shadow(n, FakeDecider(like()), LIB, store, tmp_path)
+    store.label(r.row_id, shadow.make_label(store.shadow(r.row_id)[0], "unjudged", None, None, LIB))
+    row = store.shadow(r.row_id)[0]
+    with pytest.raises(shadow.LabelError):
+        shadow.act_label(n, row, r.capture, LIB, "send")
+    acted, nxt = shadow.act_label(n, row, r.capture, LIB, "skip")
+    assert (acted["decision"], acted["acted"], nxt) == ("unjudged", "skip", "Kim")
