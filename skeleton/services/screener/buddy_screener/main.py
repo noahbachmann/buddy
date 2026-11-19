@@ -15,7 +15,7 @@ Shadow mode (step 2; only skip/send act, and only on Dev's label; details in sha
     --cmd type <id>               type the labelled comment into the labelled section's panel
     --cmd skip <id>               carry out Dev's skip label: skip that profile (the captured one only)
     --cmd send <id>               carry out Dev's like label: send the typed comment (upsell → plain like, never paid)
-    --cmd report                  step 2's done-when numbers, missing comments, usage
+    --cmd report [--since <id>]   step 2's done-when numbers, missing comments, usage (one session: rows ≥ id)
 Chat sim (step 4, #77; no phone, real chat calls with sentinel contacts, transcripts to tmpfs):
     --sim [--case NAME …]         the scripted cases (all, or the named ones) and the gate report
     --sim --personas N [--case all]  N persona chats (a model plays her), with or without the cases
@@ -130,7 +130,8 @@ def cmd_shadow(cfg: Config, args: argparse.Namespace) -> int:
         print(f"{len(lib.like_comments)} like comments ok")
         return 0
     if args.cmd == "report":
-        print("\n".join(shadow.report(store.shadow(), store.usage_rows())))
+        rows, usage = shadow.session_rows(store.shadow(), store.usage_rows, args.since)
+        print("\n".join(shadow.report(rows, usage)))
         return 0
     if args.cmd == "label":
         if len(args.args) not in (2, 4):
@@ -332,6 +333,7 @@ def main() -> int:
                                  " | shadow | label <id> like|skip [section comment] | type <id> | skip <id> | send <id>"
                                  " | report")
     p.add_argument("--show", action="store_true", help="profile: print texts (host terminal only)")
+    p.add_argument("--since", type=int, help="report: only shadow rows from this id on (one session)")
     p.add_argument("--note", default="", help="label: Dev's note (why)")
     p.add_argument("--wrong", action="store_true", help="label: the bot's comment reads wrong on its section")
     p.add_argument("--dealbreaker", action="store_true", help="label: Dev saw a dealbreaker")

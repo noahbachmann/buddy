@@ -101,8 +101,7 @@ into #66 (neutral wording).
 
 **Session 2, measure:** `preferences.md` frozen. Note the first shadow row id. Step 3's proposals go into
 `data/screener/session-2.md` (host only), not into the preferences. Continue on the next days with the same frozen
-file until ≥ 50 profiles (`GATE_PROFILES`). End: `report` on this session's rows only (needs a `--since <row id>` filter: not built yet, add before
-session 2), evaluate, then show Dev the
+file until ≥ 50 profiles (`GATE_PROFILES`). End: `report --since <first row id>` (this session's rows and their shadow calls only), evaluate, then show Dev the
 proposed preference changes as a diff. Dev decides: good enough → automate (step 3), or another measure session
 with the changes applied.
 

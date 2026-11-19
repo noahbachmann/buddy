@@ -106,6 +106,16 @@ def test_report_numbers(store):
     assert "missing: a pet photo" in out
 
 
+def test_report_since_counts_one_session(store):
+    for decision in ("like", "skip", "skip"):
+        r = row(store, like())
+        store.label(r.id, shadow.make_label(r, decision, None, None, LIB))
+    first = store.shadow()[1].id
+    rows, _ = shadow.session_rows(store.shadow(), store.usage_rows, first)
+    assert [r.id for r in rows] == [first, first + 1]
+    assert "agreement like/skip: 0/2" in "\n".join(shadow.report(rows, []))
+
+
 def test_report_says_whether_text_first_pays(store):
     early = Browse("skip", "none", "none", "", [], [], ["smokes"], "states it", stage="text")
     store.label(row(store, early).id, {"decision": "like", "comment_on": "prompt 1", "comment": "none", "note": "",
