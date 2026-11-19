@@ -68,8 +68,8 @@ def test_check_browse_accepts_a_good_answer():
     assert b.chat_lang == "en"
 
 
-@pytest.mark.parametrize("langs, chat", [(["en", "de"], "de"), (["en", "de-ch"], "de"), (["other", "other"], "de"),
-                                         (["en", "other"], "en")])
+@pytest.mark.parametrize("langs, chat", [(["en", "de"], "de"), (["en", "de-ch"], "de"), (["other", "other"], "en"),
+                                         (["en", "other"], "en"), (["en", "en", "de"], "en")])
 def test_chat_language_rule(langs, chat):
     assert check_browse(raw(prompt_langs=langs), profile(), LIB).chat_lang == chat
 

@@ -24,6 +24,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from .chat import first_lang
 from .library import Library
 from .profile import Profile
 
@@ -179,9 +180,8 @@ class Browse:
 
     @property
     def chat_lang(self) -> str:
-        """#66 Flows 3: English only with no German (standard or Swiss) prompt and at least one English one."""
-        german = "de" in self.prompt_langs or "de-ch" in self.prompt_langs
-        return "en" if not german and "en" in self.prompt_langs else "de"
+        """The chat's first language: the rule lives in `chat.first_lang` (#77)."""
+        return first_lang(self.prompt_langs)
 
     def to_dict(self) -> dict[str, Any]:
         return dict(self.__dict__)
