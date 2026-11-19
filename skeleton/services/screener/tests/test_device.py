@@ -1,10 +1,13 @@
 import base64
 import gzip
 import random
+import socket
+import threading
 
 import pytest
 
-from buddy_screener.device import AdbError, Device, NotIdle, Stopped
+from buddy_screener import device as device_mod
+from buddy_screener.device import AdbError, Device, NotIdle, Stopped, _Served
 from buddy_screener.uitree import Rect
 
 
@@ -21,7 +24,8 @@ class Runner:
 
 
 def dev(runner, guard=lambda: None, dumper="") -> Device:
-    return Device("SER", guard=guard, run=runner, rng=random.Random(1), sleep=lambda s: None, dumper=dumper)
+    return Device("SER", guard=guard, run=runner, rng=random.Random(1), sleep=lambda s: None, dumper=dumper,
+                  serve=False)
 
 
 def own(xml: str) -> bytes:
@@ -142,3 +146,101 @@ def test_swipes_never_repeat_and_stay_in_bounds():
         sx, sy, ex, ey, ms = d.swipe_h(1000, 900, 180, 150)
         assert abs(sy - 1000) <= 8 and abs(ey - sy) <= 6 and abs(sx - 900) <= 15 and abs(ex - 180) <= 15
     assert len(seen) == 50
+
+
+# --- the dumper's serve mode ---
+
+class ServePhone:
+    """The phone side of serve mode: each connect gets a socketpair end, a thread answers like Dump.kt.
+    `answers` per request: an xml string → ok, "ERR …" → err line, None → hang up."""
+
+    def __init__(self, answers, silent: bool = False):
+        self.answers = list(answers)
+        self.silent = silent          # an old dumper: nothing listens, adb closes the connection
+        self.requests: list[str] = []
+        self.spawned: list[list[str]] = []
+
+    def spawn(self, cmd):
+        self.spawned.append(cmd)
+        return type("Proc", (), {"wait": lambda self, timeout=None: 0, "kill": lambda self: None})()
+
+    def connect(self, port):
+        ours, theirs = socket.socketpair()
+        threading.Thread(target=self._serve, args=(theirs,), daemon=True).start()
+        return ours
+
+    def _serve(self, s):
+        f = s.makefile("rb")
+        with s:
+            if self.silent:
+                return
+            while line := f.readline():
+                self.requests.append(line.decode().strip())
+                if line.strip() == b"quit":
+                    return
+                a = self.answers.pop(0) if self.answers else None
+                if a is None:
+                    return
+                if a.startswith("ERR "):
+                    s.sendall(f"err {a[4:]}\n".encode())
+                else:
+                    gz = gzip.compress(a.encode())
+                    s.sendall(f"ok {len(gz)} 1\n".encode() + gz)
+
+
+def adb_forward(cmd, stdin, timeout):
+    if cmd[-2:] == ["forward", "--list"]:
+        return 0, b"SER tcp:5555 localabstract:buddy.screener.dump\n", b""
+    if "forward" in cmd:
+        return 0, (b"40123\n" if cmd[-2] == "tcp:0" else b""), b""
+    raise AssertionError(cmd)
+
+
+def served_dev(phone, run=adb_forward) -> Device:
+    calls = []
+
+    def runner(cmd, stdin, timeout):
+        calls.append(cmd)
+        return run(cmd, stdin, timeout)
+    served = _Served(["adb", "-s", "SER"], "d/.Dump", runner, spawn=phone.spawn, connect=phone.connect,
+                     sleep=lambda s: None)
+    d = Device("SER", run=runner, sleep=lambda s: None, dumper="d/.Dump", served=served)
+    d.calls = calls
+    return d
+
+
+def test_serve_mode_one_start_for_many_reads():
+    phone = ServePhone(["<a/>", "<b/>", "<c/>"])
+    d = served_dev(phone)
+    assert [d.dump(), d.dump(), d.dump()] == ["<a/>", "<b/>", "<c/>"]
+    assert phone.spawned == [["adb", "-s", "SER", "shell", "am", "instrument", "-w", "-e", "serve", "1", "d/.Dump"]]
+    assert phone.requests == ["dump 500"] * 3
+    assert ["adb", "-s", "SER", "forward", "--remove", "tcp:5555"] in d.calls   # a killed caller's leftover
+    d.close()
+    assert d.calls[-1] == ["adb", "-s", "SER", "forward", "--remove", "tcp:40123"]
+
+
+def test_serve_mode_error_answer_retried_on_the_same_connection():
+    phone = ServePhone(["ERR IllegalStateException: no_window", "<a/>"])
+    d = served_dev(phone)
+    assert d.dump() == "<a/>" and len(phone.spawned) == 1
+
+
+def test_serve_mode_restarts_after_its_link_broke():
+    phone = ServePhone(["<a/>", None, "<b/>"])   # killed after one read (another reader force-stopped it)
+    d = served_dev(phone)
+    assert d.dump() == "<a/>"
+    assert d.dump() == "<b/>" and len(phone.spawned) == 2
+
+
+def test_dumper_without_serve_mode_falls_back_to_one_shot_reads(monkeypatch):
+    monkeypatch.setattr(device_mod, "SERVE_START_S", 0)
+    phone = ServePhone([], silent=True)
+
+    def run(cmd, stdin, timeout):
+        if "forward" in cmd:
+            return adb_forward(cmd, stdin, timeout)
+        return 0, own("<hierarchy/>"), b""
+    d = served_dev(phone, run)
+    assert d.dump() == "<hierarchy/>" and d.dump() == "<hierarchy/>"
+    assert len(phone.spawned) == 1   # tried once, one-shot from then on
