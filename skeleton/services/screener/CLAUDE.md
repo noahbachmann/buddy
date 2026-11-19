@@ -90,7 +90,7 @@ Every profile, both kinds:
 1. `--cmd shadow`, show Dev the bot's decision, reason, section + comment.
 2. Dev decides and comments. Label it: `--note` = Dev's reason (condensed, no names); `--dealbreaker` if Dev calls
    it a hard no; `--wrong` if the bot's comment reads wrong on its section. Dev's own comment → a line in
-   `templates.md` *Like comments* first (id, de|en, fit hint from the section, text verbatim), `--cmd templates` to
+   `templates.md` *Like comments* first (id, de|en, fit hint = the general pattern, not this profile (#78), text verbatim), `--cmd templates` to
    check, then label with that id. The library grows live in both kinds.
 3. Compare Dev's reason with the bot's reason and `preferences.md`. Sort the gap:
    - preferences silent on it → add;
