@@ -469,7 +469,13 @@ class Navigator:
                           (x.kind is Kind.FEED and screens.profile_view(x.root).name != name), "the like to go out")
         if s.kind is Kind.OUT_OF_LIKES:
             self.tap(s, screens.close_button(s.root), "out-of-likes close")
-            self.wait_for(lambda x: x.kind is Kind.SHEET, "the comment panel back")
+            # usually the panel comes back; seen 2026-11-19: the app moved on to the next profile instead
+            s = self.wait_for(lambda x: x.kind is Kind.SHEET or
+                              (x.kind is Kind.FEED and screens.profile_view(x.root).name != name),
+                              "the comment panel or the next profile")
+            if s.kind is Kind.FEED:
+                raise self.needs_you(f"out of free likes for today: not sent, and the app moved on to the next "
+                                     f"profile ({screens.profile_view(s.root).name}): this one is gone")
             raise self.needs_you("out of free likes for today: not sent, the comment stays in the panel "
                                  "(send it once the likes are back)")
         if s.kind is Kind.UPSELL:

@@ -182,7 +182,8 @@ Pi, then `--cmd fixture <out dir> <dumps…>` (all dumps of one walk in one call
   right margin (`_margin_x`, beside the cards), and the end = two swipes in a row that move nothing.
 - Free likes run out (seen after 2 sent likes on 2026-11-18): "send like" opens a paywall (`OUT_OF_LIKES`, its own
   kind: closing it isn't a popup on the way). `send_like` closes it (Close only) and stops: the comment stays in the
-  panel, but the field loses focus and reads empty until tapped: `send_like` taps the field before the read-back.
+  panel, but the field loses focus and reads empty until tapped: `send_like` taps the field before the read-back. Not always: on 2026-11-19 closing it showed the next profile (the liked one gone, like not
+  sent): `send_like` reports that instead of waiting for the panel.
 - A poll is a section (`poll N`: a View "Prompt: <question>" without ". Answer:", its parent = the card, options
   "Option: …" below; keyed by the question only, options may be cut off): listed, never commented on. Unknown until
   2026-11-18: the bot never saw it and `scroll_to` lost track on its card. The app's feature ads ("Try it" cards)

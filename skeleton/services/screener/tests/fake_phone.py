@@ -18,6 +18,7 @@ class FakePhone:
         self.popup_sticks = False        # Close shows the popup again
         self.upsell = True               # send like → the upsell sheet first
         self.out_of_likes = False        # send like → the out-of-likes paywall, nothing sent
+        self.paywall_moves_on = False    # closing that paywall shows the next profile, not the panel
         self.unfocused: str | None = None   # field text kept while the field has no focus (reads empty)
         self.renamed = False             # after a skip or a like: the next profile (same dumps, another name)
         self.moving: set[str] = set()    # screens with a playing video: uiautomator never gets them idle
@@ -77,7 +78,10 @@ class FakePhone:
         elif label.startswith("Send like") and self.screen in ("sheet", "sheet-typed") and self.out_of_likes:
             self.unfocused, self.field, self.ime_shown, self.screen = self.field, None, False, "out-of-likes"
         elif label == "Close" and self.screen == "out-of-likes":
-            self.screen = "sheet"
+            if self.paywall_moves_on:
+                self.screen, self.renamed = "feed-01", True
+            else:
+                self.screen = "sheet"
         elif label.startswith("Send like") and self.screen in ("sheet", "sheet-typed"):
             self.field, self.ime_shown = None, False
             if self.upsell:

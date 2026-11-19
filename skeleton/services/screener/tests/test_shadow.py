@@ -165,3 +165,16 @@ def test_out_of_likes_keeps_the_comment_for_later(store, tmp_path):
     _, nxt = shadow.act_label(n, row, r.capture, LIB, "send")
     assert nxt == "Kim" and [a[2] for a in phone.sent()] == ["Send like", "Send Like anyway"]
     assert [a[2] for a in phone.actions if a[0] == "tap"].count("Edit comment") == 2   # refocused, read back
+
+
+def test_out_of_likes_can_move_on_to_the_next_profile(store, tmp_path):
+    phone = FakePhone("feed-01")
+    n = nav(phone)
+    r = shadow.run_shadow(n, FakeDecider(like()), LIB, store, tmp_path)
+    store.label(r.row_id, shadow.make_label(store.shadow(r.row_id)[0], "like", None, None, LIB))
+    row = store.shadow(r.row_id)[0]
+    shadow.type_label(n, row, r.capture, LIB)
+    phone.out_of_likes = phone.paywall_moves_on = True   # seen live 2026-11-19
+    with pytest.raises(NeedsYou, match="moved on to the next profile \\(Kim\\)"):
+        shadow.act_label(n, row, r.capture, LIB, "send")
+    assert phone.sent() == []
