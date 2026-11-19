@@ -101,9 +101,10 @@ class Navigator:
         return self.last
 
     def stable(self, tries: int = 4) -> Screen:
+        """Two equal reads in a row. No pause between them: each read already waits for the screen to be quiet for
+        500 ms (a playing video: up to 2.5 s), so the second one only confirms."""
         prev = self.screen()
         for _ in range(tries):
-            self.pause(0.4)
             cur = self.screen()
             if _signature(cur.root) == _signature(prev.root):
                 return cur
