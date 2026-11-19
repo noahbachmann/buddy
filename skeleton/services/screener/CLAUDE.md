@@ -27,7 +27,7 @@ code path taps a paid option or a chat send.
 | `chat.py` | The chat as a pure state machine (`ChatFlow.step/conversed/verified/delivered`, one `Action` at a time): disclosure first, manual detection, code's match checks, contact by template only, generated-text refusals, language, nudge/close/unmatch timers, `ChatLimits` |
 | `converse.py` | The chat's calls on `Decider.call`: `converse` (reply + state + answers + flags + contact + lang), `verify` (strict second opinion, profile + transcript), prompts with escaped `<msg>` elements, `check_converse`/`check_verify` |
 | `sim.py`, `sim_cases.py`, `sim_personas.py` | `--sim`: driver loop on a fake clock, 21 scripted cases, 8 persona cards (a model plays her), sentinel contacts, prompt leak check, gate report, transcripts in tmpfs |
-| `decide.py` | Agent SDK wrapper (`Decider.decide` = text check, then `browse` with photos): locked-down CLI options, text + browse schemas, `check_text`, `check_browse` (code re-checks: unknown section/comment → none, dealbreaker → skip, `fixes` kept), usage per call, `limit_until` pause, daily $ cap |
+| `decide.py` | Agent SDK wrapper (`Decider.decide` = text check, then `browse` with photos): locked-down CLI options, text + browse schemas, `check_text`, `check_browse` (code re-checks: unknown section/comment → none, dealbreaker → skip, adapted comment refused → the template's text or none, `fixes` kept), usage per call, `limit_until` pause, daily $ cap |
 | `store.py` | SQLite `data/screener/screener.db`: `usage` (kept; live and `sim-` tasks capped apart), `shadow` (bot decision + Dev's label as JSON, profile key only, 30 days), `chats` (`chat.Chat` as JSON, never her texts; 30 days after it ended) |
 | `shadow.py` | Step 2 commands' logic: `run_shadow` (capture → decide → row; capture pickled to tmpfs without crops), `make_label`, `type_label`, `act_label` (skip/send on Dev's label), `report` (done-when numbers) |
 | `config.py` | `BUDDY_SCREENER_*` (incl. model, effort, decide timeout, daily $), kill switch files (`config/screener/stop`, `data/screener/paused`), token/limit/db paths, tmpfs dir |
@@ -62,13 +62,19 @@ code path taps a paid option or a chat send.
   other, one injected text would stay for the rest of the day. The shared part (preferences + library) is the cached
   system prompt anyway.
 - `RateLimitEvent.rate_limit_info.raw["unifiedWindows"]` has the plan's 5 h / 7 day utilization: logged per call.
+- Like comments are patterns (#78, Dev 2026-11-19): `templates.md` text = one example of how Dev says it; the bot
+  returns `comment_text` = that pattern adapted to her section, in the chat's language. Code refuses it like a chat
+  text (`chat.refusal`: empty, > `COMMENT_MAX`, digit runs, handles, links) → the template's own text if its
+  language matches the chat, else no comment. A label stores the text that goes out (`text`); `type`/`send` use it.
+- Text first is off on the host since 2026-11-19 (0 early skips in 47 profiles, a third of the spend); photos 768 px
+  since then (the bot missed "somewhat overweight" twice at 512).
 - Photos: JPEG crops (long side `BUDDY_SCREENER_PHOTO_PX`, 512 ≈ 440 tokens; 768 was ≈ 980) taken with the hash
   screenshot, in `Section.jpeg`, never on disk. Photos are most of a profile's tokens.
 
 ## Shadow session (step 2, Dev taps)
 
 `deploy/run.sh screener --cmd shadow` → prints `#id`, decision, reason, section + comment. Dev decides on the phone;
-`--cmd label <id> like|skip [section comment]` (bare `like` = the bot's choice; `--wrong`, `--dealbreaker`,
+`--cmd label <id> like|skip [section comment]` (bare `like` = the bot's choice with its adapted text; `--text "…"` = Dev's version of a library comment; `--wrong`, `--dealbreaker`,
 `--sensitive`, `--note`). A comment Dev writes goes into `templates.md` first (id + fit hint from the section it was
 used on), then into the label. `--cmd type <id>` types it into that section's panel and reads it back; `--cmd send
 <id>` sends it (or Dev taps, or `--cmd back-out`); `--cmd skip <id>` skips a skip-labelled profile. After a sent

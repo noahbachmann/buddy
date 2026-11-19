@@ -11,7 +11,7 @@ Offline (no MQTT; on the Pi with buddy.env: `deploy/run.sh screener --cmd …`):
     --cmd templates               check templates.md, list the like comments
 Shadow mode (step 2; only skip/send act, and only on Dev's label; details in shadow.py):
     --cmd shadow                  capture the profile on screen, decide, store and print it (row id)
-    --cmd label <id> like|skip [section comment] [--note …] [--wrong] [--dealbreaker] [--sensitive]
+    --cmd label <id> like|skip [section comment] [--text …] [--note …] [--wrong] [--dealbreaker] [--sensitive]
     --cmd type <id>               type the labelled comment into the labelled section's panel
     --cmd skip <id>               carry out Dev's skip label: skip that profile (the captured one only)
     --cmd send <id>               carry out Dev's like label: send the typed comment (upsell → plain like, never paid)
@@ -147,7 +147,7 @@ def cmd_shadow(cfg: Config, args: argparse.Namespace) -> int:
         try:
             dev_label = shadow.make_label(rows[0], args.args[1], section, comment, lib,
                                           [s.ref for s in cap.profile.sections] if cap else None, args.note,
-                                          args.wrong, args.dealbreaker, args.sensitive)
+                                          args.wrong, args.dealbreaker, args.sensitive, args.text)
         except shadow.LabelError as e:
             print(f"label: {e}", file=sys.stderr)
             return 2
@@ -335,6 +335,8 @@ def main() -> int:
     p.add_argument("--show", action="store_true", help="profile: print texts (host terminal only)")
     p.add_argument("--since", type=int, help="report: only shadow rows from this id on (one session)")
     p.add_argument("--note", default="", help="label: Dev's note (why)")
+    p.add_argument("--text", help="label: what goes out, Dev's version of the comment (default: the bot's adapted "
+                                  "text for its own comment, else the template's)")
     p.add_argument("--wrong", action="store_true", help="label: the bot's comment reads wrong on its section")
     p.add_argument("--dealbreaker", action="store_true", help="label: Dev saw a dealbreaker")
     p.add_argument("--sensitive", action="store_true", help="label: the bot's reason infers something sensitive")

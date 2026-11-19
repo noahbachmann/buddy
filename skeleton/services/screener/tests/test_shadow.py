@@ -21,8 +21,8 @@ class FakeDecider:
         return self.result, Usage("browse", "m", 10, 2000, 0, 300, 0.01, 5000, 0.3, 0.1)
 
 
-def like(on="photo 1", comment="photo_place", missing=""):
-    return Browse("like", on, comment, missing, ["de", "en", "de"], [], [], "Likes hiking.")
+def like(on="photo 1", comment="photo_place", missing="", text=""):
+    return Browse("like", on, comment, missing, ["de", "en", "de"], [], [], "Likes hiking.", comment_text=text)
 
 
 def nav(phone):
@@ -67,6 +67,28 @@ def test_a_new_shadow_drops_the_old_capture(store, tmp_path):
 def row(store, bot: Browse):
     rid = store.add_shadow("k", 100.0, bot.to_dict() | {"chat_lang": "de"}, Usage("browse", "m"))
     return store.shadow(rid)[0]
+
+
+def test_label_text_is_what_goes_out(store):
+    r = row(store, like(text="Wo ist dieser See?"))
+    assert shadow.make_label(r, "like", None, None, LIB)["text"] == "Wo ist dieser See?"      # the bot's adapted
+    assert shadow.make_label(r, "like", "prompt 1", "hot_take", LIB)["text"] == "Bold."      # Dev's pick: template
+    own = shadow.make_label(r, "like", "prompt 1", "hot_take", LIB, text="Bold  take.")
+    assert own["text"] == "Bold take."
+    with pytest.raises(shadow.LabelError, match="a number"):
+        shadow.make_label(r, "like", "prompt 1", "hot_take", LIB, text="call 0791234567")
+    assert shadow.make_label(r, "skip", None, None, LIB)["text"] is None
+
+
+def test_type_and_send_the_labelled_text(store, tmp_path):
+    phone = FakePhone("feed-01")
+    n = nav(phone)
+    r = shadow.run_shadow(n, FakeDecider(like(text="Wo ist dieser See?")), LIB, store, tmp_path)
+    store.label(r.row_id, shadow.make_label(store.shadow(r.row_id)[0], "like", None, None, LIB))
+    row_ = store.shadow(r.row_id)[0]
+    assert shadow.type_label(n, row_, r.capture, LIB) == "Wo ist dieser See?"
+    shadow.act_label(n, row_, r.capture, LIB, "send")
+    assert phone.sent()
 
 
 def test_label_rules(store):

@@ -21,7 +21,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from . import vocab
-from .decide import TASK_BROWSE, TASK_TEXT, Browse, Decider, Usage
+from .chat import refusal
+from .decide import COMMENT_MAX, TASK_BROWSE, TASK_TEXT, Browse, Decider, Usage
 from .library import Library
 from .navigator import Navigator
 from .profile import Capture
@@ -92,7 +93,11 @@ def describe(r: ShadowResult, lib: Library) -> list[str]:
         what = sec.text.replace("\n", " — ") if sec and sec.kind == "prompt" else "(photo)"
         out.append(f"  on {b.comment_on}: {what}")
         c = lib.comment(b.comment)
-        out.append(f"  comment: {c.id} [{c.lang}] {c.text}" if c else f"  comment: none; missing: {b.missing_hook}")
+        if c:
+            out.append(f"  comment: {c.id} [{c.lang}] template: {c.text}")
+            out.append(f"  sends: {b.comment_text or c.text}")
+        else:
+            out.append(f"  comment: none; missing: {b.missing_hook}")
     out.append(f"  prompt languages: {' '.join(b.prompt_langs) or '-'} → chat {b.chat_lang}")
     if b.fixes:
         out.append(f"  code fixed: {'; '.join(b.fixes)}")
@@ -102,8 +107,10 @@ def describe(r: ShadowResult, lib: Library) -> list[str]:
 
 def make_label(row: ShadowRow, decision: str, section: str | None, comment: str | None, lib: Library,
                refs: list[str] | None = None, note: str = "", wrong: bool = False, dealbreaker: bool = False,
-               sensitive: bool = False) -> dict:
-    """Dev's choice for a row. `refs` = the captured sections (from the tmpfs capture) when still there."""
+               sensitive: bool = False, text: str | None = None) -> dict:
+    """Dev's choice for a row. `refs` = the captured sections (from the tmpfs capture) when still there. `text` = what
+    goes out: Dev's own version of the comment; default the bot's adapted text when Dev takes the bot's comment,
+    else the template's own text."""
     if decision not in ("like", "skip"):
         raise LabelError("like or skip")
     if section is not None:
@@ -115,7 +122,9 @@ def make_label(row: ShadowRow, decision: str, section: str | None, comment: str 
         if bot["decision"] != "like":
             raise LabelError("the bot skipped: name the section (and the comment or none)")
         section = bot["comment_on"]
-        comment = bot["comment"] if comment is None else comment
+        if comment is None:
+            comment = bot["comment"]
+            text = text or bot.get("comment_text") or None
     elif comment is None:
         raise LabelError("name the comment id (or none) with the section")
     if decision == "like":
@@ -123,8 +132,25 @@ def make_label(row: ShadowRow, decision: str, section: str | None, comment: str 
             raise LabelError(f"{section!r} isn't a section of that profile ({', '.join(refs)})")
         if comment != "none" and lib.comment(comment) is None:
             raise LabelError(f"comment {comment!r} isn't in templates.md (add it first)")
+    if comment == "none" or comment is None:
+        text = None
+    elif text is None:
+        text = lib.comment(comment).text
+    elif (why := refusal(" ".join(text.split()), COMMENT_MAX)) is not None:
+        raise LabelError(f"text refused: {why}")
     return {"decision": decision, "comment_on": section, "comment": comment, "note": note, "wrong": wrong,
-            "dealbreaker": dealbreaker, "sensitive": sensitive}
+            "dealbreaker": dealbreaker, "sensitive": sensitive,
+            "text": " ".join(text.split()) if text else None}
+
+
+def _label_text(dev: dict, lib: Library) -> str:
+    """What goes out for a like label (labels before #78 had no text: the template's)."""
+    if dev.get("text"):
+        return dev["text"]
+    c = lib.comment(dev["comment"])
+    if c is None:
+        raise LabelError(f"comment {dev['comment']!r} is gone from templates.md")
+    return c.text
 
 
 def load_capture(tmp_dir: Path, row_id: int) -> Capture | None:
@@ -139,13 +165,11 @@ def type_label(nav: Navigator, row: ShadowRow, cap: Capture, lib: Library) -> st
     dev = row.dev
     if not dev or dev["decision"] != "like" or dev["comment"] == "none":
         raise LabelError("nothing to type: label it as a like with a comment first")
-    c = lib.comment(dev["comment"])
-    if c is None:
-        raise LabelError(f"comment {dev['comment']!r} is gone from templates.md")
+    text = _label_text(dev, lib)
     s, sv = nav.scroll_to(cap, dev["comment_on"])   # checks it's the same profile and section
     nav.open_sheet(s, sv)
-    nav.type_comment(c.text)
-    return c.text
+    nav.type_comment(text)
+    return text
 
 
 def act_label(nav: Navigator, row: ShadowRow, cap: Capture, lib: Library, action: str) -> tuple[dict, str]:
@@ -161,10 +185,7 @@ def act_label(nav: Navigator, row: ShadowRow, cap: Capture, lib: Library, action
     elif action == "send":
         if dev["decision"] != "like" or dev["comment"] == "none":
             raise LabelError("the label isn't a like with a comment (type it first)")
-        c = lib.comment(dev["comment"])
-        if c is None:
-            raise LabelError(f"comment {dev['comment']!r} is gone from templates.md")
-        nxt = nav.send_like(cap.profile.name, c.text)
+        nxt = nav.send_like(cap.profile.name, _label_text(dev, lib))
     else:
         raise LabelError("skip or send")
     return dev | {"acted": action}, nxt
