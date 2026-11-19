@@ -60,6 +60,13 @@ def test_converse_content():
     assert "<profile>Age: 29; prompt 1: Hiking</profile>" in text and text.endswith('<msg from="match">Hey</msg>')
 
 
+def test_verify_content_has_profile_and_chat():
+    from buddy_screener.converse import verify_content
+    text = verify_content("prompt 1: <b>Robots</b>", [(THEM, "Hey")])[0]["text"]
+    assert text.startswith("Her profile:\n<profile>prompt 1: &lt;b&gt;Robots&lt;/b&gt;</profile>")
+    assert text.endswith('<msg from="match">Hey</msg>')
+
+
 def test_schema_lists_the_questions():
     s = converse_schema(RULES)
     assert s["properties"]["answers"]["required"] == ["1", "2"]
@@ -128,7 +135,7 @@ def test_whole_chat_never_puts_a_contact_value_in_a_prompt(talker):
                                      act.transcript)
                 act = flow.conversed(chat, c, now)
             else:
-                v, _ = t.verify(RULES, act.transcript)
+                v, _ = t.verify(RULES, chat.profile, act.transcript)
                 act = flow.verified(chat, v, now)
         if act.kind == "send":
             screen.append(Message(US, act.text))

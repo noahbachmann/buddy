@@ -79,7 +79,7 @@ def run_chat(flow: ChatFlow, talker: Talker, rules: ChatRules, sim: SimChat, res
                     sim.fixes += fixes
                     act = flow.conversed(chat, c, now)
                 else:
-                    v, _ = talker.verify(rules, act.transcript)
+                    v, _ = talker.verify(rules, chat.profile, act.transcript)
                     act = flow.verified(chat, v, now)
         except (UsageLimited, BudgetSpent):
             raise
