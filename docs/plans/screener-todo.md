@@ -3,15 +3,14 @@
 Temporary: delete this file when everything is ticked. Plan in #66. Your preferences and templates are already on the
 Pi in `~/buddy/config/screener/` (host only, never in Git). This list covers what only you can do.
 
-Commands run in a terminal on your PC (PowerShell works). `ssh dev@buddy.local` logs you into the Pi, same as the
-`buddy` alias.
+Commands run in a terminal on your PC (PowerShell works). `ssh buddy` logs you into the Pi.
 
 ## 1. Save your contact details on the Pi
 
 The bot never sees these. Code inserts the one the match picks.
 
 ```bash
-ssh dev@buddy.local
+ssh buddy
 echo '<your number, e.g. +41 79 123 45 67>' > ~/buddy/config/screener/number
 echo '<your Instagram handle, e.g. @name>'   > ~/buddy/config/screener/instagram
 chmod 600 ~/buddy/config/screener/number ~/buddy/config/screener/instagram
@@ -28,21 +27,21 @@ Check that everything says what you mean, especially the German in `templates.md
 Read them (scroll with the arrow keys or space, `q` quits):
 
 ```bash
-ssh -t dev@buddy.local less ~/buddy/config/screener/preferences.md
-ssh -t dev@buddy.local less ~/buddy/config/screener/templates.md
+ssh -t buddy less ~/buddy/config/screener/preferences.md
+ssh -t buddy less ~/buddy/config/screener/templates.md
 ```
 
 Or print both at once:
 
 ```bash
-ssh dev@buddy.local cat ~/buddy/config/screener/preferences.md ~/buddy/config/screener/templates.md
+ssh buddy cat ~/buddy/config/screener/preferences.md ~/buddy/config/screener/templates.md
 ```
 
 To fix something yourself (`Ctrl+S` saves, `Ctrl+Q` quits):
 
 ```bash
-ssh -t dev@buddy.local micro ~/buddy/config/screener/preferences.md
-ssh -t dev@buddy.local micro ~/buddy/config/screener/templates.md
+ssh -t buddy micro ~/buddy/config/screener/preferences.md
+ssh -t buddy micro ~/buddy/config/screener/templates.md
 ```
 
 Or tell Claude what to change.
@@ -79,17 +78,30 @@ with the Claude Code CLI the screener ships with; it prints a link: open it in y
 back, and it prints the token (starts with `sk-ant-oat`):
 
 ```bash
-ssh -t dev@buddy.local '~/buddy/venv/lib/python3.13/site-packages/claude_agent_sdk/_bundled/claude setup-token'
+ssh -t buddy '~/buddy/venv/lib/python3.13/site-packages/claude_agent_sdk/_bundled/claude setup-token'
 ```
 
 Save it (paste the token, `Ctrl+S`, `Ctrl+Q`), then lock the file down and check it's one line:
 
 ```bash
-ssh -t dev@buddy.local micro ~/buddy/config/screener/claude-token
-ssh dev@buddy.local 'chmod 600 ~/buddy/config/screener/claude-token && wc -l ~/buddy/config/screener/claude-token'
+ssh -t buddy micro ~/buddy/config/screener/claude-token
+ssh buddy 'chmod 600 ~/buddy/config/screener/claude-token && wc -l ~/buddy/config/screener/claude-token'
 ```
 
 - [x] `claude-token` saved
+
+## 6. Before measure session 3
+
+The bot adapts your *Like comments* (`templates.md`, one line each: `- id | de|en | fit hint | text`). Session 2's
+likes found no fitting one 7 times (topics: shop pinboards, DIY building, a favourite bird, food opinions, nerdy
+work, a favourite band, absurd hypotheticals). Add a few general ones for such hooks, or send Claude rough lines:
+
+```bash
+ssh -t buddy micro ~/buddy/config/screener/templates.md
+```
+
+- [ ] More like comments added
+- [ ] Active hours and daily like count decided (for step 3, #80): tell Claude
 
 Step 0 is done (2026-11-16). The phone keeps its keyboard set to the screener's own one (no keys): to type by hand,
 tap the keyboard icon at the bottom right and pick SwiftKey.
