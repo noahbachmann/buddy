@@ -5,8 +5,9 @@ Operates a social app on a dedicated Android phone over adb (USB on the Pi). Pla
 comes from `BUDDY_SCREENER_APP` in the host's `buddy.env`. Personal data (dumps, screenshots) only in tmpfs or
 `~/buddy/{config,data}/screener` on the Pi.
 
-State: step 1 (service skeleton, device layer, screen model, navigator), step 2 (decision layer + shadow mode) and
-step 4's offline part (#77: chat flow + `--sim`, gate passed 2026-11-19; live wiring waits for step 3).
+State: step 1 (service skeleton, device layer, screen model, navigator), step 2 (decision layer + shadow mode;
+shadow sessions 1 and 2 done, session 3 next after #79) and step 4's offline part (#77: chat flow + `--sim`, gate
+passed 2026-11-19; live wiring waits for step 3, #80). Where things stand: #66's body.
 The service itself acts on nothing; shadow mode runs as offline commands. Skip and send are taps only through
 `--cmd skip|send <id>`, each carrying out Dev's label of that row (2026-11-17, Dev's call: the start of step 3). No
 code path taps a paid option or a chat send.
@@ -105,7 +106,7 @@ Every profile, both kinds:
 the new file). No `report`: its numbers mix preference versions. End: summary of the changes, prompt/code issues
 into #66 (neutral wording).
 
-**Session 2, measure:** `preferences.md` frozen. Note the first shadow row id. Step 3's proposals go into
+**Session 2+ (session 3 next), measure:** `preferences.md` frozen. Note the first shadow row id. Step 3's proposals go into
 `data/screener/session-2.md` (host only), not into the preferences. Continue on the next days with the same frozen
 file until ≥ 50 profiles (`GATE_PROFILES`). End: `report --since <first row id>` (this session's rows and their shadow calls only), evaluate, then show Dev the
 proposed preference changes as a diff. Dev decides: good enough → automate (step 3), or another measure session
