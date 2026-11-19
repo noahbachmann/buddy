@@ -72,7 +72,8 @@ zusammen.". Never a summary or an assessment of her, never about her in the thir
 - `answers`: every screening question by its number → her answer in a few words, from the whole chat, or null.
 - `flags`: dealbreakers she stated, a few words each. `soft_flags`: soft negatives that apply.
 - `contact`: only when the chat state is contact choice (we offered phone or Instagram): which one she picked: \
-"phone", "instagram", "both", "unclear" (no clear choice yet), "none" (she declines both). Otherwise "none".
+"phone", "instagram", "both" (she wants both, or either is fine to her), "unclear" (no clear answer yet), "none" \
+(she declines both). Otherwise "none".
 - `lang`: the language of her latest message: "de-ch" (Swiss German dialect), "de", "en" or "other"; "" if she \
 hasn't written.
 - `reason`: one or two plain sentences on why this state.
