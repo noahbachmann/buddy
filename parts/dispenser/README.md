@@ -111,7 +111,7 @@ the lift in place and the 4023 turned. It also holds bought parts as stand-ins (
   sits on the notch's skin above it (plate top + 0.5 + 2), which sets the screw at z 155.69.
 - **Motor:** a 17HS4401 screwed flat onto the right wall's outer face (4× M3 from inside the box). The wall is
   extended 15 mm forward around it, because the motor is wider than the front strip. A wedge under the motor (16 mm
-  wide, 45° underside) carries it, so it doesn't hang on its screws alone. The printed rigid coupling (Ø22 × 25, `coupling.scad`)
+  wide, 45° underside) carries it, so it doesn't hang on its screws alone. The printed plug coupling (Ø16 × 25, `plug-coupling.scad`)
   joins the 5 mm shaft and the screw inside the box; the screw runs to the left wall, turns in a plain hole there and,
   200 mm and uncut, sticks 75 mm out of the box's left side.
 - **Home:** the plate sits in a notch in the right wall, face flush with the inner face (x 143), resting on the notch
@@ -234,6 +234,8 @@ STLs and `parts/cad render dispenser` for the sheets (`parts/CLAUDE.md`).
 | `pusher.scad` | Pusher carriage: plate, bar, nut tab | as placed, bottom down |
 | `lift.scad` | Lift: plate, slope, Dev's nut tab (replaces Dev's lift) | as placed, plate down, auto supports under the tab |
 | `pusher-nut.scad` | TR8x8 nut (4 starts) of the pusher: brass nut's flange, body Ø11, 2 pegs into the tab | flange down |
+| `plug-coupling.scad` | Rigid coupling without bolts: D-bore pressed onto the 5 mm shaft, TR8x8 thread the screw turns into (used) | motor end down |
+| `coupling.scad` | Older clamp coupling (round bores, 2× M3×12 across a slot): kept as the fallback | motor end down |
 | `lift-nut.scad` | TR8x8 nut of the lift: body Ø11, 45° cone up to the flange, 4 pegs into the tab | body down |
 | `border-pin.scad` | Pin with a head, 4×: holds the borders through the case's screw holes | head down |
 | `fit-test.scad` | Fit test for the printed joints: peg holes (vertical, horizontal), steel pin holes | as in the file |
@@ -261,8 +263,7 @@ cd parts/tools && uv run python ../dispenser/check_pusher.py # after a pusher, l
 
 | Qty | Part | Note |
 |---|---|---|
-| 2 | 17HS4401 + TR8x8 lead screw 200 mm | Pusher and lift. Screws uncut; nuts and couplings printed (`pusher-nut.scad`, `lift-nut.scad`, `coupling.scad`). The Purecrea flexible couplings from the shopping list aren't used (below) |
-| 4 | M3×12 socket head + M3 nut | Clamp bolts of the 2 printed couplings, one per end |
+| 2 | 17HS4401 + TR8x8 lead screw 200 mm | Pusher and lift. Screws uncut; nuts and couplings printed (`pusher-nut.scad`, `lift-nut.scad`, `plug-coupling.scad`). The Purecrea flexible couplings from the shopping list aren't used (below) |
 | 4 | M3×6 socket head | Through the 3 mm right wall into the pusher motor's face, from inside (M3×8 would bottom out) |
 | 2 | M3×6 socket head | Through the 3 mm floor into the lift motor's face, from inside (M3×8 would bottom out) |
 
@@ -343,6 +344,16 @@ printed: Ø22 × 25 PETG, round bores (5 and 8, `cpl_gap` 0.15 per side) meeting
 stops on it), one slot along the whole length, and per end one M3×12 across the slot that clamps the bore shut
 (the clamp centres the shaft along its whole length, a grub screw would tilt it). `check_pusher.py`: no collisions at Ø22.
 
+**Plug coupling** (2026-11-19, replaces the clamp coupling): Ø16 × 25 PETG, no bolts. Lower half a D-bore pressed
+onto the shaft (`plug_bore` 0.10 per side: the D-bore press fit from the thread test), upper half a TR8x8 internal
+thread (`plug_flank` 0.10, as the nuts) the screw turns into until its end jams on the step in the middle (12.5 mm
+each). The shaft and screw ends sit where they did with the clamp coupling; `check_pusher.py`: no collisions.
+⚠️ Assumes the 17HS4401's shaft has a D-flat (4.5 mm across, as the 4023's) along its last 12.5 mm: check before
+printing; a round shaft needs the clamp coupling. ⚠️ The jam is the only thing that keeps the screw from turning
+out: it holds while the screw's torque stays below the tightening torque. Torque in the screw's unscrewing
+direction (the motor reversing against a load or a stall) is what can loosen it. Tighten firmly; if a screw works loose
+in use, the fix is a cross pin through coupling and screw, not tighter threads.
+
 ## Print (Bambu X2D)
 
 **Print from `plates/`**: one STL per print job, parts already in print orientation, laid out and spaced, centred.
@@ -353,6 +364,7 @@ parts (for reprints, e.g. only the left gate). `parts/cad plate dispenser` rebui
 |---|---|---|---|
 | `0-fit-test.stl` | fit test, 2 test pins: **print first** ("Printed joints") | PETG | 0.20 mm, 4 walls, 10 %, no supports |
 | `1-petg-fine.stl` | drive drum, idler drum, motor gear, left gate, pusher nut, lift nut, 2 couplings, 4 border pins | PETG | 0.12 mm, 4 walls, 15 %, no supports, **brim: outer only** (the drums stand 107 mm on Ø15–18) |
+| `1d-plug-couplings.stl` | 2 plug couplings | PETG | 0.12 mm, 4 walls, **100 % infill**, no supports |
 | `1c-reprint.stl` | motor gear, pusher nut, lift nut with the thread test's values ("Thread test") | PETG | 0.12 mm, 4 walls, 15 %, no supports, **brim: outer only** (the lift nut) |
 | `2-petg.stl` | roller frame, front plate, border H, border B: **after the fit test** | PETG | 0.20 mm, 4 walls, 15 %, no supports |
 | `3-pla.stl` | pusher, lift: **after the fit test** | PLA | 0.20 mm, 4 walls, 15 %, **supports on: tree (auto), on build plate only** |
@@ -429,28 +441,28 @@ from the left, and everything else follows from behind and from the front.
    From the front between the left wall and the right gate until its step stops at the gate's front face, 2 border
    pins through the left wall from outside.
 
-**Coupling** (printed, both screws): small bore (5 mm) on the motor shaft, big bore (8 mm) on the screw. Per end an
-M3 nut into the hex pocket on one side of the slot, an M3×12 from the round pocket on the other side through both
-jaws into the nut. Shaft and screw each go in until they meet at the step in the middle (12.5 mm each). Tighten
-until the slot visibly narrows and the shaft can't turn in the coupling by hand, no more: PETG cracks before the
-bolt strips. A loose end slips and the motor turns without moving anything.
+**Coupling** (`plug-coupling.scad`, both screws): D-bore half onto the motor shaft, flat to flat, pressed on until
+the shaft's tip reaches the step in the middle (shaft end on a hard surface, push the coupling by hand or with a
+vise; never hammer the motor's shaft: its bearings take it). The screw then turns into the thread half until its end
+jams on the step/shaft tip; tighten firmly by hand (hold the coupling with pliers wrapped in a cloth). A coupling
+that turns on the shaft by hand is too loose: reprint it with a smaller `plug_bore`.
 
-**Lift:** motor under the floor (boss into the floor's hole, 2× M3×6 from inside), coupling on the shaft inside the
-box (z 13.5…38.5), tighten the 5 mm side. Nut under the lift's tab, flange up, its 4 pegs pressed into the tab's holes, body
+**Lift:** motor under the floor (boss into the floor's hole, 2× M3×6 from inside), coupling pressed on the shaft
+(z 13.5…38.5). Nut under the lift's tab, flange up, its 4 pegs pressed into the tab's holes, body
 down. Outside the box, turn the
 screw through the nut (the lift can't turn once it's in). Lower lift and screw in together, screw end into the
-coupling, turn it until the bolt pocket faces the open front, tighten the 8 mm side.
+coupling's thread, turn it in until it jams, tighten.
 
 **Pusher:**
 
-1. **Motor:** coupling on the shaft (its middle at the shaft's tip, 24 mm from the face), tighten the 5 mm side.
+1. **Motor:** coupling pressed on the shaft (its middle at the shaft's tip, 24 mm from the face).
    Motor onto the right wall's outer face, boss in the wall's hole, 4× M3×6 from inside the box, **loosely** for now.
 2. **Nut:** body through the tab from the right (motor side), its 2 pegs pressed into the tab's holes above and below.
 3. **Carriage in:** borders in, lift at push height (turn its screw by hand). The ridge is in the way of sliding the
    carriage straight into the notch, so put it in halfway along instead (plate over the lift, around x 100): from the
    front, held ~3 mm high, then set down with the groove over the ridge and the plate on the lift. Hold it there.
-4. **Screw in:** through the left wall's hole from outside, thread it through the nut by turning it, into the coupling.
-   Tighten the 8 mm side through the open front. Now the motor's 4 screws: the coupling is rigid and the screw also
+4. **Screw in:** through the left wall's hole from outside, thread it through the nut by turning it, into the coupling's
+   thread until it jams; tighten (hold the coupling through the open front). Now the motor's 4 screws: the coupling is rigid and the screw also
    turns in the left wall's hole, so the motor has to line up with that hole. Turn the screw by hand while
    tightening them one by one; if it gets stiff, loosen, nudge the motor (its boss has 0.3 mm play), retry. Then turn
    the screw to bring the carriage home into the notch.

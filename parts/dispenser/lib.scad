@@ -524,7 +524,21 @@ module m44_local() {
   translate([0, 0, -eps]) cylinder(d = m44_boss[0], h = m44_boss[1] + eps);
   cylinder(d = m44_shaft[0], h = m44_shaft[1]);
 }
-module coupling_local() translate([0, 0, m44_shaft[1] - coupling[1] / 2]) rigid_coupling();
+module coupling_local() translate([0, 0, m44_shaft[1] - plug_cpl[1] / 2]) plug_coupling();
+
+// Plug coupling, local: axis Z, z 0 = motor end. Lower half: D-bore pressed onto the 17HS4401's shaft (flat at +X).
+// Upper half: TR8x8 internal thread; the screw turns in until its end jams on the step / the shaft tip in the middle.
+// Prints standing, motor end down (thread standing, as the nuts). The jam holds the screw only while the torque on it
+// stays below the tightening torque: tighten hard by hand (pliers on the screw, motor held).
+module plug_coupling() let(h = plug_cpl[1]) difference() {
+  cylinder(d = plug_cpl[0], h = h, $fn = 96);
+  d_bore(h / 2, plug_bore);
+  translate([0, 0, h / 2]) tr8_thread(h / 2, plug_flank, bevel1 = false);
+  translate([0, 0, -eps]) difference() {   // 0.5 chamfer on the outer bed edge: elephant foot
+    cylinder(d = plug_cpl[0] + 1, h = 0.5 + eps, $fn = 96);
+    cylinder(d1 = plug_cpl[0] - 1, d2 = plug_cpl[0], h = 0.5 + eps, $fn = 96);
+  }
+}
 
 // Printed rigid coupling, local: axis Z, z 0 = motor end. Bores meet at the middle (screw end stops on the step).
 // One slot along +Y; per end one M3x12 across it (along X): head pocket at +x, hex nut pocket at -x, both open to
@@ -627,9 +641,9 @@ module lift_nut_outside() {
   translate([0, 0, nut_len - nut_flange[1]]) cylinder(d = nut_flange[0], h = nut_flange[1]);
 }
 // internal thread: BOSL2 adds 2 $slop to the radius. Radial gap = flank gap / sin 15°; bevel = lead-in
-module tr8_thread(len = nut_len, flank = nut_flank) translate([0, 0, len / 2]) let($slop = flank / sin(15) / 2)
+module tr8_thread(len = nut_len, flank = nut_flank, bevel1 = true) translate([0, 0, len / 2]) let($slop = flank / sin(15) / 2)
   trapezoidal_threaded_rod(d = 8, l = len + 2 * eps, pitch = lead / nut_starts, thread_angle = 30,
-                           starts = nut_starts, internal = true, bevel = true, $fn = 64);
+                           starts = nut_starts, internal = true, bevel1 = bevel1, bevel2 = true, $fn = 64);
 // D-bore for the 4023's 5 mm shaft (flat 2.0 from the axis), bore_gap per side, from z 0 up; 0.4 chamfer at z 0
 // against elephant foot (bed side)
 module d_bore(h, gap = bore_gap) {

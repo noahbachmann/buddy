@@ -19,6 +19,7 @@ assembly = "assembly.scad"
 [parts.fit-test]
 [parts.thread-test]
 [parts.coupling]
+[parts.plug-coupling]
 
 # Print plates (`parts/cad plate dispenser` → plates/): one STL per print job, drag into Bambu Studio and print.
 # The case prints alone from stl/case.stl (or stl/case-spares.stl, less filament). Settings per plate: dispenser README → Print.
@@ -42,3 +43,7 @@ parts = ["roller-frame", "front-plate", "border-h", "border-b"]
 [plates.3-pla]
 note = "PLA · 0.20 mm · 4 walls · 15 % · supports on (tree auto, build plate only): the lift's tab"
 parts = ["pusher", "lift"]
+
+[plates.1d-plug-couplings]
+note = "PETG · 0.12 mm · 4 walls · 100 % infill · no supports · the 2 plug couplings (replace the clamp couplings)"
+parts = ["plug-coupling", "plug-coupling"]

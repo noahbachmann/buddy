@@ -169,6 +169,11 @@ nut_flank  = 0.10;           // gap per flank, PETG on the steel screw. Flanks c
                              // radial gap r opens each flank only r·sin 15° (old nut_slop 0.2 radial = 0.05 flank: bound).
                              // Thread test 2026-11-17: ring 1 (0.10) turns by hand without rocking
 lead       = 8;
+plug_cpl   = [16, 25];       // plug coupling (plug-coupling.scad): diameter, length; same length as `coupling`, so the
+                             // shaft and screw ends stay where they were. No bolts: press-fit D-bore on the shaft,
+                             // the screw turned into a TR8 thread until it jams on the shaft's tip
+plug_bore  = 0.10;           // D-bore per side: press (Fits table: the 0.10 ring was too tight for the slip gear)
+plug_flank = nut_flank;      // thread per flank: 0.10 turns by hand without rocking
 
 // layout: screw axis in the front strip; the motor sits on the notch's skin, above the plate
 pu_y       = box_front + 8.5;
