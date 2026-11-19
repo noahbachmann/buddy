@@ -224,6 +224,17 @@ def session_rows(rows: list[ShadowRow], usage_rows_since, since_id: int | None) 
     return rows, [u for u in usage_rows_since(start) if u[0] in (TASK_TEXT, TASK_BROWSE)]
 
 
+def _sent_bots_comment(r: ShadowRow) -> bool:
+    """A like both agreed on: did Dev send what the bot proposed? Since #78 the bot adapts a library comment, so the
+    same section and the same text going out (a bare `like` copies it); rows from before by section and comment id."""
+    bot, dev = r.bot, r.dev
+    if bot["comment_on"] != dev["comment_on"]:
+        return False
+    if "text" in dev and "comment_text" in bot:
+        return (dev["text"] or "") == (bot["comment_text"] if bot["comment"] != "none" else "")
+    return bot["comment"] == dev["comment"]
+
+
 def report(rows: list[ShadowRow], usage_rows: list[tuple]) -> list[str]:
     unjudged = sum(bool(r.dev) and r.dev["decision"] == UNJUDGED for r in rows)
     done = [r for r in rows if r.dev and r.dev["decision"] != UNJUDGED]
@@ -234,7 +245,7 @@ def report(rows: list[ShadowRow], usage_rows: list[tuple]) -> list[str]:
         bot_like_db = sum(r.bot["decision"] == "like" and r.dev["dealbreaker"] for r in done)
         sensitive = sum(r.dev["sensitive"] for r in done)
         both = [r for r in done if r.bot["decision"] == r.dev["decision"] == "like"]
-        same = sum((r.bot["comment_on"], r.bot["comment"]) == (r.dev["comment_on"], r.dev["comment"]) for r in both)
+        same = sum(_sent_bots_comment(r) for r in both)
         wrong = sum(r.dev["wrong"] for r in done)
         missing = [r.bot["missing_hook"] for r in done if r.bot["decision"] == "like" and r.bot["missing_hook"]]
 
@@ -246,7 +257,7 @@ def report(rows: list[ShadowRow], usage_rows: list[tuple]) -> list[str]:
             f"over ≥ {GATE_PROFILES}]",
             f"  bot likes where Dev saw a dealbreaker: {bot_like_db} [{gate(bot_like_db == 0)}]",
             f"  sensitive inference in a reason: {sensitive} [{gate(sensitive == 0)}]",
-            f"  section + comment as Dev chose: {same}/{len(both)}"
+            f"  Dev sent the bot's comment: {same}/{len(both)}"
             + (f" = {same / len(both):.0%} [{gate(same / len(both) >= GATE_TEMPLATE)}: ≥ {GATE_TEMPLATE:.0%}]"
                if both else ""),
             f"  comments that read wrong: {wrong} [{gate(wrong == 0)}]",

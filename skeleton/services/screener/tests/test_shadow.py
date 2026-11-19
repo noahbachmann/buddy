@@ -21,7 +21,9 @@ class FakeDecider:
         return self.result, Usage("browse", "m", 10, 2000, 0, 300, 0.01, 5000, 0.3, 0.1)
 
 
-def like(on="photo 1", comment="photo_place", missing="", text=""):
+def like(on="photo 1", comment="photo_place", missing="", text=None):
+    if text is None:   # check_browse always fills it for a comment: at least the template's text
+        text = LIB.comment(comment).text if comment != "none" else ""
     return Browse("like", on, comment, missing, ["de", "en", "de"], [], [], "Likes hiking.", comment_text=text)
 
 
@@ -127,8 +129,27 @@ def test_report_numbers(store):
     out = "\n".join(shadow.report(store.shadow(), store.usage_rows()))
     assert "agreement like/skip: 3/4 = 75% [NOT YET" in out
     assert "dealbreaker: 1 [NOT YET]" in out
-    assert "section + comment as Dev chose: 1/2 = 50%" in out
+    assert "Dev sent the bot's comment: 1/2 = 50%" in out
     assert "missing: a pet photo" in out and "preferences silent on" not in out
+
+
+def test_comment_target_is_the_text_that_goes_out(store):
+    def sent(bot, *dev_args, **kw):
+        r = row(store, bot)
+        r.dev = shadow.make_label(r, "like", *dev_args, LIB, **kw)
+        return shadow._sent_bots_comment(r)
+
+    adapted = like(text="Wo ist dieser See?")
+    assert sent(adapted, None, None)                                   # bare like: the bot's text
+    assert sent(adapted, "photo 1", "photo_place", text="Wo ist dieser See?")
+    assert not sent(adapted, "photo 1", "photo_place")                 # same id, but the template's text went out
+    assert not sent(adapted, "photo 1", "photo_place", text="Wo ist das genau?")   # Dev rewrote it
+    assert not sent(adapted, "prompt 1", "hot_take")
+    assert sent(like(comment="none", missing="x"), "photo 1", "none")  # neither had a comment
+    old = row(store, like())
+    old.bot.pop("comment_text")
+    old.dev = {"decision": "like", "comment_on": "photo 1", "comment": "photo_place"}   # before #78: by id
+    assert shadow._sent_bots_comment(old)
 
 
 def test_report_counts_preference_gaps(store):
