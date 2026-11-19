@@ -20,8 +20,8 @@ code path taps a paid option or a chat send.
 | `vocab.py` | Every app UI string the model relies on (English UI). The sanitizer keeps exactly these |
 | `screens.py` | `classify()` → `Kind` (feed, sheet, likes, matches, chat, popup, upsell, other_app, unknown); readers `profile_view` (sections + their like buttons, details, floating obstacles, `at_top`), `sheet_view`, `match_rows`, `chat_view` (side left/right by position); `tappable()` = the allowlist, `actable()` = the acting one |
 | `profile.py` | `Capture`: one profile stitched across scroll dumps (offset per dump measured by voting on shared sections/texts, checked by `verify_shift`; a blind gap past a video by the swipes' scale), `Section` refs `photo N` / `prompt N` / `video N` in content y; `dhash` |
-| `imaging.py` | Pillow: crop of a screenshot → dhash (photos all read "<name>'s photo" in the tree), → JPEG for the decision; `shot_pages` (screenshots 4 to a JPEG page) |
-| `device.py` | adb: `dump` (our reader `android/screener-dump`, else `uiautomator dump` with retries and `NotIdle`), `screencap`, `tap` (jitter inside the middle half), `swipe`/`swipe_h` (jittered start, drift, speed; length only shorter), `key`, `launch`, `foreground`, keyboard type/clear/read (`buddy.screener.ime` broadcasts), `ime_set`, `notifications`, `state`. `guard()` before every input action |
+| `imaging.py` | Pillow: crop of a screenshot (`Image`) → dhash (photos all read "<name>'s photo" in the tree), → JPEG for the decision; `shot_pages` (half-size screenshots 4 to a JPEG page) |
+| `device.py` | adb: `dump` (our reader `android/screener-dump` in serve mode over `adb forward`, else its one-shot mode, else `uiautomator dump` with retries and `NotIdle`; `close()`/atexit ends serve mode), `screencap` (raw pixels → RGB `Image`, `half`), `tap` (jitter inside the middle half), `swipe`/`swipe_h` (jittered start, drift, speed; length only shorter), `key`, `launch`, `foreground`, keyboard type/clear/read (`buddy.screener.ime` broadcasts), `ime_set`, `notifications`, `state`. `guard()` before every input action |
 | `navigator.py` | Moves: `go_tab`, `capture_profile` (+ each detail row swiped to its end and flung back), `scroll_to(ref)`, `open_sheet` (+ scroll the panel clear), `type_comment` (read back), `skip_profile`, `send_like` (via `_act`; keeps the upsell's raw dump as tmpfs `upsell-last.xml`), `back_out`, `open_chat`/`leave_chat`, `screenshots` (the profile top to end, a screen per swipe, for `--cmd shots`). `NeedsYou` keeps the raw dump in tmpfs |
 | `sanitize.py` | Real dumps → fixtures: one mapping across a walk, names/prompts/texts → placeholders, package → `app.example`; refuses output with a word from `~/buddy/config/screener/forbidden` (host) |
 | `library.py` | Host input: `preferences.md` (verbatim into the system prompt), `templates.md` section *Like comments* (`- id \| de\|en \| fit hint \| text`; broken line → whole file refused). Loaded per decision. Chat (#77): `parse_chat_templates` (EN/DE blocks, placeholders per template), `ChatRules` (`chat.md` + the chat's preference sections + questions + allowed links), `Contacts` (number/instagram files, hidden from repr) |
@@ -164,9 +164,13 @@ Pi, then `--cmd fixture <out dir> <dumps…>` (all dumps of one walk in one call
 ## Gotchas (measured on the phone, 2026-11-16)
 
 - Screen reads go through our own reader (`android/screener-dump`, 2026-11-18): same XML as `uiautomator dump`
-  (byte-identical on a still screen), ~1.5 s instead of ~1.9 s, and it reads while a video plays (idle wait best
-  effort, 2.5 s max). It must be installed on the phone; without it `Device.dump` falls back to uiautomator.
-- A stable screen = 2 dumps. A profile capture: ~15 swipes, 2–3 min with photo hashes.
+  (byte-identical on a still screen), and it reads while a video plays (idle wait best effort, 2.5 s max). Serve
+  mode (#81, 2026-11-19): one instrumentation per command, reads over a socket: 0.02 s on a quiet screen (one-shot:
+  1.48 s, uiautomator ~1.9 s), else until 500 ms quiet. Another command's reader force-stops it: that one restarts
+  once; a reader that never answers → one-shot reads. Without the APK `Device.dump` falls back to uiautomator.
+- A stable screen = 2 equal reads, no pause between (each read waits for quiet). Screenshots raw (0.9 s; `-p` PNG
+  2.2 s), the 10 MB frame dropped in `screencap`. A profile capture: ~15 swipes, ~100 s (was ~160–200 s before #81:
+  204 → 139 serve mode → 125 raw → 101 no pause, same profile 2026-11-19); decide ~7 s on top.
 - Slow swipes (600 px over 900 ms) scroll 611–624 px; the first one on a profile also collapses the header. Swipes
   > ~1000 px left consecutive dumps without a common anchor: `MAX_MOVE` 700.
 - Details (age, job, …) are the only anchors between prompt 1 and photo 2: `verify_shift` checks texts too, else a
