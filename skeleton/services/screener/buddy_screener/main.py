@@ -18,6 +18,7 @@ Shadow mode (step 2; only skip/send act, and only on Dev's label; details in sha
     --cmd report                  step 2's done-when numbers, missing comments, usage
 Chat sim (step 4, #77; no phone, real chat calls with sentinel contacts, transcripts to tmpfs):
     --sim [--case NAME …]         the scripted cases (all, or the named ones) and the gate report
+    --sim --personas N [--case all]  N persona chats (a model plays her), with or without the cases
 
 Service (no flags): retained state, `stop|pause|resume` on buddy/screener/cmd, phone check. Step 1 acts on nothing
 by itself; browsing and chats come in later steps.
@@ -336,7 +337,8 @@ def main() -> int:
     p.add_argument("--dealbreaker", action="store_true", help="label: Dev saw a dealbreaker")
     p.add_argument("--sensitive", action="store_true", help="label: the bot's reason infers something sensitive")
     p.add_argument("--sim", action="store_true", help="the chat flow against simulated matches (#77)")
-    p.add_argument("--case", action="append", default=[], help="sim: only this scripted case (repeatable)")
+    p.add_argument("--case", action="append", default=[], help="sim: only this scripted case (repeatable; all)")
+    p.add_argument("--personas", type=int, default=0, help="sim: N persona chats (a model plays the match)")
     p.add_argument("args", nargs="*")
     args = p.parse_args()
     try:
@@ -346,7 +348,7 @@ def main() -> int:
         return 1
     if args.sim:
         from .sim import run_sim
-        return run_sim(cfg, args.case, Store(cfg.db_path))
+        return run_sim(cfg, args.case, Store(cfg.db_path), args.personas)
     if args.cmd:
         return offline(cfg, args)
     return service(cfg)

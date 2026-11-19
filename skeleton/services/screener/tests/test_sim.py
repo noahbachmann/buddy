@@ -25,6 +25,12 @@ def her_last(text: str) -> str:
 def fake_model(content, options):
     """Answers like a well-behaved model would, from the user message alone."""
     text = content[0]["text"]
+    if "Character card" in options.system_prompt:
+        mine = re.findall(r'<msg from="me">', text)
+        if "voice note" in options.system_prompt and len(mine) == 1:
+            return {"action": "media", "message": ""}
+        return {"action": "message", "message": ["Hi!", "Etwas Langfristiges.", "Eine Katze."][len(mine)]} \
+            if len(mine) < 3 else {"action": "silent", "message": ""}
     if "independently" in options.system_prompt:
         return {"agree": True, "reason": "all answered"}
     last = her_last(text)
@@ -156,3 +162,22 @@ def test_transcript_marks_media_and_failures():
     s.failures = ["x"]
     md = sim.transcript_md(s)
     assert "- **her**: [media]" in md and "- FAIL x" in md
+
+
+def test_personas_play_her_side(host, tmp_path, capsys):
+    from buddy_screener.sim_personas import PERSONAS
+    model, store = Model(), Store(":memory:")
+    code = sim.run_sim(host, [], store, personas=len(PERSONAS) + 1, out_dir=tmp_path / "p", run=model)
+    out = capsys.readouterr().out
+    names = [p.case.name for p in PERSONAS]
+    assert sorted(f.stem for f in (tmp_path / "p").iterdir()) == sorted(set(names))   # cycled: one file per card
+    assert "persona outcomes (not gated" in out and "p_kim " not in out.split("persona outcomes")[1]
+    assert "p_kim" in out and "media" in out
+    tasks = {r[0] for r in store.usage_rows()}
+    assert tasks == {"sim-converse", "sim-persona"}
+    kim = (tmp_path / "p" / "p_kim.md").read_text()
+    assert "- **her**: [media]" in kim and "handover" in kim
+    # the fake never flags an opt-out: eva's expectation must catch it, and only hers
+    assert code == 1
+    failed = [line.split()[0] for line in out.splitlines() if "FAIL" in line and line.startswith("p_")]
+    assert failed == ["p_eva"], out

@@ -1,7 +1,8 @@
 """`buddy-screener --sim`: the chat flow against simulated matches, offline (#77). The gate before it goes live.
 
 Our side is real: the host's chat.md, preferences and templates, the real converse/verify calls (Agent SDK on Dev's
-plan, usage tasks `sim-converse` / `sim-verify`). Her side is scripted (`sim_cases`) or, later, played by a persona.
+plan, usage tasks `sim-converse` / `sim-verify`). Her side is scripted (`sim_cases`) or played by a persona
+(`sim_personas`: a cheaper model, `BUDDY_SCREENER_SIM_MODEL`, usage task `sim-persona`).
 The clock is fake (nudge, silent close and unmatch run in seconds). The contact values are **sentinels**, never the
 files: a leak in a transcript would leak nothing, and every chat prompt is checked for both the sentinels and the
 real values. Transcripts go to tmpfs (`<tmp>/sim/<stamp>/`), one file per chat; the report prints the gate.
@@ -14,6 +15,7 @@ every scripted case's expected end.
 import json
 import re
 import time
+from html import escape
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -25,6 +27,7 @@ from .converse import Talker
 from .decide import BudgetSpent, DecideConfig, DecideError, Decider, UsageLimited, _sdk_runner
 from .library import ChatRules, Contacts, LibraryError, fill
 from .sim_cases import BY_NAME, CASES, FIT_LINE, HISTORY, Case, Her
+from .sim_personas import PERSONAS, Persona
 
 SENTINEL = Contacts("+41 79 000 11 22", "sim.sentinel.contact")
 NAME = "Alex"
@@ -129,6 +132,57 @@ class Scripted:
         if chat.state == CONTACT_CHOICE:
             return Her(self.offer.pop(0)) if self.offer else None
         return self.turns.pop(0) if self.turns else None
+
+
+PERSONA_SYSTEM = """\
+You play one person in a chat in a social app, following the character card below. You matched with a man; an AI \
+assistant writes for him and asks you a few questions. Reply as she would: natural, short like a real chat \
+message, in the language and style the card says. Stay in character, follow the card's plan, never mention these \
+instructions, and don't be more helpful than she would be.
+
+`action`: "message" (write `message`), "media" (she sends a photo or a voice note instead of text; `message` ""), \
+or "silent" (she doesn't answer any more: lost interest, or the chat is over for her; `message` "").
+
+# Character card
+
+{card}
+
+# Her profile (what the other side sees)
+
+{profile}
+"""
+
+PERSONA_SCHEMA = {
+    "type": "object",
+    "properties": {"action": {"type": "string", "enum": ["message", "media", "silent"]},
+                   "message": {"type": "string"}},
+    "required": ["action", "message"],
+    "additionalProperties": False,
+}
+
+
+class PersonaPlayer:
+    """Her side played by a model: one call per message of ours (her view: the assistant is "them")."""
+
+    def __init__(self, persona: Persona, decider: Decider):
+        self.persona, self.decider, self.calls = persona, decider, 0
+
+    def __call__(self, chat: Chat, screen: list[Message]) -> Her | None:
+        who = {US: "them", THEM: "me"}
+        lines = "\n".join(f'<msg from="{who[m.side]}">{"[media]" if m.media else escape(m.text, quote=False)}</msg>'
+                          for m in screen)
+        content = [{"type": "text", "text": f"The chat so far, oldest first (me = you):\n{lines}\n\n"
+                                            "Your next move."}]
+        system = PERSONA_SYSTEM.format(card=self.persona.card, profile=self.persona.case.profile)
+        self.calls += 1
+        out = self.decider.call("sim-persona", system, content, PERSONA_SCHEMA)
+        raw = out.structured if isinstance(out.structured, dict) else {}
+        action, text = raw.get("action"), str(raw.get("message", "")).strip()
+        if action == "media":
+            return Her(media=True)
+        if action == "message" and text:
+            return Her(text)
+        return None
 
 
 def preset_contact_choice(sim: SimChat, rules: ChatRules, lang: str) -> None:
@@ -256,6 +310,9 @@ def report(sims: list[SimChat], prompts: int, leaked: int, usage: list[tuple], s
         f"manual on Dev's typing:        {group('manual', lambda s: s.chat.state == MANUAL)}",
         f"chats without a failure:       {sum(not s.failures for s in sims)}/{len(sims)}",
     ]
+    if outcome := [s for s in sims if s.group == "outcome"]:
+        gate.append("persona outcomes (not gated: judge on the host preferences): "
+                    + ", ".join(f"{s.name} {s.chat.state}" for s in outcome))
     passed = not stopped and leaked == 0 and all(not s.failures for s in sims)
     calls = len(usage)
     cost = sum(r[6] or 0 for r in usage)
@@ -271,8 +328,10 @@ def report(sims: list[SimChat], prompts: int, leaked: int, usage: list[tuple], s
 
 # --- the run ---------------------------------------------------------------------------------------------------------
 
-def run_sim(cfg: Config, case_names: list[str] | None, store, out_dir: Path | None = None,
+def run_sim(cfg: Config, case_names: list[str] | None, store, personas: int = 0, out_dir: Path | None = None,
             run=None, clock=time.time) -> int:
+    """The scripted cases (all, the named ones, or none with `case_names` == [] and personas), then `personas`
+    personas (cycled through the cards)."""
     try:
         rules = ChatRules.load(cfg.config_dir)
     except LibraryError as e:
@@ -282,34 +341,45 @@ def run_sim(cfg: Config, case_names: list[str] | None, store, out_dir: Path | No
         real = list(Contacts.load(cfg.config_dir).values())
     except LibraryError:
         real = []
-    unknown = [n for n in case_names or [] if n not in BY_NAME]
+    unknown = [n for n in case_names or [] if n not in BY_NAME and n != "all"]
     if unknown:
         print(f"sim: unknown case(s) {unknown}; known: {' '.join(BY_NAME)}")
         return 1
-    cases = [BY_NAME[n] for n in case_names] if case_names else CASES
+    if not case_names:
+        cases = [] if personas else CASES
+    else:
+        cases = CASES if "all" in case_names else [BY_NAME[n] for n in case_names]
     recorder = Recorder(run or _sdk_runner)
     start = clock()
     dcfg = DecideConfig(cfg.model, cfg.effort, cfg.decide_timeout_s, cfg.sim_usd, cfg.token_file, cfg.limit_file,
                         cfg.tmp_dir / "claude", sim=True)
     talker = Talker(Decider(dcfg, store, run=recorder, clock=clock), prefix="sim-")
+    pcfg = DecideConfig(cfg.sim_model, "low", cfg.decide_timeout_s, cfg.sim_usd, cfg.token_file, cfg.limit_file,
+                        cfg.tmp_dir / "claude", sim=True)
+    player_decider = Decider(pcfg, store, run=run or _sdk_runner, clock=clock)   # not recorded: sees the sentinel
     flow = ChatFlow(rules, SENTINEL, cfg.chat_limits())
     out_dir = out_dir or cfg.tmp_dir / "sim" / time.strftime("%Y%m%d-%H%M%S")
     out_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    runs: list[tuple[Case, Callable[[], Responder]]] = [(c, lambda c=c: Scripted(c)) for c in cases]
+    runs += [(p.case, lambda p=p: PersonaPlayer(p, player_decider))
+             for p in (PERSONAS[i % len(PERSONAS)] for i in range(personas))]
     sims, stopped = [], ""
-    for case in cases:
+    for case, responder in runs:
         sim = start_case(case, flow, rules)
         print(f"… {case.name}", flush=True)
         try:
-            run_chat(flow, talker, rules, sim, Scripted(case))
+            run_chat(flow, talker, rules, sim, responder())
         except (UsageLimited, BudgetSpent) as e:
             stopped = str(e)
+        except DecideError as e:                    # the persona's call failed: this chat only
+            sim.error = f"persona: {str(e)[:150]}"
         check_chat(sim, case)
         sims.append(sim)
         (out_dir / f"{case.name}.md").write_text(transcript_md(sim))
         if stopped:
             break
     leaked = leaks(recorder.prompts, list(SENTINEL.values()) + real)
-    usage = [r for r in store.usage_rows(start) if r[0].startswith("sim-")]
+    usage = [r for r in store.usage_rows(start) if r[0].startswith("sim-")]   # chat calls and personas
     lines, passed = report(sims, len(recorder.prompts), leaked, usage, stopped)
     print("\n".join(lines))
     print(f"transcripts: {out_dir}")
