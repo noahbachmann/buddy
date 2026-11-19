@@ -41,7 +41,7 @@ def fake_model(content, options):
          "soft_flags": [], "contact": "none", "lang": ("en" if en else "de") if last else "", "reason": "fake"}
     if "Chat state: contact choice" in text:
         a["contact"] = ("phone" if "Phone" in last or "Nummer" in last else "instagram" if "Insta" in last
-                        else "both" if "Both" in last else "none" if "neither" in last or "Nein" in last
+                        else "both" if "Both" in last or "egal" in last else "none" if "neither" in last or "Nein" in last
                         else "unclear")
     elif "KI möchte ich" in last:
         a["opt_out"] = True
