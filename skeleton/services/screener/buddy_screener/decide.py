@@ -73,7 +73,8 @@ sexuality or any other sensitive trait from photos or names, and never put such 
 photos clearly meet, skip with the reason exactly "physical preference" and nothing else about the body.
 - Dealbreakers count only when the profile states them. List each in `dealbreakers` in a few words. Any dealbreaker \
 means skip.
-- Soft negatives from the preferences that apply go into `soft_flags`; they add up and raise the bar for a like.
+- Soft negatives from the preferences that apply go into `soft_flags`; they add up and raise the bar for a like. \
+Soft positives from the preferences that apply go into `soft_plus`; they lower it. A few words each.
 - `reason`: one or two plain sentences the owner can check: which stated things decided it. No guess presented as fact.
 
 ## Liking a section with a comment
@@ -120,11 +121,12 @@ BROWSE_SCHEMA: dict[str, Any] = {
         "comment_text": {"type": "string", "description": "that comment adapted to the section, or ''"},
         "missing_hook": {"type": "string"},
         "prompt_langs": {"type": "array", "items": {"type": "string", "enum": list(LANGS)}},
-        "soft_flags": {"type": "array", "items": {"type": "string"}},
+        "soft_flags": {"type": "array", "items": {"type": "string"}, "description": "soft negatives only"},
+        "soft_plus": {"type": "array", "items": {"type": "string"}, "description": "soft positives"},
         "dealbreakers": {"type": "array", "items": {"type": "string"}},
     },
     "required": ["reason", "decision", "comment_on", "comment", "comment_text", "missing_hook", "prompt_langs", "soft_flags",
-                 "dealbreakers"],
+                 "soft_plus", "dealbreakers"],
     "additionalProperties": False,
 }
 
@@ -187,6 +189,7 @@ class Browse:
     fixes: list[str] = field(default_factory=list)   # what code corrected: logged, reviewed in the dry run
     stage: str = "full"          # "text": skipped by the text check, photos never sent
     comment_text: str = ""       # the comment as it goes out: the template adapted to her (code-checked)
+    soft_plus: list[str] = field(default_factory=list)   # soft positives (soft_flags = negatives only)
 
     @property
     def chat_lang(self) -> str:
@@ -214,7 +217,7 @@ def check_browse(raw: Any, p: Profile, lib: Library) -> Browse:
         raise DecideError(f"decision {decision[:20]!r}")
     b = Browse(decision, text("comment_on") or "none", text("comment") or "none", text("missing_hook"),
                [x for x in strings("prompt_langs") if x in LANGS], strings("soft_flags"), strings("dealbreakers"),
-               text("reason"))
+               text("reason"), soft_plus=strings("soft_plus"))
     prompts = sum(s.kind == "prompt" for s in p.sections)
     if len(b.prompt_langs) != prompts:
         b.fixes.append(f"prompt_langs has {len(b.prompt_langs)} entries for {prompts} prompts")

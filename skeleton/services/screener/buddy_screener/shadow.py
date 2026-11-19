@@ -91,7 +91,9 @@ def describe(r: ShadowResult, lib: Library) -> list[str]:
     if b.dealbreakers:
         out.append(f"  dealbreakers: {'; '.join(b.dealbreakers)}")
     if b.soft_flags:
-        out.append(f"  soft flags: {'; '.join(b.soft_flags)}")
+        out.append(f"  soft negatives: {'; '.join(b.soft_flags)}")
+    if b.soft_plus:
+        out.append(f"  soft positives: {'; '.join(b.soft_plus)}")
     if b.decision == "like":
         sec = p.find(b.comment_on)
         what = sec.text.replace("\n", " — ") if sec and sec.kind == "prompt" else "(photo)"

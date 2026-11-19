@@ -5,8 +5,8 @@ import pytest
 from claude_agent_sdk import RateLimitEvent, ResultMessage
 from claude_agent_sdk.types import RateLimitInfo
 
-from buddy_screener.decide import (STAGE_TEXT, BudgetSpent, DecideConfig, DecideError, Decider, UsageLimited,
-                                   check_browse, check_text, profile_content, system_prompt)
+from buddy_screener.decide import (BROWSE_SCHEMA, STAGE_TEXT, BudgetSpent, DecideConfig, DecideError, Decider,
+                                   UsageLimited, check_browse, check_text, profile_content, system_prompt)
 from buddy_screener.library import Library, LikeComment
 from buddy_screener.profile import Profile, Section
 from buddy_screener.store import Store
@@ -58,7 +58,8 @@ def test_system_prompt_has_preferences_and_library():
 
 def raw(**kw):
     d = {"reason": "Likes hiking.", "decision": "like", "comment_on": "prompt 1", "comment": "hot_take",
-         "comment_text": "Bold. Count me in.", "missing_hook": "", "prompt_langs": ["en", "en"], "soft_flags": [], "dealbreakers": []}
+         "comment_text": "Bold. Count me in.", "missing_hook": "", "prompt_langs": ["en", "en"], "soft_flags": [],
+         "soft_plus": [], "dealbreakers": []}
     return d | kw
 
 
@@ -66,6 +67,12 @@ def test_check_browse_accepts_a_good_answer():
     b = check_browse(raw(), profile(), LIB)
     assert (b.decision, b.comment_on, b.comment, b.fixes) == ("like", "prompt 1", "hot_take", [])
     assert b.chat_lang == "en" and b.comment_text == "Bold. Count me in."
+
+
+def test_soft_positives_apart_from_soft_negatives():
+    b = check_browse(raw(soft_flags=["late"], soft_plus=["goofy", " "]), profile(), LIB)
+    assert (b.soft_flags, b.soft_plus) == (["late"], ["goofy"])
+    assert set(BROWSE_SCHEMA["required"]) == set(BROWSE_SCHEMA["properties"])
 
 
 @pytest.mark.parametrize("text", ["", "call me 079 123 45 67", "@me.here", "see www.example.com", "x" * 201])
