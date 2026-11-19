@@ -1,7 +1,0 @@
-# cad build box / cad render box (parts/CLAUDE.md)
-
-[parts.box]
-
-[plates.0-pla]
-note = "PLA · 0.2 mm · no supports · upside down: closed face on the bed"
-parts = ["box"]
