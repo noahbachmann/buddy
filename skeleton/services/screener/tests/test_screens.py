@@ -87,6 +87,13 @@ def test_list_top_makes_the_first_photo_whole():
     assert not screens.profile_view(screen("feed-02").root).at_top
 
 
+def test_name_with_trailing_space_still_finds_the_top():
+    # seen live 2026-11-19: skip button "Skip <name> ", header text "<name>"
+    xml = load("feed-01").replace('content-desc="Skip Alex"', 'content-desc="Skip Alex "')
+    p = screens.profile_view(screens.classify(parse(xml), PACKAGE).root)
+    assert p.name == "Alex" and p.at_top
+
+
 def test_details_paired_with_the_nearest_label():
     p = screens.profile_view(screen("feed-03").root)
     labels = [label for label, _ in p.details]

@@ -216,10 +216,10 @@ def profile_view(root: Node) -> ProfileView:
 
     texts = [SectionView("text", n.text, n.bounds, n.bounds.top <= vp.top, n.bounds.bottom >= vp.bottom, None)
              for n in box.iter() if n.cls == "TextView" and n.text and not n.bounds.empty]
-    name = v.SKIP.fullmatch(skip.desc).group(1)
+    name = v.SKIP.fullmatch(skip.desc).group(1).strip()   # app keeps a trailing space from the profile ("Skip Ana ")
     # At the top of a profile the header is expanded and shows the name as text above the list (it collapses into
     # the skip button's label once scrolled): the list can't move up, so whatever touches its top edge starts there.
-    at_top = root.first(lambda n: n.cls == "TextView" and n.text == name and not _inside(n, box)) is not None
+    at_top = root.first(lambda n: n.cls == "TextView" and n.text.strip() == name and not _inside(n, box)) is not None
     if at_top:
         for sv in sections + texts:
             sv.top_cut = False
