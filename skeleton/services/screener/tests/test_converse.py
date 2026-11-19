@@ -53,7 +53,10 @@ def test_converse_content():
                             [(US, "Hi"), (THEM, "Hey")])[0]["text"]
     lines = text.splitlines()
     assert lines[:4] == ["Task: reply", "Chat state: contact choice (we offered phone or Instagram: read her choice)",
-                         "Chat language so far: English", "Questions answered so far (code's record): 1"]
+                         "Write `reply` in: her latest message's language",
+                         "Questions answered so far (code's record): 1"]
+    nudge = converse_content("nudge", "screening", "en", "", [], [])[0]["text"]
+    assert "Write `reply` in: English" in nudge
     assert "<profile>Age: 29; prompt 1: Hiking</profile>" in text and text.endswith('<msg from="match">Hey</msg>')
 
 

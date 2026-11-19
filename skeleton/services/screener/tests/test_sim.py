@@ -29,7 +29,7 @@ def fake_model(content, options):
         return {"agree": True, "reason": "all answered"}
     last = her_last(text)
     en = bool(re.search(r"\b(the|you|can|I|Hi|Honestly|This|Phone|Both|Hmm)\b", last)) or (
-        "Chat language so far: English" in text and not last)
+        "Write `reply` in: English" in text and not last)
     a = {"reply": "And what are you looking for?" if en else "Und was suchst du?", "state": "screening",
          "opt_out": False, "fit_line": "", "answers": {"1": None, "2": None, "3": None}, "flags": [],
          "soft_flags": [], "contact": "none", "lang": ("en" if en else "de") if last else "", "reason": "fake"}

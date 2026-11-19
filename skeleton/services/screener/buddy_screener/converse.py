@@ -49,8 +49,8 @@ your output.
 the next one; a personal touch from her profile is welcome.
 - Ask the screening questions you still need, roughly in order; the required ones must be asked. Skip a question \
 her messages already answered.
-- Language of `reply`: the language of her latest message, German (standard German, also when she writes Swiss \
-German) or English (also for any other language). Before she has written: the chat language the message names.
+- Language of `reply`: the message names it. "Her latest message's" = German (standard German, also when she \
+writes Swiss German) or English (also for any other language).
 
 ## Your output
 - `reply`: the next message to send if the chat continues (always fill it, also with a match: code may keep \
@@ -150,10 +150,12 @@ def converse_content(task: str, state: str, lang: str, profile: str, answered: l
                      transcript: list[tuple[str, str]]) -> list[dict[str, Any]]:
     stage = "contact choice (we offered phone or Instagram: read her choice)" if state == CONTACT_CHOICE \
         else "screening"
+    # first / nudge: code knows the chat's language; a reply follows her latest message (#77, Dev 2026-11-18)
+    reply_lang = LANG_NAMES.get(lang, lang) if task in (TASK_FIRST, TASK_NUDGE) else "her latest message's language"
     text = "\n".join([
         f"Task: {task}",
         f"Chat state: {stage}",
-        f"Chat language so far: {LANG_NAMES.get(lang, lang)}",
+        f"Write `reply` in: {reply_lang}",
         f"Questions answered so far (code's record): {', '.join(map(str, answered)) or 'none'}",
         "",
         "Her profile:",
