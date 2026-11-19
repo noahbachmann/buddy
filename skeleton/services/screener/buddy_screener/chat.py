@@ -47,7 +47,7 @@ class ChatLimits:
     close_days: float = 3        # no reply this long after the nudge → closed silently
     unmatch_h: float = 24        # unmatch this long after closing
     reply_max: int = 400         # chars of a generated message
-    fit_max: int = 160           # chars of the generated fit line
+    fit_max: int = 100           # chars of the generated fit line ("You two seem like a good fit." ≈ 30)
 
 
 @dataclass
