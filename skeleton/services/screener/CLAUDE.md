@@ -5,7 +5,8 @@ Operates a social app on a dedicated Android phone over adb (USB on the Pi). Pla
 comes from `BUDDY_SCREENER_APP` in the host's `buddy.env`. Personal data (dumps, screenshots) only in tmpfs or
 `~/buddy/{config,data}/screener` on the Pi.
 
-State: step 1 (service skeleton, device layer, screen model, navigator) and step 2 (decision layer + shadow mode).
+State: step 1 (service skeleton, device layer, screen model, navigator), step 2 (decision layer + shadow mode) and
+step 4's offline part (#77: chat flow + `--sim`, gate passed 2026-11-19; live wiring waits for step 3).
 The service itself acts on nothing; shadow mode runs as offline commands. Skip and send are taps only through
 `--cmd skip|send <id>`, each carrying out Dev's label of that row (2026-11-17, Dev's call: the start of step 3). No
 code path taps a paid option or a chat send.
@@ -22,12 +23,15 @@ code path taps a paid option or a chat send.
 | `device.py` | adb: `dump` (our reader `android/screener-dump`, else `uiautomator dump` with retries and `NotIdle`), `screencap`, `tap` (jitter inside the middle half), `swipe`/`swipe_h` (jittered start, drift, speed; length only shorter), `key`, `launch`, `foreground`, keyboard type/clear/read (`buddy.screener.ime` broadcasts), `ime_set`, `notifications`, `state`. `guard()` before every input action |
 | `navigator.py` | Moves: `go_tab`, `capture_profile` (+ each detail row swiped to its end and flung back), `scroll_to(ref)`, `open_sheet` (+ scroll the panel clear), `type_comment` (read back), `skip_profile`, `send_like` (via `_act`; keeps the upsell's raw dump as tmpfs `upsell-last.xml`), `back_out`, `open_chat`/`leave_chat`. `NeedsYou` keeps the raw dump in tmpfs |
 | `sanitize.py` | Real dumps → fixtures: one mapping across a walk, names/prompts/texts → placeholders, package → `app.example`; refuses output with a word from `~/buddy/config/screener/forbidden` (host) |
-| `library.py` | Host input: `preferences.md` (verbatim into the system prompt), `templates.md` section *Like comments* (`- id \| de\|en \| fit hint \| text`; broken line → whole file refused). Loaded per decision |
+| `library.py` | Host input: `preferences.md` (verbatim into the system prompt), `templates.md` section *Like comments* (`- id \| de\|en \| fit hint \| text`; broken line → whole file refused). Loaded per decision. Chat (#77): `parse_chat_templates` (EN/DE blocks, placeholders per template), `ChatRules` (`chat.md` + the chat's preference sections + questions + allowed links), `Contacts` (number/instagram files, hidden from repr) |
+| `chat.py` | The chat as a pure state machine (`ChatFlow.step/conversed/verified/delivered`, one `Action` at a time): disclosure first, manual detection, code's match checks, contact by template only, generated-text refusals, language, nudge/close/unmatch timers, `ChatLimits` |
+| `converse.py` | The chat's calls on `Decider.call`: `converse` (reply + state + answers + flags + contact + lang), `verify` (strict second opinion, profile + transcript), prompts with escaped `<msg>` elements, `check_converse`/`check_verify` |
+| `sim.py`, `sim_cases.py`, `sim_personas.py` | `--sim`: driver loop on a fake clock, 19 scripted cases, 8 persona cards (a model plays her), sentinel contacts, prompt leak check, gate report, transcripts in tmpfs |
 | `decide.py` | Agent SDK wrapper (`Decider.decide` = text check, then `browse` with photos): locked-down CLI options, text + browse schemas, `check_text`, `check_browse` (code re-checks: unknown section/comment → none, dealbreaker → skip, `fixes` kept), usage per call, `limit_until` pause, daily $ cap |
-| `store.py` | SQLite `data/screener/screener.db`: `usage` (kept), `shadow` (bot decision + Dev's label as JSON, profile key only, 30 days) |
+| `store.py` | SQLite `data/screener/screener.db`: `usage` (kept; live and `sim-` tasks capped apart), `shadow` (bot decision + Dev's label as JSON, profile key only, 30 days), `chats` (`chat.Chat` as JSON, never her texts; 30 days after it ended) |
 | `shadow.py` | Step 2 commands' logic: `run_shadow` (capture → decide → row; capture pickled to tmpfs without crops), `make_label`, `type_label`, `act_label` (skip/send on Dev's label), `report` (done-when numbers) |
 | `config.py` | `BUDDY_SCREENER_*` (incl. model, effort, decide timeout, daily $), kill switch files (`config/screener/stop`, `data/screener/paused`), token/limit/db paths, tmpfs dir |
-| `main.py` | Service loop (phone check every 30 s, state on change, commands) + `--cmd screen\|dump\|fixture\|profile\|back-out\|walk\|templates\|shadow\|label\|type\|report` |
+| `main.py` | Service loop (phone check every 30 s, state on change, commands) + `--cmd screen\|dump\|fixture\|profile\|back-out\|walk\|templates\|shadow\|label\|type\|report`, `--sim [--case NAME…\|all] [--personas N]` |
 
 ## Rules the code enforces
 
@@ -101,6 +105,30 @@ file until ≥ 50 profiles (`GATE_PROFILES`). End: `report` on this session's ro
 session 2), evaluate, then show Dev the
 proposed preference changes as a diff. Dev decides: good enough → automate (step 3), or another measure session
 with the changes applied.
+
+## Chat flow (step 4, #77)
+
+Host: `chat.md` (copied from `preferences.md` 2026-11-19: *Screening questions*, *Match rule*, *Handover*, *Tone*,
+*Languages*; Dev removes the duplicates from `preferences.md` after step 4), `templates.md` chat blocks (`disclosure`,
+`contact_offer`, `contact_number`, `contact_instagram`, `closing`, `opt_out`), `number`, `instagram`. The chat calls
+see `chat.md` + *About Dev*, *Looking for*, *Good fit*, *Soft negatives/positives*, *Dealbreakers* (not *Physical*).
+
+- A driver runs `ChatFlow` (the sim now, the live loop after step 3): `step` → send / converse / verify / unmatch /
+  notify / wait; the driver reports back (`delivered`, `conversed`, `verified`, `unmatched`).
+- Code, not the model: disclosure first; our like comment seeded into the sent log; ours on screen not in the log →
+  `manual` for good; media → handover; match = required answers + no flag + ≥ 3 turns + verifier; the held `reply`
+  keeps screening when that fails; contact phone/both → number (Dev), instagram → handle, unclear once → ask again;
+  every generated text refused (→ handover) on length, digit runs, handles, links not in `chat.md`, contact values.
+- Language: first message by the prompts' majority (tie → German), then her latest message (German / Swiss German →
+  standard German, never dialect; anything else → English). First message and nudge get the language stated.
+- Our sent contact messages are redacted in every transcript (`[contact sent]`): no contact value reaches a prompt.
+- `--sim` on the Pi: `deploy/run.sh screener --sim` (cases), `--sim --personas 8` (personas only), `--case all
+  --personas N` (both). ~5 s per call; the 19 cases ≈ 50 calls ≈ 4 % of the 5 h window, 8 personas ≈ 9 %. Own cap
+  `BUDDY_SCREENER_SIM_USD` (24 h, apart from the live cap). Persona outcomes on profile fit are reported, never
+  asserted: the repo is public and fit is the host preferences' call.
+- Findings fixed by the sim (2026-11-19): a fit line written about her for Dev and sent to her; dialect replies to a
+  Swiss German profile; a nudge in the wrong language; the verifier without the profile (it flagged the bot's
+  profile reference as invented); a held reply without a question (the chat stalled).
 
 ## Tests (`tests/`)
 
