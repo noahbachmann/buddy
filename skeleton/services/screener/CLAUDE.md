@@ -6,7 +6,7 @@ comes from `BUDDY_SCREENER_APP` in the host's `buddy.env`. Personal data (dumps,
 `~/buddy/{config,data}/screener` on the Pi.
 
 State: step 1 (service skeleton, device layer, screen model, navigator), step 2 (decision layer + shadow mode;
-shadow sessions 1 and 2 done, session 3 next after #79) and step 4's offline part (#77: chat flow + `--sim`, gate
+shadow sessions 1 and 2 done, session 3 next, #79 fixes in) and step 4's offline part (#77: chat flow + `--sim`, gate
 passed 2026-11-19; live wiring waits for step 3, #80). Where things stand: #66's body.
 The service itself acts on nothing; shadow mode runs as offline commands. Skip and send are taps only through
 `--cmd skip|send <id>`, each carrying out Dev's label of that row (2026-11-17, Dev's call: the start of step 3). No
@@ -20,9 +20,9 @@ code path taps a paid option or a chat send.
 | `vocab.py` | Every app UI string the model relies on (English UI). The sanitizer keeps exactly these |
 | `screens.py` | `classify()` → `Kind` (feed, sheet, likes, matches, chat, popup, upsell, other_app, unknown); readers `profile_view` (sections + their like buttons, details, floating obstacles, `at_top`), `sheet_view`, `match_rows`, `chat_view` (side left/right by position); `tappable()` = the allowlist, `actable()` = the acting one |
 | `profile.py` | `Capture`: one profile stitched across scroll dumps (offset per dump measured by voting on shared sections/texts, checked by `verify_shift`; a blind gap past a video by the swipes' scale), `Section` refs `photo N` / `prompt N` / `video N` in content y; `dhash` |
-| `imaging.py` | Pillow: crop of a screenshot → dhash (photos all read "<name>'s photo" in the tree), → JPEG for the decision |
+| `imaging.py` | Pillow: crop of a screenshot → dhash (photos all read "<name>'s photo" in the tree), → JPEG for the decision; `shot_pages` (screenshots 4 to a JPEG page) |
 | `device.py` | adb: `dump` (our reader `android/screener-dump`, else `uiautomator dump` with retries and `NotIdle`), `screencap`, `tap` (jitter inside the middle half), `swipe`/`swipe_h` (jittered start, drift, speed; length only shorter), `key`, `launch`, `foreground`, keyboard type/clear/read (`buddy.screener.ime` broadcasts), `ime_set`, `notifications`, `state`. `guard()` before every input action |
-| `navigator.py` | Moves: `go_tab`, `capture_profile` (+ each detail row swiped to its end and flung back), `scroll_to(ref)`, `open_sheet` (+ scroll the panel clear), `type_comment` (read back), `skip_profile`, `send_like` (via `_act`; keeps the upsell's raw dump as tmpfs `upsell-last.xml`), `back_out`, `open_chat`/`leave_chat`. `NeedsYou` keeps the raw dump in tmpfs |
+| `navigator.py` | Moves: `go_tab`, `capture_profile` (+ each detail row swiped to its end and flung back), `scroll_to(ref)`, `open_sheet` (+ scroll the panel clear), `type_comment` (read back), `skip_profile`, `send_like` (via `_act`; keeps the upsell's raw dump as tmpfs `upsell-last.xml`), `back_out`, `open_chat`/`leave_chat`, `screenshots` (the profile top to end, a screen per swipe, for `--cmd shots`). `NeedsYou` keeps the raw dump in tmpfs |
 | `sanitize.py` | Real dumps → fixtures: one mapping across a walk, names/prompts/texts → placeholders, package → `app.example`; refuses output with a word from `~/buddy/config/screener/forbidden` (host) |
 | `library.py` | Host input: `preferences.md` (verbatim into the system prompt), `templates.md` section *Like comments* (`- id \| de\|en \| fit hint \| text`; broken line → whole file refused). Loaded per decision. Chat (#77): `parse_chat_templates` (EN/DE blocks, placeholders per template), `ChatRules` (`chat.md` + the chat's preference sections + questions + allowed links), `Contacts` (number/instagram files, hidden from repr) |
 | `chat.py` | The chat as a pure state machine (`ChatFlow.step/conversed/verified/delivered`, one `Action` at a time): disclosure first, manual detection, code's match checks, contact by template only, generated-text refusals, language, nudge/close/unmatch timers, `ChatLimits` |
@@ -30,9 +30,9 @@ code path taps a paid option or a chat send.
 | `sim.py`, `sim_cases.py`, `sim_personas.py` | `--sim`: driver loop on a fake clock, 21 scripted cases, 8 persona cards (a model plays her), sentinel contacts, prompt leak check, gate report, transcripts in tmpfs |
 | `decide.py` | Agent SDK wrapper (`Decider.decide` = text check, then `browse` with photos): locked-down CLI options, text + browse schemas, `check_text`, `check_browse` (code re-checks: unknown section/comment → none, dealbreaker → skip, adapted comment refused → the template's text or none, `fixes` kept), usage per call, `limit_until` pause, daily $ cap |
 | `store.py` | SQLite `data/screener/screener.db`: `usage` (kept; live and `sim-` tasks capped apart), `shadow` (bot decision + Dev's label as JSON, profile key only, 30 days), `chats` (`chat.Chat` as JSON, never her texts; 30 days after it ended) |
-| `shadow.py` | Step 2 commands' logic: `run_shadow` (capture → decide → row; capture pickled to tmpfs without crops), `make_label`, `type_label`, `act_label` (skip/send on Dev's label), `report` (done-when numbers) |
+| `shadow.py` | Step 2 commands' logic: `run_shadow` (capture → decide → row; capture pickled to tmpfs without crops), `make_label`, `type_label`, `act_label` (skip/send on Dev's label; a relabel keeps `acted`), `report` (done-when numbers; `unjudged` rows left out; comment target = the text Dev sent) |
 | `config.py` | `BUDDY_SCREENER_*` (incl. model, effort, decide timeout, daily $), kill switch files (`config/screener/stop`, `data/screener/paused`), token/limit/db paths, tmpfs dir |
-| `main.py` | Service loop (phone check every 30 s, state on change, commands) + `--cmd screen\|dump\|fixture\|profile\|back-out\|walk\|templates\|shadow\|label\|type\|report`, `--sim [--case NAME…\|all] [--personas N]` |
+| `main.py` | Service loop (phone check every 30 s, state on change, commands) + `--cmd screen\|dump\|fixture\|profile\|back-out\|walk\|shots\|templates\|shadow\|label\|type\|skip\|send\|report`, `--sim [--case NAME…\|all] [--personas N]` |
 
 ## Rules the code enforces
 
@@ -63,6 +63,9 @@ code path taps a paid option or a chat send.
   other, one injected text would stay for the rest of the day. The shared part (preferences + library) is the cached
   system prompt anyway.
 - `RateLimitEvent.rate_limit_info.raw["unifiedWindows"]` has the plan's 5 h / 7 day utilization: logged per call.
+- The browse answer splits `soft_flags` (soft negatives only) from `soft_plus` (soft positives) and lists
+  `uncovered`: stated things the preferences say nothing about (#79). Those never decide; `describe` shows them,
+  `report` counts them: the input for the next preferences diff.
 - Like comments are patterns (#78, Dev 2026-11-19): `templates.md` text = one example of how Dev says it; the bot
   returns `comment_text` = that pattern adapted to her section, in the chat's language. Code refuses it like a chat
   text (`chat.refusal`: empty, > `COMMENT_MAX`, digit runs, handles, links) → the template's own text if its
@@ -75,8 +78,11 @@ code path taps a paid option or a chat send.
 ## Shadow session (step 2, Dev taps)
 
 `deploy/run.sh screener --cmd shadow` → prints `#id`, decision, reason, section + comment. Dev decides on the phone;
-`--cmd label <id> like|skip [section comment]` (bare `like` = the bot's choice with its adapted text; `--text "…"` = Dev's version of a library comment; `--wrong`, `--dealbreaker`,
-`--sensitive`, `--note`). A comment Dev writes goes into `templates.md` first (id + fit hint from the section it was
+`--cmd label <id> like|skip|unjudged [section comment]` (bare `like` = the bot's choice with its adapted text; `--text "…"` = Dev's version of a library comment; `--wrong`, `--dealbreaker`,
+`--sensitive`, `--note`; `unjudged` = Dev couldn't see the profile: `report` leaves it out, `skip <id>` still works).
+Dev away from the phone: `--cmd shots` writes the profile's screenshots as JPEG pages to tmpfs `shots/`; Claude
+copies them over and sends them, with every detail written out in the message (the sideways detail row shows only
+its first screen). A comment Dev writes goes into `templates.md` first (id + fit hint from the section it was
 used on), then into the label. `--cmd type <id>` types it into that section's panel and reads it back; `--cmd send
 <id>` sends it (or Dev taps, or `--cmd back-out`); `--cmd skip <id>` skips a skip-labelled profile. After a sent
 like the app offers a paid upgrade (upsell sheet): `send` takes "Send Like anyway". Only the newest row's capture stays in tmpfs. `--cmd report` = the gate.
@@ -107,8 +113,9 @@ the new file). No `report`: its numbers mix preference versions. End: summary of
 into #66 (neutral wording).
 
 **Session 2+ (session 3 next), measure:** `preferences.md` frozen. Note the first shadow row id. Step 3's proposals go into
-`data/screener/session-2.md` (host only), not into the preferences. Continue on the next days with the same frozen
-file until ≥ 50 profiles (`GATE_PROFILES`). End: `report --since <first row id>` (this session's rows and their shadow calls only), evaluate, then show Dev the
+`data/screener/session-<N>.md` (host only), not into the preferences. Continue on the next days with the same frozen
+file until ≥ 50 profiles (`GATE_PROFILES`). End: `report --since <first row id>` (this session's rows and their shadow calls only; the bot's `uncovered`
+list feeds the proposals), evaluate, then show Dev the
 proposed preference changes as a diff. Dev decides: good enough → automate (step 3), or another measure session
 with the changes applied.
 
