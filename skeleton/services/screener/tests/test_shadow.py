@@ -38,12 +38,12 @@ def test_shadow_label_type_sends_nothing(store, tmp_path):
     phone = FakePhone("feed-01")
     n = nav(phone)
     bot = like()
-    bot.soft_plus = ["goofy"]
+    bot.soft_plus, bot.uncovered = ["goofy"], ["diet: vegan"]
     r = shadow.run_shadow(n, FakeDecider(bot), LIB, store, tmp_path)
     assert len(r.capture.profile.sections) == 9 and phone.screen == "feed-11"
     lines = shadow.describe(r, LIB)
     assert "LIKE" in lines[0] and any("Wo ist das?" in x for x in lines)
-    assert "  soft positives: goofy" in lines and not any("soft negatives" in x for x in lines)
+    assert "  soft positives: goofy" in lines and "  preferences silent on: diet: vegan" in lines and not any("soft negatives" in x for x in lines)
     assert lines[1].startswith("  details: ") and len(lines[1].split(" · ")) == len(r.capture.profile.details) > 1
 
     row = store.shadow(r.row_id)[0]
@@ -128,7 +128,16 @@ def test_report_numbers(store):
     assert "agreement like/skip: 3/4 = 75% [NOT YET" in out
     assert "dealbreaker: 1 [NOT YET]" in out
     assert "section + comment as Dev chose: 1/2 = 50%" in out
-    assert "missing: a pet photo" in out
+    assert "missing: a pet photo" in out and "preferences silent on" not in out
+
+
+def test_report_counts_preference_gaps(store):
+    for gaps in (["smokes now and then"], [], ["vegan", "rock climbing"]):
+        bot = like()
+        bot.uncovered = gaps
+        row(store, bot)
+    out = "\n".join(shadow.report(store.shadow(), []))
+    assert "preferences silent on (bot): 3 in 2 profiles" in out and "    rock climbing" in out
 
 
 def test_unjudged_rows_stay_out_of_the_report(store):

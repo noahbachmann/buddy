@@ -94,6 +94,8 @@ def describe(r: ShadowResult, lib: Library) -> list[str]:
         out.append(f"  soft negatives: {'; '.join(b.soft_flags)}")
     if b.soft_plus:
         out.append(f"  soft positives: {'; '.join(b.soft_plus)}")
+    if b.uncovered:
+        out.append(f"  preferences silent on: {'; '.join(b.uncovered)}")
     if b.decision == "like":
         sec = p.find(b.comment_on)
         what = sec.text.replace("\n", " — ") if sec and sec.kind == "prompt" else "(photo)"
@@ -259,6 +261,11 @@ def report(rows: list[ShadowRow], usage_rows: list[tuple]) -> list[str]:
         fixes = sum(bool(r.bot.get("fixes")) for r in done)
         if fixes:
             out.append(f"  decisions code had to fix: {fixes}")
+    gaps = [g for r in rows for g in r.bot.get("uncovered", [])]
+    if gaps:
+        out.append(f"  preferences silent on (bot): {len(gaps)} in "
+                   f"{sum(bool(r.bot.get('uncovered')) for r in rows)} profiles")
+        out += [f"    {g}" for g in gaps[-15:]]
     if rows:
         caps = [r.capture_s for r in rows]
         ms = [r.decide_ms for r in rows]

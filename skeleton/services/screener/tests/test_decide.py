@@ -59,7 +59,7 @@ def test_system_prompt_has_preferences_and_library():
 def raw(**kw):
     d = {"reason": "Likes hiking.", "decision": "like", "comment_on": "prompt 1", "comment": "hot_take",
          "comment_text": "Bold. Count me in.", "missing_hook": "", "prompt_langs": ["en", "en"], "soft_flags": [],
-         "soft_plus": [], "dealbreakers": []}
+         "soft_plus": [], "uncovered": [], "dealbreakers": []}
     return d | kw
 
 
@@ -70,8 +70,8 @@ def test_check_browse_accepts_a_good_answer():
 
 
 def test_soft_positives_apart_from_soft_negatives():
-    b = check_browse(raw(soft_flags=["late"], soft_plus=["goofy", " "]), profile(), LIB)
-    assert (b.soft_flags, b.soft_plus) == (["late"], ["goofy"])
+    b = check_browse(raw(soft_flags=["late"], soft_plus=["goofy", " "], uncovered=["vegan"]), profile(), LIB)
+    assert (b.soft_flags, b.soft_plus, b.uncovered, b.decision) == (["late"], ["goofy"], ["vegan"], "like")
     assert set(BROWSE_SCHEMA["required"]) == set(BROWSE_SCHEMA["properties"])
 
 

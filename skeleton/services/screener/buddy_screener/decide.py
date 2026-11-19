@@ -75,6 +75,9 @@ photos clearly meet, skip with the reason exactly "physical preference" and noth
 means skip.
 - Soft negatives from the preferences that apply go into `soft_flags`; they add up and raise the bar for a like. \
 Soft positives from the preferences that apply go into `soft_plus`; they lower it. A few words each.
+- `uncovered`: things the profile states (details or answers) that the owner might care about but the preferences \
+say nothing about, e.g. a habit, a substance or a diet line. A few words each, so the owner can add a rule; they \
+never change the decision. Empty when the preferences cover everything stated.
 - `reason`: one or two plain sentences the owner can check: which stated things decided it. No guess presented as fact.
 
 ## Liking a section with a comment
@@ -123,10 +126,12 @@ BROWSE_SCHEMA: dict[str, Any] = {
         "prompt_langs": {"type": "array", "items": {"type": "string", "enum": list(LANGS)}},
         "soft_flags": {"type": "array", "items": {"type": "string"}, "description": "soft negatives only"},
         "soft_plus": {"type": "array", "items": {"type": "string"}, "description": "soft positives"},
+        "uncovered": {"type": "array", "items": {"type": "string"},
+                      "description": "stated things the preferences say nothing about"},
         "dealbreakers": {"type": "array", "items": {"type": "string"}},
     },
     "required": ["reason", "decision", "comment_on", "comment", "comment_text", "missing_hook", "prompt_langs", "soft_flags",
-                 "soft_plus", "dealbreakers"],
+                 "soft_plus", "uncovered", "dealbreakers"],
     "additionalProperties": False,
 }
 
@@ -190,6 +195,7 @@ class Browse:
     stage: str = "full"          # "text": skipped by the text check, photos never sent
     comment_text: str = ""       # the comment as it goes out: the template adapted to her (code-checked)
     soft_plus: list[str] = field(default_factory=list)   # soft positives (soft_flags = negatives only)
+    uncovered: list[str] = field(default_factory=list)   # preference gaps: shown and counted, never decide
 
     @property
     def chat_lang(self) -> str:
@@ -217,7 +223,7 @@ def check_browse(raw: Any, p: Profile, lib: Library) -> Browse:
         raise DecideError(f"decision {decision[:20]!r}")
     b = Browse(decision, text("comment_on") or "none", text("comment") or "none", text("missing_hook"),
                [x for x in strings("prompt_langs") if x in LANGS], strings("soft_flags"), strings("dealbreakers"),
-               text("reason"), soft_plus=strings("soft_plus"))
+               text("reason"), soft_plus=strings("soft_plus"), uncovered=strings("uncovered"))
     prompts = sum(s.kind == "prompt" for s in p.sections)
     if len(b.prompt_langs) != prompts:
         b.fixes.append(f"prompt_langs has {len(b.prompt_langs)} entries for {prompts} prompts")
