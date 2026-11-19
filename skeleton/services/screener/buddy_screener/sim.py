@@ -289,9 +289,8 @@ def run_sim(cfg: Config, case_names: list[str] | None, store, out_dir: Path | No
     cases = [BY_NAME[n] for n in case_names] if case_names else CASES
     recorder = Recorder(run or _sdk_runner)
     start = clock()
-    budget = store.cost_since(start - 86400) + cfg.sim_usd     # the decider's cap = this run's budget on top
-    dcfg = DecideConfig(cfg.model, cfg.effort, cfg.decide_timeout_s, budget, cfg.token_file, cfg.limit_file,
-                        cfg.tmp_dir / "claude")
+    dcfg = DecideConfig(cfg.model, cfg.effort, cfg.decide_timeout_s, cfg.sim_usd, cfg.token_file, cfg.limit_file,
+                        cfg.tmp_dir / "claude", sim=True)
     talker = Talker(Decider(dcfg, store, run=recorder, clock=clock), prefix="sim-")
     flow = ChatFlow(rules, SENTINEL, cfg.chat_limits())
     out_dir = out_dir or cfg.tmp_dir / "sim" / time.strftime("%Y%m%d-%H%M%S")

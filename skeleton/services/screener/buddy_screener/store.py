@@ -74,8 +74,11 @@ class Store:
                          u.five_hour, u.seven_day))
         self.db.commit()
 
-    def cost_since(self, ts: float) -> float:
-        return self.db.execute("SELECT COALESCE(SUM(cost), 0) FROM usage WHERE ts >= ?", (ts,)).fetchone()[0]
+    def cost_since(self, ts: float, sim: bool = False) -> float:
+        """$ since `ts`: the live calls, or (`sim`) only the sim's: each has its own cap, neither eats the other's."""
+        op = "LIKE" if sim else "NOT LIKE"
+        return self.db.execute(f"SELECT COALESCE(SUM(cost), 0) FROM usage WHERE ts >= ? AND task {op} 'sim-%'",
+                               (ts,)).fetchone()[0]
 
     def add_shadow(self, key: str, capture_s: float, bot: dict[str, Any], usage) -> int:
         tokens = usage.input + usage.cache_read + usage.cache_write + usage.output

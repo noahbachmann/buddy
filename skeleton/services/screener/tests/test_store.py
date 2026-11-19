@@ -29,3 +29,11 @@ def test_ended_chats_go_after_keep_days_open_ones_stay(tmp_path):
     assert sorted(c.key for c in later.chats()) == ["closed", "open"]
     much_later = Store(db, clock=lambda: (KEEP_DAYS + 11) * DAY)
     assert [c.key for c in much_later.chats()] == ["open"]
+
+
+def test_live_and_sim_spend_apart():
+    from buddy_screener.decide import Usage
+    s = Store(":memory:")
+    s.add_usage(10.0, Usage("browse", "m", cost=1.0))
+    s.add_usage(11.0, Usage("sim-converse", "m", cost=0.25))
+    assert s.cost_since(0) == 1.0 and s.cost_since(0, sim=True) == 0.25

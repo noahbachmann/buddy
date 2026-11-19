@@ -291,6 +291,7 @@ class DecideConfig:
     limit_file: Path
     work_dir: Path               # empty dir on tmpfs: the CLI's cwd
     text_first: bool = True
+    sim: bool = False            # the sim's calls: capped on the sim's own spend (`daily_usd` = its cap)
 
 
 class Decider:
@@ -324,7 +325,7 @@ class Decider:
     def call(self, task: str, system: str, content: list[dict[str, Any]], schema: dict[str, Any]) -> Outcome:
         if (until := self.limited_until()) is not None:
             raise UsageLimited(until)
-        spent = self.store.cost_since(self.clock() - 86400)
+        spent = self.store.cost_since(self.clock() - 86400, self.cfg.sim)
         if spent >= self.cfg.daily_usd:
             raise BudgetSpent(f"${spent:.2f} in the last 24 h, cap ${self.cfg.daily_usd:.2f}")
         options = self._options(system, schema)

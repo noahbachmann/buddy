@@ -2,6 +2,7 @@
 are written, no sentinel or real contact reaches a prompt. The real model's behaviour is the Pi's gate run."""
 
 import re
+import time
 
 import pytest
 from test_decide import FakeSdk, limit, result
@@ -93,9 +94,12 @@ def test_one_case_by_name_and_unknown_names(host, tmp_path, capsys):
     assert "unknown case" in capsys.readouterr().out
 
 
-def test_budget_stops_the_run(host, tmp_path, capsys):
+def test_budget_stops_the_run_and_live_spend_doesnt_count(host, tmp_path, capsys):
+    from buddy_screener.decide import Usage
+    store = Store(":memory:")
+    store.add_usage(time.time(), Usage("browse", "m", cost=50.0))     # the live calls' spend: not the sim's
     host.sim_usd = 0.015          # one call and a half
-    assert sim.run_sim(host, None, Store(":memory:"), out_dir=tmp_path / "o", run=Model()) == 1
+    assert sim.run_sim(host, None, store, out_dir=tmp_path / "o", run=Model()) == 1
     out = capsys.readouterr().out
     assert "STOPPED" in out and "FAILED" in out
 

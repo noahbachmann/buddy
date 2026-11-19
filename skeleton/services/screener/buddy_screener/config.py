@@ -31,7 +31,7 @@ class Config:
     chat_close_days: float = ChatLimits.close_days
     chat_unmatch_h: float = ChatLimits.unmatch_h
     sim_model: str = "claude-haiku-5-5"   # the sim's personas (they play matches, the chat calls use `model`)
-    sim_usd: float = 3.0         # what one --sim run may spend (API-equivalent $, all its calls)
+    sim_usd: float = 3.0         # what --sim may spend per 24 h (API-equivalent $), apart from `daily_usd`
 
     @classmethod
     def from_env(cls) -> "Config":
