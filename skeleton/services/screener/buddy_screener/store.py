@@ -3,6 +3,8 @@
 - `usage`: one row per Claude call (kept: it sets active hours and model choice).
 - `shadow`: step 2's labelled set: the bot's decision on a profile and Dev's choice for it. No name, no images, no
   profile text: a profile is a key (hash of name, age, first prompt). Rows older than `KEEP_DAYS` are deleted.
+- `chats` (#77): one row per chat, `chat.Chat` as JSON (state, answers, flags, our sent log with its times; never her
+  message texts). Deleted `KEEP_DAYS` after the chat ended (closed, done, handed over or manual).
 """
 
 import hashlib
@@ -12,6 +14,8 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+from .chat import OPEN, Chat
 
 KEEP_DAYS = 30
 
@@ -26,6 +30,11 @@ CREATE TABLE IF NOT EXISTS shadow (
     capture_s REAL, decide_ms INTEGER, cost REAL, tokens INTEGER,
     bot TEXT NOT NULL,           -- decide.Browse as JSON
     dev TEXT, labelled REAL      -- Dev's label as JSON
+);
+CREATE TABLE IF NOT EXISTS chats (
+    key TEXT PRIMARY KEY, state TEXT NOT NULL, started REAL NOT NULL, updated REAL NOT NULL,
+    ended REAL,                  -- closed / done / handover / manual: retention counts from here
+    data TEXT NOT NULL           -- chat.Chat as JSON
 );
 """
 
@@ -56,6 +65,7 @@ class Store:
         self.db.executescript(_SCHEMA)
         self.clock = clock
         self.db.execute("DELETE FROM shadow WHERE ts < ?", (clock() - KEEP_DAYS * 86400,))
+        self.db.execute("DELETE FROM chats WHERE ended IS NOT NULL AND ended < ?", (clock() - KEEP_DAYS * 86400,))
         self.db.commit()
 
     def add_usage(self, ts: float, u) -> None:
@@ -92,3 +102,20 @@ class Store:
     def usage_rows(self, since: float = 0.0) -> list[tuple]:
         return self.db.execute("SELECT task, model, input, cache_read, cache_write, output, cost, ms, five_hour, "
                                "seven_day FROM usage WHERE ts >= ? ORDER BY ts", (since,)).fetchall()
+
+    def save_chat(self, chat: Chat) -> None:
+        ended = None if chat.state in OPEN else (chat.closed_at or self.clock())
+        self.db.execute("INSERT INTO chats (key, state, started, updated, ended, data) VALUES (?,?,?,?,?,?) "
+                        "ON CONFLICT(key) DO UPDATE SET state=excluded.state, updated=excluded.updated, "
+                        "ended=excluded.ended, data=excluded.data",
+                        (chat.key, chat.state, chat.started, self.clock(), ended,
+                         json.dumps(chat.to_dict(), ensure_ascii=False)))
+        self.db.commit()
+
+    def chat(self, key: str) -> Chat | None:
+        row = self.db.execute("SELECT data FROM chats WHERE key = ?", (key,)).fetchone()
+        return Chat.from_dict(json.loads(row[0])) if row else None
+
+    def chats(self, states: tuple[str, ...] | None = None) -> list[Chat]:
+        rows = self.db.execute("SELECT state, data FROM chats ORDER BY started").fetchall()
+        return [Chat.from_dict(json.loads(d)) for st, d in rows if states is None or st in states]
