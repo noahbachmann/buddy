@@ -231,17 +231,18 @@ def check_verify(raw: Any) -> Verdict:
 class Talker:
     """The chat's calls on a `Decider` (its lock-down, usage log, limit pause and cap)."""
 
-    def __init__(self, decider: Decider):
-        self.decider = decider
+    def __init__(self, decider: Decider, prefix: str = ""):
+        self.decider, self.prefix = decider, prefix      # prefix "sim-": the sim's usage rows apart from live ones
 
     def converse(self, rules: ChatRules, task: str, state: str, lang: str, profile: str, answered: list[int],
                  transcript: list[tuple[str, str]]) -> tuple[Converse, list[str], Usage]:
-        out = self.decider.call(TASK_CONVERSE, converse_system(rules),
+        out = self.decider.call(self.prefix + TASK_CONVERSE, converse_system(rules),
                                 converse_content(task, state, lang, profile, answered, transcript),
                                 converse_schema(rules))
         c, fixes = check_converse(out.structured, rules, task, state)
         return c, fixes, out.usage
 
     def verify(self, rules: ChatRules, transcript: list[tuple[str, str]]) -> tuple[Verdict, Usage]:
-        out = self.decider.call(TASK_VERIFY, verify_system(rules), verify_content(transcript), VERIFY_SCHEMA)
+        out = self.decider.call(self.prefix + TASK_VERIFY, verify_system(rules), verify_content(transcript),
+                                VERIFY_SCHEMA)
         return check_verify(out.structured), out.usage

@@ -16,6 +16,8 @@ Shadow mode (step 2; only skip/send act, and only on Dev's label; details in sha
     --cmd skip <id>               carry out Dev's skip label: skip that profile (the captured one only)
     --cmd send <id>               carry out Dev's like label: send the typed comment (upsell → plain like, never paid)
     --cmd report                  step 2's done-when numbers, missing comments, usage
+Chat sim (step 4, #77; no phone, real chat calls with sentinel contacts, transcripts to tmpfs):
+    --sim [--case NAME …]         the scripted cases (all, or the named ones) and the gate report
 
 Service (no flags): retained state, `stop|pause|resume` on buddy/screener/cmd, phone check. Step 1 acts on nothing
 by itself; browsing and chats come in later steps.
@@ -333,6 +335,8 @@ def main() -> int:
     p.add_argument("--wrong", action="store_true", help="label: the bot's comment reads wrong on its section")
     p.add_argument("--dealbreaker", action="store_true", help="label: Dev saw a dealbreaker")
     p.add_argument("--sensitive", action="store_true", help="label: the bot's reason infers something sensitive")
+    p.add_argument("--sim", action="store_true", help="the chat flow against simulated matches (#77)")
+    p.add_argument("--case", action="append", default=[], help="sim: only this scripted case (repeatable)")
     p.add_argument("args", nargs="*")
     args = p.parse_args()
     try:
@@ -340,6 +344,9 @@ def main() -> int:
     except ValueError as e:
         print(f"[screener] config: {e}", file=sys.stderr)
         return 1
+    if args.sim:
+        from .sim import run_sim
+        return run_sim(cfg, args.case, Store(cfg.db_path))
     if args.cmd:
         return offline(cfg, args)
     return service(cfg)

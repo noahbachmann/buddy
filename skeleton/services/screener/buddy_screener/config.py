@@ -6,6 +6,7 @@ from pathlib import Path
 
 from buddy_shared.config import env_float, env_int, env_string
 
+from .chat import ChatLimits
 from .device import Stopped
 
 
@@ -23,6 +24,14 @@ class Config:
     daily_usd: float = 5.0       # cap on the SDK's API-equivalent $ per 24 h (the plan isn't billed per call)
     photo_px: int = 512          # long side of a photo crop for the decision (~440 image tokens at 512)
     text_first: bool = True      # text-only dealbreaker check before sending photos
+    chat_min_exchanges: int = ChatLimits.min_exchanges   # chat (#77): meanings in chat.ChatLimits
+    chat_max_bot: int = ChatLimits.max_bot
+    chat_max_days: float = ChatLimits.max_days
+    chat_nudge_days: float = ChatLimits.nudge_days
+    chat_close_days: float = ChatLimits.close_days
+    chat_unmatch_h: float = ChatLimits.unmatch_h
+    sim_model: str = "claude-haiku-5-5"   # the sim's personas (they play matches, the chat calls use `model`)
+    sim_usd: float = 3.0         # what one --sim run may spend (API-equivalent $, all its calls)
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -40,6 +49,14 @@ class Config:
             daily_usd=env_float("BUDDY_SCREENER_DAILY_USD", d.daily_usd),
             photo_px=env_int("BUDDY_SCREENER_PHOTO_PX", d.photo_px),
             text_first=env_int("BUDDY_SCREENER_TEXT_FIRST", int(d.text_first)) != 0,
+            chat_min_exchanges=env_int("BUDDY_SCREENER_CHAT_MIN_EXCHANGES", d.chat_min_exchanges),
+            chat_max_bot=env_int("BUDDY_SCREENER_CHAT_MAX_BOT", d.chat_max_bot),
+            chat_max_days=env_float("BUDDY_SCREENER_CHAT_MAX_DAYS", d.chat_max_days),
+            chat_nudge_days=env_float("BUDDY_SCREENER_CHAT_NUDGE_DAYS", d.chat_nudge_days),
+            chat_close_days=env_float("BUDDY_SCREENER_CHAT_CLOSE_DAYS", d.chat_close_days),
+            chat_unmatch_h=env_float("BUDDY_SCREENER_CHAT_UNMATCH_H", d.chat_unmatch_h),
+            sim_model=env_string("BUDDY_SCREENER_SIM_MODEL", d.sim_model),
+            sim_usd=env_float("BUDDY_SCREENER_SIM_USD", d.sim_usd),
         )
         if not 256 <= c.photo_px <= 1568:
             raise ValueError(f"BUDDY_SCREENER_PHOTO_PX={c.photo_px}: 256..1568")
@@ -48,6 +65,10 @@ class Config:
         if not c.package:
             raise ValueError("BUDDY_SCREENER_APP is not set (the app's package, in buddy.env)")
         return c
+
+    def chat_limits(self) -> ChatLimits:
+        return ChatLimits(self.chat_min_exchanges, self.chat_max_bot, self.chat_max_days, self.chat_nudge_days,
+                          self.chat_close_days, self.chat_unmatch_h)
 
     @property
     def stop_file(self) -> Path:
