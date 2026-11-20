@@ -5,6 +5,8 @@ from buddy_screener.profile import Capture, LostTrack, dhash, hash_distance, shi
 from buddy_screener.uitree import parse
 from fixture_files import FEED, PACKAGE, load
 
+TOLERANCE_PX = 6
+
 
 def view(name: str) -> screens.ProfileView:
     return screens.profile_view(screens.classify(parse(load(name)), PACKAGE).root)
@@ -99,3 +101,11 @@ def test_friends_takes_are_sections():
     assert refs[:4] == ["photo 1", "friend 1", "friend 2", "poll 1"] and refs[-1] == "prompt 1"
     assert all(s.like is None for s in view("feed-friend-3").sections if s.kind == "friend")
     assert all(view(f"feed-friend-{i}").rows == [] for i in range(1, 6))   # the carousel isn't a detail row
+
+
+def test_a_poll_cards_top_seen_before_its_question_doesnt_break_the_shift():
+    # live 2026-11-20: the card's top was on the previous screen, its question (the poll's identity) wasn't yet
+    v = [view(f"feed-poll-card-{i}") for i in range(1, 4)]
+    cap = Capture(v[0])
+    first = cap.add(v[1], expect=600)
+    assert abs(cap.add(v[2], expect=first + 600) - (first + 610)) <= TOLERANCE_PX

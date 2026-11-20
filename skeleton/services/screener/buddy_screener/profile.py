@@ -95,7 +95,8 @@ def verify_shift(prev: ProfileView, prev_offset: int, cur: ProfileView, offset: 
     margin = 30   # px: a node right at the edge may be missing from a dump
     for b in cur.sections + cur.texts:
         bt, bb = b.rect.top + offset, b.rect.bottom + offset
-        if bb <= lo + margin or bt >= hi - margin:
+        known = (b.rect.top if b.seen_from is None else b.seen_from) + offset
+        if bb <= lo + margin or known >= hi - margin:
             continue  # new content
         if not any(_same(a, b) and min(a.rect.bottom + prev_offset, bb) > max(a.rect.top + prev_offset, bt)
                    for a in prev.sections + prev.texts):

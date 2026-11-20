@@ -148,6 +148,8 @@ class SectionView:
     top_cut: bool
     bottom_cut: bool
     like: Node | None        # its own like button, if on screen
+    seen_from: int | None = None   # poll: where its question starts (the card begins higher: a dump can show the
+                                   # card's top without the question, so it isn't known there yet)
 
 
 @dataclass
@@ -192,10 +194,10 @@ def profile_view(root: Node) -> ProfileView:
     for n in box.find(_is_section):
         if n.bounds.empty:
             continue
-        rect = n.bounds
+        rect, seen_from = n.bounds, None
         if _is_poll(n):
             # question only: the options below may be cut off, the text must match across dumps
-            kind, text, rect = "poll", v.POLL.fullmatch(n.desc).group(1), n.parent.bounds
+            kind, text, rect, seen_from = "poll", v.POLL.fullmatch(n.desc).group(1), n.parent.bounds, n.bounds.top
         elif (m := v.PROMPT.fullmatch(n.desc)) is not None:
             kind, text = "prompt", f"{m.group(1)}\n{m.group(2)}"
         elif v.VIDEO.fullmatch(n.desc) is not None:
@@ -208,7 +210,7 @@ def profile_view(root: Node) -> ProfileView:
             kind, text = "friend", m.group(1)   # a friend's card (carousel, side by side): listed, never liked
         else:
             kind, text = "photo", ""
-        sections.append(SectionView(kind, text, rect, rect.top <= vp.top, rect.bottom >= vp.bottom, None))
+        sections.append(SectionView(kind, text, rect, rect.top <= vp.top, rect.bottom >= vp.bottom, None, seen_from))
 
     # A section's like button lies over its lower right corner; when the section is cut at the bottom the button can
     # stick out below the list (seen over the tab bar). Attach each to the same-kind section it overlaps most.

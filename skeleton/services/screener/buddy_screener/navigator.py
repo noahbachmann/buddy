@@ -87,6 +87,7 @@ class Navigator:
     log: Callable[[str], None] = print
     last: Screen | None = field(default=None, init=False)
     _xml: str = field(default="", init=False)
+    _earlier: list[str] = field(default_factory=list, init=False)   # the last distinct dumps before `_xml`
 
     # --- reading the screen ---
 
@@ -96,7 +97,10 @@ class Navigator:
         return self._xml
 
     def screen(self) -> Screen:
-        self._xml = self.dev.dump()
+        xml = self.dev.dump()
+        if self._xml and xml != self._xml:
+            self._earlier = (self._earlier + [self._xml])[-2:]
+        self._xml = xml
         self.last = screens.classify(parse(self._xml), self.package)
         return self.last
 
@@ -140,8 +144,11 @@ class Navigator:
         path = None
         if self.dump_dir is not None and self._xml:
             self.dump_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
-            path = self.dump_dir / f"needs-you-{time.strftime('%Y%m%d-%H%M%S')}.xml"
+            stamp = time.strftime('%Y%m%d-%H%M%S')
+            path = self.dump_dir / f"needs-you-{stamp}.xml"
             path.write_text(self._xml)
+            for i, xml in enumerate(reversed(self._earlier), 1):   # the screens before: what it couldn't match
+                (self.dump_dir / f"needs-you-{stamp}-before{i}.xml").write_text(xml)
         return NeedsYou(reason, path)
 
     # --- acting ---
