@@ -101,6 +101,7 @@ def test_friends_takes_are_sections():
     assert refs[:4] == ["photo 1", "friend 1", "friend 2", "poll 1"] and refs[-1] == "prompt 1"
     assert all(s.like is None for s in view("feed-friend-3").sections if s.kind == "friend")
     assert all(view(f"feed-friend-{i}").rows == [] for i in range(1, 6))   # the carousel isn't a detail row
+    assert not any("From people close" in value for _, value in cap.profile.details)   # its header isn't a detail
 
 
 def test_a_poll_cards_top_seen_before_its_question_doesnt_break_the_shift():

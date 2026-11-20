@@ -243,7 +243,7 @@ def _details(box: Node) -> list[tuple[str, str]]:
     promo = _promo_texts(box)
     out = []
     for t in box.iter():
-        if t.cls != "TextView" or not t.text or id(t) in promo:
+        if t.cls != "TextView" or not t.text or id(t) in promo or v.FRIENDS_HEADER.fullmatch(t.text):
             continue
         cy = t.bounds.center[1]
         row = [l for l in labels if l.bounds.right <= t.bounds.left and l.bounds.top - 20 <= cy <= l.bounds.bottom + 20]
