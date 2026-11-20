@@ -88,10 +88,11 @@ body or looks. Ideally something the owner shares, otherwise genuine curiosity.
 - `comment`: a comment id from the library, or "none". The library holds patterns: its fit hint says what kind of \
 section it fits, its text is one example of how the owner says it. A pattern that would read wrong on that section is \
 worse than none: its hint must match what the section says or shows.
-- `comment_text`: the chosen pattern written for this section: same idea, tone, style and length as the example \
-(lowercase stays lowercase, short stays short), with the example's specifics swapped for hers where they differ \
-(her activity, her pet, her question). Keep the owner's wording wherever it already fits; it may be the example \
-unchanged. Write it in the chat's language (see Languages: German or Swiss German prompts → the example's German \
+- `comment_text`: a fresh comment for this section, written in the owner's voice: take the pattern's idea (the kind \
+of joke or move in its hint) and the example's tone, style and length (lowercase stays lowercase, short stays \
+short), but build it on what her section actually says or shows. The example is inspiration, not text to reuse: \
+never copy or translate it word for word, and don't force its specifics (its object, its wording) onto her section. \
+It must read as a natural answer to her section, not a template on top of it. Write it in the chat's language (see Languages: German or Swiss German prompts → the example's German \
 style, standard German or Swiss German as the example is; otherwise English), whatever the example's language. No \
 numbers, links or handles. "" when `comment` is "none".
 - No comment fits: `comment` "none", and `missing_hook` says briefly which comment is missing (the hook and the \

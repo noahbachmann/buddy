@@ -67,7 +67,8 @@ code path taps a paid option or a chat send.
   `uncovered`: stated things the preferences say nothing about (#79). Those never decide; `describe` shows them,
   `report` counts them: the input for the next preferences diff.
 - Like comments are patterns (#78, Dev 2026-11-19): `templates.md` text = one example of how Dev says it; the bot
-  returns `comment_text` = that pattern adapted to her section, in the chat's language. Code refuses it like a chat
+  returns `comment_text` = a fresh comment on her section in Dev's voice, inspired by the pattern, never the example
+  copied or translated (Dev, 2026-11-20: it pasted `which_way`'s text as a stiff translation), in the chat's language. Code refuses it like a chat
   text (`chat.refusal`: empty, > `COMMENT_MAX`, digit runs, handles, links) → the template's own text if its
   language matches the chat, else no comment. A label stores the text that goes out (`text`); `type`/`send` use it.
 - Text first is off on the host since 2026-11-19 (0 early skips in 47 profiles, a third of the spend); photos 768 px
