@@ -98,3 +98,4 @@ def test_friends_takes_are_sections():
     refs = [s.ref for s in cap.profile.sections]
     assert refs[:4] == ["photo 1", "friend 1", "friend 2", "poll 1"] and refs[-1] == "prompt 1"
     assert all(s.like is None for s in view("feed-friend-3").sections if s.kind == "friend")
+    assert all(view(f"feed-friend-{i}").rows == [] for i in range(1, 6))   # the carousel isn't a detail row

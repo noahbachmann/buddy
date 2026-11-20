@@ -229,7 +229,9 @@ def profile_view(root: Node) -> ProfileView:
         for sv in sections + texts:
             sv.top_cut = False
     obstacles = [n.bounds for n in root.iter() if n.clickable and not _inside(n, box) and n is not box]
-    rows = [n.bounds for n in box.iter() if n.scrollable and n.cls == "View" and n is not box and not n.bounds.empty]
+    # sideways detail rows; a carousel of sections (friends' cards, 2026-11-20) also scrolls sideways but isn't one
+    rows = [n.bounds for n in box.iter() if n.scrollable and n.cls == "View" and n is not box and not n.bounds.empty
+            and n.first(_is_section) is None]
     return ProfileView(name, vp, sections, _details(box), texts, obstacles, at_top, rows)
 
 
