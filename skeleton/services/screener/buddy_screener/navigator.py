@@ -378,6 +378,8 @@ class Navigator:
                 return s, view
             self._swipe_list(view, -STEP)
             s, view, _ = self._profile_past_or_ask(view, -STEP)
+        if view.at_top:   # the last swipe's screen (seen 2026-11-20: it was the top)
+            return s, view
         raise self.needs_you("profile doesn't scroll back to its top")
 
     def _relocate(self, cap: Capture) -> tuple[Screen, ProfileView]:
