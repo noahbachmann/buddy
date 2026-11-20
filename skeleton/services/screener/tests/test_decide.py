@@ -58,7 +58,7 @@ def test_system_prompt_has_preferences_and_library():
 
 def raw(**kw):
     d = {"reason": "Likes hiking.", "decision": "like", "comment_on": "prompt 1", "comment": "hot_take",
-         "comment_text": "Bold. Count me in.", "missing_hook": "", "prompt_langs": ["en", "en"], "soft_flags": [],
+         "comment_text": "Bold. Count me in.", "comment_lang": "en", "missing_hook": "", "prompt_langs": ["en", "en"], "soft_flags": [],
          "soft_plus": [], "uncovered": [], "dealbreakers": []}
     return d | kw
 
@@ -79,6 +79,11 @@ def test_soft_positives_apart_from_soft_negatives():
 def test_refused_adapted_comment_falls_back_to_the_template_in_the_chats_language(text):
     b = check_browse(raw(comment_text=text), profile(), LIB)   # hot_take is en, the chat en
     assert (b.comment, b.comment_text) == ("hot_take", "Bold. I'm in.") and b.fixes
+
+
+def test_adapted_comment_in_the_wrong_language_is_refused():
+    b = check_browse(raw(prompt_langs=["de-ch", "de-ch"]), profile(), LIB)   # en text for a de chat, en template
+    assert (b.comment, b.comment_text) == ("none", "") and "for a de chat" in b.fixes[0]
 
 
 def test_refused_adapted_comment_in_another_language_drops_the_comment():

@@ -95,6 +95,8 @@ never copy or translate it word for word, and don't force its specifics (its obj
 It must read as a natural answer to her section, not a template on top of it. Write it in the chat's language (see Languages: German or Swiss German prompts → the example's German \
 style, standard German or Swiss German as the example is; otherwise English), whatever the example's language. No \
 numbers, links or handles. "" when `comment` is "none".
+- `comment_lang`: the language `comment_text` is actually written in ("de" for standard or Swiss German, "en"); \
+it must be the chat's language. "none" when `comment` is "none".
 - No comment fits: `comment` "none", and `missing_hook` says briefly which comment is missing (the hook and the \
 tone), without quoting the profile. Otherwise `missing_hook` is "".
 - A skip: `comment_on` "none", `comment` "none", `comment_text` "", `missing_hook` "".
@@ -123,6 +125,8 @@ BROWSE_SCHEMA: dict[str, Any] = {
         "comment_on": {"type": "string", "description": "'photo N', 'prompt N' or 'none' (never a video or a poll)"},
         "comment": {"type": "string", "description": "a comment id from the library or 'none'"},
         "comment_text": {"type": "string", "description": "that comment adapted to the section, or ''"},
+        "comment_lang": {"type": "string", "enum": ["de", "en", "none"],
+                         "description": "the language comment_text is written in ('none' without a comment)"},
         "missing_hook": {"type": "string"},
         "prompt_langs": {"type": "array", "items": {"type": "string", "enum": list(LANGS)}},
         "soft_flags": {"type": "array", "items": {"type": "string"}, "description": "soft negatives only"},
@@ -131,7 +135,7 @@ BROWSE_SCHEMA: dict[str, Any] = {
                       "description": "stated things the preferences say nothing about"},
         "dealbreakers": {"type": "array", "items": {"type": "string"}},
     },
-    "required": ["reason", "decision", "comment_on", "comment", "comment_text", "missing_hook", "prompt_langs", "soft_flags",
+    "required": ["reason", "decision", "comment_on", "comment", "comment_text", "comment_lang", "missing_hook", "prompt_langs", "soft_flags",
                  "soft_plus", "uncovered", "dealbreakers"],
     "additionalProperties": False,
 }
@@ -246,7 +250,10 @@ def check_browse(raw: Any, p: Profile, lib: Library) -> Browse:
         b.missing_hook = ""
         c = lib.comment(b.comment)
         adapted = " ".join(text("comment_text").split())
-        if (why := refusal(adapted, COMMENT_MAX)) is None:
+        why = refusal(adapted, COMMENT_MAX)
+        if why is None and (lang := text("comment_lang")) != b.chat_lang:
+            why = f"written in {lang[:10] or '?'} for a {b.chat_lang} chat"   # seen: en comment, Swiss German profile
+        if why is None:
             b.comment_text = adapted
         elif c.lang == b.chat_lang:
             b.comment_text = c.text
