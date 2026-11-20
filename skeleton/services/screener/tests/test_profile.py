@@ -90,3 +90,11 @@ def test_no_shared_section_still_loses_track():
     prev, cur = view("feed-voice-1"), view("feed-voice-4")
     with pytest.raises(LostTrack):
         Capture(prev).add(cur, expect=600)
+
+
+def test_friends_takes_are_sections():
+    # 2026-11-20: a carousel of friends' cards, a feature ad, a poll: unknown, the capture lost track
+    cap = capture([f"feed-friend-{i}" for i in range(1, 6)])
+    refs = [s.ref for s in cap.profile.sections]
+    assert refs[:4] == ["photo 1", "friend 1", "friend 2", "poll 1"] and refs[-1] == "prompt 1"
+    assert all(s.like is None for s in view("feed-friend-3").sections if s.kind == "friend")

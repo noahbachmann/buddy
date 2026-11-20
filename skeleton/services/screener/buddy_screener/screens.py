@@ -108,7 +108,7 @@ def _is_like_button(n: Node) -> bool:
 def _is_section(n: Node) -> bool:
     return ((n.cls == "ImageView" and v.PHOTO.fullmatch(n.desc) is not None)
             or (n.cls == "View" and (v.VIDEO.fullmatch(n.desc) or v.VIDEO_PROMPT.fullmatch(n.desc)
-                                     or v.VOICE_PROMPT.fullmatch(n.desc)) is not None)
+                                     or v.VOICE_PROMPT.fullmatch(n.desc) or v.FRIEND_TAKE.fullmatch(n.desc)) is not None)
             or v.PROMPT.fullmatch(n.desc) is not None or _is_poll(n))
 
 
@@ -142,7 +142,7 @@ def skip_button(root: Node) -> Node | None:
 class SectionView:
     """A photo or prompt as one dump shows it. `rect` is clipped to the screen; `top_cut`/`bottom_cut` say which
     edges are the viewport's, not the section's."""
-    kind: str                # "photo" | "prompt" | "video" | "voice" | "poll"
+    kind: str                # "photo" | "prompt" | "video" | "voice" | "friend" | "poll"
     text: str                # prompt: "question\nanswer"; video prompt, poll: the question; photo: ""
     rect: Rect
     top_cut: bool
@@ -204,6 +204,8 @@ def profile_view(root: Node) -> ProfileView:
             kind, text = "video", m.group(1)   # the question it answers
         elif (m := v.VOICE_PROMPT.fullmatch(n.desc)) is not None:
             kind, text = "voice", m.group(1)   # recorded answer: the bot can't hear it, never liked (2026-11-20)
+        elif (m := v.FRIEND_TAKE.fullmatch(n.desc)) is not None:
+            kind, text = "friend", m.group(1)   # a friend's card (carousel, side by side): listed, never liked
         else:
             kind, text = "photo", ""
         sections.append(SectionView(kind, text, rect, rect.top <= vp.top, rect.bottom >= vp.bottom, None))

@@ -122,7 +122,7 @@ BROWSE_SCHEMA: dict[str, Any] = {
     "properties": {
         "reason": {"type": "string"},
         "decision": {"type": "string", "enum": ["like", "skip"]},
-        "comment_on": {"type": "string", "description": "'photo N', 'prompt N' or 'none' (never a video, voice or poll)"},
+        "comment_on": {"type": "string", "description": "'photo N', 'prompt N' or 'none' (never a video, voice, friend or poll)"},
         "comment": {"type": "string", "description": "a comment id from the library or 'none'"},
         "comment_text": {"type": "string", "description": "that comment adapted to the section, or ''"},
         "comment_lang": {"type": "string", "enum": ["de", "en", "none"],
@@ -170,6 +170,8 @@ def profile_content(p: Profile, photos: bool = True) -> list[dict[str, Any]]:
         elif s.kind == "voice":
             text.append(f"{s.ref}: (a voice recording answering the prompt \"{s.text}\": can't be heard, can't be "
                         "commented on)")
+        elif s.kind == "friend":
+            text.append(f"{s.ref}: (written about her by a friend, can't be commented on: {s.text})")
         elif s.kind == "poll":
             text.append(f"{s.ref}: (a poll asking \"{s.text}\": can't be commented on)")
         elif not photos:
@@ -241,7 +243,7 @@ def check_browse(raw: Any, p: Profile, lib: Library) -> Browse:
     if b.decision == "skip":
         b.comment_on = b.comment = "none"
         return b
-    if (target := p.find(b.comment_on)) is None or target.kind in ("video", "voice", "poll"):
+    if (target := p.find(b.comment_on)) is None or target.kind in ("video", "voice", "friend", "poll"):
         b.fixes.append(f"comment_on {b.comment_on[:20]!r} isn't a likeable captured section → first prompt/photo")
         b.comment_on = next((s.ref for s in p.sections if s.kind == "prompt"),
                             next((s.ref for s in p.sections if s.kind == "photo"), "none"))

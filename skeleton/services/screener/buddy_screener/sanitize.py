@@ -75,6 +75,12 @@ class _Mapper:
             return f"Video prompt: {self.placeholder(m.group(1), 'Question')}"
         if (m := v.VOICE_PROMPT.fullmatch(s)) is not None:
             return f"Voice Prompt: {self.placeholder(m.group(1), 'Question')}"
+        if (m := v.FRIEND_TAKE.fullmatch(s)) is not None:
+            return f"Friend's Take. {self.placeholder(m.group(1), 'Take')}"
+        if (m := v.LIKE_FRIEND_TAKE.fullmatch(s)) is not None:
+            return f"Like {self.name(m.group(1))}'s Friend's Take"
+        if (m := v.FRIENDS_HEADER.fullmatch(s)) is not None:
+            return f"From people close to {self.name(m.group(1))}"
         if v.ELAPSED.fullmatch(s):
             return s
         if (m := v.PROMPT.fullmatch(s)) is not None:
