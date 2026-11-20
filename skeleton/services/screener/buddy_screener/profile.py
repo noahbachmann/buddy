@@ -82,6 +82,12 @@ def shift_candidates(prev: ProfileView, prev_offset: int, cur: ProfileView, expe
     return sorted(votes, key=lambda s: (-support[s], abs(s - near)))
 
 
+def _spanned(prev: ProfileView, cur: ProfileView) -> bool:
+    """A section with its own text cut at the bottom in `prev` and at the top in `cur`: the swipe stayed inside it."""
+    return any(a.text and _same(a, b) and a.bottom_cut and b.top_cut and not a.top_cut and not b.bottom_cut
+               for a in prev.sections for b in cur.sections)
+
+
 def verify_shift(prev: ProfileView, prev_offset: int, cur: ProfileView, offset: int) -> bool:
     """Everything `cur` shows (sections and texts) inside `prev`'s visible range in content space has a match in
     `prev` there: a wrong shift puts details where `prev` had a photo, or a photo onto the wrong photo."""
@@ -138,6 +144,10 @@ class Capture:
             return offset
         offset = next((o for o in shift_candidates(self._prev, self.offset, view, expect)
                        if verify_shift(self._prev, self.offset, view, o)), None)
+        if offset is None and expect is not None and _spanned(self._prev, view):
+            # a section taller than the swipe (video prompt, 2026-11-20): seen to its top before, from its bottom
+            # now, no shared edge: estimate like a blind gap
+            return self.add(view, expect, blind=True)
         if offset is None:
             raise LostTrack("no shift lines the sections up with the previous dump")
         self.moves.append(((expect if expect is not None else self.offset) - self.offset, offset - self.offset))

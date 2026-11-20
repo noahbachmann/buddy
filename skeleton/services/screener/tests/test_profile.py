@@ -1,7 +1,7 @@
 import pytest
 
 from buddy_screener import screens
-from buddy_screener.profile import Capture, dhash, hash_distance, shift_candidates
+from buddy_screener.profile import Capture, LostTrack, dhash, hash_distance, shift_candidates
 from buddy_screener.uitree import parse
 from fixture_files import FEED, PACKAGE, load
 
@@ -74,3 +74,19 @@ def test_voice_prompt_is_a_section_and_an_anchor():
     kinds = [(s.kind, s.text) for s in cap.profile.sections]
     assert ("voice", "Question 2") in kinds and ("video", "Question 1") in kinds
     assert all(s.like is None for s in view("feed-voice-3").sections if s.kind == "voice")
+
+
+def test_a_section_taller_than_the_swipe_is_crossed_by_estimate():
+    # live 2026-11-20: a tall video prompt, its bottom off screen, then only its bottom: no shared edge
+    prev, cur = view("feed-voice-1"), view("feed-voice-2")
+    video = next(s for s in prev.sections if s.kind == "video")
+    video.bottom_cut = True
+    cap = Capture(prev)
+    assert abs(cap.add(cur, expect=600) - 620) <= 40   # true shift 620 (video bottom 1967 → 1347)
+    assert [s.kind for s in cap.profile.sections].count("video") == 1
+
+
+def test_no_shared_section_still_loses_track():
+    prev, cur = view("feed-voice-1"), view("feed-voice-4")
+    with pytest.raises(LostTrack):
+        Capture(prev).add(cur, expect=600)
