@@ -26,6 +26,8 @@ VIDEO = re.compile(r"(.+)'s video", re.S)    # autoplays: the screen never idles
 LIKE_VIDEO = "Like video"                      # not in LIKE_BUTTONS: the bot can't watch it, never liked
 VIDEO_PROMPT = re.compile(r"Video prompt: (.+)", re.S)   # a video answering a prompt: a video section with its question
 VIDEO_CONTROLS = ("Show caption", "Unmute video", "Mute video")
+VOICE_PROMPT = re.compile(r"Voice Prompt: (.+)", re.S)   # audio answering a prompt: a voice section, never liked
+VOICE_CONTROLS = ("Play Voice Prompt", "Like voice prompt")
 ELAPSED = re.compile(r"Elapsed time: \d+ seconds?")      # a playing video's clock: changes every second
 PROMPT = re.compile(r"Prompt: (.*?)\. Answer: (.*)", re.S)
 POLL = re.compile(r"Prompt: (.+)", re.S)       # no answer (PROMPT checked first): a poll's question, options below
@@ -78,6 +80,6 @@ DETAIL_LABELS = frozenset({
 
 # Strings kept verbatim by the sanitizer (besides the patterns above)
 KEEP = frozenset({
-    *TABS, *LIKE_BUTTONS, LIKE_VIDEO, *VIDEO_CONTROLS, UNDO_SKIP, MORE, VERIFIED, EDIT_COMMENT, SEND_LIKE, SEND_LIKE_WITH,
+    *TABS, *LIKE_BUTTONS, LIKE_VIDEO, *VIDEO_CONTROLS, *VOICE_CONTROLS, UNDO_SKIP, MORE, VERIFIED, EDIT_COMMENT, SEND_LIKE, SEND_LIKE_WITH,
     LIKES_HEADER, MATCHES_HEADER, CLOSE, SEND_ANYWAY, OUT_OF_LIKES, CLOSE_SHEET, BACK, CHAT_TAB, CHAT_PROFILE_TAB, CHAT_HINT, DOUBLE_TAP_HINT, PROMO_ACTION, *DETAIL_LABELS,
 })

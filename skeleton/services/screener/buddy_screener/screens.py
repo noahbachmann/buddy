@@ -107,7 +107,8 @@ def _is_like_button(n: Node) -> bool:
 
 def _is_section(n: Node) -> bool:
     return ((n.cls == "ImageView" and v.PHOTO.fullmatch(n.desc) is not None)
-            or (n.cls == "View" and (v.VIDEO.fullmatch(n.desc) or v.VIDEO_PROMPT.fullmatch(n.desc)) is not None)
+            or (n.cls == "View" and (v.VIDEO.fullmatch(n.desc) or v.VIDEO_PROMPT.fullmatch(n.desc)
+                                     or v.VOICE_PROMPT.fullmatch(n.desc)) is not None)
             or v.PROMPT.fullmatch(n.desc) is not None or _is_poll(n))
 
 
@@ -141,7 +142,7 @@ def skip_button(root: Node) -> Node | None:
 class SectionView:
     """A photo or prompt as one dump shows it. `rect` is clipped to the screen; `top_cut`/`bottom_cut` say which
     edges are the viewport's, not the section's."""
-    kind: str                # "photo" | "prompt" | "video" | "poll"
+    kind: str                # "photo" | "prompt" | "video" | "voice" | "poll"
     text: str                # prompt: "question\nanswer"; video prompt, poll: the question; photo: ""
     rect: Rect
     top_cut: bool
@@ -201,6 +202,8 @@ def profile_view(root: Node) -> ProfileView:
             kind, text = "video", ""   # no like attached (LIKE_VIDEO isn't a like button): never liked
         elif (m := v.VIDEO_PROMPT.fullmatch(n.desc)) is not None:
             kind, text = "video", m.group(1)   # the question it answers
+        elif (m := v.VOICE_PROMPT.fullmatch(n.desc)) is not None:
+            kind, text = "voice", m.group(1)   # recorded answer: the bot can't hear it, never liked (2026-11-20)
         else:
             kind, text = "photo", ""
         sections.append(SectionView(kind, text, rect, rect.top <= vp.top, rect.bottom >= vp.bottom, None))

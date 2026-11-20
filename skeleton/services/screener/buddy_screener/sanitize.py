@@ -73,6 +73,8 @@ class _Mapper:
             return f"{self.name(m.group(1))}'s video"
         if (m := v.VIDEO_PROMPT.fullmatch(s)) is not None:
             return f"Video prompt: {self.placeholder(m.group(1), 'Question')}"
+        if (m := v.VOICE_PROMPT.fullmatch(s)) is not None:
+            return f"Voice Prompt: {self.placeholder(m.group(1), 'Question')}"
         if v.ELAPSED.fullmatch(s):
             return s
         if (m := v.PROMPT.fullmatch(s)) is not None:

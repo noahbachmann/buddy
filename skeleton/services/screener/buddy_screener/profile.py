@@ -27,7 +27,7 @@ class LostTrack(RuntimeError):
 
 @dataclass
 class Section:
-    kind: str                # "photo" | "prompt" | "video" (can't be watched or liked) | "poll" (can't be answered)
+    kind: str                # "photo" | "prompt" | "video" / "voice" (can't be watched/heard or liked) | "poll" (can't be answered)
     index: int               # 1-based among its kind, capture order: "photo 2", "prompt 1"
     text: str                # prompt "question\nanswer"; photo ""
     top: int | None          # content y of the real edges; None until an uncut edge was seen

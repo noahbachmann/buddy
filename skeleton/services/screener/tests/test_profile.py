@@ -66,3 +66,11 @@ def test_dhash_and_distance():
     assert dhash(flat) == "0000000000000000"
     assert dhash(ramp) == "ffffffffffffffff"
     assert hash_distance(dhash(flat), dhash(ramp)) == 64
+
+
+def test_voice_prompt_is_a_section_and_an_anchor():
+    # 2026-11-20: video prompt, a feature ad, then a voice prompt; unknown, the voice card left no anchor: lost track
+    cap = capture([f"feed-voice-{i}" for i in range(1, 5)])
+    kinds = [(s.kind, s.text) for s in cap.profile.sections]
+    assert ("voice", "Question 2") in kinds and ("video", "Question 1") in kinds
+    assert all(s.like is None for s in view("feed-voice-3").sections if s.kind == "voice")
