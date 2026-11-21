@@ -57,7 +57,7 @@ def test_system_prompt_has_preferences_and_library():
 
 
 def raw(**kw):
-    d = {"reason": "Likes hiking.", "decision": "like", "comment_on": "prompt 1", "comment": "hot_take",
+    d = {"reason": "Likes hiking.", "decision": "like", "generic": False, "comment_on": "prompt 1", "comment": "hot_take",
          "comment_text": "Bold. Count me in.", "comment_lang": "en", "missing_hook": "", "prompt_langs": ["en", "en"], "soft_flags": [],
          "soft_plus": [], "uncovered": [], "dealbreakers": []}
     return d | kw
@@ -110,6 +110,12 @@ def test_unknown_section_falls_back_to_the_first_prompt_without_comment():
 def test_dealbreaker_forces_skip():
     b = check_browse(raw(dealbreakers=["wants kids soon"]), profile(), LIB)
     assert (b.decision, b.comment_on, b.comment) == ("skip", "none", "none")
+
+
+def test_a_like_on_a_profile_it_called_generic_is_a_skip():
+    b = check_browse(raw(generic=True), profile(), LIB)
+    assert (b.decision, b.comment_on, b.comment) == ("skip", "none", "none")
+    assert b.fixes == ["like on a profile it called generic → skip"]
 
 
 def test_skip_clears_the_choice():

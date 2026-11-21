@@ -73,6 +73,9 @@ sexuality or any other sensitive trait from photos or names, and never put such 
 photos clearly meet, skip with the reason exactly "physical preference" and nothing else about the body.
 - Dealbreakers count only when the profile states them. List each in `dealbreakers` in a few words. Any dealbreaker \
 means skip.
+- `generic`: first judge the profile against the owner's rule on unique vs generic, on its own, before any plus \
+or minus: true when it is generic by that rule, including a scarce profile of short one-line answers, however funny \
+or quirky. A generic profile is a skip: no soft positive outweighs it.
 - Soft negatives from the preferences that apply go into `soft_flags`; they add up and raise the bar for a like. \
 Soft positives from the preferences that apply go into `soft_plus`; they lower it. A few words each.
 - `uncovered`: things the profile states (details or answers) that the owner might care about but the preferences \
@@ -122,6 +125,7 @@ BROWSE_SCHEMA: dict[str, Any] = {
     "properties": {
         "reason": {"type": "string"},
         "decision": {"type": "string", "enum": ["like", "skip"]},
+        "generic": {"type": "boolean", "description": "generic by the owner's rule (scarce counts): always a skip"},
         "comment_on": {"type": "string", "description": "'photo N', 'prompt N' or 'none' (never a video, voice, friend or poll)"},
         "comment": {"type": "string", "description": "a comment id from the library or 'none'"},
         "comment_text": {"type": "string", "description": "that comment adapted to the section, or ''"},
@@ -135,7 +139,7 @@ BROWSE_SCHEMA: dict[str, Any] = {
                       "description": "stated things the preferences say nothing about"},
         "dealbreakers": {"type": "array", "items": {"type": "string"}},
     },
-    "required": ["reason", "decision", "comment_on", "comment", "comment_text", "comment_lang", "missing_hook", "prompt_langs", "soft_flags",
+    "required": ["reason", "decision", "generic", "comment_on", "comment", "comment_text", "comment_lang", "missing_hook", "prompt_langs", "soft_flags",
                  "soft_plus", "uncovered", "dealbreakers"],
     "additionalProperties": False,
 }
@@ -240,6 +244,10 @@ def check_browse(raw: Any, p: Profile, lib: Library) -> Browse:
     if b.dealbreakers and b.decision == "like":
         b.decision = "skip"
         b.fixes.append("like with a dealbreaker → skip")
+    if raw.get("generic") is True and b.decision == "like":
+        # the bot liked "generic but funny" profiles Dev skipped (#81, #92, #94, #107): the verdict decides, not the sum
+        b.decision = "skip"
+        b.fixes.append("like on a profile it called generic → skip")
     if b.decision == "skip":
         b.comment_on = b.comment = "none"
         return b
