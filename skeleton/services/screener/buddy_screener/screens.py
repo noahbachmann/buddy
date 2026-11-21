@@ -221,8 +221,11 @@ def profile_view(root: Node) -> ProfileView:
         if best is not None:
             best.like = b
 
-    texts = [SectionView("text", n.text, n.bounds, n.bounds.top <= vp.top, n.bounds.bottom >= vp.bottom, None)
-             for n in box.iter() if n.cls == "TextView" and n.text and not n.bounds.empty]
+    # anchors for the shift; a poll's options too: they stay on screen after its question scrolled off (2026-11-21)
+    texts = [SectionView("text", n.text or n.desc, n.bounds, n.bounds.top <= vp.top, n.bounds.bottom >= vp.bottom,
+                         None)
+             for n in box.iter() if not n.bounds.empty
+             and ((n.cls == "TextView" and n.text) or v.POLL_OPTION.fullmatch(n.desc) is not None)]
     name = v.SKIP.fullmatch(skip.desc).group(1).strip()   # app keeps a trailing space from the profile ("Skip Ana ")
     # At the top of a profile the header is expanded and shows the name as text above the list (it collapses into
     # the skip button's label once scrolled): the list can't move up, so whatever touches its top edge starts there.

@@ -110,3 +110,11 @@ def test_a_poll_cards_top_seen_before_its_question_doesnt_break_the_shift():
     cap = Capture(v[0])
     first = cap.add(v[1], expect=600)
     assert abs(cap.add(v[2], expect=first + 600) - (first + 610)) <= TOLERANCE_PX
+
+
+def test_a_poll_scrolled_past_its_question_still_anchors_by_its_options():
+    # live 2026-11-21: the poll's question went off the top, only its options and a voice prompt below were left
+    v = [view(f"feed-poll-off-{i}") for i in range(1, 4)]
+    cap = Capture(v[0])
+    first = cap.add(v[1], expect=600)
+    assert abs(cap.add(v[2], expect=first + 600) - (first + 615)) <= TOLERANCE_PX
