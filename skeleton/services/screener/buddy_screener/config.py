@@ -27,6 +27,7 @@ class Config:
     photo_check: bool = True     # photos-only physical check before the full decision (#83)
     photo_model: str = ""        # its model; empty = `model`
     photo_check_px: int = 1024   # its crops' long side: ≥ the screen's 960 px photos = not downscaled
+    check_model: str = ""        # the like comment's copy/invention check (#84); empty = `model`
     chat_min_exchanges: int = ChatLimits.min_exchanges   # chat (#77): meanings in chat.ChatLimits
     chat_max_bot: int = ChatLimits.max_bot
     chat_max_days: float = ChatLimits.max_days
@@ -55,6 +56,7 @@ class Config:
             photo_check=env_int("BUDDY_SCREENER_PHOTO_CHECK", int(d.photo_check)) != 0,
             photo_model=env_string("BUDDY_SCREENER_PHOTO_MODEL", d.photo_model),
             photo_check_px=env_int("BUDDY_SCREENER_PHOTO_CHECK_PX", d.photo_check_px),
+            check_model=env_string("BUDDY_SCREENER_CHECK_MODEL", d.check_model),
             chat_min_exchanges=env_int("BUDDY_SCREENER_CHAT_MIN_EXCHANGES", d.chat_min_exchanges),
             chat_max_bot=env_int("BUDDY_SCREENER_CHAT_MAX_BOT", d.chat_max_bot),
             chat_max_days=env_float("BUDDY_SCREENER_CHAT_MAX_DAYS", d.chat_max_days),

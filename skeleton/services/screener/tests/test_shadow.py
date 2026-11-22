@@ -312,3 +312,33 @@ def test_report_photo_check(store):
     assert ("  overweight (photo check): yes 2, no 1, can't tell 1 of 4; Dev liked 1 of the yes; Dev's dealbreakers "
             "without a yes: 1 (misses if the note says weight)") in out
     assert f"    #{miss}: overweight" in out and "  photo check: 4 calls, $0.010 per profile" in out
+
+
+def test_own_comments_label_and_type(store):
+    bot = like(comment="own", text="wo isch das, gopfried?")
+    r = row(store, bot)
+    lab = shadow.make_label(r, "like", None, None, LIB)                 # bare like: the bot's own text
+    assert (lab["comment"], lab["text"]) == ("own", "wo isch das, gopfried?")
+    lab = shadow.make_label(r, "like", "prompt 1", "own", LIB, text="mutig")
+    assert (lab["comment_on"], lab["comment"], lab["text"]) == ("prompt 1", "own", "mutig")
+    with pytest.raises(shadow.LabelError, match="needs its text"):
+        shadow.make_label(r, "like", "prompt 1", "own", LIB)
+
+
+def test_report_what_dev_did_with_the_bots_comment(store):
+    def add(on, bot_text, *dev, **kw):
+        r = row(store, like(on, "own", text=bot_text))
+        store.label(r.id, shadow.make_label(r, "like", *dev, LIB, **kw))
+
+    add("photo 1", "wo isch dä see?", None, None)                                            # sent
+    add("photo 1", "wo isch dä see?", "photo 1", "own", text="wo isch dä see genau?")       # edited
+    add("prompt 1", "bold, i'm in", "prompt 1", "hot_take")                                   # own (Dev's template)
+    add("prompt 1", "bold, i'm in", "prompt 2", "hot_take")                                   # other section
+    bot = like("prompt 1", "none")
+    bot.comment_refused = ["copies hot_take", "invents me too"]
+    r = row(store, bot)
+    store.label(r.id, shadow.make_label(r, "skip", None, None, LIB))
+    out = shadow.report(store.shadow(), [])
+    assert "  Dev sent the bot's comment: 1/4 = 25% [NOT YET: ≥ 80%]" in out
+    assert "    on a photo: sent 1, edited 1" in out and "    on a prompt: own 1, other section 1" in out
+    assert "  comments refused by the checks: 2 (copies 1, invents 1)" in out

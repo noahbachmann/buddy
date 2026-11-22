@@ -5,15 +5,17 @@ import pytest
 from claude_agent_sdk import RateLimitEvent, ResultMessage
 from claude_agent_sdk.types import RateLimitInfo
 
-from buddy_screener.decide import (BROWSE_SCHEMA, PHOTO_SYSTEM, STAGE_TEXT, BudgetSpent, DecideConfig, DecideError,
+from buddy_screener.decide import (BROWSE_SCHEMA, CHECK_SYSTEM, PHOTO_SYSTEM, STAGE_TEXT, BudgetSpent, DecideConfig, DecideError,
                                    Decider, UsageLimited, check_browse, check_photo, check_text, photo_content,
                                    profile_content, system_prompt)
 from buddy_screener.library import Library, LikeComment
 from buddy_screener.profile import Profile, Section
 from buddy_screener.store import Store
 
-LIB = Library("Prefs: kind people.", (LikeComment("travel_far", "de", "travel photo", "Wie weit weg?"),
-                                      LikeComment("hot_take", "en", "bold opinion", "Bold. I'm in.")))
+LIB = Library("## About Dev\n- Codes, hikes.\n\n## Looking for\nKind people.",
+              (LikeComment("travel_far", "de", "travel photo", "wie wiit weg bisch du für das gsi?"),
+               LikeComment("hot_take", "en", "bold opinion", "Bold. I'm in, as long as you defend it in public.")),
+              "Short, deadpan, passes the turn back.")
 
 
 def profile() -> Profile:
@@ -53,8 +55,8 @@ def test_check_text():
 
 def test_system_prompt_has_preferences_and_library():
     s = system_prompt(LIB)
-    assert "Prefs: kind people." in s
-    assert "- hot_take | en | bold opinion | Bold. I'm in." in s
+    assert "## Looking for\nKind people." in s
+    assert "- hot_take | en | bold opinion | Bold. I'm in, as long as you defend it in public." in s
 
 
 def raw(**kw):
@@ -121,20 +123,52 @@ def test_prompt_states_the_flag_rules():
     assert "No quote, no flag." in s and "Never health or another sensitive trait" in s
 
 
-@pytest.mark.parametrize("text", ["", "call me 079 123 45 67", "@me.here", "see www.example.com", "x" * 201])
-def test_refused_adapted_comment_falls_back_to_the_template_in_the_chats_language(text):
-    b = check_browse(raw(comment_text=text), profile(), LIB)   # hot_take is en, the chat en
-    assert (b.comment, b.comment_text) == ("hot_take", "Bold. I'm in.") and b.fixes
+@pytest.mark.parametrize("text, why", [("call me 079 123 45 67", "a number"), ("@me.here", "a handle"),
+                                       ("see www.example.com", "a link"), ("x" * 50, "50 chars > 49")])
+def test_a_refused_comment_is_never_replaced_by_the_example(text, why):
+    b = check_browse(raw(comment_text=text), profile(), LIB)
+    assert (b.decision, b.comment, b.comment_text, b.comment_refused) == ("like", "none", "", [why])
 
 
-def test_adapted_comment_in_the_wrong_language_is_refused():
-    b = check_browse(raw(prompt_langs=["de-ch", "de-ch"]), profile(), LIB)   # en text for a de chat, en template
-    assert (b.comment, b.comment_text) == ("none", "") and "for a de chat" in b.fixes[0]
+def test_no_comment_is_a_like_without_one():
+    b = check_browse(raw(comment="none", comment_text="", missing_hook="a pizza joke"), profile(), LIB)
+    assert (b.comment, b.comment_text, b.missing_hook, b.comment_refused) == ("none", "", "a pizza joke", [])
 
 
-def test_refused_adapted_comment_in_another_language_drops_the_comment():
-    b = check_browse(raw(comment="travel_far", comment_text=""), profile(), LIB)   # de template, en chat
-    assert (b.comment, b.comment_text, b.missing_hook) == ("none", "", "travel photo")
+def test_a_free_comment_is_own():
+    b = check_browse(raw(comment="none", comment_text="ananas ja, aber nur mit chili"), profile(), LIB)
+    assert (b.comment, b.comment_text, b.fixes) == ("own", "ananas ja, aber nur mit chili", [])
+
+
+def test_the_prompt_has_the_voice_and_the_examples_as_examples():
+    s = system_prompt(LIB)
+    assert "# The owner's voice\n\nShort, deadpan, passes the turn back." in s
+    assert "examples of that voice, not a menu" in s and "At most 49 characters" in s
+
+
+@pytest.mark.parametrize("text", ["I'm in, as long as you defend it in public",     # 4 words in a row
+                                  "bold, i'm in as long as you defend it",          # mostly the same words
+                                  "wie wiit weg bisch du gsi?"])                    # the de example in its own words
+def test_a_copy_of_an_example_is_refused(text):
+    lang = "de-ch" if "bisch" in text else "en"
+    b = check_browse(raw(comment_text=text, comment_lang=lang, prompt_langs=["de-ch", "de-ch"]), profile(), LIB)
+    assert b.comment_text == "" and b.comment_refused[0].startswith("copies ")
+
+
+@pytest.mark.parametrize("langs, lang, ok", [(["de-ch", "de"], "de-ch", True), (["de-ch", "de"], "en", True),
+                                             (["en", "en"], "de-ch", False), (["de", "de"], "none", False)])
+def test_comment_language_rule(langs, lang, ok):
+    b = check_browse(raw(prompt_langs=langs, comment_text="pineapple, bold move", comment_lang=lang), profile(), LIB)
+    assert bool(b.comment_text) == ok
+
+
+def test_standard_german_is_refused_as_swiss():
+    b = check_browse(raw(prompt_langs=["de", "de"], comment_text="das ist nicht dein Ernst", comment_lang="de-ch"),
+                     profile(), LIB)
+    assert b.comment_refused == ["standard German, not Swiss German"]
+    b = check_browse(raw(prompt_langs=["de", "de"], comment_text="das isch ned din ernst", comment_lang="de-ch"),
+                     profile(), LIB)
+    assert b.comment_text == "das isch ned din ernst"
 
 
 @pytest.mark.parametrize("langs, chat", [(["en", "de"], "de"), (["en", "de-ch"], "de"), (["other", "other"], "en"),
@@ -143,14 +177,14 @@ def test_chat_language_rule(langs, chat):
     assert check_browse(raw(prompt_langs=langs), profile(), LIB).chat_lang == chat
 
 
-def test_unknown_comment_becomes_none():
+def test_unknown_comment_becomes_own():
     b = check_browse(raw(comment="made_up"), profile(), LIB)
-    assert b.comment == "none" and b.fixes
+    assert (b.comment, b.comment_text) == ("own", "Bold. Count me in.") and b.fixes
 
 
 def test_unknown_section_falls_back_to_the_first_prompt_without_comment():
     b = check_browse(raw(comment_on="prompt 9"), profile(), LIB)
-    assert (b.comment_on, b.comment) == ("prompt 1", "none") and b.fixes
+    assert (b.comment_on, b.comment, b.comment_text) == ("prompt 1", "none", "") and b.fixes
 
 
 def test_dealbreaker_forces_skip():
@@ -177,6 +211,9 @@ def test_garbage_is_an_error():
 
 
 # --- the call, against a fake SDK -------------------------------------------------------------------------------------
+
+PLAIN = raw(comment="none", comment_text="", comment_lang="none")   # a like without a comment: no check call
+
 
 def result(structured=None, is_error=False, status=None, cost=0.012):
     return ResultMessage(subtype="success", duration_ms=4200, duration_api_ms=4000, is_error=is_error, num_turns=2,
@@ -226,9 +263,9 @@ def decider(cfg, store, sdk, now=1_000_000.0):
 def test_browse_runs_locked_down_and_logs_usage(cfg, store, monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     cfg.token_file.write_text("tok-123\n")
-    sdk = FakeSdk(limit(), result(raw()))
+    sdk = FakeSdk(limit(), result(PLAIN))
     b, u = decider(cfg, store, sdk).browse(profile(), LIB)
-    assert b.decision == "like" and b.comment == "hot_take"
+    assert b.decision == "like" and b.comment == "none"
     assert (u.input, u.cache_read, u.cache_write, u.output, u.cost, u.ms, u.five_hour) == (10, 3000, 50, 400, 0.012,
                                                                                           4200, 0.4)
     assert store.cost_since(0) == pytest.approx(0.012)
@@ -251,7 +288,7 @@ def test_usage_limit_pauses_until_the_reset(cfg, store, monkeypatch):
     with pytest.raises(UsageLimited) as e:
         d.browse(profile(), LIB)
     assert e.value.until == 1_000_600 and cfg.limit_file.read_text().strip() == "1000600"
-    sdk = FakeSdk(result(raw()))
+    sdk = FakeSdk(result(PLAIN))
     with pytest.raises(UsageLimited):
         decider(cfg, store, sdk).browse(profile(), LIB)
     assert sdk.calls == []                                  # no call while limited
@@ -261,7 +298,7 @@ def test_usage_limit_pauses_until_the_reset(cfg, store, monkeypatch):
 
 def test_daily_cap(cfg, store, monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    sdk = FakeSdk(result(raw(), cost=0.6))
+    sdk = FakeSdk(result(PLAIN, cost=0.6))
     d = decider(cfg, store, sdk)
     d.browse(profile(), LIB)
     d.browse(profile(), LIB)
@@ -276,7 +313,7 @@ def test_error_result_and_timeout(cfg, store, monkeypatch):
         decider(cfg, store, FakeSdk(result(None))).browse(profile(), LIB)
     cfg.timeout_s = 0.05
     with pytest.raises(DecideError, match="no answer within"):
-        decider(cfg, store, FakeSdk(result(raw()), delay=1.0)).browse(profile(), LIB)
+        decider(cfg, store, FakeSdk(result(PLAIN), delay=1.0)).browse(profile(), LIB)
 
 
 def images(content):
@@ -294,7 +331,7 @@ def test_text_first_skips_without_photos(cfg, store, monkeypatch):
 def test_text_first_passes_to_the_full_call(cfg, store, monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     sdk = FakeSdk(script=[(result({"reason": "none stated", "dealbreakers": []}, cost=0.003),),
-                          (limit(five=0.5), result(raw(), cost=0.02))])
+                          (limit(five=0.5), result(PLAIN, cost=0.02))])
     b, u = decider(cfg, store, sdk).decide(profile(), LIB)
     assert (b.decision, b.stage) == ("like", "full") and [images(c) for c, _ in sdk.calls] == [0, 1]
     assert sdk.calls[0][1].system_prompt == sdk.calls[1][1].system_prompt      # one cached prefix for both
@@ -305,7 +342,7 @@ def test_text_first_passes_to_the_full_call(cfg, store, monkeypatch):
 def test_text_first_off(cfg, store, monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     cfg.text_first = False
-    sdk = FakeSdk(result(raw()))
+    sdk = FakeSdk(result(PLAIN))
     decider(cfg, store, sdk).decide(profile(), LIB)
     assert len(sdk.calls) == 1 and images(sdk.calls[0][0]) == 1
 
@@ -384,7 +421,7 @@ def test_photo_yes_skips_without_the_full_call(cfg, store, monkeypatch):
 @pytest.mark.parametrize("verdict", ["cant_tell", "no"])
 def test_photo_cant_tell_or_no_leaves_the_decision(cfg, store, monkeypatch, verdict):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    sdk = FakeSdk(script=[(result({"verdict": verdict, "photo": "none"}, cost=0.01),), (result(raw(), cost=0.02),)])
+    sdk = FakeSdk(script=[(result({"verdict": verdict, "photo": "none"}, cost=0.01),), (result(PLAIN, cost=0.02),)])
     b, u = decider(photo_cfg(cfg), store, sdk).decide(checked_profile(), LIB)
     assert (b.decision, b.stage, b.photo_check) == ("like", "full", verdict)
     assert sdk.calls[1][1].model == "claude-sonnet-5-5"                 # the full call keeps the decide model
@@ -395,13 +432,73 @@ def test_text_then_photo_then_full(cfg, store, monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     photo_cfg(cfg).text_first = True
     sdk = FakeSdk(script=[(result({"reason": "none", "dealbreakers": []}),), (result({"verdict": "no", "photo": ""}),),
-                          (result(raw()),)])
+                          (result(PLAIN),)])
     b, u = decider(cfg, store, sdk).decide(checked_profile(), LIB)
     assert b.decision == "like" and u.task == "text+photo+browse"
 
 
 def test_no_check_crops_no_photo_call(cfg, store, monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    sdk = FakeSdk(result(raw()))
+    sdk = FakeSdk(result(PLAIN))
     b, _ = decider(photo_cfg(cfg), store, sdk).decide(profile(), LIB)
     assert len(sdk.calls) == 1 and b.photo_check == ""
+
+
+# --- the like comment's checks and second try (#84) -------------------------------------------------------------------
+
+OK = {"copies": "none", "invented": []}
+
+
+def comment_cfg(cfg):
+    cfg.text_first, cfg.check_model = False, "claude-haiku-5-5"
+    return cfg
+
+
+def test_a_free_comment_passes_the_check_call(cfg, store, monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    sdk = FakeSdk(script=[(result(raw(comment="none", comment_text="ananas? mutig. verteidigsch das au live?",
+                                      comment_lang="de-ch", prompt_langs=["de-ch", "de-ch"])),), (result(OK),)])
+    b, u = decider(comment_cfg(cfg), store, sdk).browse(profile(), LIB)
+    assert (b.comment, b.comment_text, b.comment_refused) == ("own", "ananas? mutig. verteidigsch das au live?", [])
+    check = sdk.calls[1]
+    assert check[1].model == "claude-haiku-5-5" and "- Codes, hikes." in check[1].system_prompt
+    assert check[1].system_prompt.startswith(CHECK_SYSTEM[:40]) and images(check[0]) == 0
+    assert "Her section (prompt 1): My hot take — Pineapple belongs on pizza" in check[0][0]["text"]
+    assert u.task == "browse+comment_check" and [r[0] for r in store.usage_rows()] == ["browse", "comment_check"]
+
+
+@pytest.mark.parametrize("verdict, why", [({"copies": "hot_take", "invented": []}, "translates hot_take"),
+                                          ({"copies": "none", "invented": ["a fellow duck spotter"]},
+                                           "invents a fellow duck spotter")])
+def test_a_translation_or_invented_fact_gets_one_second_try(cfg, store, monkeypatch, verdict, why):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    retry = {"comment": "none", "comment_text": "pizza hawaii? we need to talk", "comment_lang": "en",
+             "missing_hook": ""}
+    sdk = FakeSdk(script=[(result(raw()),), (result(verdict),), (result(retry),), (result(OK),)])
+    b, u = decider(comment_cfg(cfg), store, sdk).browse(profile(), LIB)
+    assert (b.comment, b.comment_text, b.comment_refused) == ("own", "pizza hawaii? we need to talk", [why])
+    second = sdk.calls[2]
+    assert why in second[0][-1]["text"] and images(second[0]) == 1          # the profile again, photos too
+    assert second[1].system_prompt == sdk.calls[0][1].system_prompt           # the cached prefix
+    assert u.task == "browse+comment_check+comment+comment_check"
+
+
+def test_refused_twice_is_no_comment(cfg, store, monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    copy = {"comment": "hot_take", "comment_text": "I'm in, as long as you defend it in public", "comment_lang": "en",
+            "missing_hook": ""}
+    sdk = FakeSdk(script=[(result(raw()),), (result({"copies": "none", "invented": ["me too"]}),), (result(copy),)])
+    b, _ = decider(comment_cfg(cfg), store, sdk).browse(profile(), LIB)
+    assert (b.decision, b.comment, b.comment_text) == ("like", "none", "")
+    assert b.comment_refused == ["invents me too", "copies hot_take"] and b.missing_hook == "comment refused: copies hot_take"
+    assert len(sdk.calls) == 3                                                # no third try, never the example
+
+
+def test_a_code_refusal_goes_straight_to_the_second_try(cfg, store, monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    sdk = FakeSdk(script=[(result(raw(comment_text="call 079 123 45 67")),),
+                          (result({"comment": "none", "comment_text": "", "comment_lang": "none",
+                                   "missing_hook": "a pizza debate"}),)])
+    b, _ = decider(comment_cfg(cfg), store, sdk).browse(profile(), LIB)
+    assert (b.comment_text, b.comment_refused, b.missing_hook) == ("", ["a number"], "a pizza debate")
+    assert len(sdk.calls) == 2

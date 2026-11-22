@@ -71,11 +71,16 @@ code path taps a paid option or a chat send.
   (normalized); absences ("none stated", "no X visible", a "?") are dropped. Drops go to `dropped_flags`, not `fixes`.
   `report` lists every profile's flags for a check against the preferences' wording. Health and sensitive traits
   never in `uncovered` (prompt only).
-- Like comments are patterns (#78, Dev 2026-11-19): `templates.md` text = one example of how Dev says it; the bot
-  returns `comment_text` = a fresh comment on her section in Dev's voice, inspired by the pattern, never the example
-  copied or translated (Dev, 2026-11-20: it pasted `which_way`'s text as a stiff translation), in the chat's language. Code refuses it like a chat
-  text (`chat.refusal`: empty, > `COMMENT_MAX`, digit runs, handles, links) → the template's own text if its
-  language matches the chat, else no comment. A label stores the text that goes out (`text`); `type`/`send` use it.
+- Like comments are written freely in Dev's voice (#84, Dev 2026-11-22; before: adapted patterns, #78; session 3:
+  Dev sent the bot's comment 0 of 8 times). `templates.md` *Voice* describes the voice, the *Like comments* are
+  examples of it, not a menu; `comment` = the example it leaned on (a note) or `own`. Facts about Dev only from
+  *About Dev* + the examples. Language: German/Swiss German chat → Swiss German (`de-ch`) or English, never standard
+  German; English chat → English. Checks, in order: code (`comment_problem`: `refusal` with the longest example as
+  the limit, the language rule, standard German words in a `de-ch` text, a copy = 4 words in a row or ≥ 60 % shared
+  words with an example), then a check call (`comment_check`, `BUDDY_SCREENER_CHECK_MODEL`: a translation of an
+  example, invented facts about Dev). Refused → one second try (`comment`: the profile again + why), else no
+  comment; never the example's text. `comment_refused` keeps each reason. A label stores the text that goes out
+  (`text`); `own` labels need one. `report`: per section kind sent / edited (≥ 30 % shared words) / own.
 - Text first is off on the host since 2026-11-19 (0 early skips in 47 profiles, a third of the spend); photos 768 px
   since then (the bot missed "somewhat overweight" twice at 512).
 - Photo check (#83, Dev 2026-11-22: overweight as Dev sees it, also mild, is a skip on its own; the full call missed

@@ -62,6 +62,14 @@ def test_load(tmp_path):
     assert lib.comment("hot_take").lang == "en" and lib.comment("nope") is None
 
 
+def test_voice_and_about_dev(tmp_path):
+    (tmp_path / "preferences.md").write_text("# Prefs\n\n## About Dev (facts)\n- Codes.\n\n## Looking for\nKind.\n")
+    (tmp_path / "templates.md").write_text(TEMPLATES + "\n## Voice\nShort and deadpan.\nPasses the turn back.\n")
+    lib = Library.load(tmp_path)
+    assert lib.voice == "Short and deadpan.\nPasses the turn back." and lib.about_dev == "- Codes."
+    assert Library("x", ()).voice == "" and Library("x", ()).about_dev == ""
+
+
 def test_missing_file(tmp_path):
     with pytest.raises(LibraryError, match="can't read"):
         Library.load(tmp_path)

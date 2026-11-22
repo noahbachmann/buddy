@@ -24,8 +24,9 @@ from pathlib import Path
 
 from . import vocab
 from .chat import refusal
-from .decide import COMMENT_MAX, TASK_BROWSE, TASK_PHOTO, TASK_TEXT, Browse, Decider, Usage
-from .library import Library
+from .decide import (OWN, TASK_BROWSE, TASK_COMMENT, TASK_COMMENT_CHECK, TASK_PHOTO, TASK_TEXT, Browse, Decider,
+                     Usage)
+from .library import COMMENT_MAX, Library
 from .navigator import Navigator
 from .profile import Capture
 from .store import ShadowRow, Store, profile_key
@@ -106,11 +107,13 @@ def describe(r: ShadowResult, lib: Library) -> list[str]:
         what = sec.text.replace("\n", " — ") if sec and sec.kind == "prompt" else "(photo)"
         out.append(f"  on {b.comment_on}: {what}")
         c = lib.comment(b.comment)
-        if c:
-            out.append(f"  comment: {c.id} [{c.lang}] template: {c.text}")
-            out.append(f"  sends: {b.comment_text or c.text}")
+        if b.comment_text:
+            out.append(f"  sends: {b.comment_text}")
+            out.append(f"  leaned on: {c.id}: {c.text}" if c else "  leaned on: no example")
         else:
             out.append(f"  comment: none; missing: {b.missing_hook}")
+    if b.comment_refused:
+        out.append(f"  comments refused: {'; '.join(b.comment_refused)}")
     out.append(f"  prompt languages: {' '.join(b.prompt_langs) or '-'} → chat {b.chat_lang}")
     if b.fixes:
         out.append(f"  code fixed: {'; '.join(b.fixes)}")
@@ -123,7 +126,7 @@ def make_label(row: ShadowRow, decision: str, section: str | None, comment: str 
                sensitive: bool = False, text: str | None = None) -> dict:
     """Dev's choice for a row. `refs` = the captured sections (from the tmpfs capture) when still there. `text` = what
     goes out: Dev's own version of the comment; default the bot's adapted text when Dev takes the bot's comment,
-    else the template's own text."""
+    else the template's own text. Comment `own` (#84): no template, the text is the comment."""
     if decision not in ("like", "skip", UNJUDGED):
         raise LabelError(f"like, skip or {UNJUDGED}")
     if section is not None:
@@ -143,8 +146,10 @@ def make_label(row: ShadowRow, decision: str, section: str | None, comment: str 
     if decision == "like":
         if refs is not None and section not in refs:
             raise LabelError(f"{section!r} isn't a section of that profile ({', '.join(refs)})")
-        if comment != "none" and lib.comment(comment) is None:
+        if comment not in ("none", OWN) and lib.comment(comment) is None:
             raise LabelError(f"comment {comment!r} isn't in templates.md (add it first)")
+        if comment == OWN and not text:
+            raise LabelError(f"comment {OWN} needs its text (--text, or a bare like on the bot's)")
     if comment == "none" or comment is None:
         text = None
     elif text is None:
@@ -243,7 +248,8 @@ def session_rows(rows: list[ShadowRow], usage_rows_since, since_id: int | None,
     # a row is stored after its capture and decision: its calls start capture_s + decide_ms before its ts
     start = min((r.ts - r.capture_s - r.decide_ms / 1000 - 1 for r in rows), default=0.0) if since_id is not None else 0.0
     end = max((r.ts for r in rows), default=0.0) + 1 if until_id is not None else float("inf")
-    return rows, [u for u in usage_rows_since(start, end) if u[0] in (TASK_TEXT, TASK_PHOTO, TASK_BROWSE)]
+    tasks = (TASK_TEXT, TASK_PHOTO, TASK_BROWSE, TASK_COMMENT, TASK_COMMENT_CHECK)
+    return rows, [u for u in usage_rows_since(start, end) if u[0] in tasks]
 
 
 def _sent_bots_comment(r: ShadowRow) -> bool:
@@ -255,6 +261,25 @@ def _sent_bots_comment(r: ShadowRow) -> bool:
     if "text" in dev and "comment_text" in bot:
         return (dev["text"] or "") == (bot["comment_text"] if bot["comment"] != "none" else "")
     return bot["comment"] == dev["comment"]
+
+
+EDITED = 0.3   # word overlap (Jaccard) of Dev's text with the bot's: above = Dev edited it, below = wrote their own
+
+
+def comment_outcome(r: ShadowRow) -> str:
+    """A like both agreed on: what Dev did with the bot's comment (#84)."""
+    bot, dev = r.bot, r.dev
+    if bot["comment_on"] != dev["comment_on"]:
+        return "other section"
+    if _sent_bots_comment(r):
+        return "sent"
+    mine, theirs = set(re.findall(r"\w+", (dev.get("text") or "").casefold())), \
+        set(re.findall(r"\w+", (bot.get("comment_text") or "").casefold()))
+    if not mine:
+        return "no comment"
+    if theirs and len(mine & theirs) / len(mine | theirs) >= EDITED:
+        return "edited"
+    return "own"
 
 
 def report(rows: list[ShadowRow], usage_rows: list[tuple]) -> list[str]:
@@ -287,6 +312,16 @@ def report(rows: list[ShadowRow], usage_rows: list[tuple]) -> list[str]:
             f"{sum(r.dev['decision'] == 'like' for r in done)}; no fitting comment (bot): {len(missing)}",
         ]
         out += [f"    missing: {m}" for m in missing[-15:]]
+        if both:
+            by_kind: dict[str, Counter[str]] = {}
+            for r in both:
+                by_kind.setdefault(r.bot["comment_on"].split()[0], Counter())[comment_outcome(r)] += 1
+            for kind, c in sorted(by_kind.items()):
+                out.append(f"    on a {kind}: " + ", ".join(f"{k} {n}" for k, n in c.most_common()))
+        refused = [x for r in done for x in r.bot.get("comment_refused", [])]
+        if refused:
+            out.append(f"  comments refused by the checks: {len(refused)} ("
+                       + ", ".join(f"{k} {n}" for k, n in Counter(x.split()[0] for x in refused).most_common()) + ")")
         early = [r for r in done if r.bot.get("stage") == "text"]
         if early:
             out.append(f"  skipped by the text check: {len(early)}, Dev liked "

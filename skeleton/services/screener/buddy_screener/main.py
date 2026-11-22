@@ -64,7 +64,8 @@ def _navigator(cfg: Config, dev: Device) -> Navigator:
 def _decider(cfg: Config, store: Store) -> Decider:
     return Decider(DecideConfig(cfg.model, cfg.effort, cfg.decide_timeout_s, cfg.daily_usd, cfg.token_file,
                                 cfg.limit_file, cfg.tmp_dir / "claude", cfg.text_first,
-                                photo_check=cfg.photo_check, photo_model=cfg.photo_model or cfg.model), store)
+                                photo_check=cfg.photo_check, photo_model=cfg.photo_model or cfg.model,
+                                check_model=cfg.check_model or cfg.model), store)
 
 
 def _ensure_our_ime(dev: Device) -> None:
@@ -147,7 +148,8 @@ def cmd_shadow(cfg: Config, args: argparse.Namespace) -> int:
     if args.cmd == "templates":
         for c in lib.like_comments:
             print(f"{c.id:24} {c.lang} {len(c.text):3}  {c.hint}")
-        print(f"{len(lib.like_comments)} like comments ok")
+        print(f"{len(lib.like_comments)} like comments ok; voice: "
+              + (f"{len(lib.voice.splitlines())} lines" if lib.voice else "missing (## Voice in templates.md)"))
         return 0
     if args.cmd == "report":
         rows, usage = shadow.session_rows(store.shadow(), store.usage_rows, args.since, args.until)

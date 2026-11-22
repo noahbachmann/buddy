@@ -4,13 +4,14 @@
 All live in `~/buddy/config/screener/` on the host, never in Git. Loaded fresh for every decision, so a template
 added during a shadow session is available to the next profile.
 
-`templates.md` sections are `## <name>`. The *Like comments* section holds the library the bot picks from when it
-likes a section; every other line in it is free text (format notes) and ignored:
+`templates.md` sections are `## <name>`. The *Like comments* section holds Dev's own like comments: examples of how
+Dev comments, which the bot learns the voice from (#84: it writes its own, never these texts); every other line in
+it is free text (format notes) and ignored:
 
     ## Like comments
-    - <id> | <de|en> | <fit hint: what it suits> | <text, pasted verbatim>
+    - <id> | <de|en> | <fit hint: what it suits> | <text as Dev sent it>
 
-The model only ever returns an id; code pastes the text unchanged, so the checks here are the app's limits.
+The *Voice* section (free text, #84) describes that voice; it goes into the decision prompt verbatim.
 
 The chat templates (`## disclosure`, `## contact_offer`, …) are `EN:` / `DE:` blocks, hard-wrapped (lines joined
 with a space); lines before the first block are notes. Code fills their placeholders; `{number}` / `{instagram}`
@@ -23,6 +24,8 @@ from pathlib import Path
 
 COMMENT_MAX = 255           # the app's comment limit (step 0): over it, send greys out
 LIKE_SECTION = "like comments"
+VOICE_SECTION = "voice"
+ABOUT_DEV = "about dev"     # preferences.md: the only facts about Dev a generated text may state
 _ID = re.compile(r"[a-z0-9][a-z0-9_-]{0,39}")
 _LINE = re.compile(r"-\s+(\S+)\s*\|\s*(\S+)\s*\|\s*(.+?)\s*\|\s*(.+?)\s*")
 
@@ -85,9 +88,14 @@ def parse_like_comments(md: str) -> list[LikeComment]:
 class Library:
     preferences: str
     like_comments: tuple[LikeComment, ...]
+    voice: str = ""             # how Dev comments (templates.md *Voice*); "" = not written yet
 
     def comment(self, cid: str) -> LikeComment | None:
         return next((c for c in self.like_comments if c.id == cid), None)
+
+    @property
+    def about_dev(self) -> str:
+        return next((v for k, v in sections(self.preferences).items() if k.startswith(ABOUT_DEV)), "")
 
     @classmethod
     def load(cls, config_dir: Path) -> "Library":
@@ -98,7 +106,7 @@ class Library:
             raise LibraryError(f"can't read {e.filename}: {e.strerror}") from None
         if not prefs.strip():
             raise LibraryError("preferences.md is empty")
-        return cls(prefs.strip(), tuple(parse_like_comments(templates)))
+        return cls(prefs.strip(), tuple(parse_like_comments(templates)), sections(templates).get(VOICE_SECTION, ""))
 
 
 # --- the chat (#77) --------------------------------------------------------------------------------------------------
