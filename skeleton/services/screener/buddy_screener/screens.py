@@ -117,6 +117,23 @@ def _is_poll(n: Node) -> bool:
     return v.PROMPT.fullmatch(n.desc) is None and v.POLL.fullmatch(n.desc) is not None and n.parent is not None
 
 
+def _is_option(n: Node) -> bool:
+    """A poll option's own node ("Option: <text>"); its clickable parent is the option's row (#82)."""
+    return v.POLL_OPTION.fullmatch(n.desc) is not None and n.parent is not None and n.parent.clickable
+
+
+def option_heart(row: Node) -> Node | None:
+    """An option row's heart: the square View without a desc at the row's right end (no content-desc of its own).
+    Tapping it opens the comment panel for that option (checked by hand 2026-11-22)."""
+    squares = [c for c in row.children if c.cls == "View" and not c.desc and not c.children and not c.bounds.empty
+               and abs(c.bounds.width - c.bounds.height) <= 8]
+    return max(squares, key=lambda c: c.bounds.right, default=None)
+
+
+def _is_option_heart(n: Node) -> bool:
+    return n.parent is not None and any(_is_option(c) for c in n.parent.children) and option_heart(n.parent) is n
+
+
 def _is_send_like(n: Node) -> bool:
     return n.cls == "Button" and n.desc in (v.SEND_LIKE, v.SEND_LIKE_WITH)
 
@@ -142,14 +159,15 @@ def skip_button(root: Node) -> Node | None:
 class SectionView:
     """A photo or prompt as one dump shows it. `rect` is clipped to the screen; `top_cut`/`bottom_cut` say which
     edges are the viewport's, not the section's."""
-    kind: str                # "photo" | "prompt" | "video" | "voice" | "friend" | "poll"
-    text: str                # prompt: "question\nanswer"; video prompt, poll: the question; photo: ""
+    kind: str                # "photo" | "prompt" | "video" | "voice" | "friend" | "poll" | "option"
+    text: str                # prompt: "question\nanswer"; video prompt, poll: the question; option: its text; photo: ""
     rect: Rect
     top_cut: bool
     bottom_cut: bool
     like: Node | None        # its own like button, if on screen
     seen_from: int | None = None   # poll: where its question starts (the card begins higher: a dump can show the
                                    # card's top without the question, so it isn't known there yet)
+    poll: str = ""           # option: its poll's question when this dump shows it ("" once it scrolled off)
 
 
 @dataclass
@@ -191,6 +209,16 @@ def profile_view(root: Node) -> ProfileView:
         raise ValueError("not a profile: no list or no skip button")
     vp = box.bounds
     sections: list[SectionView] = []
+    for n in box.find(_is_option):
+        row = n.parent
+        if row.bounds.empty:
+            continue
+        # an option is liked on its own (#82): text = the option, its poll's question from the card when visible
+        card = row.parent.parent if row.parent is not None else None
+        q = card.first(_is_poll) if card is not None else None
+        sections.append(SectionView("option", v.POLL_OPTION.fullmatch(n.desc).group(1), row.bounds,
+                                    row.bounds.top <= vp.top, row.bounds.bottom >= vp.bottom, option_heart(row),
+                                    poll=v.POLL.fullmatch(q.desc).group(1) if q is not None else ""))
     for n in box.find(_is_section):
         if n.bounds.empty:
             continue
@@ -212,6 +240,7 @@ def profile_view(root: Node) -> ProfileView:
             kind, text = "photo", ""
         sections.append(SectionView(kind, text, rect, rect.top <= vp.top, rect.bottom >= vp.bottom, None, seen_from))
 
+    sections.sort(key=lambda x: x.rect.top)   # options were collected first
     # A section's like button lies over its lower right corner; when the section is cut at the bottom the button can
     # stick out below the list (seen over the tab bar). Attach each to the same-kind section it overlaps most.
     for b in box.find(_is_like_button):
@@ -221,11 +250,9 @@ def profile_view(root: Node) -> ProfileView:
         if best is not None:
             best.like = b
 
-    # anchors for the shift; a poll's options too: they stay on screen after its question scrolled off (2026-11-21)
-    texts = [SectionView("text", n.text or n.desc, n.bounds, n.bounds.top <= vp.top, n.bounds.bottom >= vp.bottom,
-                         None)
-             for n in box.iter() if not n.bounds.empty
-             and ((n.cls == "TextView" and n.text) or v.POLL_OPTION.fullmatch(n.desc) is not None)]
+    # anchors for the shift (a poll's options are sections: they stay after its question scrolled off, 2026-11-21)
+    texts = [SectionView("text", n.text, n.bounds, n.bounds.top <= vp.top, n.bounds.bottom >= vp.bottom, None)
+             for n in box.iter() if not n.bounds.empty and n.cls == "TextView" and n.text]
     name = v.SKIP.fullmatch(skip.desc).group(1).strip()   # app keeps a trailing space from the profile ("Skip Ana ")
     # At the top of a profile the header is expanded and shows the name as text above the list (it collapses into
     # the skip button's label once scrolled): the list can't move up, so whatever touches its top edge starts there.
@@ -355,7 +382,7 @@ def tappable(screen: Screen, node: Node) -> bool:
     if any(t.node is node and not t.selected for t in screen.tabs.values()):
         return True
     if screen.kind is Kind.FEED:
-        return _is_like_button(node)
+        return _is_like_button(node) or _is_option_heart(node)
     if screen.kind is Kind.SHEET:
         return node.desc == v.EDIT_COMMENT
     if screen.kind is Kind.MATCHES:

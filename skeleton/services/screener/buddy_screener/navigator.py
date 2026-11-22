@@ -414,7 +414,7 @@ class Navigator:
         for _ in range(MAX_SWIPES):
             sv = next((x for x in view.sections if cap.section_at(x) is target), None)
             if sv and not sv.top_cut and not sv.bottom_cut and sv.like and view.safe(sv.like.bounds):
-                self._check_identity(target, sv)
+                self._check_identity(target, sv, cap.profile.poll_of(target))
                 return s, sv
             want = target.top - (view.viewport.top + 100)    # section's top 100 px below the list's top
             delta = max(-MAX_MOVE, min(MAX_MOVE, want - cap.offset))
@@ -425,9 +425,14 @@ class Navigator:
             self._track(cap, view, cap.offset + delta + extra, blind=extra != 0)
         raise self.needs_you(f"{ref}: too many swipes")
 
-    def _check_identity(self, target: Section, sv: SectionView) -> None:
+    def _check_identity(self, target: Section, sv: SectionView, poll: Section | None = None) -> None:
         if target.kind == "prompt":
             return  # matched by its text already
+        if target.kind == "option":
+            # its text matched; a poll's question on screen must be its poll's ("Yes" can be in two polls)
+            if sv.poll and (poll is None or poll.text != sv.poll):
+                raise self.needs_you(f"{target.ref} sits under another poll's question")
+            return
         if self.hasher is None or not target.hash:
             return
         h = self.hasher(self.dev.screencap(), sv.rect)

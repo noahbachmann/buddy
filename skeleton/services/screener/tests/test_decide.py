@@ -365,7 +365,7 @@ def test_a_poll_is_listed_but_never_commented_on():
     p = profile()
     p.sections.insert(1, Section("poll", 1, "Pick our first getaway", 910, 940))
     text = " ".join(b["text"] for b in profile_content(p) if b["type"] == "text")
-    assert 'poll 1: (a poll asking "Pick our first getaway": can\'t be commented on)' in text
+    assert 'poll 1: (a poll asking "Pick our first getaway"; its options below can be liked one by one)' in text
     b = check_browse(raw(comment_on="poll 1"), p, LIB)
     assert b.comment_on == "prompt 1" and b.comment == "none" and b.fixes
 
@@ -500,3 +500,15 @@ def test_a_code_refusal_goes_straight_to_the_second_try(cfg, store, monkeypatch)
     b, _ = decider(comment_cfg(cfg), store, sdk).browse(profile(), LIB)
     assert (b.comment_text, b.comment_refused, b.missing_hook) == ("", ["a number"], "a pizza debate")
     assert len(sdk.calls) == 2
+
+
+def test_a_poll_option_can_be_liked_with_a_comment():
+    p = profile()
+    p.sections[2:2] = [Section("poll", 1, "Pick our first getaway", 1210, 1600, lo=1210, hi=1600),
+                       Section("option", 1, "Lisbon", 1300, 1400, lo=1300, hi=1400),
+                       Section("option", 2, "A hut in the Alps", 1420, 1520, lo=1420, hi=1520)]
+    text = " ".join(b["text"] for b in profile_content(p) if b["type"] == "text")
+    assert 'option 2: "A hut in the Alps" (an option of poll 1: liking it comments on this option)' in text
+    b = check_browse(raw(comment_on="option 2", comment_text="the hut, if it has a woodstove"), p, LIB)
+    assert (b.comment_on, b.comment_text, b.fixes) == ("option 2", "the hut, if it has a woodstove", [])
+    assert p.poll_of(p.find("option 2")).ref == "poll 1"

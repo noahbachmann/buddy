@@ -7,8 +7,9 @@ from fixture_files import FEED, PACKAGE, ROW, load
 
 
 class FakePhone:
-    def __init__(self, screen: str = "feed-01"):
+    def __init__(self, screen: str = "feed-01", walk: list[str] | None = None):
         self.screen = screen
+        self.walk = walk or FEED         # the dumps a vertical swipe moves through
         self.foreground_pkg = PACKAGE
         self.actions: list[tuple] = []
         self.field: str | None = None   # comment field text while focused, None = no field
@@ -101,9 +102,9 @@ class FakePhone:
         self.actions.append(("swipe", self.screen, y1 - y2, x))
         if self.swallow:
             self.swallow -= 1
-        elif self.screen in FEED:
-            i = FEED.index(self.screen) + (1 if y2 < y1 else -1)
-            self.screen = FEED[max(0, min(len(FEED) - 1, i))]
+        elif self.screen in self.walk:
+            i = self.walk.index(self.screen) + (1 if y2 < y1 else -1)
+            self.screen = self.walk[max(0, min(len(self.walk) - 1, i))]
         elif self.screen == "sheet-low" and y2 < y1:
             self.screen = "sheet"   # the panel moved up, clear of the skip button
 

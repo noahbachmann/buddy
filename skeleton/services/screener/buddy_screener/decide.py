@@ -98,7 +98,8 @@ the preferences cover everything stated.
 
 ## Liking a section with a comment
 - `comment_on`: the section with the strongest hook for a comment. A prompt answer with something specific (a \
-place, an opinion, a joke, a hobby, a question to him) beats a photo; a photo only for what it shows being done or \
+place, an opinion, a joke, a hobby, a question to him) or a poll option (his pick among her options, with the \
+poll's question in mind) beats a photo; a photo only for what it shows being done or \
 where, never for the person's body or looks.
 - `comment_text`: the best comment you can write on that section, as the owner would write it: follow "The owner's \
 voice" below. React to what her section actually says or shows, as a natural answer to it.
@@ -174,7 +175,8 @@ BROWSE_SCHEMA: dict[str, Any] = {
         "reason": {"type": "string"},
         "decision": {"type": "string", "enum": ["like", "skip"]},
         "generic": {"type": "boolean", "description": "generic by the owner's rule (scarce counts): always a skip"},
-        "comment_on": {"type": "string", "description": "'photo N', 'prompt N' or 'none' (never a video, voice, friend or poll)"},
+        "comment_on": {"type": "string",
+                       "description": "'photo N', 'prompt N', 'option N' or 'none' (never a video, voice, friend or poll)"},
         "comment": {"type": "string", "description": "the example id it leaned on most, or 'none' (a note only)"},
         "comment_text": {"type": "string", "description": "the comment in the owner's voice, or ''"},
         "comment_lang": {"type": "string", "enum": list(COMMENT_LANGS),
@@ -270,7 +272,11 @@ def profile_content(p: Profile, photos: bool = True) -> list[dict[str, Any]]:
         elif s.kind == "friend":
             text.append(f"{s.ref}: (written about her by a friend, can't be commented on: {s.text})")
         elif s.kind == "poll":
-            text.append(f"{s.ref}: (a poll asking \"{s.text}\": can't be commented on)")
+            text.append(f"{s.ref}: (a poll asking \"{s.text}\"; its options below can be liked one by one)")
+        elif s.kind == "option":
+            poll = p.poll_of(s)
+            text.append(f"{s.ref}: \"{s.text}\" (an option of {poll.ref if poll else 'a poll'}: liking it comments "
+                        "on this option)")
         elif not photos:
             text.append(f"{s.ref}: (photo)")
         elif s.jpeg:

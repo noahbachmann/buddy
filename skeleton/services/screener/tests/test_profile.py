@@ -118,3 +118,11 @@ def test_a_poll_scrolled_past_its_question_still_anchors_by_its_options():
     cap = Capture(v[0])
     first = cap.add(v[1], expect=600)
     assert abs(cap.add(v[2], expect=first + 600) - (first + 615)) <= TOLERANCE_PX
+
+
+def test_options_are_captured_in_order_across_dumps():
+    # feed-poll-off: the question goes off the top; options seen with and without it stay one section each
+    cap = capture([f"feed-poll-off-{i}" for i in range(1, 4)])
+    opts = [(s.ref, s.text) for s in cap.profile.sections if s.kind == "option"]
+    assert opts == [("option 1", "Option 1"), ("option 2", "Option 2"), ("option 3", "Option 3")]
+    assert all(s.complete for s in cap.profile.sections if s.kind == "option")

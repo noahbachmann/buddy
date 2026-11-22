@@ -267,3 +267,33 @@ def test_a_playing_videos_clock_doesnt_make_the_screen_unstable():
     from buddy_screener.uitree import parse
     xml = '<hierarchy><node class="android.view.View" content-desc="Elapsed time: {} seconds" bounds="[0,0][9,9]"/></hierarchy>'
     assert navigator._signature(parse(xml.format(7))) == navigator._signature(parse(xml.format(8)))
+
+
+POLL_WALK = [f"feed-poll-off-{i}" for i in range(1, 4)]
+
+
+def poll_capture(dumps: int = 3):
+    from buddy_screener.uitree import parse
+    from fixture_files import load
+    v = [screens.profile_view(parse(load(f))) for f in POLL_WALK[:dumps]]
+    cap = Capture(v[0])
+    for x in v[1:]:
+        cap.add(x, expect=cap.offset + 600)
+    return cap
+
+
+def test_scroll_to_a_poll_option_brings_its_heart_up():
+    phone = FakePhone("feed-poll-off-3", walk=POLL_WALK)
+    n = nav(phone)
+    s, sv = n.scroll_to(poll_capture(), "option 3")
+    assert (sv.kind, sv.text) == ("option", "Option 3") and screens.tappable(s, sv.like)
+    assert phone.sent() == []
+
+
+def test_an_option_under_another_polls_question_needs_you():
+    phone = FakePhone("feed-poll-off-2", walk=POLL_WALK)   # this dump still shows the question
+    n = nav(phone)
+    cap = poll_capture(2)
+    cap.profile.poll_of(cap.profile.find("option 1")).text = "Another question"
+    with pytest.raises(NeedsYou, match="another poll's question"):
+        n.scroll_to(cap, "option 1")

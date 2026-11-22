@@ -27,7 +27,7 @@ class LostTrack(RuntimeError):
 
 @dataclass
 class Section:
-    kind: str                # "photo" | "prompt" | "video" / "voice" (can't be watched/heard or liked) | "friend" (a friend's card, never liked) | "poll" (can't be answered)
+    kind: str                # "photo" | "prompt" | "video" / "voice" (can't be watched/heard or liked) | "friend" (a friend's card, never liked) | "poll" (its question, never liked) | "option" (a poll's option: liked on its own, #82)
     index: int               # 1-based among its kind, capture order: "photo 2", "prompt 1"
     text: str                # prompt "question\nanswer"; photo ""
     top: int | None          # content y of the real edges; None until an uncut edge was seen
@@ -55,6 +55,11 @@ class Profile:
 
     def find(self, ref: str) -> Section | None:
         return next((s for s in self.sections if s.ref == ref), None)
+
+    def poll_of(self, option: Section) -> Section | None:
+        """An option's poll: the nearest poll above it (options sit inside its card, below the question)."""
+        return max((s for s in self.sections if s.kind == "poll" and s.lo <= option.lo), key=lambda s: s.lo,
+                   default=None)
 
 
 def _edges(sv: SectionView, offset: int) -> tuple[int | None, int | None]:

@@ -104,7 +104,9 @@ def describe(r: ShadowResult, lib: Library) -> list[str]:
         out.append(f"  soft flags dropped by code: {'; '.join(b.dropped_flags)}")
     if b.decision == "like":
         sec = p.find(b.comment_on)
-        what = sec.text.replace("\n", " — ") if sec and sec.kind == "prompt" else "(photo)"
+        poll = p.poll_of(sec) if sec and sec.kind == "option" else None
+        what = (sec.text.replace("\n", " — ") if sec and sec.kind == "prompt"
+                else f"{poll.text if poll else '(poll)'} — {sec.text}" if sec and sec.kind == "option" else "(photo)")
         out.append(f"  on {b.comment_on}: {what}")
         c = lib.comment(b.comment)
         if b.comment_text:
@@ -130,7 +132,7 @@ def make_label(row: ShadowRow, decision: str, section: str | None, comment: str 
     if decision not in ("like", "skip", UNJUDGED):
         raise LabelError(f"like, skip or {UNJUDGED}")
     if section is not None:
-        section = re.sub(r"^(photo|prompt)\W*(\d+)$", r"\1 \2", section.strip().lower())
+        section = re.sub(r"^(photo|prompt|option)\W*(\d+)$", r"\1 \2", section.strip().lower())
     bot = row.bot
     if decision in ("skip", UNJUDGED):
         section = comment = "none"

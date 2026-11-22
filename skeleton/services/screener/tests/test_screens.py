@@ -208,7 +208,9 @@ def test_a_video_prompt_is_a_video_section_with_its_question():
 def test_a_poll_is_a_section_and_feature_ads_are_no_details():
     s = screen("feed-poll")   # real dump: a poll's card (question cut at the top), a feature ad, prompt 1
     view = screens.profile_view(s.root)
-    assert [(x.kind, x.text) for x in view.sections] == [("poll", "Question 1"), ("prompt", "Question 2\nAnswer 1")]
+    assert [(x.kind, x.text) for x in view.sections] == [
+        ("poll", "Question 1"), ("option", "Option 1"), ("option", "Option 2"), ("option", "Option 3"),
+        ("prompt", "Question 2\nAnswer 1")]
     poll = view.sections[0]
     assert poll.top_cut and not poll.bottom_cut and poll.like is None and poll.rect.height > 900   # the card
     assert view.details == []   # the ad's texts ("Text 1", "Try it") aren't hers
@@ -220,3 +222,22 @@ def test_out_of_likes_is_no_popup():
     assert s.kind is Kind.OUT_OF_LIKES
     close = screens.close_button(s.root)
     assert screens.tappable(s, close) and not any(screens.tappable(s, n) for n in s.root.iter() if n is not close)
+
+
+def test_each_poll_option_is_a_section_with_its_heart():
+    # #82: an option's heart opens the comment panel for that option; no content-desc on the heart
+    s = screen("feed-poll")
+    options = [x for x in screens.profile_view(s.root).sections if x.kind == "option"]
+    assert [(o.poll, o.rect.top, o.rect.bottom) for o in options] == [
+        ("Question 1", 508, 706), ("Question 1", 742, 940), ("Question 1", 976, 1174)]
+    assert [(o.like.bounds.left, o.like.bounds.top) for o in options] == [(816, 565), (816, 799), (816, 1033)]
+    assert all(screens.tappable(s, o.like) for o in options)
+    rows = [o.like.parent for o in options]
+    assert not any(screens.tappable(s, r) for r in rows)                       # the row itself: no (it votes?)
+    assert not any(screens.tappable(s, n) for r in rows for n in r.children if n is not screens.option_heart(r))
+
+
+def test_options_after_their_question_scrolled_off_have_no_poll():
+    view = screens.profile_view(screen("feed-poll-off-3").root)
+    assert [(o.kind, o.poll) for o in view.sections if o.kind == "option"] and \
+        all(o.poll == "" for o in view.sections if o.kind == "option")

@@ -342,3 +342,9 @@ def test_report_what_dev_did_with_the_bots_comment(store):
     assert "  Dev sent the bot's comment: 1/4 = 25% [NOT YET: ≥ 80%]" in out
     assert "    on a photo: sent 1, edited 1" in out and "    on a prompt: own 1, other section 1" in out
     assert "  comments refused by the checks: 2 (copies 1, invents 1)" in out
+
+
+def test_an_option_label_is_normalised():
+    r = row(store=Store(":memory:"), bot=like())
+    lab = shadow.make_label(r, "like", "Option-2", "own", LIB, ["photo 1", "poll 1", "option 2"], text="the hut")
+    assert (lab["comment_on"], lab["text"]) == ("option 2", "the hut")
