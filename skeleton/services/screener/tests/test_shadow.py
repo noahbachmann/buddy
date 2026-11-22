@@ -280,3 +280,16 @@ def test_relabel_keeps_acted(store, tmp_path):
     lab = shadow.make_label(store.shadow(r.row_id)[0], "skip", None, None, LIB, note="added later")
     assert (lab["acted"], lab["note"]) == ("skip", "added later")
     assert "acted" not in shadow.make_label(row(store, like()), "skip", None, None, LIB)
+
+
+def test_report_lists_soft_flags_per_profile(store):
+    bot = like()
+    bot.soft_flags, bot.soft_plus = ['late (prompt 1: "always late")'], ['hikes (prompt 2: "hiking")']
+    bot.dropped_flags = ["absence: tattoos? none stated"]
+    r = row(store, bot)
+    store.label(r.id, shadow.make_label(r, "skip", None, None, LIB))
+    row(store, like())                                                  # no flags: no line
+    out = shadow.report(store.shadow(), [])
+    assert "  soft flags per profile: 1" in out
+    assert (f'    #{r.id} bot like, Dev skip: - late (prompt 1: "always late"); + hikes (prompt 2: "hiking"); '
+            "dropped absence: tattoos? none stated") in out

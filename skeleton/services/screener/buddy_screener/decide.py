@@ -18,6 +18,7 @@ for the day.
 import asyncio
 import base64
 import os
+import re
 import time
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
@@ -77,10 +78,17 @@ means skip.
 or minus: true when it is generic by that rule, including a scarce profile of short one-line answers, however funny \
 or quirky. A generic profile is a skip: no soft positive outweighs it.
 - Soft negatives from the preferences that apply go into `soft_flags`; they add up and raise the bar for a like. \
-Soft positives from the preferences that apply go into `soft_plus`; they lower it. A few words each.
+Soft positives from the preferences that apply go into `soft_plus`; they lower it. Each entry: `flag` (a few \
+words), `source` (where the profile shows it: "details", "prompt N", "photo N", …) and `quote` (the profile's own \
+words that trigger it, copied exactly from that detail or answer; for a photo, what it plainly shows). Apply each \
+rule by its exact wording: when a rule names a condition (e.g. "and", "only when stated", "a town name alone is \
+not"), the profile must meet all of it. Something the profile doesn't show is never a flag, plus or minus: no \
+"none stated", "not mentioned", "no X visible". A flag from a photo only where the preferences allow judging that \
+from photos; anything they say must be stated comes from the text only. No quote, no flag.
 - `uncovered`: things the profile states (details or answers) that the owner might care about but the preferences \
 say nothing about, e.g. a habit, a substance or a diet line. A few words each, so the owner can add a rule; they \
-never change the decision. Empty when the preferences cover everything stated.
+never change the decision. Never health or another sensitive trait, even when a game prompt states it. Empty when \
+the preferences cover everything stated.
 - `reason`: one or two plain sentences the owner can check: which stated things decided it. No guess presented as fact.
 
 ## Liking a section with a comment
@@ -120,6 +128,15 @@ dialect, the most common here: e.g. "isch", "ned", "chan", "gsi", "öppis", "mer
 
 COMMENT_MAX = 200   # chars of an adapted like comment; the library's longest is ~120
 
+SOFT_ITEM: dict[str, Any] = {
+    "type": "object",
+    "properties": {"flag": {"type": "string"},
+                   "source": {"type": "string", "description": "'details', 'prompt N', 'photo N', … where it shows"},
+                   "quote": {"type": "string", "description": "the profile's words that trigger it (photo: what it shows)"}},
+    "required": ["flag", "source", "quote"],
+    "additionalProperties": False,
+}
+
 BROWSE_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
@@ -133,8 +150,8 @@ BROWSE_SCHEMA: dict[str, Any] = {
                          "description": "the language comment_text is written in ('none' without a comment)"},
         "missing_hook": {"type": "string"},
         "prompt_langs": {"type": "array", "items": {"type": "string", "enum": list(LANGS)}},
-        "soft_flags": {"type": "array", "items": {"type": "string"}, "description": "soft negatives only"},
-        "soft_plus": {"type": "array", "items": {"type": "string"}, "description": "soft positives"},
+        "soft_flags": {"type": "array", "items": SOFT_ITEM, "description": "soft negatives only"},
+        "soft_plus": {"type": "array", "items": SOFT_ITEM, "description": "soft positives"},
         "uncovered": {"type": "array", "items": {"type": "string"},
                       "description": "stated things the preferences say nothing about"},
         "dealbreakers": {"type": "array", "items": {"type": "string"}},
@@ -210,6 +227,7 @@ class Browse:
     comment_text: str = ""       # the comment as it goes out: the template adapted to her (code-checked)
     soft_plus: list[str] = field(default_factory=list)   # soft positives (soft_flags = negatives only)
     uncovered: list[str] = field(default_factory=list)   # preference gaps: shown and counted, never decide
+    dropped_flags: list[str] = field(default_factory=list)   # soft flags/plus code dropped (#85): why + flag
 
     @property
     def chat_lang(self) -> str:
@@ -218,6 +236,46 @@ class Browse:
 
     def to_dict(self) -> dict[str, Any]:
         return dict(self.__dict__)
+
+
+# a flag that only states what the profile doesn't show ("tattoos? none stated", "no smoking mentioned", #85)
+ABSENCE = re.compile(r"\b(none|not (stated|mentioned|shown|given|listed|visible)|no mention|unstated|unknown)\b"
+                     r"|^(no|without)\b.*\b(stated|mentioned|shown|visible|seen|listed)$", re.IGNORECASE)
+
+
+def _norm(t: str) -> str:
+    return " ".join(re.sub(r"[^\w]+", " ", t.casefold()).split())
+
+
+def sourced_flags(raw: Any, p: Profile, dropped: list[str]) -> list[str]:
+    """Soft flags/plus as `flag (source: "quote")`, only those with a source the profile has and, for text, a quote
+    found in it (#85: the bot read smoking from a photo, a town into "Zürich-based"). Absences are dropped."""
+    out = []
+    for item in raw if isinstance(raw, list) else []:
+        if not isinstance(item, dict):
+            continue
+        flag, source, quote = (" ".join(str(item.get(k, "")).split()) for k in ("flag", "source", "quote"))
+        source = source.lower()
+        if not flag:
+            continue
+        if ABSENCE.search(flag) or ABSENCE.search(quote) or "?" in flag:   # quotes may ask, flags don't
+            dropped.append(f"absence: {flag}")
+            continue
+        if not quote:
+            dropped.append(f"no quote: {flag}")
+            continue
+        if source == "details":
+            where = " ".join(f"{label} {value}" for label, value in p.details)
+        elif (s := p.find(source)) is not None:
+            where = s.text if s.kind != "photo" else None
+        else:
+            dropped.append(f"unknown source {source[:20]!r}: {flag}")
+            continue
+        if where is not None and _norm(quote) not in _norm(where):
+            dropped.append(f"quote not in {source}: {flag}")
+            continue
+        out.append(f'{flag} ({source}: "{quote}")')
+    return out
 
 
 def check_browse(raw: Any, p: Profile, lib: Library) -> Browse:
@@ -236,8 +294,10 @@ def check_browse(raw: Any, p: Profile, lib: Library) -> Browse:
     if decision not in ("like", "skip"):
         raise DecideError(f"decision {decision[:20]!r}")
     b = Browse(decision, text("comment_on") or "none", text("comment") or "none", text("missing_hook"),
-               [x for x in strings("prompt_langs") if x in LANGS], strings("soft_flags"), strings("dealbreakers"),
-               text("reason"), soft_plus=strings("soft_plus"), uncovered=strings("uncovered"))
+               [x for x in strings("prompt_langs") if x in LANGS], [], strings("dealbreakers"),
+               text("reason"), uncovered=strings("uncovered"))
+    b.soft_flags = sourced_flags(raw.get("soft_flags"), p, b.dropped_flags)
+    b.soft_plus = sourced_flags(raw.get("soft_plus"), p, b.dropped_flags)
     prompts = sum(s.kind == "prompt" for s in p.sections)
     if len(b.prompt_langs) != prompts:
         b.fixes.append(f"prompt_langs has {len(b.prompt_langs)} entries for {prompts} prompts")

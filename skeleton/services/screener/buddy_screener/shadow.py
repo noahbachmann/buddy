@@ -96,6 +96,8 @@ def describe(r: ShadowResult, lib: Library) -> list[str]:
         out.append(f"  soft positives: {'; '.join(b.soft_plus)}")
     if b.uncovered:
         out.append(f"  preferences silent on: {'; '.join(b.uncovered)}")
+    if b.dropped_flags:
+        out.append(f"  soft flags dropped by code: {'; '.join(b.dropped_flags)}")
     if b.decision == "like":
         sec = p.find(b.comment_on)
         what = sec.text.replace("\n", " — ") if sec and sec.kind == "prompt" else "(photo)"
@@ -273,6 +275,15 @@ def report(rows: list[ShadowRow], usage_rows: list[tuple]) -> list[str]:
         fixes = sum(bool(r.bot.get("fixes")) for r in done)
         if fixes:
             out.append(f"  decisions code had to fix: {fixes}")
+    flagged = [r for r in rows if r.bot.get("soft_flags") or r.bot.get("soft_plus") or r.bot.get("dropped_flags")]
+    if flagged:
+        # one line per profile: checked by hand against the preferences' wording (#85)
+        out.append(f"  soft flags per profile: {len(flagged)}")
+        for r in flagged:
+            dev = r.dev["decision"] if r.dev else "-"
+            parts = [f"- {f}" for f in r.bot.get("soft_flags", [])] + [f"+ {f}" for f in r.bot.get("soft_plus", [])]
+            parts += [f"dropped {f}" for f in r.bot.get("dropped_flags", [])]
+            out.append(f"    #{r.id} bot {r.bot['decision']}, Dev {dev}: " + "; ".join(parts))
     gaps = [g for r in rows for g in r.bot.get("uncovered", [])]
     if gaps:
         out.append(f"  preferences silent on (bot): {len(gaps)} in "

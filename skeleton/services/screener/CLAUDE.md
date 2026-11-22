@@ -28,7 +28,7 @@ code path taps a paid option or a chat send.
 | `chat.py` | The chat as a pure state machine (`ChatFlow.step/conversed/verified/delivered`, one `Action` at a time): disclosure first, manual detection, code's match checks, contact by template only, generated-text refusals, language, nudge/close/unmatch timers, `ChatLimits` |
 | `converse.py` | The chat's calls on `Decider.call`: `converse` (reply + state + answers + flags + contact + lang), `verify` (strict second opinion, profile + transcript), prompts with escaped `<msg>` elements, `check_converse`/`check_verify` |
 | `sim.py`, `sim_cases.py`, `sim_personas.py` | `--sim`: driver loop on a fake clock, 21 scripted cases, 8 persona cards (a model plays her), sentinel contacts, prompt leak check, gate report, transcripts in tmpfs |
-| `decide.py` | Agent SDK wrapper (`Decider.decide` = text check, then `browse` with photos): locked-down CLI options, text + browse schemas, `check_text`, `check_browse` (code re-checks: unknown section/comment → none, dealbreaker → skip, a like on a profile it called `generic` → skip (#107), adapted comment refused → the template's text or none, `fixes` kept), usage per call, `limit_until` pause, daily $ cap |
+| `decide.py` | Agent SDK wrapper (`Decider.decide` = text check, then `browse` with photos): locked-down CLI options, text + browse schemas, `check_text`, `check_browse` (code re-checks: unknown section/comment → none, soft flags without a verifiable quote dropped, dealbreaker → skip, a like on a profile it called `generic` → skip (#107), adapted comment refused → the template's text or none, `fixes` kept), usage per call, `limit_until` pause, daily $ cap |
 | `store.py` | SQLite `data/screener/screener.db`: `usage` (kept; live and `sim-` tasks capped apart), `shadow` (bot decision + Dev's label as JSON, profile key only, 30 days), `chats` (`chat.Chat` as JSON, never her texts; 30 days after it ended) |
 | `shadow.py` | Step 2 commands' logic: `run_shadow` (capture → decide → row; capture pickled to tmpfs without crops), `make_label`, `type_label`, `act_label` (skip/send on Dev's label; a relabel keeps `acted`), `report` (done-when numbers; `unjudged` rows left out; comment target = the text Dev sent) |
 | `config.py` | `BUDDY_SCREENER_*` (incl. model, effort, decide timeout, daily $), kill switch files (`config/screener/stop`, `data/screener/paused`), token/limit/db paths, tmpfs dir |
@@ -66,6 +66,11 @@ code path taps a paid option or a chat send.
 - The browse answer splits `soft_flags` (soft negatives only) from `soft_plus` (soft positives) and lists
   `uncovered`: stated things the preferences say nothing about (#79). Those never decide; `describe` shows them,
   `report` counts them: the input for the next preferences diff.
+- Soft flags carry their evidence (#85): each is `{flag, source, quote}`; `sourced_flags` keeps `flag (source:
+  "quote")` only when the source is a section of the profile or "details" and, for text, the quote is in it
+  (normalized); absences ("none stated", "no X visible", a "?") are dropped. Drops go to `dropped_flags`, not `fixes`.
+  `report` lists every profile's flags for a check against the preferences' wording. Health and sensitive traits
+  never in `uncovered` (prompt only).
 - Like comments are patterns (#78, Dev 2026-11-19): `templates.md` text = one example of how Dev says it; the bot
   returns `comment_text` = a fresh comment on her section in Dev's voice, inspired by the pattern, never the example
   copied or translated (Dev, 2026-11-20: it pasted `which_way`'s text as a stiff translation), in the chat's language. Code refuses it like a chat

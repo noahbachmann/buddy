@@ -69,10 +69,55 @@ def test_check_browse_accepts_a_good_answer():
     assert b.chat_lang == "en" and b.comment_text == "Bold. Count me in."
 
 
+def flag(f, source, quote):
+    return {"flag": f, "source": source, "quote": quote}
+
+
 def test_soft_positives_apart_from_soft_negatives():
-    b = check_browse(raw(soft_flags=["late"], soft_plus=["goofy", " "], uncovered=["vegan"]), profile(), LIB)
-    assert (b.soft_flags, b.soft_plus, b.uncovered, b.decision) == (["late"], ["goofy"], ["vegan"], "like")
+    b = check_browse(raw(soft_flags=[flag("pizza crime", "prompt 1", "pineapple belongs on pizza")],
+                         soft_plus=[flag("outdoorsy", "prompt 2", "Hiking"), flag(" ", "prompt 2", "Hiking")],
+                         uncovered=["vegan"]), profile(), LIB)
+    assert b.soft_flags == ['pizza crime (prompt 1: "pineapple belongs on pizza")']
+    assert (b.soft_plus, b.uncovered, b.decision, b.dropped_flags) == (['outdoorsy (prompt 2: "Hiking")'], ["vegan"],
+                                                                       "like", [])
     assert set(BROWSE_SCHEMA["required"]) == set(BROWSE_SCHEMA["properties"])
+
+
+@pytest.mark.parametrize("f", ["tattoos? none stated", "no tattoos visible", "smoking: not mentioned",
+                               "Smoker status unknown"])
+def test_a_flag_that_only_states_an_absence_is_dropped(f):
+    b = check_browse(raw(soft_plus=[flag(f, "details", "Zürich")]), profile(), LIB)
+    assert b.soft_plus == [] and b.dropped_flags == [f"absence: {f}"]
+
+
+def test_a_stated_no_is_kept():
+    p = profile()
+    p.details.append(("Children", "Don't have children"))
+    b = check_browse(raw(soft_plus=[flag("no kids", "details", "don't have children")]), p, LIB)
+    assert b.soft_plus == ['no kids (details: "don\'t have children")']
+
+
+@pytest.mark.parametrize("item, why", [
+    (flag("hiker", "prompt 2", ""), "no quote"),
+    (flag("hiker", "prompt 7", "Hiking"), "unknown source"),
+    (flag("Zürich-based", "details", "lives in Zürich"), "quote not in details"),   # a town alone isn't the rule
+    (flag("smoker", "prompt 1", "cigarette in hand"), "quote not in prompt 1"),     # a photo's look as a text quote
+    ("smoker", None),                                                               # a bare string: no source
+])
+def test_a_flag_without_a_verifiable_source_is_dropped(item, why):
+    b = check_browse(raw(soft_flags=[item]), profile(), LIB)
+    assert b.soft_flags == []
+    assert (b.dropped_flags[0].startswith(why) if why else b.dropped_flags == [])
+
+
+def test_a_photo_flag_needs_only_an_existing_photo():
+    b = check_browse(raw(soft_plus=[flag("climbs", "photo 1", "on a climbing wall")]), profile(), LIB)
+    assert b.soft_plus == ['climbs (photo 1: "on a climbing wall")']
+
+
+def test_prompt_states_the_flag_rules():
+    s = system_prompt(LIB)
+    assert "No quote, no flag." in s and "Never health or another sensitive trait" in s
 
 
 @pytest.mark.parametrize("text", ["", "call me 079 123 45 67", "@me.here", "see www.example.com", "x" * 201])
