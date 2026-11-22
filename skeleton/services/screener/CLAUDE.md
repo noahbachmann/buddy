@@ -115,7 +115,8 @@ into #66 (neutral wording).
 
 **Session 2+ (session 3 next), measure:** `preferences.md` frozen. Note the first shadow row id. Step 3's proposals go into
 `data/screener/session-<N>.md` (host only), not into the preferences. Continue on the next days with the same frozen
-file until ≥ 50 profiles (`GATE_PROFILES`). End: `report --since <first row id>` (this session's rows and their shadow calls only; the bot's `uncovered`
+file until ≥ 50 profiles (`GATE_PROFILES`). End: `report --since <first row id>` (this session's rows and their shadow calls only; when preferences or the decide
+code changed mid-session, one report per part with `--until <last row id>`; the bot's `uncovered`
 list feeds the proposals), evaluate, then show Dev the
 proposed preference changes as a diff. Dev decides: good enough → automate (step 3), or another measure session
 with the changes applied.
@@ -200,8 +201,8 @@ Pi, then `--cmd fixture <out dir> <dumps…>` (all dumps of one walk in one call
   right margin (`_margin_x`, beside the cards), and the end = two swipes in a row that move nothing.
 - Free likes run out (seen after 2 sent likes on 2026-11-18): "send like" opens a paywall (`OUT_OF_LIKES`, its own
   kind: closing it isn't a popup on the way). `send_like` closes it (Close only) and stops: the comment stays in the
-  panel, but the field loses focus and reads empty until tapped: `send_like` taps the field before the read-back. Not always: on 2026-11-19 closing it showed the next profile (the liked one gone, like not
-  sent): `send_like` reports that instead of waiting for the panel.
+  panel, but the field loses focus and reads empty until tapped: `send_like` taps the field before the read-back. Not always: on 2026-11-19 and 2026-11-22 closing it showed the next profile (the liked one gone, like
+  not sent): `send_like` reports that instead of waiting for the panel. Shadow doesn't count the day's likes yet (#80).
 - A voice prompt is a section (`voice N`: View "Voice Prompt: <question>", buttons "Play Voice Prompt" / "Like voice
   prompt", 2026-11-20): listed to the bot, never liked. Unknown, it left a screen with no anchor (lost track).
 - Friends' cards are sections (`friend N`: View "Friend's Take. <Photo: caption | Prompt: q Answer: a>, From: <name,
@@ -212,6 +213,9 @@ Pi, then `--cmd fixture <out dir> <dumps…>` (all dumps of one walk in one call
   2026-11-18: the bot never saw it and `scroll_to` lost track on its card. The app's feature ads ("Try it" cards)
   sit between sections: their texts are anchors but not details. The options are anchors too (`texts`): once the
   question scrolls off the top a poll is no section any more, and its options can be all two dumps share (2026-11-21).
+  Each option has its own heart (no content-desc; the option's clickable View): tapping it opens the usual comment
+  panel with that option highlighted, the others greyed out; typing and read-back work as for a prompt (checked by
+  hand 2026-11-22). Liking an option isn't built yet (#82).
 - A playing video's "Elapsed time: N seconds" label ticks every second: `_signature` ignores it, else no screen
   with a video counts as still (stable reads, the bottom check).
 - Input is jittered like a person (Dev, 2026-11-18: avoid looking like a bot): taps inside the target's middle half,
