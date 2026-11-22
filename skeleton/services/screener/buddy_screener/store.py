@@ -102,9 +102,9 @@ class Store:
         return [ShadowRow(r[0], r[1], r[2], r[3] or 0.0, r[4] or 0, r[5] or 0.0, r[6] or 0, json.loads(r[7]),
                           json.loads(r[8]) if r[8] else None) for r in rows]
 
-    def usage_rows(self, since: float = 0.0) -> list[tuple]:
+    def usage_rows(self, since: float = 0.0, until: float = float("inf")) -> list[tuple]:
         return self.db.execute("SELECT task, model, input, cache_read, cache_write, output, cost, ms, five_hour, "
-                               "seven_day FROM usage WHERE ts >= ? ORDER BY ts", (since,)).fetchall()
+                               "seven_day FROM usage WHERE ts >= ? AND ts <= ? ORDER BY ts", (since, until)).fetchall()
 
     def save_chat(self, chat: Chat) -> None:
         ended = None if chat.state in OPEN else (chat.closed_at or self.clock())

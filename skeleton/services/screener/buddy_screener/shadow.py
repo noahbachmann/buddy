@@ -214,14 +214,15 @@ def _text_first(rows: list[ShadowRow], usage_rows: list[tuple]) -> list[str]:
             f"checks cost ${spent:.2f} → {'pays' if saved > spent else 'does not pay (BUDDY_SCREENER_TEXT_FIRST=0)'}"]
 
 
-def session_rows(rows: list[ShadowRow], usage_rows_since, since_id: int | None) -> tuple[list[ShadowRow], list[tuple]]:
-    """One session's rows (id ≥ `since_id`) and the shadow calls (text, browse) made for them: never the sim's, never
-    an earlier session's. `usage_rows_since(ts)` = `Store.usage_rows`."""
-    if since_id is not None:
-        rows = [r for r in rows if r.id >= since_id]
+def session_rows(rows: list[ShadowRow], usage_rows_since, since_id: int | None,
+                 until_id: int | None = None) -> tuple[list[ShadowRow], list[tuple]]:
+    """One session's rows (`since_id` ≤ id ≤ `until_id`, either open) and the shadow calls (text, browse) made for
+    them: never the sim's, never another session's. `usage_rows_since(from, to)` = `Store.usage_rows`."""
+    rows = [r for r in rows if (since_id is None or r.id >= since_id) and (until_id is None or r.id <= until_id)]
     # a row is stored after its capture and decision: its calls start capture_s + decide_ms before its ts
     start = min((r.ts - r.capture_s - r.decide_ms / 1000 - 1 for r in rows), default=0.0) if since_id is not None else 0.0
-    return rows, [u for u in usage_rows_since(start) if u[0] in (TASK_TEXT, TASK_BROWSE)]
+    end = max((r.ts for r in rows), default=0.0) + 1 if until_id is not None else float("inf")
+    return rows, [u for u in usage_rows_since(start, end) if u[0] in (TASK_TEXT, TASK_BROWSE)]
 
 
 def _sent_bots_comment(r: ShadowRow) -> bool:

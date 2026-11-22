@@ -180,6 +180,8 @@ def test_report_since_counts_one_session(store):
     rows, _ = shadow.session_rows(store.shadow(), store.usage_rows, first)
     assert [r.id for r in rows] == [first, first + 1]
     assert "agreement like/skip: 0/2" in "\n".join(shadow.report(rows, []))
+    rows, _ = shadow.session_rows(store.shadow(), store.usage_rows, first, first)
+    assert [r.id for r in rows] == [first]
 
 
 def test_report_says_whether_text_first_pays(store):

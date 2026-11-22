@@ -17,7 +17,7 @@ Shadow mode (step 2; only skip/send act, and only on Dev's label; details in sha
     --cmd type <id>               type the labelled comment into the labelled section's panel
     --cmd skip <id>               carry out Dev's skip (or unjudged) label: skip that profile (the captured one only)
     --cmd send <id>               carry out Dev's like label: send the typed comment (upsell → plain like, never paid)
-    --cmd report [--since <id>]   step 2's done-when numbers, missing comments, usage (one session: rows ≥ id)
+    --cmd report [--since <id>] [--until <id>]   step 2's done-when numbers, missing comments, usage (rows in range)
 Chat sim (step 4, #77; no phone, real chat calls with sentinel contacts, transcripts to tmpfs):
     --sim [--case NAME …]         the scripted cases (all, or the named ones) and the gate report
     --sim --personas N [--case all]  N persona chats (a model plays her), with or without the cases
@@ -147,7 +147,7 @@ def cmd_shadow(cfg: Config, args: argparse.Namespace) -> int:
         print(f"{len(lib.like_comments)} like comments ok")
         return 0
     if args.cmd == "report":
-        rows, usage = shadow.session_rows(store.shadow(), store.usage_rows, args.since)
+        rows, usage = shadow.session_rows(store.shadow(), store.usage_rows, args.since, args.until)
         print("\n".join(shadow.report(rows, usage)))
         return 0
     if args.cmd == "label":
@@ -353,6 +353,7 @@ def main() -> int:
                                  " | send <id> | report")
     p.add_argument("--show", action="store_true", help="profile: print texts (host terminal only)")
     p.add_argument("--since", type=int, help="report: only shadow rows from this id on (one session)")
+    p.add_argument("--until", type=int, help="report: only shadow rows up to this id (a part of a session)")
     p.add_argument("--note", default="", help="label: Dev's note (why)")
     p.add_argument("--text", help="label: what goes out, Dev's version of the comment (default: the bot's adapted "
                                   "text for its own comment, else the template's)")
