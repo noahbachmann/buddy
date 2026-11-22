@@ -80,8 +80,8 @@ photos clearly meet, skip with the reason exactly "physical preference" and noth
 - Dealbreakers count only when the profile states them. List each in `dealbreakers` in a few words. Any dealbreaker \
 means skip.
 - `generic`: first judge the profile against the owner's rule on unique vs generic, on its own, before any plus \
-or minus: true when it is generic by that rule, including a scarce profile of short one-line answers, however funny \
-or quirky. A generic profile is a skip: no soft positive outweighs it.
+or minus: true when it is generic by that rule. Judge what the lines show of her, not their length: short answers \
+that show her are not generic, stock lines are, however many. A generic profile is a skip: no soft positive outweighs it.
 - Soft negatives from the preferences that apply go into `soft_flags`; they add up and raise the bar for a like. \
 Soft positives from the preferences that apply go into `soft_plus`; they lower it. Each entry: `flag` (a few \
 words), `source` (where the profile shows it: "details", "prompt N", "photo N", …) and `quote` (the profile's own \
@@ -174,7 +174,7 @@ BROWSE_SCHEMA: dict[str, Any] = {
     "properties": {
         "reason": {"type": "string"},
         "decision": {"type": "string", "enum": ["like", "skip"]},
-        "generic": {"type": "boolean", "description": "generic by the owner's rule (scarce counts): always a skip"},
+        "generic": {"type": "boolean", "description": "generic by the owner's rule (content, not length): always a skip"},
         "comment_on": {"type": "string",
                        "description": "'photo N', 'prompt N', 'option N' or 'none' (never a video, voice, friend or poll)"},
         "comment": {"type": "string", "description": "the example id it leaned on most, or 'none' (a note only)"},
