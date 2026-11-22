@@ -18,12 +18,13 @@ import pickle
 import re
 import statistics
 import time
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
 from . import vocab
 from .chat import refusal
-from .decide import COMMENT_MAX, TASK_BROWSE, TASK_TEXT, Browse, Decider, Usage
+from .decide import COMMENT_MAX, TASK_BROWSE, TASK_PHOTO, TASK_TEXT, Browse, Decider, Usage
 from .library import Library
 from .navigator import Navigator
 from .profile import Capture
@@ -67,7 +68,7 @@ def run_shadow(nav: Navigator, decider: Decider, lib: Library, store: Store, tmp
     row_id = store.add_shadow(profile_key(p.name, p.details, first_prompt), capture_s, bot, usage)
 
     for s in p.sections:
-        s.jpeg = b""             # crops never leave memory
+        s.jpeg = s.check_jpeg = b""   # crops never leave memory
     tmp_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     for old in tmp_dir.glob("shadow-*.pkl"):
         old.unlink()
@@ -80,7 +81,7 @@ def run_shadow(nav: Navigator, decider: Decider, lib: Library, store: Store, tmp
 def describe(r: ShadowResult, lib: Library) -> list[str]:
     """For the host terminal: what the bot decided and on what. Contains profile text."""
     b, p, u = r.browse, r.capture.profile, r.usage
-    stage = " by the text check" if b.stage == "text" else ""
+    stage = {"text": " by the text check", "photo": " by the photo check"}.get(b.stage, "")
     out = [f"#{r.row_id} {p.name}: {b.decision.upper()}{stage}  ({r.capture_s:.0f} s capture, "
            f"{u.ms / 1000:.0f} s decide, "
            f"{u.input + u.cache_read + u.cache_write} in / {u.output} out tokens, ${u.cost:.3f}"
@@ -88,6 +89,8 @@ def describe(r: ShadowResult, lib: Library) -> list[str]:
     # the whole horizontal row: screenshots only show its first screen
     out.append("  details: " + (" · ".join(f"{l}: {v}" if l else v for l, v in p.details) or "-"))
     out.append(f"  reason: {b.reason}")
+    if b.photo_check:
+        out.append(f"  photo check: {b.photo_check}" + (f" ({b.photo_ref})" if b.photo_ref else ""))
     if b.dealbreakers:
         out.append(f"  dealbreakers: {'; '.join(b.dealbreakers)}")
     if b.soft_flags:
@@ -216,6 +219,22 @@ def _text_first(rows: list[ShadowRow], usage_rows: list[tuple]) -> list[str]:
             f"checks cost ${spent:.2f} → {'pays' if saved > spent else 'does not pay (BUDDY_SCREENER_TEXT_FIRST=0)'}"]
 
 
+def _photo_check(done: list[ShadowRow]) -> list[str]:
+    """Overweight (#83): the photo check's yes against Dev's labels. A miss = Dev's dealbreaker skip where the check
+    didn't say yes: the note tells whether weight was the reason. Done when ≤ 1 miss in ≥ 25 profiles."""
+    checked = [r for r in done if r.bot.get("photo_check")]
+    if not checked:
+        return []
+    verdicts = Counter(r.bot["photo_check"] for r in checked)
+    yes = [r for r in checked if r.bot["photo_check"] == "yes"]
+    misses = [r for r in checked if r.bot["photo_check"] != "yes" and r.dev["dealbreaker"]]
+    out = [f"  overweight (photo check): yes {verdicts['yes']}, no {verdicts['no']}, can't tell "
+           f"{verdicts['cant_tell']} of {len(checked)}; Dev liked {sum(r.dev['decision'] == 'like' for r in yes)} of "
+           f"the yes; Dev's dealbreakers without a yes: {len(misses)} (misses if the note says weight)"]
+    out += [f"    #{r.id}: {r.dev.get('note') or '-'}" for r in misses]
+    return out
+
+
 def session_rows(rows: list[ShadowRow], usage_rows_since, since_id: int | None,
                  until_id: int | None = None) -> tuple[list[ShadowRow], list[tuple]]:
     """One session's rows (`since_id` ≤ id ≤ `until_id`, either open) and the shadow calls (text, browse) made for
@@ -224,7 +243,7 @@ def session_rows(rows: list[ShadowRow], usage_rows_since, since_id: int | None,
     # a row is stored after its capture and decision: its calls start capture_s + decide_ms before its ts
     start = min((r.ts - r.capture_s - r.decide_ms / 1000 - 1 for r in rows), default=0.0) if since_id is not None else 0.0
     end = max((r.ts for r in rows), default=0.0) + 1 if until_id is not None else float("inf")
-    return rows, [u for u in usage_rows_since(start, end) if u[0] in (TASK_TEXT, TASK_BROWSE)]
+    return rows, [u for u in usage_rows_since(start, end) if u[0] in (TASK_TEXT, TASK_PHOTO, TASK_BROWSE)]
 
 
 def _sent_bots_comment(r: ShadowRow) -> bool:
@@ -272,6 +291,7 @@ def report(rows: list[ShadowRow], usage_rows: list[tuple]) -> list[str]:
         if early:
             out.append(f"  skipped by the text check: {len(early)}, Dev liked "
                        f"{sum(r.dev['decision'] == 'like' for r in early)} of them")
+        out += _photo_check(done)
         fixes = sum(bool(r.bot.get("fixes")) for r in done)
         if fixes:
             out.append(f"  decisions code had to fix: {fixes}")
@@ -302,6 +322,9 @@ def report(rows: list[ShadowRow], usage_rows: list[tuple]) -> list[str]:
         for model, us in by_model.items():
             out.append(f"  {model}: {len(us)} calls, ${sum(u[6] or 0 for u in us):.2f} API-equivalent")
         out += _text_first(rows, usage_rows)
+        photo = [u[6] or 0 for u in usage_rows if u[0] == TASK_PHOTO]
+        if photo:
+            out.append(f"  photo check: {len(photo)} calls, ${statistics.mean(photo):.3f} per profile")
         last = usage_rows[-1]
         if last[8] is not None:
             out.append(f"  plan after the last call: 5 h {last[8]:.0%}"

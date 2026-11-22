@@ -5,8 +5,9 @@ import pytest
 from claude_agent_sdk import RateLimitEvent, ResultMessage
 from claude_agent_sdk.types import RateLimitInfo
 
-from buddy_screener.decide import (BROWSE_SCHEMA, STAGE_TEXT, BudgetSpent, DecideConfig, DecideError, Decider,
-                                   UsageLimited, check_browse, check_text, profile_content, system_prompt)
+from buddy_screener.decide import (BROWSE_SCHEMA, PHOTO_SYSTEM, STAGE_TEXT, BudgetSpent, DecideConfig, DecideError,
+                                   Decider, UsageLimited, check_browse, check_photo, check_text, photo_content,
+                                   profile_content, system_prompt)
 from buddy_screener.library import Library, LikeComment
 from buddy_screener.profile import Profile, Section
 from buddy_screener.store import Store
@@ -332,3 +333,75 @@ def test_a_poll_is_listed_but_never_commented_on():
     assert 'poll 1: (a poll asking "Pick our first getaway": can\'t be commented on)' in text
     b = check_browse(raw(comment_on="poll 1"), p, LIB)
     assert b.comment_on == "prompt 1" and b.comment == "none" and b.fixes
+
+
+# --- the photo check (#83) --------------------------------------------------------------------------------------------
+
+def checked_profile() -> Profile:
+    p = profile()
+    p.sections[0].check_jpeg = b"\xff\xd8big-one"
+    p.sections[2].check_jpeg = b"\xff\xd8big-two"
+    return p
+
+
+def test_photo_content_is_photos_only():
+    blocks = photo_content(checked_profile())
+    assert [b["type"] for b in blocks] == ["text", "image", "text", "image"]
+    assert [b["text"] for b in blocks if b["type"] == "text"] == ["photo 1:", "photo 2:"]
+    assert base64.b64decode(blocks[3]["source"]["data"]) == b"\xff\xd8big-two"
+    assert "Pineapple" not in str(blocks) and "Zürich" not in str(blocks)
+    assert photo_content(profile()) == []                               # no check crops: no call
+
+
+@pytest.mark.parametrize("raw_, out", [({"verdict": "yes", "photo": "photo 2"}, ("yes", "photo 2")),
+                                       ({"verdict": "yes", "photo": "prompt 1"}, ("yes", "")),
+                                       ({"verdict": "cant_tell", "photo": "photo 1"}, ("cant_tell", ""))])
+def test_check_photo(raw_, out):
+    assert check_photo(raw_, profile()) == out
+
+
+def test_check_photo_needs_a_verdict():
+    with pytest.raises(DecideError):
+        check_photo({"verdict": "maybe", "photo": "none"}, profile())
+
+
+def photo_cfg(cfg):
+    cfg.text_first, cfg.photo_check, cfg.photo_model = False, True, "claude-opus-5-5"
+    return cfg
+
+
+def test_photo_yes_skips_without_the_full_call(cfg, store, monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    sdk = FakeSdk(script=[(result({"verdict": "yes", "photo": "photo 2"}, cost=0.01),)])
+    b, u = decider(photo_cfg(cfg), store, sdk).decide(checked_profile(), LIB)
+    assert (b.decision, b.stage, b.reason, b.dealbreakers, b.photo_check, b.photo_ref) == (
+        "skip", "photo", "physical preference", ["physical preference"], "yes", "photo 2")
+    assert len(sdk.calls) == 1 and sdk.calls[0][1].system_prompt == PHOTO_SYSTEM
+    assert sdk.calls[0][1].model == "claude-opus-5-5" and u.task == "photo"
+    assert [r[:2] for r in store.usage_rows()] == [("photo", "claude-opus-5-5")]
+
+
+@pytest.mark.parametrize("verdict", ["cant_tell", "no"])
+def test_photo_cant_tell_or_no_leaves_the_decision(cfg, store, monkeypatch, verdict):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    sdk = FakeSdk(script=[(result({"verdict": verdict, "photo": "none"}, cost=0.01),), (result(raw(), cost=0.02),)])
+    b, u = decider(photo_cfg(cfg), store, sdk).decide(checked_profile(), LIB)
+    assert (b.decision, b.stage, b.photo_check) == ("like", "full", verdict)
+    assert sdk.calls[1][1].model == "claude-sonnet-5-5"                 # the full call keeps the decide model
+    assert (u.task, u.cost) == ("photo+browse", pytest.approx(0.03))
+
+
+def test_text_then_photo_then_full(cfg, store, monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    photo_cfg(cfg).text_first = True
+    sdk = FakeSdk(script=[(result({"reason": "none", "dealbreakers": []}),), (result({"verdict": "no", "photo": ""}),),
+                          (result(raw()),)])
+    b, u = decider(cfg, store, sdk).decide(checked_profile(), LIB)
+    assert b.decision == "like" and u.task == "text+photo+browse"
+
+
+def test_no_check_crops_no_photo_call(cfg, store, monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    sdk = FakeSdk(result(raw()))
+    b, _ = decider(photo_cfg(cfg), store, sdk).decide(profile(), LIB)
+    assert len(sdk.calls) == 1 and b.photo_check == ""

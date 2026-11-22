@@ -28,7 +28,7 @@ code path taps a paid option or a chat send.
 | `chat.py` | The chat as a pure state machine (`ChatFlow.step/conversed/verified/delivered`, one `Action` at a time): disclosure first, manual detection, code's match checks, contact by template only, generated-text refusals, language, nudge/close/unmatch timers, `ChatLimits` |
 | `converse.py` | The chat's calls on `Decider.call`: `converse` (reply + state + answers + flags + contact + lang), `verify` (strict second opinion, profile + transcript), prompts with escaped `<msg>` elements, `check_converse`/`check_verify` |
 | `sim.py`, `sim_cases.py`, `sim_personas.py` | `--sim`: driver loop on a fake clock, 21 scripted cases, 8 persona cards (a model plays her), sentinel contacts, prompt leak check, gate report, transcripts in tmpfs |
-| `decide.py` | Agent SDK wrapper (`Decider.decide` = text check, then `browse` with photos): locked-down CLI options, text + browse schemas, `check_text`, `check_browse` (code re-checks: unknown section/comment → none, soft flags without a verifiable quote dropped, dealbreaker → skip, a like on a profile it called `generic` → skip (#107), adapted comment refused → the template's text or none, `fixes` kept), usage per call, `limit_until` pause, daily $ cap |
+| `decide.py` | Agent SDK wrapper (`Decider.decide` = text check, photo check (#83), then `browse` with photos): locked-down CLI options, text + browse schemas, `check_text`, `check_browse` (code re-checks: unknown section/comment → none, soft flags without a verifiable quote dropped, dealbreaker → skip, a like on a profile it called `generic` → skip (#107), adapted comment refused → the template's text or none, `fixes` kept), usage per call, `limit_until` pause, daily $ cap |
 | `store.py` | SQLite `data/screener/screener.db`: `usage` (kept; live and `sim-` tasks capped apart), `shadow` (bot decision + Dev's label as JSON, profile key only, 30 days), `chats` (`chat.Chat` as JSON, never her texts; 30 days after it ended) |
 | `shadow.py` | Step 2 commands' logic: `run_shadow` (capture → decide → row; capture pickled to tmpfs without crops), `make_label`, `type_label`, `act_label` (skip/send on Dev's label; a relabel keeps `acted`), `report` (done-when numbers; `unjudged` rows left out; comment target = the text Dev sent) |
 | `config.py` | `BUDDY_SCREENER_*` (incl. model, effort, decide timeout, daily $), kill switch files (`config/screener/stop`, `data/screener/paused`), token/limit/db paths, tmpfs dir |
@@ -78,6 +78,13 @@ code path taps a paid option or a chat send.
   language matches the chat, else no comment. A label stores the text that goes out (`text`); `type`/`send` use it.
 - Text first is off on the host since 2026-11-19 (0 early skips in 47 profiles, a third of the spend); photos 768 px
   since then (the bot missed "somewhat overweight" twice at 512).
+- Photo check (#83, Dev 2026-11-22: overweight as Dev sees it, also mild, is a skip on its own; the full call missed
+  it 8 times): a photos-only call (`task` "photo", `PHOTO_SYSTEM`, no profile text) before the full one: yes / no /
+  can't tell + which photo. Yes → skip with the reason "physical preference" only, no full call (`stage` "photo");
+  can't tell / no → no effect. Its crops (`Section.check_jpeg`) at `BUDDY_SCREENER_PHOTO_CHECK_PX` (1024 ≥ the 960 px
+  photos on screen: not downscaled); its model `BUDDY_SCREENER_PHOTO_MODEL` (empty = the decide model: switch to a
+  stronger one if it still misses). `report`: verdict counts, Dev's dealbreakers without a yes (+ notes), $ per call.
+  Done when ≤ 1 miss in ≥ 25 profiles. ~$0.01 per photo.
 - Photos: JPEG crops (long side `BUDDY_SCREENER_PHOTO_PX`, 512 ≈ 440 tokens; 768 was ≈ 980) taken with the hash
   screenshot, in `Section.jpeg`, never on disk. Photos are most of a profile's tokens.
 

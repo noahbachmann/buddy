@@ -36,6 +36,7 @@ class Section:
     hi: int = 0
     hash: str = ""           # photo: dhash of a full view
     jpeg: bytes = field(default=b"", repr=False)   # photo: downscaled crop for the decision call; memory only
+    check_jpeg: bytes = field(default=b"", repr=False)   # photo: crop for the photo check (#83), larger; memory only
 
     @property
     def ref(self) -> str:

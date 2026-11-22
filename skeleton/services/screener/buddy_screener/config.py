@@ -24,6 +24,9 @@ class Config:
     daily_usd: float = 5.0       # cap on the SDK's API-equivalent $ per 24 h (the plan isn't billed per call)
     photo_px: int = 512          # long side of a photo crop for the decision (~440 image tokens at 512)
     text_first: bool = True      # text-only dealbreaker check before sending photos
+    photo_check: bool = True     # photos-only physical check before the full decision (#83)
+    photo_model: str = ""        # its model; empty = `model`
+    photo_check_px: int = 1024   # its crops' long side: ≥ the screen's 960 px photos = not downscaled
     chat_min_exchanges: int = ChatLimits.min_exchanges   # chat (#77): meanings in chat.ChatLimits
     chat_max_bot: int = ChatLimits.max_bot
     chat_max_days: float = ChatLimits.max_days
@@ -49,6 +52,9 @@ class Config:
             daily_usd=env_float("BUDDY_SCREENER_DAILY_USD", d.daily_usd),
             photo_px=env_int("BUDDY_SCREENER_PHOTO_PX", d.photo_px),
             text_first=env_int("BUDDY_SCREENER_TEXT_FIRST", int(d.text_first)) != 0,
+            photo_check=env_int("BUDDY_SCREENER_PHOTO_CHECK", int(d.photo_check)) != 0,
+            photo_model=env_string("BUDDY_SCREENER_PHOTO_MODEL", d.photo_model),
+            photo_check_px=env_int("BUDDY_SCREENER_PHOTO_CHECK_PX", d.photo_check_px),
             chat_min_exchanges=env_int("BUDDY_SCREENER_CHAT_MIN_EXCHANGES", d.chat_min_exchanges),
             chat_max_bot=env_int("BUDDY_SCREENER_CHAT_MAX_BOT", d.chat_max_bot),
             chat_max_days=env_float("BUDDY_SCREENER_CHAT_MAX_DAYS", d.chat_max_days),
@@ -58,8 +64,9 @@ class Config:
             sim_model=env_string("BUDDY_SCREENER_SIM_MODEL", d.sim_model),
             sim_usd=env_float("BUDDY_SCREENER_SIM_USD", d.sim_usd),
         )
-        if not 256 <= c.photo_px <= 1568:
-            raise ValueError(f"BUDDY_SCREENER_PHOTO_PX={c.photo_px}: 256..1568")
+        for key, px in (("PHOTO_PX", c.photo_px), ("PHOTO_CHECK_PX", c.photo_check_px)):
+            if not 256 <= px <= 1568:
+                raise ValueError(f"BUDDY_SCREENER_{key}={px}: 256..1568")
         if c.effort not in ("low", "medium", "high", "xhigh", "max"):
             raise ValueError(f"BUDDY_SCREENER_EFFORT={c.effort!r}: low|medium|high|xhigh|max")
         if not c.package:

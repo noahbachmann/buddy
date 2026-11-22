@@ -56,12 +56,15 @@ def _device(cfg: Config) -> Device:
 def _navigator(cfg: Config, dev: Device) -> Navigator:
     from .imaging import crop_hash, crop_jpeg
     return Navigator(dev, cfg.package, dump_dir=cfg.tmp_dir, hasher=crop_hash,
-                     cropper=lambda shot, rect: crop_jpeg(shot, rect, cfg.photo_px))
+                     cropper=lambda shot, rect: crop_jpeg(shot, rect, cfg.photo_px),
+                     check_cropper=(lambda shot, rect: crop_jpeg(shot, rect, cfg.photo_check_px))
+                     if cfg.photo_check else None)
 
 
 def _decider(cfg: Config, store: Store) -> Decider:
     return Decider(DecideConfig(cfg.model, cfg.effort, cfg.decide_timeout_s, cfg.daily_usd, cfg.token_file,
-                                cfg.limit_file, cfg.tmp_dir / "claude", cfg.text_first), store)
+                                cfg.limit_file, cfg.tmp_dir / "claude", cfg.text_first,
+                                photo_check=cfg.photo_check, photo_model=cfg.photo_model or cfg.model), store)
 
 
 def _ensure_our_ime(dev: Device) -> None:

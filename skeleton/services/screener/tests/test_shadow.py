@@ -293,3 +293,22 @@ def test_report_lists_soft_flags_per_profile(store):
     assert "  soft flags per profile: 1" in out
     assert (f'    #{r.id} bot like, Dev skip: - late (prompt 1: "always late"); + hikes (prompt 2: "hiking"); '
             "dropped absence: tattoos? none stated") in out
+
+
+def test_report_photo_check(store):
+    from buddy_screener.decide import physical_skip
+
+    def add(bot, check, *dev, **kw):
+        bot.photo_check = check
+        r = row(store, bot)
+        store.label(r.id, shadow.make_label(r, *dev, LIB, **kw))
+        return r.id
+
+    add(physical_skip("photo 2"), "yes", "skip", None, None, dealbreaker=True)   # hit
+    add(physical_skip(""), "yes", "like", "photo 1", "none")                     # Dev disagreed
+    miss = add(like(), "cant_tell", "skip", None, None, dealbreaker=True, note="overweight")
+    add(like(), "no", "like", None, None)
+    out = shadow.report(store.shadow(), [("photo", "m", 0, 0, 0, 0, 0.01, 0, None, None)] * 4)
+    assert ("  overweight (photo check): yes 2, no 1, can't tell 1 of 4; Dev liked 1 of the yes; Dev's dealbreakers "
+            "without a yes: 1 (misses if the note says weight)") in out
+    assert f"    #{miss}: overweight" in out and "  photo check: 4 calls, $0.010 per profile" in out

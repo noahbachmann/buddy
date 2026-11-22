@@ -31,6 +31,9 @@ from .profile import Profile
 
 TASK_BROWSE = "browse"
 TASK_TEXT = "text"
+TASK_PHOTO = "photo"
+PHYSICAL = "physical preference"   # the only reason a photo check gives: never a word about her body
+PHOTO_VERDICTS = ("yes", "no", "cant_tell")
 STAGE_TEXT = "Stage: text check (photos not shown)."
 STAGE_FULL = "Stage: full decision."
 LANGS = ("de-ch", "de", "en", "other")   # de-ch: Swiss German dialect, the most common here
@@ -126,6 +129,27 @@ dialect, the most common here: e.g. "isch", "ned", "chan", "gsi", "öppis", "mer
 {library}
 """
 
+PHOTO_SYSTEM = """\
+You check the photos of one profile in a social app for one physical criterion the owner set. You see only the \
+photos, no text. She is the person who appears across the photos; in a group photo judge only her, and only if \
+you can tell which one she is.
+
+Question: does any photo show her body clearly enough to judge, and is she overweight, also mildly?
+- "yes": at least one photo clearly shows it. `photo` = that photo ("photo N").
+- "no": at least one photo shows her body clearly, and none shows her overweight. `photo` = "none".
+- "cant_tell": no photo shows enough of her body (face only, cropped, far away, loose clothes, unclear who she is \
+in a group). `photo` = "none".
+
+Answer only this. Judge nothing else from the photos and describe nothing: no words about her body or looks."""
+
+PHOTO_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {"verdict": {"type": "string", "enum": list(PHOTO_VERDICTS)},
+                   "photo": {"type": "string", "description": "'photo N' for yes, else 'none'"}},
+    "required": ["verdict", "photo"],
+    "additionalProperties": False,
+}
+
 COMMENT_MAX = 200   # chars of an adapted like comment; the library's longest is ~120
 
 SOFT_ITEM: dict[str, Any] = {
@@ -210,6 +234,17 @@ def profile_content(p: Profile, photos: bool = True) -> list[dict[str, Any]]:
     return blocks
 
 
+def photo_content(p: Profile) -> list[dict[str, Any]]:
+    """The photo check's message: only the photos' labels and crops, no text from the profile. [] = no crops."""
+    blocks: list[dict[str, Any]] = []
+    for s in p.sections:
+        if s.kind == "photo" and s.check_jpeg:
+            blocks.append({"type": "text", "text": f"{s.ref}:"})
+            blocks.append({"type": "image", "source": {"type": "base64", "media_type": "image/jpeg",
+                                                       "data": base64.b64encode(s.check_jpeg).decode()}})
+    return blocks
+
+
 # --- checking what comes back ----------------------------------------------------------------------------------------
 
 @dataclass
@@ -228,6 +263,8 @@ class Browse:
     soft_plus: list[str] = field(default_factory=list)   # soft positives (soft_flags = negatives only)
     uncovered: list[str] = field(default_factory=list)   # preference gaps: shown and counted, never decide
     dropped_flags: list[str] = field(default_factory=list)   # soft flags/plus code dropped (#85): why + flag
+    photo_check: str = ""        # the photo check's verdict (#83): yes | no | cant_tell; "" = not run
+    photo_ref: str = ""          # yes: the photo that shows it
 
     @property
     def chat_lang(self) -> str:
@@ -337,6 +374,22 @@ def check_browse(raw: Any, p: Profile, lib: Library) -> Browse:
     return b
 
 
+def check_photo(raw: Any, p: Profile) -> tuple[str, str]:
+    """(verdict, photo ref). A yes naming no captured photo still counts: the verdict decides, the ref is for Dev."""
+    if not isinstance(raw, dict) or raw.get("verdict") not in PHOTO_VERDICTS:
+        raise DecideError("photo check: no verdict")
+    ref = raw.get("photo", "")
+    ref = ref.strip() if isinstance(ref, str) else ""
+    found = p.find(ref)
+    return raw["verdict"], ref if raw["verdict"] == "yes" and found is not None and found.kind == "photo" else ""
+
+
+def physical_skip(ref: str) -> Browse:
+    """The photo check said yes: a skip whose reason says nothing about her body (#83)."""
+    return Browse("skip", "none", "none", "", [], [], [PHYSICAL], PHYSICAL, stage="photo", photo_check="yes",
+                  photo_ref=ref)
+
+
 def check_text(raw: Any) -> Browse | None:
     """The text check's answer: a skip when it found a dealbreaker, else None (the full call decides)."""
     if not isinstance(raw, dict):
@@ -402,6 +455,8 @@ class DecideConfig:
     work_dir: Path               # empty dir on tmpfs: the CLI's cwd
     text_first: bool = True
     sim: bool = False            # the sim's calls: capped on the sim's own spend (`daily_usd` = its cap)
+    photo_check: bool = False    # photos-only physical check before the full call (#83)
+    photo_model: str = ""        # its model; "" = `model`
 
 
 class Decider:
@@ -418,7 +473,7 @@ class Decider:
             return None
         return until if until > self.clock() else None
 
-    def _options(self, system: str, schema: dict[str, Any]) -> Any:
+    def _options(self, system: str, schema: dict[str, Any], model: str) -> Any:
         from claude_agent_sdk import ClaudeAgentOptions
 
         env = {}
@@ -428,19 +483,21 @@ class Decider:
         self.cfg.work_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
         return ClaudeAgentOptions(
             tools=[], setting_sources=[], strict_mcp_config=True, skills=[], permission_mode="dontAsk",
-            system_prompt=system, model=self.cfg.model, effort=self.cfg.effort, max_turns=3,
+            system_prompt=system, model=model, effort=self.cfg.effort, max_turns=3,
             output_format={"type": "json_schema", "schema": schema}, verbatim_prompts=True,
             cwd=str(self.cfg.work_dir), env=env, extra_args={"no-session-persistence": None})
 
-    def call(self, task: str, system: str, content: list[dict[str, Any]], schema: dict[str, Any]) -> Outcome:
+    def call(self, task: str, system: str, content: list[dict[str, Any]], schema: dict[str, Any],
+             model: str = "") -> Outcome:
         if (until := self.limited_until()) is not None:
             raise UsageLimited(until)
         spent = self.store.cost_since(self.clock() - 86400, self.cfg.sim)
         if spent >= self.cfg.daily_usd:
             raise BudgetSpent(f"${spent:.2f} in the last 24 h, cap ${self.cfg.daily_usd:.2f}")
-        options = self._options(system, schema)
+        model = model or self.cfg.model
+        options = self._options(system, schema, model)
         try:
-            out = asyncio.run(asyncio.wait_for(self._collect(task, content, options), self.cfg.timeout_s))
+            out = asyncio.run(asyncio.wait_for(self._collect(task, model, content, options), self.cfg.timeout_s))
         except TimeoutError:
             raise DecideError(f"no answer within {self.cfg.timeout_s:.0f} s") from None
         except UsageLimited as e:
@@ -449,10 +506,10 @@ class Decider:
             raise
         return out
 
-    async def _collect(self, task: str, content: list[dict[str, Any]], options: Any) -> Outcome:
+    async def _collect(self, task: str, model: str, content: list[dict[str, Any]], options: Any) -> Outcome:
         from claude_agent_sdk import RateLimitEvent, ResultMessage
 
-        usage = Usage(task, self.cfg.model)
+        usage = Usage(task, model)
         rejected_until: float | None = None
         result = None
         t = time.monotonic()
@@ -488,12 +545,34 @@ class Decider:
         out = self.call(TASK_BROWSE, system_prompt(lib), profile_content(p), BROWSE_SCHEMA)
         return check_browse(out.structured, p, lib), out.usage
 
+    def photo_check(self, p: Profile) -> tuple[str, str, Usage | None]:
+        """Photos only, one question (#83): the full call missed overweight in 8 profiles, two of them liked."""
+        content = photo_content(p)
+        if not content:
+            return "", "", None
+        out = self.call(TASK_PHOTO, PHOTO_SYSTEM, content, PHOTO_SCHEMA, self.cfg.photo_model)
+        verdict, ref = check_photo(out.structured, p)
+        return verdict, ref, out.usage
+
     def decide(self, p: Profile, lib: Library) -> tuple[Browse, Usage]:
-        """Text check first (if on), then the full call unless the text already rules the profile out."""
-        if not self.cfg.text_first:
-            return self.browse(p, lib)
-        out = self.call(TASK_TEXT, system_prompt(lib), profile_content(p, photos=False), TEXT_SCHEMA)
-        if (skip := check_text(out.structured)) is not None:
-            return skip, out.usage
+        """Text check (if on), photo check (if on), then the full call unless one of them ruled the profile out."""
+        spent: Usage | None = None
+
+        def total(u: Usage) -> Usage:
+            return u if spent is None else spent + u
+
+        if self.cfg.text_first:
+            out = self.call(TASK_TEXT, system_prompt(lib), profile_content(p, photos=False), TEXT_SCHEMA)
+            if (skip := check_text(out.structured)) is not None:
+                return skip, out.usage
+            spent = out.usage
+        verdict = ref = ""
+        if self.cfg.photo_check:
+            verdict, ref, u = self.photo_check(p)
+            if u is not None:
+                spent = total(u)
+            if verdict == "yes":
+                return physical_skip(ref), spent
         b, u = self.browse(p, lib)
-        return b, out.usage + u
+        b.photo_check = verdict
+        return b, total(u)

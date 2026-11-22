@@ -83,6 +83,7 @@ class Navigator:
     dump_dir: Path | None = None              # where an unexpected screen's raw dump goes (tmpfs)
     hasher: Hasher | None = None
     cropper: Cropper | None = None            # set: photos keep a JPEG crop (memory only) for the decision
+    check_cropper: Cropper | None = None      # set: and a larger one for the photo check (#83)
     pause: Callable[[float], object] = human_pause
     log: Callable[[str], None] = print
     last: Screen | None = field(default=None, init=False)
@@ -271,6 +272,8 @@ class Navigator:
                 sec.hash = self.hasher(shot, sv.rect)
                 if self.cropper is not None:
                     sec.jpeg = self.cropper(shot, sv.rect)
+                if self.check_cropper is not None:
+                    sec.check_jpeg = self.check_cropper(shot, sv.rect)
 
     def capture_profile(self) -> Capture:
         """Scrolls through the whole profile from its top, collecting every section. Ends at the bottom."""
