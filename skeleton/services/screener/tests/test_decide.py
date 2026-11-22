@@ -156,19 +156,17 @@ def test_a_copy_of_an_example_is_refused(text):
 
 
 @pytest.mark.parametrize("langs, lang, ok", [(["de-ch", "de"], "de-ch", True), (["de-ch", "de"], "en", True),
-                                             (["en", "en"], "de-ch", False), (["de", "de"], "none", False)])
+                                             (["en", "en"], "de-ch", False), (["en", "en"], "de", False),
+                                             (["de", "de"], "de", True), (["de", "de"], "none", False)])
 def test_comment_language_rule(langs, lang, ok):
     b = check_browse(raw(prompt_langs=langs, comment_text="pineapple, bold move", comment_lang=lang), profile(), LIB)
     assert bool(b.comment_text) == ok
 
 
-def test_standard_german_is_refused_as_swiss():
-    b = check_browse(raw(prompt_langs=["de", "de"], comment_text="das ist nicht dein Ernst", comment_lang="de-ch"),
+def test_standard_german_is_fine_in_a_german_chat():
+    b = check_browse(raw(prompt_langs=["de", "de"], comment_text="das ist nicht dein Ernst", comment_lang="de"),
                      profile(), LIB)
-    assert b.comment_refused == ["standard German, not Swiss German"]
-    b = check_browse(raw(prompt_langs=["de", "de"], comment_text="das isch ned din ernst", comment_lang="de-ch"),
-                     profile(), LIB)
-    assert b.comment_text == "das isch ned din ernst"
+    assert b.comment_text == "das ist nicht dein Ernst" and b.comment_refused == []
 
 
 @pytest.mark.parametrize("langs, chat", [(["en", "de"], "de"), (["en", "de-ch"], "de"), (["other", "other"], "en"),

@@ -110,7 +110,8 @@ hobby, a past, something he owns or a shared interest ("a fellow …", "me too" 
 - No numbers, links or handles. At most {comment_max} characters; shorter is better.
 - `comment`: the id of the example you leaned on most, or "none". It is only a note: the comment is your own text.
 - `comment_lang`: the language `comment_text` is written in. The chat language (see Languages) decides: German or \
-Swiss German prompts → Swiss German dialect ("de-ch") or English ("en"), never standard German; otherwise English.
+Swiss German prompts → Swiss German dialect ("de-ch", as most examples are), standard German ("de") or English \
+("en"); otherwise English.
 - No good comment possible: `comment_text` "", `comment` "none", `missing_hook` says briefly what kind of comment \
 would fit (the hook and the tone), without quoting the profile. Otherwise `missing_hook` is "".
 - A skip: `comment_on` "none", `comment` "none", `comment_text` "", `comment_lang` "none", `missing_hook` "".
@@ -154,7 +155,7 @@ PHOTO_SCHEMA: dict[str, Any] = {
     "additionalProperties": False,
 }
 
-COMMENT_LANGS = ("de-ch", "en", "none")   # Dev comments in Swiss German or English (#84), never standard German
+COMMENT_LANGS = ("de-ch", "de", "en", "none")   # Dev comments in Swiss German, German or English (#84)
 OWN = "own"         # `comment` of a comment that leans on no example (a label's id for "the text is the comment")
 COMMENT_CAP = 200   # chars, when the library is empty; else its longest comment (#84)
 
@@ -371,8 +372,6 @@ def _words(t: str) -> list[str]:
     return re.findall(r"\w+", t.casefold())
 
 
-# words only standard German uses; Swiss German says isch, ned, mir, hend, au, chan, … (#84: never standard German)
-STANDARD_DE = frozenset("nicht ist bist habe haben hast wir sind auch kann kannst möchte gehen machen einen".split())
 COPY_RUN = 4        # words in a row shared with an example = a copy ("teach me the ways", #84)
 COPY_JACCARD = 0.6  # or this much of both texts' words in common
 
@@ -395,11 +394,9 @@ def comment_problem(text: str, lang: str, chat_lang: str, lib: Library) -> str |
     """Why a written like comment must not go out (None = fine): code's checks, whatever the model was told."""
     if (why := refusal(text, comment_max(lib))) is not None:
         return why
-    allowed = ("de-ch", "en") if chat_lang == "de" else ("en",)
+    allowed = ("de-ch", "de", "en") if chat_lang == "de" else ("en",)
     if lang not in allowed:
         return f"written in {lang[:10] or '?'} for a {chat_lang} chat"
-    if lang == "de-ch" and len(STANDARD_DE & set(_words(text))) >= 2:
-        return "standard German, not Swiss German"
     if (cid := copy_of(text, lib)) is not None:
         return f"copies {cid}"
     return None

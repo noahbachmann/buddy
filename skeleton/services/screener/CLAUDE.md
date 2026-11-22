@@ -74,9 +74,9 @@ code path taps a paid option or a chat send.
 - Like comments are written freely in Dev's voice (#84, Dev 2026-11-22; before: adapted patterns, #78; session 3:
   Dev sent the bot's comment 0 of 8 times). `templates.md` *Voice* describes the voice, the *Like comments* are
   examples of it, not a menu; `comment` = the example it leaned on (a note) or `own`. Facts about Dev only from
-  *About Dev* + the examples. Language: German/Swiss German chat → Swiss German (`de-ch`) or English, never standard
-  German; English chat → English. Checks, in order: code (`comment_problem`: `refusal` with the longest example as
-  the limit, the language rule, standard German words in a `de-ch` text, a copy = 4 words in a row or ≥ 60 % shared
+  *About Dev* + the examples. Language: German/Swiss German chat → Swiss German (`de-ch`), standard German (Dev,
+  2026-11-22: allowed) or English; English chat → English. Checks, in order: code (`comment_problem`: `refusal`
+  with the longest example as the limit, the language rule, a copy = 4 words in a row or ≥ 60 % shared
   words with an example), then a check call (`comment_check`, `BUDDY_SCREENER_CHECK_MODEL`: a translation of an
   example, invented facts about Dev). Refused → one second try (`comment`: the profile again + why), else no
   comment; never the example's text. `comment_refused` keeps each reason. A label stores the text that goes out
