@@ -141,10 +141,15 @@ photos, no text. She is the person who appears across the photos; in a group pho
 you can tell which one she is.
 
 Question: does any photo show her body clearly enough to judge, and is she overweight, also mildly?
-- "yes": at least one photo clearly shows it. `photo` = that photo ("photo N").
+Judge her body, not the clothes, the pose or the camera: oversized or bulky clothes (a big cardigan, a coat, wide \
+jeans), a wide-angle or low or top-down selfie, a seated or hunched pose, and curves, a short or petite build or \
+full cheeks on a slim frame are not overweight. Mildly overweight = visible extra weight on her body itself (belly, \
+arms, face and neck together), not a guess from the outfit's outline.
+- "yes": at least one photo clearly shows it, and no other photo that shows her body clearly contradicts it (if \
+another photo shows her slim, the flagged one is clothes or angle: not "yes"). `photo` = that photo ("photo N").
 - "no": at least one photo shows her body clearly, and none shows her overweight. `photo` = "none".
-- "cant_tell": no photo shows enough of her body (face only, cropped, far away, loose clothes, unclear who she is \
-in a group). `photo` = "none".
+- "cant_tell": no photo shows enough of her body (face only, cropped, far away, only loose clothes, unclear who \
+she is in a group), or the photos disagree and you can't settle it. `photo` = "none".
 
 Answer only this. Judge nothing else from the photos and describe nothing: no words about her body or looks."""
 
