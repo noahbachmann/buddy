@@ -13,7 +13,7 @@ def screen(name: str) -> screens.Screen:
 
 @pytest.mark.parametrize("name, kind", [
     *[(f, Kind.FEED) for f in FEED],
-    ("sheet", Kind.SHEET), ("sheet-typed", Kind.SHEET),
+    ("sheet", Kind.SHEET), ("sheet-typed", Kind.SHEET), ("sheet-option", Kind.SHEET), ("feed-poll-all", Kind.FEED),
     ("likes", Kind.LIKES), ("matches", Kind.MATCHES), ("chat", Kind.CHAT), ("popup", Kind.POPUP),
 ])
 def test_every_fixture_is_recognised(name, kind):
@@ -235,6 +235,25 @@ def test_each_poll_option_is_a_section_with_its_heart():
     rows = [o.like.parent for o in options]
     assert not any(screens.tappable(s, r) for r in rows)                       # the row itself: no (it votes?)
     assert not any(screens.tappable(s, n) for r in rows for n in r.children if n is not screens.option_heart(r))
+
+
+def test_option_panel_belongs_to_the_picked_option():
+    # #82, real dump: the heart of option 2 tapped; the panel opens under the whole poll card, option 2 picked
+    s = screen("sheet-option")
+    options = [x for x in screens.profile_view(s.root).sections if x.kind == "option"]
+    assert [(o.text, o.picked) for o in options] == [("Option 1", False), ("Option 2", True), ("Option 3", False)]
+    sv = screens.sheet_view(s.root)
+    assert (sv.section.kind, sv.section.text, sv.section.poll) == ("option", "Option 2", "Question 1")
+    rows = [n.parent for n in s.root.iter() if n.desc.startswith("Option: ")]
+    assert not any(screens.tappable(s, n) for r in rows for n in r.iter())   # another row switches the pick
+    assert not any(o.picked for o in screens.profile_view(screen("feed-poll-all").root).sections)
+
+
+def test_option_panel_without_one_picked_option_belongs_to_nothing():
+    s = screen("sheet-option")
+    picked = next(n for n in s.root.iter() if n.desc == "Option: Option 2").parent
+    picked.clickable = True   # no row stands out: which option the panel is for is unknown
+    assert screens.sheet_view(s.root).section is None
 
 
 def test_options_after_their_question_scrolled_off_have_no_poll():

@@ -119,7 +119,13 @@ def _is_poll(n: Node) -> bool:
 
 def _is_option(n: Node) -> bool:
     """A poll option's own node ("Option: <text>"); its clickable parent is the option's row (#82)."""
-    return v.POLL_OPTION.fullmatch(n.desc) is not None and n.parent is not None and n.parent.clickable
+    return _is_any_option(n) and n.parent.clickable
+
+
+def _is_any_option(n: Node) -> bool:
+    """Also the picked option in a comment panel: its row is no longer clickable (the others are: tapping one
+    switches the pick) and keeps its heart, the others lose theirs (dump 2026-11-23)."""
+    return v.POLL_OPTION.fullmatch(n.desc) is not None and n.parent is not None
 
 
 def option_heart(row: Node) -> Node | None:
@@ -168,6 +174,7 @@ class SectionView:
     seen_from: int | None = None   # poll: where its question starts (the card begins higher: a dump can show the
                                    # card's top without the question, so it isn't known there yet)
     poll: str = ""           # option: its poll's question when this dump shows it ("" once it scrolled off)
+    picked: bool = False     # option: the one a comment panel is open for (SHEET only)
 
 
 @dataclass
@@ -209,7 +216,7 @@ def profile_view(root: Node) -> ProfileView:
         raise ValueError("not a profile: no list or no skip button")
     vp = box.bounds
     sections: list[SectionView] = []
-    for n in box.find(_is_option):
+    for n in box.find(_is_any_option):
         row = n.parent
         if row.bounds.empty:
             continue
@@ -218,7 +225,8 @@ def profile_view(root: Node) -> ProfileView:
         q = card.first(_is_poll) if card is not None else None
         sections.append(SectionView("option", v.POLL_OPTION.fullmatch(n.desc).group(1), row.bounds,
                                     row.bounds.top <= vp.top, row.bounds.bottom >= vp.bottom, option_heart(row),
-                                    poll=v.POLL.fullmatch(q.desc).group(1) if q is not None else ""))
+                                    poll=v.POLL.fullmatch(q.desc).group(1) if q is not None else "",
+                                    picked=not row.clickable))
     for n in box.find(_is_section):
         if n.bounds.empty:
             continue
@@ -304,7 +312,8 @@ def _promo_texts(box: Node) -> set[int]:
 class SheetView:
     field: Node              # "Edit comment": tap to focus, then type through the keyboard
     send: Node               # never tapped in step 1
-    section: SectionView | None   # the section right above the panel (the one being liked)
+    section: SectionView | None   # the one being liked: the section right above the panel, or for a poll the
+                                  # picked option (the panel sits under the whole poll card)
 
 
 def sheet_view(root: Node) -> SheetView:
@@ -312,8 +321,13 @@ def sheet_view(root: Node) -> SheetView:
     send = root.first(_is_send_like)
     if f is None or send is None:
         raise ValueError("no comment sheet")
-    above = [s for s in profile_view(root).sections if s.rect.bottom <= f.bounds.top]
-    return SheetView(f, send, max(above, key=lambda s: s.rect.bottom, default=None))
+    sections = profile_view(root).sections
+    above = [s for s in sections if s.rect.bottom <= f.bounds.top and s.kind != "option"]
+    section = max(above, key=lambda s: s.rect.bottom, default=None)
+    if section is not None and section.kind == "poll":
+        picked = [s for s in sections if s.kind == "option" and s.picked and s.poll == section.text]
+        section = picked[0] if len(picked) == 1 else None   # none or several: can't tell which one
+    return SheetView(f, send, section)
 
 
 # --- lists and chat -------------------------------------------------------------------------------------------------
