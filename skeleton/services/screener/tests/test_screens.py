@@ -13,7 +13,7 @@ def screen(name: str) -> screens.Screen:
 
 @pytest.mark.parametrize("name, kind", [
     *[(f, Kind.FEED) for f in FEED],
-    ("sheet", Kind.SHEET), ("sheet-typed", Kind.SHEET), ("sheet-option", Kind.SHEET), ("feed-poll-all", Kind.FEED),
+    ("sheet", Kind.SHEET), ("sheet-typed", Kind.SHEET), ("sheet-option", Kind.SHEET), ("sheet-option-typed", Kind.SHEET), ("feed-poll-all", Kind.FEED),
     ("likes", Kind.LIKES), ("matches", Kind.MATCHES), ("chat", Kind.CHAT), ("popup", Kind.POPUP),
 ])
 def test_every_fixture_is_recognised(name, kind):
@@ -247,6 +247,9 @@ def test_option_panel_belongs_to_the_picked_option():
     rows = [n.parent for n in s.root.iter() if n.desc.startswith("Option: ")]
     assert not any(screens.tappable(s, n) for r in rows for n in r.iter())   # another row switches the pick
     assert not any(o.picked for o in screens.profile_view(screen("feed-poll-all").root).sections)
+    # scrolled clear of the skip button: the question is off screen, the picked option still names the panel
+    sv = screens.sheet_view(screen("sheet-option-typed").root)
+    assert (sv.section.kind, sv.section.text, sv.section.poll) == ("option", "Option 2", "")
 
 
 def test_option_panel_without_one_picked_option_belongs_to_nothing():

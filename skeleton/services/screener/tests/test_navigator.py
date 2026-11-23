@@ -297,3 +297,29 @@ def test_an_option_under_another_polls_question_needs_you():
     cap.profile.poll_of(cap.profile.find("option 1")).text = "Another question"
     with pytest.raises(NeedsYou, match="another poll's question"):
         n.scroll_to(cap, "option 1")
+
+
+def _option(s, text):
+    return next(x for x in screens.profile_view(s.root).sections if x.kind == "option" and x.text == text)
+
+
+def test_open_a_poll_options_panel_type_and_back_out():
+    phone = FakePhone("feed-poll-all", walk=["feed-poll-all"])
+    n = nav(phone)
+    s = n.stable()
+    n.open_sheet(s, _option(s, "Option 2"))
+    assert phone.screen == "sheet-option-typed"   # scrolled clear of the skip button first
+    n.type_comment("wo gosch am liebste go wandere?")
+    assert phone.field == "wo gosch am liebste go wandere?"
+    s, _ = n.back_out("Alex")
+    assert s.kind is Kind.FEED and phone.field is None
+    assert phone.sent() == []
+
+
+def test_a_panel_open_for_another_option_needs_you():
+    phone = FakePhone("feed-poll-all", walk=["feed-poll-all"])
+    n = nav(phone)
+    s = n.stable()
+    with pytest.raises(NeedsYou, match="another section"):
+        n.open_sheet(s, _option(s, "Option 3"))   # the app picked option 2
+    assert phone.sent() == [] and not any(a[0] == "type" for a in phone.actions)

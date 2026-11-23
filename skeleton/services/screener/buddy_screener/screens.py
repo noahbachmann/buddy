@@ -324,8 +324,9 @@ def sheet_view(root: Node) -> SheetView:
     sections = profile_view(root).sections
     above = [s for s in sections if s.rect.bottom <= f.bounds.top and s.kind != "option"]
     section = max(above, key=lambda s: s.rect.bottom, default=None)
-    if section is not None and section.kind == "poll":
-        picked = [s for s in sections if s.kind == "option" and s.picked and s.poll == section.text]
+    if section is None or section.kind == "poll":   # None: the question scrolled off, the options may not have
+        picked = [s for s in sections if s.kind == "option" and s.picked and s.rect.bottom <= f.bounds.top
+                  and (section is None or s.poll == section.text)]
         section = picked[0] if len(picked) == 1 else None   # none or several: can't tell which one
     return SheetView(f, send, section)
 

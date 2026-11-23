@@ -18,7 +18,7 @@ code path taps a paid option or a chat send.
 |---|---|
 | `uitree.py` | `uiautomator` XML → `Node` tree (`desc`, `text`, `rid` without package, `Rect` bounds, flags) |
 | `vocab.py` | Every app UI string the model relies on (English UI). The sanitizer keeps exactly these |
-| `screens.py` | `classify()` → `Kind` (feed, sheet, likes, matches, chat, popup, upsell, other_app, unknown); readers `profile_view` (sections + their like buttons, details, floating obstacles, `at_top`), `sheet_view`, `match_rows`, `chat_view` (side left/right by position); `tappable()` = the allowlist, `actable()` = the acting one |
+| `screens.py` | `classify()` → `Kind` (feed, sheet, likes, matches, chat, popup, upsell, other_app, unknown); readers `profile_view` (sections + their like buttons, details, floating obstacles, `at_top`), `sheet_view` (for a poll: the picked option), `match_rows`, `chat_view` (side left/right by position); `tappable()` = the allowlist, `actable()` = the acting one |
 | `profile.py` | `Capture`: one profile stitched across scroll dumps (offset per dump measured by voting on shared sections/texts, checked by `verify_shift`; a blind gap past a video by the swipes' scale), `Section` refs `photo N` / `prompt N` / `video N` in content y; `dhash` |
 | `imaging.py` | Pillow: crop of a screenshot (`Image`) → dhash (photos all read "<name>'s photo" in the tree), → JPEG for the decision; `shot_pages` (half-size screenshots 4 to a JPEG page) |
 | `device.py` | adb: `dump` (our reader `android/screener-dump` in serve mode over `adb forward`, else its one-shot mode, else `uiautomator dump` with retries and `NotIdle`; `close()`/atexit ends serve mode), `screencap` (raw pixels → RGB `Image`, `half`), `tap` (jitter inside the middle half), `swipe`/`swipe_h` (jittered start, drift, speed; length only shorter), `key`, `launch`, `foreground`, keyboard type/clear/read (`buddy.screener.ime` broadcasts), `ime_set`, `notifications`, `state`. `guard()` before every input action |
@@ -175,7 +175,7 @@ sideways to its end, 2026-11-17), `photo-caption` (a captioned photo: its button
 dump's node list: replace with a real dump when next seen),
 `own-profile` (unknown), `feed-video` (a video between a photo and a prompt, 2026-11-17), `feed-video-prompt` (a
 profile's top with a playing video prompt under photo 1, 2026-11-18), `feed-poll` (a poll's card, a feature ad, prompt 1, 2026-11-18), `out-of-likes` (the paywall after "send like"
-once the day's free likes are gone, 2026-11-18), `feed-voice-1..4` (video prompt, feature ad, voice prompt, prompt: the capture lost track before voice prompts were sections, 2026-11-20), `feed-friend-1..5` (friends' cards carousel, feature ad, poll, prompt, 2026-11-20), `feed-poll-off-1..3` (a poll's question scrolls off, its options and a voice prompt left, 2026-11-21). `fixture_files.py` loads them, `fake_phone.py` replays them as a phone (taps/swipes move between
+once the day's free likes are gone, 2026-11-18), `feed-voice-1..4` (video prompt, feature ad, voice prompt, prompt: the capture lost track before voice prompts were sections, 2026-11-20), `feed-friend-1..5` (friends' cards carousel, feature ad, poll, prompt, 2026-11-20), `feed-poll-off-1..3` (a poll's question scrolls off, its options and a voice prompt left, 2026-11-21), `feed-poll-all` → `sheet-option` → `sheet-option-typed` (an option's heart tapped: the panel with option 2 picked, then scrolled clear and typed, 2026-11-23). `fixture_files.py` loads them, `fake_phone.py` replays them as a phone (taps/swipes move between
 dumps, records actions, `sent()` must stay empty). `test_decide.py` runs the decider against a fake SDK stream
 (real `ResultMessage`/`RateLimitEvent` objects); `test_shadow.py` runs shadow → label → type on the fake phone. New fixture: `deploy/run.sh screener --cmd dump <name>` on the
 Pi, then `--cmd fixture <out dir> <dumps…>` (all dumps of one walk in one call), check the texts, copy over.
@@ -230,9 +230,11 @@ Pi, then `--cmd fixture <out dir> <dumps…>` (all dumps of one walk in one call
   2026-11-18: the bot never saw it and `scroll_to` lost track on its card. The app's feature ads ("Try it" cards)
   sit between sections: their texts are anchors but not details. The options are anchors too (`texts`): once the
   question scrolls off the top a poll is no section any more, and its options can be all two dumps share (2026-11-21).
-  Each option has its own heart (no content-desc; the option's clickable View): tapping it opens the usual comment
-  panel with that option highlighted, the others greyed out; typing and read-back work as for a prompt (checked by
-  hand 2026-11-22). Liking an option isn't built yet (#82).
+  Each option is a section of its own (`option N`, `Profile.poll_of`; tap target `option_heart`: the square View
+  without content-desc at the row's right end). Its heart opens the comment panel under the **whole poll card**, not
+  under the option: the picked option is the one row that is no longer clickable (the others stay clickable: a tap
+  switches the pick, never tapped). `sheet_view` returns that option, also once the question scrolled off; no single
+  picked row → `None` → `open_sheet` refuses. Typing and read-back as for a prompt (live 2026-11-23, #82).
 - A playing video's "Elapsed time: N seconds" label ticks every second: `_signature` ignores it, else no screen
   with a video counts as still (stable reads, the bottom check).
 - Input is jittered like a person (Dev, 2026-11-18: avoid looking like a bot): taps inside the target's middle half,

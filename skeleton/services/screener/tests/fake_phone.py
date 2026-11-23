@@ -62,7 +62,9 @@ class FakePhone:
         self.actions.append(("tap", self.screen, label))
         if label == "Like photo" and self.screen == "feed-01":
             self.screen = "sheet"
-        elif label == "Edit comment" and self.screen == "sheet":
+        elif label.startswith("Option: ") and self.screen == "feed-poll-all":
+            self.screen = "sheet-option"   # an option's heart (no label: its row's); the dump has option 2 picked
+        elif label == "Edit comment" and self.screen in ("sheet", "sheet-option-typed"):
             self.field, self.ime_shown, self.unfocused = self.unfocused or "", True, None
         elif label == "Likes You":
             self.screen = "likes"
@@ -107,6 +109,8 @@ class FakePhone:
             self.screen = self.walk[max(0, min(len(self.walk) - 1, i))]
         elif self.screen == "sheet-low" and y2 < y1:
             self.screen = "sheet"   # the panel moved up, clear of the skip button
+        elif self.screen == "sheet-option" and y2 < y1:
+            self.screen = "sheet-option-typed"   # same, for an option's panel (that dump was taken typed)
 
     def swipe_h(self, y: int, x1: int, x2: int, ms: int) -> None:
         self.guard()
