@@ -143,7 +143,7 @@ def cmd_walk(cfg: Config, dev: Device, nav: Navigator) -> None:
         chat = screens.chat_view(c.root)
         sides = {side: sum(m.side == side for m in chat.messages) for side in ("left", "right")}
         print(f"chat: {len(chat.messages)} messages ({sides['left']} theirs, {sides['right']} ours)"
-              f"{', match origin shown' if chat.origin else ''}")
+              f"{', match origin shown' if chat.origin.seen else ''}")
         print("back:", screens.summary(nav.leave_chat()))
     print("feed:", screens.summary(nav.go_tab(vocab.TAB_DISCOVER)))
     print("walk done")

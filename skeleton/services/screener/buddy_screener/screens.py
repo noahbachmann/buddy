@@ -5,9 +5,11 @@ there instead of tapping blindly. Readers (`profile_view`, `sheet_view`, `match_
 the screen kind they belong to.
 
 `tappable()` is the allowlist of what the bot may ever tap: tabs, back, match rows, a section's like button, the
-comment field. Send buttons, paid elements, skip, photos and chat messages are not on it.
+comment field, a chat's field, header tabs and More. Send buttons, paid elements, skip, photos, chat messages, the
+voice note button and menu items are not on it; `actable()` holds the few acting taps (skip, send, unmatch).
 """
 
+import re
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -21,6 +23,8 @@ class Kind(str, Enum):
     LIKES = "likes"          # incoming likes list
     MATCHES = "matches"      # matches list
     CHAT = "chat"            # one conversation
+    CHAT_PROFILE = "chat_profile"   # a chat's Profile tab: her profile, details listed vertically
+    CHAT_MENU = "chat_menu"  # a chat's More menu (popup list): only Unmatch is ever tapped, by the unmatch move
     POPUP = "popup"          # promo layer over the app, closable
     UPSELL = "upsell"        # paid upgrade offered after "send like": "send like anyway" is the way on
     OUT_OF_LIKES = "out_of_likes"   # paywall after "send like" once the day's free likes are used up: not sent
@@ -83,7 +87,9 @@ def classify(root: Node, package: str) -> Screen:
     if send_anyway_button(root) is not None:   # over the sheet: check first
         s.kind = Kind.UPSELL
     elif root.first(lambda n: n.rid == v.CHAT_INPUT) and _has_desc(root, v.BACK):
-        s.kind = Kind.CHAT
+        s.kind = Kind.CHAT_PROFILE if chat_tab(root) == v.CHAT_PROFILE_TAB else Kind.CHAT
+    elif not tabs and _has_desc(root, v.MENU_HINT) and len(_menu_items(root)) == len(v.MENU_ITEMS):
+        s.kind = Kind.CHAT_MENU
     elif selected == v.TAB_DISCOVER and _has_desc(root, v.EDIT_COMMENT) and root.first(_is_send_like):
         s.kind = Kind.SHEET
     elif selected == v.TAB_DISCOVER and skip_button(root) and root.first(_is_section):
@@ -337,24 +343,57 @@ def sheet_view(root: Node) -> SheetView:
 
 # --- lists and chat -------------------------------------------------------------------------------------------------
 
+YOUR_TURN, THEIR_TURN = "your_turn", "their_turn"
+
+
 @dataclass
 class MatchRow:
     name: str
-    last: str
+    last: str                # her last message as the list shows it (may be cut)
     node: Node
+    section: str             # YOUR_TURN | THEIR_TURN | "" (no header above it)
+    avatar: Rect | None      # the thumbnail: name + its dhash = the chat's key
+
+
+@dataclass
+class TurnHeader:
+    section: str
+    count: int
+    node: Node               # clickable: a tap expands / collapses the section ("Their turn" starts collapsed)
+
+
+def turn_headers(root: Node) -> list[TurnHeader]:
+    out = []
+    for n in root.iter():
+        if n.cls != "TextView":
+            continue
+        for section, rx in ((YOUR_TURN, v.YOUR_TURN), (THEIR_TURN, v.THEIR_TURN)):
+            if (m := rx.fullmatch(n.text)) and n.parent is not None:
+                out.append(TurnHeader(section, int(m.group(1)), n.parent))
+    return sorted(out, key=lambda h: h.node.bounds.top)
 
 
 def match_rows(root: Node) -> list[MatchRow]:
-    """Visible rows of the matches list: a clickable row holding the name and the last message."""
+    """Visible rows of the matches list: a clickable row holding the name and the last message, top to bottom, each
+    under the section header above it. The headers themselves are no rows."""
+    headers = turn_headers(root)
     rows = []
     for n in root.iter():
-        if not n.clickable:
+        if not n.clickable or n.parent is None or any(h.node is n for h in headers) or _is_tab_wrapper(n):
             continue
         texts = [t.text for t in n.iter() if t.cls == "TextView" and t.text]
-        if not texts or v.YOUR_TURN.fullmatch(texts[0]):
+        if not texts:
             continue
-        rows.append(MatchRow(texts[0], texts[1] if len(texts) > 1 else "", n))
-    return rows
+        above = [h for h in headers if h.node.bounds.bottom <= n.bounds.top]
+        thumb = next((c for c in n.children if c.cls == "View" and c.bounds.width == c.bounds.height
+                      and c.bounds.left < n.bounds.center[0] and not c.bounds.empty), None)
+        rows.append(MatchRow(texts[0], texts[1] if len(texts) > 1 else "", n, above[-1].section if above else "",
+                             thumb.bounds if thumb else None))
+    return sorted(rows, key=lambda r: r.node.bounds.top)
+
+
+def _is_tab_wrapper(n: Node) -> bool:
+    return any(c.cls == "View" and c.desc.split(",", 1)[0] in v.TABS for c in n.children)
 
 
 def likes_empty(root: Node) -> bool:
@@ -363,17 +402,78 @@ def likes_empty(root: Node) -> bool:
 
 @dataclass
 class Message:
-    side: str                # "left" = theirs, "right" = ours (by position: our format is still unseen)
+    side: str                # "left" = theirs, "right" = ours (by position)
     sender: str
     text: str
+    media: bool = False      # an item we can't read as text (photo, voice note, sticker, …): the bot hands over
+    top: int = 0             # screen y (for stitching scrolled pages)
+
+
+@dataclass
+class Origin:
+    """The chat's head: the section we liked and our like comment (none: "You liked X's photo." instead)."""
+    kind: str = ""           # "photo" | "prompt" | "" (not on screen)
+    comment: str = ""
+    liked_line: str = ""     # "You liked <name>'s photo." when there was no comment
+    seen: bool = False       # some part of it is on screen
 
 
 @dataclass
 class ChatView:
     name: str
     messages: list[Message]  # top to bottom as on screen
-    origin: str              # "You liked <name>'s photo." if on screen
+    origin: Origin
     back: Node
+    field: Node | None       # the message field
+    send: Node | None        # the send button (only with text typed; else the voice note button sits there)
+    tab: str                 # v.CHAT_TAB | v.CHAT_PROFILE_TAB
+    tab_nodes: dict[str, Node]   # the header's tabs (clickable wrapper)
+    more: Node | None
+
+
+def chat_tab(root: Node) -> str:
+    """Which of the chat header's tabs is shown: the selected one is the one that isn't clickable."""
+    for t in (v.CHAT_TAB, v.CHAT_PROFILE_TAB):
+        n = root.first(lambda x, t=t: x.cls == "TextView" and x.text == t)
+        if n is not None and n.parent is not None and not n.parent.clickable:
+            return t
+    return ""
+
+
+def _chat_list(root: Node) -> Node | None:
+    """The message list: a reversed column whose direct children are the items (hint, dates, message groups, the
+    liked section's card, our comment)."""
+    pager = root.first(lambda n: n.rid == "viewPager")
+    if pager is None:
+        return None
+    best = None
+    for n in pager.iter():
+        if n.cls == "View" and len(n.children) >= 2 and (best is None or len(n.children) > len(best.children)):
+            best = n
+    return best
+
+
+def _skipped(item: Node) -> bool:
+    """List items that carry nothing: the double-tap hint, date separators, empty leaves (a bubble's background, a
+    spacer). An item with children but nothing readable is no spacer: it's a message we can't read (media)."""
+    if not item.children and not item.text and not item.desc:
+        return True
+    texts = [n.text for n in item.iter() if n.cls == "TextView" and n.text]
+    if any(t == v.DOUBLE_TAP_HINT for t in texts):
+        return True
+    return bool(texts) and all(v.DATE_SEPARATOR.fullmatch(t) for t in texts) and not item.first(lambda n: n.desc)
+
+
+def _liked_line(item: Node) -> str:
+    n = item.first(lambda x: x.cls == "TextView" and v.MATCH_ORIGIN.fullmatch(x.text) is not None)
+    return n.text if n is not None else ""
+
+
+def _message_in(item: Node) -> re.Match | None:
+    for n in item.iter():
+        if n.cls == "View" and (m := v.MESSAGE.fullmatch(n.desc)):
+            return m
+    return None
 
 
 def chat_view(root: Node) -> ChatView:
@@ -381,17 +481,55 @@ def chat_view(root: Node) -> ChatView:
     header = root.first(lambda n: n.rid == v.CHAT_HEADER)
     if back is None or header is None:
         raise ValueError("no chat header")
-    name = next((n.text for n in header.iter() if n.cls == "TextView" and n.text not in (v.CHAT_TAB, v.CHAT_PROFILE_TAB)
-                 and n.text), "")
+    tabs = {t: n.parent for t in (v.CHAT_TAB, v.CHAT_PROFILE_TAB)
+            if (n := header.first(lambda x, t=t: x.cls == "TextView" and x.text == t)) is not None and n.parent}
+    name = next((n.text for n in header.iter() if n.cls == "TextView" and n.text and n.text not in tabs), "")
     mid = root.children[0].bounds.center[0]
-    msgs = []
+    lst = _chat_list(root) if chat_tab(root) == v.CHAT_TAB else None
+    items = [n for n in sorted(lst.children if lst else [], key=lambda n: n.bounds.top) if not _skipped(n)]
+    msgs: list[Message] = []
+    origin = Origin()
+    # the anchor: our comment (a bare text item) or "You liked …"; only items above it, before any message, are the
+    # liked section's card. Without an anchor on screen, nothing is the head: an unknown item is media.
+    first_msg = next((i for i, n in enumerate(items) if _message_in(n)), len(items))
+    anchor = next((i for i, n in enumerate(items[:first_msg]) if _liked_line(n) or (n.cls == "TextView" and n.text)),
+                  None)
+    for i, item in enumerate(items):
+        side = "left" if item.bounds.center[0] < mid else "right"
+        if (m := _message_in(item)) is not None:
+            msgs.append(Message(side, m.group(1), m.group(2), top=item.bounds.top))
+        elif anchor is not None and i < anchor:
+            origin.seen = True
+            if item.first(lambda n: n.cls == "ImageView" and v.PHOTO.fullmatch(n.desc)) is not None:
+                origin.kind = "photo"
+            elif item.first(lambda n: n.cls == "TextView" and n.text) is not None:
+                origin.kind = origin.kind or "prompt"
+        elif i == anchor:
+            origin.seen = True
+            if (liked := _liked_line(item)):
+                origin.liked_line, origin.kind = liked, v.MATCH_ORIGIN.fullmatch(liked).group(2)
+            else:
+                origin.comment = item.text
+        else:
+            msgs.append(Message(side, "", "", media=True, top=item.bounds.top))
+    field = root.first(lambda n: n.rid == v.CHAT_INPUT)
+    box = root.first(lambda n: n.rid == v.CHAT_SEND)
+    send = box.first(lambda n: n.clickable and n.rid != v.CHAT_VOICE and n.desc != v.CHAT_VOICE_DESC) if box else None
+    more = header.first(lambda n: n.desc == v.MORE and n.clickable)
+    return ChatView(name, msgs, origin, back, field, send, chat_tab(root), tabs, more)
+
+
+def _menu_items(root: Node) -> dict[str, Node]:
+    """The More menu's rows by their text: the clickable row holding exactly that text."""
+    out = {}
     for n in root.iter():
-        m = v.MESSAGE.fullmatch(n.desc)
-        if m and n.cls == "View":
-            side = "left" if n.bounds.center[0] < mid else "right"
-            msgs.append((n.bounds.top, Message(side, m.group(1), m.group(2))))
-    origin = next((n.text for n in root.iter() if v.MATCH_ORIGIN.fullmatch(n.text)), "")
-    return ChatView(name, [m for _, m in sorted(msgs, key=lambda p: p[0])], origin, back)
+        if n.cls == "TextView" and n.text in v.MENU_ITEMS and n.parent is not None and n.parent.clickable:
+            out[n.text] = n.parent
+    return out
+
+
+def unmatch_item(root: Node) -> Node | None:
+    return _menu_items(root).get(v.MENU_UNMATCH)
 
 
 # --- what may be tapped ---------------------------------------------------------------------------------------------
@@ -406,8 +544,10 @@ def tappable(screen: Screen, node: Node) -> bool:
         return node.desc == v.EDIT_COMMENT
     if screen.kind is Kind.MATCHES:
         return any(r.node is node for r in match_rows(screen.root))
-    if screen.kind is Kind.CHAT:
-        return node.desc == v.BACK and node.clickable
+    if screen.kind in (Kind.CHAT, Kind.CHAT_PROFILE):
+        c = chat_view(screen.root)
+        other = [n for t, n in c.tab_nodes.items() if t != c.tab and n.clickable]
+        return node is c.back or node is c.field or node is c.more or any(node is n for n in other)
     if screen.kind in (Kind.POPUP, Kind.OUT_OF_LIKES):
         return node is close_button(screen.root)
     return False
@@ -422,6 +562,10 @@ def actable(screen: Screen, node: Node) -> bool:
         return _is_send_like(node)
     if screen.kind is Kind.UPSELL:
         return node is send_anyway_button(screen.root)
+    if screen.kind is Kind.CHAT:
+        return node is chat_view(screen.root).send and node is not None
+    if screen.kind is Kind.CHAT_MENU:
+        return node is unmatch_item(screen.root) and node is not None
     return False
 
 
@@ -440,7 +584,9 @@ def summary(screen: Screen) -> str:
         elif screen.kind is Kind.LIKES:
             s += ": empty" if likes_empty(screen.root) else ": not empty"
         elif screen.kind is Kind.CHAT:
-            s += f": {len(chat_view(screen.root).messages)} messages"
+            c = chat_view(screen.root)
+            s += f": {len(c.messages)} messages" + (f", {sum(m.media for m in c.messages)} media" if any(
+                m.media for m in c.messages) else "") + (", origin" if c.origin.seen else "")
     except ValueError as e:
         s += f" [{e}]"
     return s

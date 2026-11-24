@@ -15,6 +15,9 @@ def screen(name: str) -> screens.Screen:
     *[(f, Kind.FEED) for f in FEED],
     ("sheet", Kind.SHEET), ("sheet-typed", Kind.SHEET), ("sheet-option", Kind.SHEET), ("sheet-option-typed", Kind.SHEET), ("feed-poll-all", Kind.FEED),
     ("likes", Kind.LIKES), ("matches", Kind.MATCHES), ("chat", Kind.CHAT), ("popup", Kind.POPUP),
+    ("matches-turns", Kind.MATCHES), ("matches-expanded", Kind.MATCHES), ("chat-comment", Kind.CHAT),
+    ("chat-comment-top", Kind.CHAT), ("chat-photo-comment", Kind.CHAT), ("chat-multiline", Kind.CHAT),
+    *[(f"chat-profile-{i:02d}", Kind.CHAT_PROFILE) for i in range(1, 19)], ("chat-menu", Kind.CHAT_MENU),
 ])
 def test_every_fixture_is_recognised(name, kind):
     assert screen(name).kind is kind
@@ -112,6 +115,17 @@ def test_match_rows_skip_the_section_header():
     assert [r.name for r in rows] == ["Sam"]
 
 
+def test_match_rows_carry_their_section_and_thumbnail():
+    # #77 walk: "Their turn (N)" starts collapsed (a header, no row); tapped open, its rows follow it
+    s = screen("matches-turns")
+    assert [(h.section, h.count) for h in screens.turn_headers(s.root)] == [("your_turn", 4), ("their_turn", 1)]
+    rows = screens.match_rows(s.root)
+    assert len(rows) == 4 and {r.section for r in rows} == {"your_turn"}
+    assert all(r.avatar is not None and r.avatar.width == r.avatar.height for r in rows)
+    rows = screens.match_rows(screen("matches-expanded").root)
+    assert [r.section for r in rows] == ["your_turn"] * 4 + ["their_turn"]
+
+
 def test_likes_empty_state():
     assert screens.likes_empty(screen("likes").root)
 
@@ -119,8 +133,58 @@ def test_likes_empty_state():
 def test_chat_messages_and_origin():
     c = screens.chat_view(screen("chat").root)
     assert c.name == "Sam"
-    assert [(m.side, m.sender) for m in c.messages] == [("left", "Sam")]
-    assert c.origin == "You liked Sam's photo."
+    assert [(m.side, m.sender, m.media) for m in c.messages] == [("left", "Sam", False)]
+    assert c.origin.liked_line == "You liked Sam's photo." and c.origin.kind == "photo" and not c.origin.comment
+
+
+@pytest.mark.parametrize("name, kind, comment, messages", [
+    ("chat-comment", "prompt", "Text 3", ["Message 1"]),          # the card's top scrolled off
+    ("chat-comment-top", "prompt", "Text 3", []),                 # the chat's top: only our like
+    ("chat-photo-comment", "photo", "Text 7", ["Message 3"]),
+    ("chat-multiline", "prompt", "Text 6", ["Message 2"]),
+])
+def test_chat_head_is_our_like_with_its_comment(name, kind, comment, messages):
+    c = screens.chat_view(screen(name).root)
+    assert (c.origin.kind, c.origin.comment, c.origin.liked_line) == (kind, comment, "")
+    assert [m.text for m in c.messages] == messages and not any(m.media for m in c.messages)
+    assert c.tab == v.CHAT_TAB and c.field is not None and c.more is not None
+    assert c.send is None   # nothing typed: the voice note button sits there
+
+
+def test_an_unknown_item_after_the_head_is_media():
+    xml = load("chat-comment").replace('content-desc=" Alex: Message 1. "', 'content-desc=""')
+    c = screens.chat_view(screens.classify(parse(xml), PACKAGE).root)
+    assert [(m.side, m.media) for m in c.messages] == [("left", True)]
+
+
+def test_chat_profile_tab_has_no_messages():
+    s = screen("chat-profile-04")
+    c = screens.chat_view(s.root)
+    assert c.tab == v.CHAT_PROFILE_TAB and c.messages == [] and not c.origin.seen
+
+
+def test_chat_allowlist_field_tabs_more_but_never_send_voice_or_menu():
+    s = screen("chat-comment")
+    c = screens.chat_view(s.root)
+    assert screens.tappable(s, c.field) and screens.tappable(s, c.more) and screens.tappable(s, c.back)
+    assert screens.tappable(s, c.tab_nodes[v.CHAT_PROFILE_TAB])
+    assert not screens.tappable(s, c.tab_nodes[v.CHAT_TAB])            # the shown one
+    voice = s.root.first(lambda n: n.rid == v.CHAT_VOICE)
+    assert not screens.tappable(s, voice) and not screens.actable(s, voice)
+    menu = screen("chat-menu")
+    rows = [n for n in menu.root.iter() if n.clickable]
+    unmatch = screens.unmatch_item(menu.root)
+    assert unmatch in rows and not any(screens.tappable(menu, n) for n in rows)
+    assert screens.actable(menu, unmatch) and not any(screens.actable(menu, n) for n in rows if n is not unmatch)
+
+
+def test_chat_send_button_only_actable():
+    # unseen until text is typed (#77 step 9): a clickable in the send container that isn't the voice note button
+    xml = load("chat-comment").replace("id/microphoneButton", "id/sendButton").replace(
+        'content-desc="Record voice note"', 'content-desc="Send"')
+    s = screens.classify(parse(xml), PACKAGE)
+    send = screens.chat_view(s.root).send
+    assert send is not None and screens.actable(s, send) and not screens.tappable(s, send)
 
 
 def test_allowlist_refuses_send_skip_and_paid():
@@ -150,7 +214,7 @@ def test_popup_allows_only_close():
 
 
 def test_summary_has_no_names():
-    for name in ("feed-01", "matches", "chat"):
+    for name in ("feed-01", "matches", "chat", "chat-comment", "matches-expanded"):
         assert "Alex" not in screens.summary(screen(name)) and "Sam" not in screens.summary(screen(name))
 
 
