@@ -157,7 +157,10 @@ def test_a_copy_of_an_example_is_refused(text):
 
 @pytest.mark.parametrize("langs, lang, ok", [(["de-ch", "de"], "de-ch", True), (["de-ch", "de"], "en", True),
                                              (["en", "en"], "de-ch", False), (["en", "en"], "de", False),
-                                             (["de", "de"], "de", True), (["de", "de"], "none", False)])
+                                             (["de", "de"], "de", True), (["de", "de"], "none", False),
+                                             # she writes standard German: no dialect (#158, #163)
+                                             (["de", "de", "de"], "de-ch", False), (["de", "de-ch"], "de-ch", True),
+                                             (["de", "de", "de-ch"], "de-ch", False)])
 def test_comment_language_rule(langs, lang, ok):
     b = check_browse(raw(prompt_langs=langs, comment_text="pineapple, bold move", comment_lang=lang), profile(), LIB)
     assert bool(b.comment_text) == ok

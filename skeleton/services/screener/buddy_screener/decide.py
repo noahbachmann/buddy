@@ -110,9 +110,10 @@ write a new comment. Never reuse an example's wording, never translate one, neve
 hobby, a past, something he owns or a shared interest ("a fellow …", "me too" about something not stated there).
 - No numbers, links or handles. At most {comment_max} characters; shorter is better.
 - `comment`: the id of the example you leaned on most, or "none". It is only a note: the comment is your own text.
-- `comment_lang`: the language `comment_text` is written in. The chat language (see Languages) decides: German or \
-Swiss German prompts → Swiss German dialect ("de-ch", as most examples are), standard German ("de") or English \
-("en"); otherwise English.
+- `comment_lang`: the language `comment_text` is written in. The chat language (see Languages) decides: Swiss \
+German prompts → Swiss German dialect ("de-ch", as most examples are), standard German ("de") or English ("en"); \
+standard German prompts → standard German or English, never dialect (she's likely not from here, or says she \
+doesn't speak it); otherwise English.
 - No good comment possible: `comment_text` "", `comment` "none", `missing_hook` says briefly what kind of comment \
 would fit (the hook and the tone), without quoting the profile. Otherwise `missing_hook` is "".
 - A skip: `comment_on` "none", `comment` "none", `comment_text` "", `comment_lang` "none", `missing_hook` "".
@@ -401,13 +402,18 @@ def copy_of(text: str, lib: Library) -> str | None:
     return None
 
 
-def comment_problem(text: str, lang: str, chat_lang: str, lib: Library) -> str | None:
+def comment_problem(text: str, lang: str, chat_lang: str, lib: Library,
+                    prompt_langs: list[str] | None = None) -> str | None:
     """Why a written like comment must not go out (None = fine): code's checks, whatever the model was told."""
     if (why := refusal(text, comment_max(lib))) is not None:
         return why
     allowed = ("de-ch", "de", "en") if chat_lang == "de" else ("en",)
     if lang not in allowed:
         return f"written in {lang[:10] or '?'} for a {chat_lang} chat"
+    langs = prompt_langs or []
+    if lang == "de-ch" and langs.count("de") > langs.count("de-ch"):
+        # she writes standard German: likely not from here, dialect reads wrong (#158, #163)
+        return "Swiss German for a standard German profile"
     if (cid := copy_of(text, lib)) is not None:
         return f"copies {cid}"
     return None
@@ -420,7 +426,7 @@ def settle_comment(b: Browse, text: str, leaned: str, lang: str, p: Profile, lib
     if not text:
         b.comment, b.comment_text = "none", ""
         return
-    if (why := comment_problem(text, lang, b.chat_lang, lib)) is not None:
+    if (why := comment_problem(text, lang, b.chat_lang, lib, b.prompt_langs)) is not None:
         b.comment_refused.append(why)
         b.comment, b.comment_text = "none", ""
         return
