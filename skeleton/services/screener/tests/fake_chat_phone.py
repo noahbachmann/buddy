@@ -5,6 +5,8 @@ Profile tab top to bottom, the More menu.
 Two screens are synthetic until step 9 dumps them for real: a chat with text typed (the send button in the voice
 note button's place) and the chat after sending (our message as a right-side item)."""
 
+from html import escape
+
 from buddy_screener.device import ImeResult
 from buddy_screener.uitree import parse
 from fake_phone import FakePhone
@@ -23,7 +25,7 @@ def typed(xml: str) -> str:
 
 def with_ours(xml: str, text: str) -> str:
     item = (f'<node class="android.view.View" package="app.example" bounds="[300,1600][1044,1790]">'
-            f'<node class="android.view.View" package="app.example" content-desc=" Dev: {text}. " '
+            f'<node class="android.view.View" package="app.example" content-desc=" Dev: {escape(text)}. " '
             f'bounds="[324,1600][1044,1790]" /></node>')
     return xml.replace(HINT, item + HINT, 1)
 
@@ -63,7 +65,11 @@ class FakeChatPhone(FakePhone):
         label = next((c.desc or c.text for c in n.iter() if c.desc or c.text), "") if n else ""
         self.actions.append(("tap", self.screen, label))
         base = self.screen.removesuffix("+typed")
-        if label.startswith("Their turn") and base in ("matches-turns", "matches-scrolled"):
+        if label == "Discover":
+            self.screen = "feed-01"
+        elif label.startswith("Matches") and base.startswith("feed-"):
+            self.screen = "matches-turns"
+        elif label.startswith("Their turn") and base in ("matches-turns", "matches-scrolled"):
             self.screen = "matches-expanded"
         elif label in CHATS and base.startswith("matches"):
             self.screen = self.chat = CHATS[label]

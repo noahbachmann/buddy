@@ -142,6 +142,7 @@ class Chat:
     like_comment: str = ""       # our like's comment as sent ("" = a like without one)
     liked_kind: str = ""         # the liked section: photo | prompt (the chat's head shows it)
     prompt_langs: list[str] = field(default_factory=list)   # the decision's, for the first message's language
+    held: dict[str, str] = field(default_factory=dict)      # a message typed and held for Dev (or an unmatch), #77
 
     @property
     def bot_msgs(self) -> int:
