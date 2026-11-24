@@ -34,7 +34,7 @@ FOREIGN = "foreign"  # a match the bot doesn't take (Dev's own chat, or no uniqu
 
 THEM, US = "them", "us"
 CONTACT_KINDS = ("contact_number", "contact_instagram")
-TASK_FIRST, TASK_REPLY, TASK_NUDGE = "first", "reply", "nudge"
+TASK_FIRST, TASK_REPLY, TASK_NUDGE, TASK_OPENER = "first", "reply", "nudge", "opener"
 
 _DIGITS = re.compile(r"\d(?:[\s\-./()]*\d){5,}")      # a phone number, however spaced
 _HANDLE = re.compile(r"(?<![\w.])@\w")
@@ -87,7 +87,7 @@ class Message:
 @dataclass
 class Sent:
     ts: float
-    kind: str                    # like_comment | disclosure | reply | nudge | contact_offer | contact_* | closing | opt_out
+    kind: str                    # like_comment | opener | disclosure | reply | nudge | contact_offer | contact_* | closing | opt_out
     text: str
 
 
@@ -146,7 +146,7 @@ class Chat:
 
     @property
     def bot_msgs(self) -> int:
-        return sum(s.kind in ("reply", "nudge") for s in self.sent)
+        return sum(s.kind in ("opener", "reply", "nudge") for s in self.sent)
 
     @property
     def last_out(self) -> float:
@@ -248,11 +248,18 @@ class ChatFlow:
         if any(m.media for m in new):
             return self._end(chat, HANDOVER, now, "she sent media or a voice note")
         if not any(s.kind == "disclosure" for s in chat.sent):
+            # she answered our like comment before we introduced ourselves: answer her first, then the
+            # introduction (Dev, 2026-11-24)
+            if theirs and not any(s.kind == "opener" for s in chat.sent) and chat.pending_task != TASK_OPENER:
+                return self._converse(chat, screen, TASK_OPENER, len(theirs))
             return self._send(chat, "disclosure", fill(self._t("disclosure", chat), name=chat.name))
         if now - chat.started >= self.limits.max_days * 86400 and chat.state in (NEW, SCREENING):
             return self._end(chat, HANDOVER, now, f"no decision after {self.limits.max_days:g} days")
         if chat.state == NEW:
-            return self._converse(chat, screen, TASK_FIRST, len(theirs))
+            # after the introduction we wait for her: in or out (Dev, 2026-11-24). Only her messages after it count
+            if self._after_disclosure(chat, screen):
+                return self._converse(chat, screen, TASK_FIRST, len(theirs))
+            return self._tick(chat, screen, now)
         if new:
             return self._converse(chat, screen, TASK_REPLY, len(theirs))
         return self._tick(chat, screen, now)
@@ -286,6 +293,10 @@ class ChatFlow:
             return self._send(chat, "opt_out", fill(self._t("opt_out", chat), name=chat.name))
         if c.state == "handover":
             return self._end(chat, HANDOVER, now, f"model: {c.reason}")
+        if task == TASK_OPENER:
+            if not c.reply.strip():   # nothing to answer (a greeting): the introduction alone
+                return self._send(chat, "disclosure", fill(self._t("disclosure", chat), name=chat.name))
+            return self._generated(chat, now, "opener", c.reply)
         if task == TASK_NUDGE:
             return self._generated(chat, now, "nudge", c.reply, c.ask)
         if task == TASK_REPLY:
@@ -351,8 +362,20 @@ class ChatFlow:
         self._screens[chat.key] = screen
         return Action("converse", task=task, transcript=self.transcript(chat, screen))
 
+    def _after_disclosure(self, chat: Chat, screen: list[Message]) -> bool:
+        """Has she written since our introduction? (Her messages before it were answered by the opener.)"""
+        intro = next((_norm(s.text) for s in chat.sent if s.kind == "disclosure"), None)
+        at = max((i for i, m in enumerate(screen) if m.side == US and _norm(m.text) == intro), default=None)
+        return at is not None and any(m.side == THEM for m in screen[at + 1:])
+
     def _tick(self, chat: Chat, screen: list[Message], now: float) -> Action:
         lim, day = self.limits, 86400
+        if chat.sent and chat.sent[-1].kind == "disclosure":
+            # no answer to the introduction: no nudge (she hasn't opted in), closed silently after close_days
+            if now - chat.last_out >= lim.close_days * day:
+                chat.log.append("no answer to the introduction: closed silently")
+                self._close(chat, now, "no_reply")
+            return WAIT
         if not chat.sent or chat.sent[-1].kind not in ("reply", "nudge", "contact_offer"):
             return WAIT
         quiet = now - chat.last_out

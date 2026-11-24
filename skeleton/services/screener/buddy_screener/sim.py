@@ -206,7 +206,11 @@ def preset_contact_choice(sim: SimChat, rules: ChatRules, lang: str) -> None:
 def start_case(case: Case, flow: ChatFlow, rules: ChatRules) -> SimChat:
     chat = Chat(f"sim-{case.name}", NAME, 0.0, profile=case.profile)
     sim = SimChat(case.name, case.group, chat)
-    flow.open(chat, "", case.langs, 0.0)
+    flow.open(chat, case.like, case.langs, 0.0)
+    if case.like:
+        sim.screen.append(Message(US, case.like))
+    if case.before:
+        sim.screen.append(Message(THEM, case.before))
     if case.start == CONTACT_CHOICE:
         preset_contact_choice(sim, rules, first_lang(case.langs))
     return sim
@@ -220,8 +224,14 @@ def check_chat(sim: SimChat, case: Case | None) -> None:
     """Invariants for every chat, then the case's own expectation. Failures go into `sim.failures`."""
     chat, f = sim.chat, sim.failures
     ours = [s for s in chat.sent if s.kind != "like_comment"]
-    if ours and ours[0].kind != "disclosure":
-        f.append(f"first message is {ours[0].kind}, not the disclosure")
+    # the introduction first; only an answer to her reply to our like comment may come before it (Dev, 2026-11-24)
+    intro = 1 if ours and ours[0].kind == "opener" else 0
+    if len(ours) > intro and ours[intro].kind != "disclosure":
+        f.append(f"first message is {ours[intro].kind}, not the disclosure")
+    if case is not None and case.before and not intro:
+        f.append("her reply to our like comment got no answer before the introduction")
+    if case is not None and not case.before and intro:
+        f.append("an opener without her message before it")
     for s in chat.sent:
         if s.kind in CONTACT_KINDS and (chat.verified_at is None or s.ts < chat.verified_at):
             f.append(f"{s.kind} without a verified match")
@@ -246,8 +256,11 @@ def check_chat(sim: SimChat, case: Case | None) -> None:
         gen = [s.text for s in chat.sent if s.kind in ("reply", "nudge")]
         if gen and (g := guess_lang(gen[-1])) and g != case.lang:
             f.append(f"last reply reads {g}, expected {case.lang}")
-    if case.name == "no_reply" and not any(s.kind == "nudge" for s in chat.sent):
+    nudged = any(s.kind == "nudge" for s in chat.sent)
+    if case.name == "no_reply_after_yes" and not nudged:
         f.append("no nudge before the silent close")
+    if case.name == "no_reply" and nudged:
+        f.append("a nudge although she never answered the introduction")
 
 
 def leaks(prompts: list[str], values: list[str]) -> int:

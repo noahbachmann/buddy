@@ -29,7 +29,7 @@ out Dev's label of a row. No code path taps a paid option. A chat message is sen
 | `library.py` | Host input: `preferences.md` (verbatim into the system prompt), `templates.md` section *Like comments* (`- id \| de\|en \| fit hint \| text`; broken line → whole file refused). Loaded per decision. Chat (#77): `parse_chat_templates` (EN/DE blocks, placeholders per template), `ChatRules` (`chat.md` + the chat's preference sections + questions + allowed links), `Contacts` (number/instagram files, hidden from repr) |
 | `chat.py` | The chat as a pure state machine (`ChatFlow.step/conversed/verified/delivered`, one `Action` at a time): disclosure first, manual detection, code's match checks, contact by template only, generated-text refusals, language, nudge/close/unmatch timers, `ChatLimits` |
 | `converse.py` | The chat's calls on `Decider.call`: `converse` (reply + state + answers + flags + contact + lang), `verify` (strict second opinion, profile + transcript), prompts with escaped `<msg>` elements, `check_converse`/`check_verify` |
-| `sim.py`, `sim_cases.py`, `sim_personas.py` | `--sim`: driver loop on a fake clock, 21 scripted cases, 8 persona cards (a model plays her), sentinel contacts, prompt leak check, gate report, transcripts in tmpfs |
+| `sim.py`, `sim_cases.py`, `sim_personas.py` | `--sim`: driver loop on a fake clock, 23 scripted cases, 8 persona cards (a model plays her), sentinel contacts, prompt leak check, gate report, transcripts in tmpfs |
 | `decide.py` | Agent SDK wrapper (`Decider.decide` = text check, photo check (#83), then `browse` with photos): locked-down CLI options, text + browse schemas, `check_text`, `check_browse` (code re-checks: unknown section/comment → none, soft flags without a verifiable quote dropped, dealbreaker → skip, a like on a profile it called `generic` → skip (#107), adapted comment refused → the template's text or none, `fixes` kept), usage per call, `limit_until` pause, daily $ cap |
 | `chats.py` | The chats on the phone (#77): `ChatDriver.step()` = a pass over the matches list (badge or every `CHAT_CHECK_MIN`) or a held message's resume; links a match to our `liked` chat or an old match (Profile tab), else `foreign`; runs `ChatFlow` with the `Talker`; `hold` mode types and holds each message (and an unmatch); fixed notices per end state; `chat-ignore` |
 | `store.py` | SQLite `data/screener/screener.db`: `usage` (kept; live and `sim-` tasks capped apart), `shadow` (bot decision + Dev's label as JSON, profile key only, 30 days; the loop's rows carry `run: dry|live`), `actions` (every act and stop: kind, mode dry/live/shadow, row id, a detail without names; 30 days), `chats` (`chat.Chat` as JSON, never her texts; 30 days after it ended; `liked` = a like waiting for its match, 30 days) |
@@ -188,7 +188,11 @@ see `chat.md` + *About Dev*, *Looking for*, *Good fit*, *Soft negatives/positive
 
 - A driver runs `ChatFlow` (`sim.run_chat` offline, `chats.ChatDriver` on the phone): `step` → send / converse /
   verify / unmatch / notify / wait; the driver reports back (`delivered`, `conversed`, `verified`, `unmatched`).
-- Code, not the model: disclosure first; our like comment seeded into the sent log; ours on screen not in the log →
+- Opening (Dev, 2026-11-24): when she already replied to our like comment (often with a question about Dev), an
+  `opener` call answers her first (About facts only, no screening question), then the disclosure as its own message;
+  else the disclosure alone. Then the flow **waits** until she answers the introduction: in → `first` (the first
+  question), out → `opt_out`; no answer → closed silently after `CLOSE_DAYS` (no nudge: she never opted in).
+- Code, not the model: disclosure first (only an opener may precede it); our like comment seeded into the sent log; ours on screen not in the log →
   `manual` for good; media → handover; match = required answers + no flag + ≥ 3 turns + verifier; the held `reply`
   keeps screening when that fails; contact phone/both → number (Dev), instagram → handle, unclear once → ask again;
   every generated text refused (→ handover) on length, digit runs, handles, links not in `chat.md`, contact values.
@@ -200,7 +204,7 @@ see `chat.md` + *About Dev*, *Looking for*, *Good fit*, *Soft negatives/positive
   standard German, never dialect; anything else → English). First message and nudge get the language stated.
 - Our sent contact messages are redacted in every transcript (`[contact sent]`): no contact value reaches a prompt.
 - `--sim` on the Pi: `deploy/run.sh screener --sim` (cases), `--sim --personas 8` (personas only), `--case all
-  --personas N` (both). ~5 s per call; the 21 cases ≈ 55 calls ≈ 4 % of the 5 h window, 8 personas ≈ 9 %. Own cap
+  --personas N` (both). ~5 s per call; the 23 cases ≈ 55 calls ≈ 4 % of the 5 h window, 8 personas ≈ 9 %. Own cap
   `BUDDY_SCREENER_SIM_USD` (24 h, apart from the live cap). Persona outcomes on profile fit are reported, never
   asserted: the repo is public and fit is the host preferences' call.
 - **Live (#77, 2026-11-24).** `BUDDY_SCREENER_CHAT=off|hold|live` (off by default). Which chats (Dev): a match linked

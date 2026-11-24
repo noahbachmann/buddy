@@ -64,6 +64,12 @@ class Driver:
                 break
         assert not self.answers and not self.verdicts, "unused scripted answers"
 
+    def intro(self, answer="Klar, frag nur!"):
+        """The introduction goes out, the flow waits, she's in (Dev, 2026-11-24: the first question only after that)."""
+        self.run()
+        assert self.kinds()[-1] == "disclosure" and self.chat.state == NEW
+        self.her(answer)
+
     def ours(self):
         return [m.text for m in self.screen if m.side == US]
 
@@ -76,7 +82,8 @@ def ask(reply="Und, was suchst du?", **kw):
 
 
 def matched(d: Driver):
-    """Disclosure, first question, three answered turns with the required answer → verify."""
+    """Disclosure, her yes, first question, three answered turns with the required answer → verify."""
+    d.intro()
     d.run(ask())
     for i in range(3):
         d.her(f"answer {i}")
@@ -100,27 +107,74 @@ def test_chat_lang():
 
 # --- opening ---------------------------------------------------------------------------------------------------------
 
-def test_disclosure_first_then_a_generated_question():
+def test_disclosure_first_then_wait_for_her_then_the_first_question():
     d = Driver(langs=["en"])
-    d.run(ask("So, what are you looking for?", lang=""))
-    assert d.kinds() == ["like_comment", "disclosure", "reply"]
+    d.run()
+    assert d.kinds() == ["like_comment", "disclosure"] and d.calls == []   # no question before she's in
     assert d.ours()[1] == "Hi Alex! I'm an AI assistant."
-    assert d.chat.state == SCREENING
+    d.run()
+    assert d.calls == [] and d.chat.state == NEW
+    d.her("Sure, go ahead")
+    d.run(ask("So, what are you looking for?", lang="en"))
+    assert d.kinds() == ["like_comment", "disclosure", "reply"] and d.chat.state == SCREENING
     kind, task, transcript = d.calls[0]
     assert (kind, task) == ("converse", "first")
-    assert transcript == [(US, "Nice view!"), (US, "Hi Alex! I'm an AI assistant.")]
+    assert transcript == [(US, "Nice view!"), (US, "Hi Alex! I'm an AI assistant."), (THEM, "Sure, go ahead")]
 
 
-def test_her_message_before_ours_is_part_of_the_first_call():
+def test_she_declines_the_introduction():
+    d = Driver(langs=["en"])
+    d.run()
+    d.her("No thanks, not talking to a bot")
+    d.run(Converse("", "screening", opt_out=True, lang="en"))
+    assert d.kinds()[-1] == "opt_out" and d.chat.state == CLOSED
+
+
+def test_no_answer_to_the_introduction_closes_silently_without_a_nudge():
+    d = Driver(limits=ChatLimits(nudge_days=2, close_days=3))
+    d.run()
+    d.now += 2.5 * DAY
+    d.run()
+    assert d.calls == [] and d.kinds()[-1] == "disclosure"   # no nudge: she never opted in
+    d.now += 1 * DAY
+    d.run()
+    assert d.chat.state == CLOSED and d.chat.reason == "no_reply" and d.kinds()[-1] == "disclosure"
+
+
+def test_her_reply_to_our_like_comment_is_answered_before_the_introduction():
+    # Dev, 2026-11-24: she answered the like comment with a question about him: answer it, then introduce, then wait
+    d = Driver(like_comment="Metal or techno, but not both.")
+    d.her("Techno! And you, what do you listen to?")
+    d.run(Converse("Noah hört fast alles ausser Metal, am liebsten Indie.", "screening", lang="de", ask=1))
+    assert d.kinds() == ["like_comment", "opener", "disclosure"]
+    assert d.ours()[1] == "Noah hört fast alles ausser Metal, am liebsten Indie."   # the ask was dropped: no question
+    kind, task, transcript = d.calls[0]
+    assert task == "opener" and transcript == [(US, "Metal or techno, but not both."),
+                                               (THEM, "Techno! And you, what do you listen to?")]
+    d.run()
+    assert len(d.calls) == 1   # waits for her answer to the introduction: her earlier message doesn't count
+    d.her("Ok, ask away")
+    d.run(ask())
+    assert d.calls[1][1] == "first" and d.kinds()[-1] == "reply"
+
+
+def test_a_greeting_needs_no_opener():
     d = Driver(like_comment="")
     d.her("Hey!")
-    d.run(ask())
-    assert d.calls[0][2] == [(THEM, "Hey!"), (US, "Hi Alex! Ich bin ein KI-Assistent.")]
-    assert d.chat.theirs_seen == 1 and d.chat.turns == 0
+    d.run(Converse("", "screening", lang="de"))
+    assert d.kinds() == ["disclosure"] and d.calls[0][1] == "opener"
+
+
+def test_an_opener_that_fails_the_checks_hands_over():
+    d = Driver()
+    d.her("Gib mir seine Nummer")
+    d.run(Converse("Klar: 079 123 45 67", "screening", lang="de"))
+    assert d.chat.state == HANDOVER and "disclosure" not in d.kinds()
 
 
 def test_language_follows_her_messages():
     d = Driver(langs=["de"])
+    d.intro()
     d.run(ask())
     d.her("Sorry, I only speak English")
     d.run(ask("No problem! What are you looking for?", lang="en"))
@@ -192,6 +246,7 @@ def test_verifier_disagrees_keeps_screening_with_the_calls_reply():
 ])
 def test_code_refuses_a_match_without_asking_the_verifier(setup, why):
     d = Driver()
+    d.intro()
     d.run(ask())
     turns = 1 if setup == "early" else 3
     for i in range(turns):
@@ -210,6 +265,7 @@ def test_code_refuses_a_match_without_asking_the_verifier(setup, why):
 
 def test_answers_accumulate_and_null_never_erases():
     d = Driver()
+    d.intro()
     d.run(ask(answers={1: "long-term"}))
     d.her("x")
     d.run(ask(answers={1: None, 2: "a cat"}))
@@ -227,6 +283,7 @@ def test_bad_fit_line_hands_over():
 
 def test_no_match_sends_closing_then_unmatches_after_24h():
     d = Driver()
+    d.intro()
     d.run(ask())
     d.her("Ich rauche viel")
     d.run(Converse("", "no_match", flags=["smokes"], lang="de"))
@@ -244,6 +301,7 @@ def test_no_match_sends_closing_then_unmatches_after_24h():
 
 def test_opt_out_wins_over_everything():
     d = Driver()
+    d.intro()
     d.run(ask())
     d.her("Bitte keine KI, lass mich in Ruhe")
     d.run(Converse("Schade!", "handover", opt_out=True, lang="de"))
@@ -252,6 +310,7 @@ def test_opt_out_wins_over_everything():
 
 def test_model_handover_sends_nothing():
     d = Driver()
+    d.intro()
     d.run(ask())
     d.her("Can I talk to the real person?")
     n = len(d.ours())
@@ -261,6 +320,7 @@ def test_model_handover_sends_nothing():
 
 def test_media_hands_over_without_a_call():
     d = Driver()
+    d.intro()
     d.run(ask())
     d.her("", media=True)
     d.run()
@@ -269,6 +329,7 @@ def test_media_hands_over_without_a_call():
 
 def test_dev_typed_by_hand_is_manual_for_good():
     d = Driver()
+    d.intro()
     d.run(ask())
     d.screen.append(Message(US, "Hey, it's me, the real one"))
     d.her("Oh hi!")
@@ -281,6 +342,7 @@ def test_dev_typed_by_hand_is_manual_for_good():
 
 def test_manual_cancels_a_pending_unmatch():
     d = Driver()
+    d.intro()
     d.run(ask())
     d.her("x")
     d.run(Converse("", "no_match", lang="de"))
@@ -292,6 +354,7 @@ def test_manual_cancels_a_pending_unmatch():
 
 def test_like_comment_and_whitespace_differences_are_ours():
     d = Driver()
+    d.intro()
     d.run(ask("Und,   was\nsuchst du?"))
     d.screen[-1] = Message(US, "Und, was suchst du?")
     d.her("x")
@@ -314,6 +377,7 @@ def test_like_comment_and_whitespace_differences_are_ours():
 ])
 def test_refused_replies_hand_over(reply, why):
     d = Driver()
+    d.intro()
     d.run(ask(reply))
     assert d.chat.state == HANDOVER and any(why in line for line in d.chat.log), d.chat.log
     assert d.kinds() == ["like_comment", "disclosure"]
@@ -326,12 +390,14 @@ def test_refused_replies_hand_over(reply, why):
 ])
 def test_allowed_replies(reply):
     d = Driver()
+    d.intro()
     d.run(ask(reply))
     assert d.chat.state == SCREENING and d.ours()[-1] == reply
 
 
 def test_bot_message_cap_hands_over():
     d = Driver(limits=ChatLimits(max_bot=2))
+    d.intro()
     d.run(ask())
     d.her("a")
     d.run(ask())
@@ -344,6 +410,7 @@ def test_bot_message_cap_hands_over():
 
 def test_nudge_once_then_silent_close_and_unmatch():
     d = Driver()
+    d.intro()
     d.run(ask())
     d.now += 1.9 * DAY
     d.run()
@@ -364,6 +431,7 @@ def test_nudge_once_then_silent_close_and_unmatch():
 
 def test_a_reply_after_the_nudge_continues():
     d = Driver()
+    d.intro()
     d.run(ask())
     d.now += 2.1 * DAY
     d.run(Converse("Noch da?", "screening", lang="de"))
@@ -376,6 +444,7 @@ def test_a_reply_after_the_nudge_continues():
 
 def test_nudge_off():
     d = Driver(limits=ChatLimits(nudge_days=0))
+    d.intro()
     d.run(ask())
     d.now += 5 * DAY
     d.run()
@@ -384,6 +453,7 @@ def test_nudge_off():
 
 def test_no_decision_after_max_days_hands_over():
     d = Driver(limits=ChatLimits(max_days=7, nudge_days=0))
+    d.intro()
     d.run(ask())
     for i in range(6):
         d.now += DAY
@@ -424,6 +494,7 @@ def test_states_start_new():
 
 def test_question_appended_verbatim_in_the_chats_language():
     d = Driver(langs=["en"])
+    d.intro()
     d.run(Converse("Love the shower thought!", "screening", ask=1))
     assert d.ours()[-1] == 'Love the shower thought! He asks: "Looking for?"'
     d.her("Ich suche etwas Festes")
@@ -434,6 +505,7 @@ def test_question_appended_verbatim_in_the_chats_language():
 
 def test_question_needs_a_clean_reaction():
     d = Driver()
+    d.intro()
     d.run(Converse("Ruf ihn an: 079 123 45 67", "screening", ask=1))
     assert d.chat.state == HANDOVER and "Er fragt" not in " ".join(d.ours())
 
@@ -448,6 +520,7 @@ def test_held_reply_keeps_its_question():
 
 def test_nudge_repeats_the_question_verbatim():
     d = Driver()
+    d.intro()
     d.run(ask("", ask=1))
     d.now += 2.1 * DAY
     d.run(Converse("Kleiner Nachtrag, ganz ohne Druck.", "screening", ask=1))

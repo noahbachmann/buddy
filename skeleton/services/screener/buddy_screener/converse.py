@@ -16,7 +16,7 @@ contact messages and nothing else reads the contact files.
 from html import escape
 from typing import Any
 
-from .chat import CONTACT_CHOICE, TASK_FIRST, TASK_NUDGE, Converse, Verdict
+from .chat import CONTACT_CHOICE, TASK_FIRST, TASK_NUDGE, TASK_OPENER, Converse, Verdict
 from .decide import DecideError, Decider, Usage
 from .library import ChatRules
 
@@ -80,7 +80,11 @@ hasn't written.
 
 ## Tasks
 The message starts with the task:
-- first: the chat just started, write the first question (the disclosure is already sent).
+- opener: she replied to the owner's like comment before you introduced yourself. Answer what she said or asked, \
+briefly and warmly, about the owner in the third person ("Noah …"), only from the About facts (else: he'll tell \
+her himself). No screening question (`ask` 0) and no question back: your introduction (a fixed message) follows \
+right after. `reply` "" if her message needs no answer (just a greeting). `opt_out` if she already declines.
+- first: she answered your introduction. In → write the first question; out → `opt_out`.
 - reply: she wrote; answer and decide the state.
 - nudge: she hasn't answered for days: one light line, no pressure, nothing new (no teasing, no remarks on her \
 profile); `ask` = the open screening question (it is appended again), or 0 if the open question was your own \
@@ -163,8 +167,8 @@ def converse_content(task: str, state: str, lang: str, profile: str, answered: l
                      transcript: list[tuple[str, str]]) -> list[dict[str, Any]]:
     stage = "contact choice (we offered phone or Instagram: read her choice)" if state == CONTACT_CHOICE \
         else "screening"
-    # first / nudge: code knows the chat's language; a reply follows her latest message (#77, Dev 2026-11-18)
-    reply_lang = LANG_NAMES.get(lang, lang) if task in (TASK_FIRST, TASK_NUDGE) else "her latest message's language"
+    # a nudge: code knows the chat's language; anything else follows her latest message (#77, Dev 2026-11-18)
+    reply_lang = LANG_NAMES.get(lang, lang) if task == TASK_NUDGE else "her latest message's language"
     text = "\n".join([
         f"Task: {task}",
         f"Chat state: {stage}",
@@ -225,8 +229,8 @@ def check_converse(raw: Any, rules: ChatRules, task: str, state: str) -> tuple[C
             fixes.append(f"answer to unknown question {str(k)[:10]!r} dropped")
             continue
         answers[n] = v.strip() if isinstance(v, str) and v.strip() else None
-    if task == TASK_FIRST and st == "match":
-        fixes.append("match on the first message → screening")
+    if task in (TASK_FIRST, TASK_OPENER) and st in ("match", "no_match"):
+        fixes.append(f"{st} on the {task} message → screening")
         st = "screening"
     if task == TASK_NUDGE and st not in ("screening", "handover"):
         fixes.append(f"{st} on a nudge → screening")
@@ -234,6 +238,9 @@ def check_converse(raw: Any, rules: ChatRules, task: str, state: str) -> tuple[C
     ask = raw.get("ask", 0)
     if not isinstance(ask, int) or isinstance(ask, bool) or (ask != 0 and ask not in known):
         fixes.append(f"ask {str(ask)[:10]!r} isn't a question number → 0")
+        ask = 0
+    if ask and task == TASK_OPENER:
+        fixes.append("a screening question in the opener → 0")
         ask = 0
     if ask and state == CONTACT_CHOICE:
         fixes.append("a screening question in the contact choice → 0")

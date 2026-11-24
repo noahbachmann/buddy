@@ -148,8 +148,9 @@ def test_whole_chat_never_puts_a_contact_value_in_a_prompt(talker):
             screen.append(Message(THEM, msg))
         else:
             break
-    assert chat.state == DONE and screen[-3].text == f"Nummer: {NUMBER}"
-    assert len(sdk.calls) == len(script)      # nothing after done: "Danke" and "Und nochmal" cost no call
+    ours = [m.text for m in screen if m.side == US]
+    assert chat.state == DONE and ours[-1] == f"Nummer: {NUMBER}" and screen[-1].side == THEM
+    assert len(sdk.calls) == len(script)      # nothing after done: her last message costs no call
     for content, options in sdk.calls:
         seen = json.dumps(content, ensure_ascii=False) + options.system_prompt
         assert NUMBER not in seen and INSTA not in seen and "555" not in seen

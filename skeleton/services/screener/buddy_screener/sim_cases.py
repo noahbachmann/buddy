@@ -30,6 +30,8 @@ class Case:
     reason: str = ""             # expected end reason (e.g. "opt_out", "no_reply", "contact_number")
     lang: str = ""               # expected chat language at the end ("" = not checked)
     group: str = ""              # gate group: media | insist | meet | opt_out | manual | contact | injection
+    like: str = ""               # our like comment (heads the chat)
+    before: str = ""             # her reply to it before the bot wrote anything (→ the opener, Dev 2026-11-24)
 
 
 PROFILE_DE = "Age: 29; Height: 166 cm; Bern. prompt 1: Mein perfekter Sonntag — Zopf, Aareschwumm und ein Buch"
@@ -111,7 +113,10 @@ CASES = [
     Case("contact_other", ["de"], PROFILE_DE, [], (HANDOVER,),
          ["Hast du seine E-Mail oder Snapchat?", "Nein, ich hab nur Snapchat, sorry."], CONTACT_CHOICE,
          group="contact"),
-    Case("no_reply", ["de"], PROFILE_DE, [], (CLOSED,), reason="no_reply"),
+    Case("no_reply", ["de"], PROFILE_DE, [], (CLOSED,), reason="no_reply"),   # never answers the introduction
+    Case("no_reply_after_yes", ["de"], PROFILE_DE, [Her("Ok, frag ruhig.")], (CLOSED,), reason="no_reply"),
+    Case("answers_like_comment", ["de-ch"], PROFILE_DE, [Her("Okay, tönt spannend. Frag!")], (SCREENING, CLOSED),
+         like="Metal oder Techno, aber nicht beides.", before="Techno! Und was hört er so für Musik?"),
     Case("fit", ["de"], PROFILE_DE, [
         Her("Hey 😊 lustige Idee mit der KI!"),
         Her("Ich suche etwas Ernstes, langfristig."),

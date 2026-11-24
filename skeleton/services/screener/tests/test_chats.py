@@ -5,7 +5,7 @@ import pytest
 from test_library import CHAT_MD, CHAT_TEMPLATES, PREFS
 
 from buddy_screener import chats
-from buddy_screener.chat import (CLOSED, FOREIGN, HANDOVER, LIKED, MANUAL, SCREENING, THEM, US, Chat, ChatLimits,
+from buddy_screener.chat import (CLOSED, FOREIGN, HANDOVER, LIKED, MANUAL, NEW, SCREENING, THEM, US, Chat, ChatLimits,
                                  Converse, Sent, Verdict)
 from buddy_screener.chats import ChatConfig, ChatDriver
 from buddy_screener.decide import DecideError, UsageLimited
@@ -72,23 +72,31 @@ def ask() -> Converse:
     return Converse("Cool.", "screening", lang="en", ask=1)
 
 
+def opener() -> Converse:
+    # her message answers our like comment: the bot answers first (Dev, 2026-11-24); a question asked is dropped
+    return Converse("Noah loves indie.", "screening", lang="en", ask=1)
+
+
+OPENER = "Noah loves indie."
+
+
 def test_our_like_is_linked_and_the_chat_starts_with_the_disclosure(tmp_path):
-    r = Rig(tmp_path, Talker(ask()))
+    r = Rig(tmp_path, Talker(opener()))
     r.like()
     assert r.d.step() == 600.0
-    assert r.phone.ours == [DISCLOSURE, 'Cool. He asks: "What are you looking for?"']
+    # her message replies to our like comment: answered first, then the introduction, then we wait for her
+    assert r.phone.ours == [OPENER, DISCLOSURE]
     c = r.store.chat("Alex")
-    assert c.state == SCREENING and c.like_comment == "Text 3" and r.store.liked("Alex") == []
+    assert c.state == NEW and c.like_comment == "Text 3" and r.store.liked("Alex") == []
     task, transcript, profile = r.talker.calls[0]
-    # her reply answers our like comment: the comment heads the transcript, then hers, then the disclosure
-    assert task == "first" and transcript[:3] == [(US, "Text 3"), (THEM, "Message 1"), (US, DISCLOSURE)]
+    assert task == "opener" and transcript == [(US, "Text 3"), (THEM, "Message 1")]
     assert profile.startswith("Age: 22")
     assert r.phone.screen == "feed-01" and r.notes == []   # back to the feed
     assert all(a[2] != "Text 24" for a in r.phone.actions if a[0] == "tap")   # ignored rows never opened
 
 
 def test_a_second_pass_waits_for_her(tmp_path):
-    r = Rig(tmp_path, Talker(ask()))
+    r = Rig(tmp_path, Talker(opener()))
     r.like()
     r.d.step()
     n = len(r.phone.ours)
@@ -100,14 +108,14 @@ def test_a_second_pass_waits_for_her(tmp_path):
 
 
 def test_an_old_match_we_only_liked_reads_her_profile_tab(tmp_path):
-    r = Rig(tmp_path, Talker(ask()), ignore=("Alex", "Sam", "Text 24", "Text 27"))
+    r = Rig(tmp_path, Talker(opener()), ignore=("Alex", "Sam", "Text 24", "Text 27"))
     r.d.step()
     c = r.store.chat("Robin")
-    assert c.state == SCREENING and c.like_comment == "Text 7" and c.liked_kind == "photo"
+    assert c.state == NEW and c.like_comment == "Text 7" and c.liked_kind == "photo"
     assert "Profile details:" in c.profile and "Robin" not in c.profile
     assert c.prompt_langs and set(c.prompt_langs) <= {"de", "en", "other"}
     assert any(a[2] == "Profile" for a in r.phone.actions if a[0] == "tap")
-    assert r.phone.ours[0].startswith("Hi Robin!")
+    assert r.phone.ours[0] == OPENER and r.phone.ours[1].startswith("Hi Robin!")
 
 
 def test_two_likes_with_her_name_leave_the_match_to_dev(tmp_path):
@@ -131,21 +139,23 @@ def test_a_like_whose_comment_differs_is_not_ours(tmp_path):
 
 
 def test_hold_types_without_sending_then_resume_sends(tmp_path):
-    r = Rig(tmp_path, Talker(ask()), mode=chats.HOLD)
+    r = Rig(tmp_path, Talker(opener()), mode=chats.HOLD)
     r.like()
     r.d.step()
-    assert r.holds == [chats.HOLD_CHAT_MESSAGE] and r.phone.ours == [] and r.phone.field == DISCLOSURE
-    assert r.store.chat("Alex").held["text"] == DISCLOSURE
+    assert r.holds == [chats.HOLD_CHAT_MESSAGE] and r.phone.ours == [] and r.phone.field == OPENER
+    assert r.store.chat("Alex").held["text"] == OPENER
     assert r.d.step() == 5.0 and r.phone.ours == []          # still held: nothing moves
     r.resume()
-    assert r.phone.ours == [DISCLOSURE]
-    assert r.holds == [chats.HOLD_CHAT_MESSAGE] * 2           # the next one (the question) typed and held
-    assert r.phone.field == 'Cool. He asks: "What are you looking for?"'
-    assert [a[2] for a in r.phone.sent()] == ["Send"]
+    assert r.phone.ours == [OPENER]
+    assert r.holds == [chats.HOLD_CHAT_MESSAGE] * 2           # the next one (the introduction) typed and held
+    assert r.phone.field == DISCLOSURE
+    r.resume()
+    assert r.phone.ours == [OPENER, DISCLOSURE] and len(r.holds) == 2   # then it waits for her
+    assert [a[2] for a in r.phone.sent()] == ["Send", "Send"]
 
 
 def test_dev_changing_the_held_message_makes_the_chat_his(tmp_path):
-    r = Rig(tmp_path, Talker(ask()), mode=chats.HOLD)
+    r = Rig(tmp_path, Talker(opener()), mode=chats.HOLD)
     r.like()
     r.d.step()
     r.phone.field = "Hey, it's me, the human"
@@ -156,15 +166,15 @@ def test_dev_changing_the_held_message_makes_the_chat_his(tmp_path):
 
 
 def test_dev_sending_the_held_message_himself_counts_as_ours(tmp_path):
-    r = Rig(tmp_path, Talker(ask()), mode=chats.HOLD)
+    r = Rig(tmp_path, Talker(opener()), mode=chats.HOLD)
     r.like()
     r.d.step()
     r.phone.ours.append(r.phone.field)   # Dev tapped send on the phone
     r.phone.field, r.phone.screen = "", "chat-comment"
     r.resume()
     c = r.store.chat("Alex")
-    assert [s.kind for s in c.sent] == ["like_comment", "disclosure"] and c.state != MANUAL
-    assert c.held["template"] == "reply"   # the pass went on: the first question typed and held
+    assert [s.kind for s in c.sent] == ["like_comment", "opener"] and c.state != MANUAL
+    assert c.held["template"] == "disclosure"   # the pass went on: the introduction typed and held
 
 
 def test_unmatch_after_closing_is_held_then_done(tmp_path):
@@ -188,7 +198,7 @@ def test_failed_calls_retry_then_hand_over(tmp_path):
         r.d.step()
     c = r.store.chat("Alex")
     assert c.state == HANDOVER and chats.NOTICE[HANDOVER] in r.notes
-    assert r.phone.ours == [DISCLOSURE]   # the disclosure needs no call
+    assert r.phone.ours == []   # her reply to our like comment needs the opener call first: nothing went out
 
 
 def test_usage_limit_waits_without_input(tmp_path):
