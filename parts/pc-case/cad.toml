@@ -1,0 +1,7 @@
+# cad build pc-case / cad render pc-case / cad plate pc-case (parts/CLAUDE.md)
+
+[parts.fit-check]
+
+[plates.0-fit-check]
+note = "PETG · 0.28 mm · 2 walls · flat · no supports: lay it over the cooler corner before the big prints"
+parts = ["fit-check"]
