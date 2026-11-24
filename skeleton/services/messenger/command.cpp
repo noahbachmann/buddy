@@ -77,7 +77,7 @@ Command parse_command(const std::string& payload) {
         }
         return ask;
     }
-    if (action == "cancel") return Cancel{.id = id_field(msg)};
+    if (action == "cancel") return Cancel{.id = id_field(msg), .note = clip(trim(text_field(msg, "note")), kMaxOption)};
     bad(action.empty() ? "action missing" : "unknown action");
 }
 

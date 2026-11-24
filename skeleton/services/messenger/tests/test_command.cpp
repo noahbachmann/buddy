@@ -28,7 +28,10 @@ TEST(Command, Ask) {
     EXPECT_EQ(std::get<Ask>(parse_command(R"({"action": "ask", "id": "t3", "text": "?", "ttl_s": 0})")).ttl_s, 0);
 }
 
-TEST(Command, Cancel) { EXPECT_EQ(std::get<Cancel>(parse_command(R"({"action": "cancel", "id": "t1"})")).id, "t1"); }
+TEST(Command, Cancel) {
+    EXPECT_EQ(std::get<Cancel>(parse_command(R"({"action": "cancel", "id": "t1"})")).id, "t1");
+    EXPECT_EQ(std::get<Cancel>(parse_command(R"({"action": "cancel", "id": "t1", "note": " done "})")).note, "done");
+}
 
 TEST(Command, RejectsWhatItCantUse) {
     for (const char* payload : {

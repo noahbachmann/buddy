@@ -33,6 +33,7 @@ struct Ask {
 
 struct Cancel {
     std::string id;
+    std::string note;  // replaces "✗ withdrawn" under the question, e.g. "▶ resumed on the panel"
 };
 
 using Command = std::variant<Notify, Ask, Cancel>;

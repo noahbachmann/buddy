@@ -265,11 +265,19 @@ TEST(Chat, Cancel) {
     EXPECT_TRUE(phone.sends.empty());
     ASSERT_EQ(phone.edits.size(), 1u);
     EXPECT_EQ(phone.edits[0].text, "❓ Sent?\n\n✗ withdrawn");
+
     EXPECT_TRUE(chat.take_events().empty());
     EXPECT_EQ(chat.open(), 0u);
 
     chat.incoming(tap("q1:0", 100), t0);  // the edit hasn't reached the phone yet
     EXPECT_TRUE(chat.take_events().empty());
+    // the asker's note replaces "withdrawn"
+    chat.command(ask("c", "Noted?", {"y"}), t0);
+    phone.deliver(chat);
+    chat.command(Cancel{"c", "▶ resumed"}, t0);
+    phone.deliver(chat);
+    ASSERT_EQ(phone.edits.size(), 2u);
+    EXPECT_EQ(phone.edits[1].text, "❓ Noted?\n\n▶ resumed");
 }
 
 TEST(Chat, MessageTelegramRefusesFailsTheQuestion) {

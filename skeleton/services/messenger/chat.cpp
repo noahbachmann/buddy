@@ -194,7 +194,7 @@ void Chat::cancel(const Cancel& c) {
     Question* q = find(c.id);
     if (!q) return;
     if (q->is_open()) {
-        if (q->message_id != 0) outbox_.push_back(Edit{q->message_id, shown(q->from, q->text) + "\n\n✗ withdrawn"});
+        if (q->message_id != 0) outbox_.push_back(Edit{q->message_id, shown(q->from, q->text) + "\n\n" + (c.note.empty() ? "✗ withdrawn" : c.note)});
         for (const auto& [tag, t] : tags_) {
             if (t.question != q->n) continue;
             unqueue(tag);
