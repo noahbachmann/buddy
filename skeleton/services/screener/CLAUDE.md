@@ -8,9 +8,9 @@ comes from `BUDDY_SCREENER_APP` in the host's `buddy.env`. Personal data (dumps,
 State: step 1 (service skeleton, device layer, screen model, navigator), step 2 (decision layer + shadow mode;
 shadow sessions 1–4 done, session 5 next to measure session 4's fixes; poll options liked since #82) and step 4's offline part (#77: chat flow + `--sim`, gate
 passed 2026-11-19; live wiring waits for step 3, #80). Where things stand: #66's body.
-The service itself acts on nothing; shadow mode runs as offline commands. Skip and send are taps only through
-`--cmd skip|send <id>`, each carrying out Dev's label of that row (2026-11-17, Dev's call: the start of step 3). No
-code path taps a paid option or a chat send.
+Step 3 (#80): the service runs the browse loop (`browse.py`) when `BUDDY_SCREENER_BROWSE` is `dry` or `live`
+(default `off`: a deploy never starts tapping). Shadow mode stays as offline commands; `--cmd skip|send <id>` carry
+out Dev's label of a row. No code path taps a paid option or a chat send.
 
 ## Modules (`buddy_screener/`)
 
@@ -29,10 +29,13 @@ code path taps a paid option or a chat send.
 | `converse.py` | The chat's calls on `Decider.call`: `converse` (reply + state + answers + flags + contact + lang), `verify` (strict second opinion, profile + transcript), prompts with escaped `<msg>` elements, `check_converse`/`check_verify` |
 | `sim.py`, `sim_cases.py`, `sim_personas.py` | `--sim`: driver loop on a fake clock, 21 scripted cases, 8 persona cards (a model plays her), sentinel contacts, prompt leak check, gate report, transcripts in tmpfs |
 | `decide.py` | Agent SDK wrapper (`Decider.decide` = text check, photo check (#83), then `browse` with photos): locked-down CLI options, text + browse schemas, `check_text`, `check_browse` (code re-checks: unknown section/comment → none, soft flags without a verifiable quote dropped, dealbreaker → skip, a like on a profile it called `generic` → skip (#107), adapted comment refused → the template's text or none, `fixes` kept), usage per call, `limit_until` pause, daily $ cap |
-| `store.py` | SQLite `data/screener/screener.db`: `usage` (kept; live and `sim-` tasks capped apart), `shadow` (bot decision + Dev's label as JSON, profile key only, 30 days), `chats` (`chat.Chat` as JSON, never her texts; 30 days after it ended) |
+| `store.py` | SQLite `data/screener/screener.db`: `usage` (kept; live and `sim-` tasks capped apart), `shadow` (bot decision + Dev's label as JSON, profile key only, 30 days; the loop's rows carry `run: dry|live`), `actions` (every act and stop: kind, mode dry/live/shadow, row id, a detail without names; 30 days), `chats` (`chat.Chat` as JSON, never her texts; 30 days after it ended) |
 | `shadow.py` | Step 2 commands' logic: `run_shadow` (capture → decide → row; capture pickled to tmpfs without crops), `make_label`, `type_label`, `act_label` (skip/send on Dev's label; a relabel keeps `acted`), `report` (done-when numbers; `unjudged` rows left out; comment target = the text Dev sent) |
+| `likes.py` | The like budget from the action log: likes left in the batch, the paywall wait (until the last like + 24 h, Dev's guess), `probe` (the first like after it confirms the guess: `likes_back`), `stuck` (a paywall the guess can't explain → Dev). `BUDDY_SCREENER_DAILY_LIKES`, `_LIKES_24H` |
+| `browse.py` | Step 3's loop (#80): `Browser.step()` = one profile (window, likes, breaks → `shadow.judge` → skip / hold / like) with injected nav, decider, store, clock, rng; `hold(kind, row)` and `notify(text)` callbacks; dry rows' screenshot pages + summary in tmpfs `rows/<id>/`; `today()` counts |
+| `hub.py` | The service's side of a hold: `needs_you` file, the Telegram ask (Resume/Stop, fixed texts per kind), Dev's answer → resume/stop, withdrawing the ask on resume |
 | `config.py` | `BUDDY_SCREENER_*` (incl. model, effort, decide timeout, daily $), kill switch files (`config/screener/stop`, `data/screener/paused`), token/limit/db paths, tmpfs dir |
-| `main.py` | Service loop (phone check every 30 s, state on change, commands) + `--cmd screen\|dump\|fixture\|profile\|back-out\|walk\|shots\|templates\|shadow\|label\|type\|skip\|send\|report`, `--sim [--case NAME…\|all] [--personas N]` |
+| `main.py` | Service loop (phone check every 30 s, state on change, commands, Dev's Telegram answers; the browse loop on a worker thread) + `--cmd screen\|dump\|fixture\|profile\|back-out\|walk\|shots\|templates\|shadow\|label\|type\|skip\|send\|report\|rows`, `--sim [--case NAME…\|all] [--personas N]` |
 
 ## Rules the code enforces
 
@@ -42,10 +45,15 @@ code path taps a paid option or a chat send.
 - Tap only what `tappable()` allows (tabs, back, match rows, like buttons, comment field); a target in the list must
   be fully inside it and clear of the floating skip/header buttons (`ProfileView.safe`).
 - Acting taps (skip button, plain send-like button, the upsell's "Send Like anyway") only via `Navigator._act` on
-  `actable()`, only from `--cmd skip|send` on Dev's label, only on the captured profile (name check), send only when
-  the field reads back the labelled comment. Never "Send a Rose…" (paid) or "Close sheet" (unclear if it drops the like).
+  `actable()`, from `--cmd skip|send` on Dev's label or from the loop on its own decision, only on the captured
+  profile (name check), send only when the field reads back the comment (empty for a like without one). Never "Send
+  a Rose…" (paid) or "Close sheet" (unclear if it drops the like).
+- Likes stop before the budget (`likes.py`): shadow's `type`/`send` refuse, `label … like` warns, the loop stops
+  for the day. Every act and stop goes into `actions`.
 - Text only through our keyboard, always read back.
 - Kill switch: stop file, pause file, `systemctl stop`, unplug (adb error) all stop the next input action.
+  A hold for Dev (`data/screener/needs_you`) stops the loop's input but not Dev's commands (`--cmd` runs with
+  `hold_ok`): that's how Dev handles a held profile.
 
 ## Decisions (step 2)
 
@@ -143,6 +151,31 @@ with the changes applied. Session 4 (#130–#175, 2026-11-23/24): agreement 36/4
 written 2/7; changes applied after it (preferences + 2712e4e, bf52406, 42ad83b, fb895d8).
 Screenshots (`--cmd shots`, sent to Dev) only while Dev is away from the phone; back home he looks himself.
 
+## The browse loop (step 3, #80)
+
+`BUDDY_SCREENER_BROWSE=dry|live` → `main.service` starts `Browser.run` on a worker thread. One `step()`:
+
+1. Off, stopped, paused or held → nothing. Outside the window (`BUDDY_SCREENER_HOURS`, 10–18; with `LIKES_24H=1`
+   it starts when yesterday's used-up likes come back and keeps its length) → `waiting`. No likes left → `done_today`
+   (Dev told once per batch). A break → `break`.
+2. `shadow.judge(run=mode)`: capture, decide, shadow row with `run`, pickle in tmpfs.
+3. Dry: screenshots → `rows/<id>/page-N.jpg` + `describe.txt` (tmpfs, deleted by `label`); skip → `skip_profile`;
+   like → hold `would_like` (the profile stays on screen; Dev likes it by hand or with `label/type/send <id>`, or
+   skips it, then resumes). Live: skip, or `scroll_to` → `open_sheet` → `type_comment` (if a comment) → `send_like`.
+4. A gap (`GAP_S`, 20–90 s) and every `BREAK_EVERY` (6–12) profiles a break (`BREAK_MIN`, 5–20 min).
+
+Holds (until Dev resumes; Dev, 2026-11-24: no automatic retry): a `NeedsYou` (`screen`), a stuck paywall (`likes`),
+3 failed decisions in a row (`decide`), refused host files (`files`), a dry like. Usage limit / daily $ cap →
+`limit` until it ends (Dev notified). A paywall that kept the panel → the like is sent from it once the likes are
+back (same process only: after a restart the open panel is a `NeedsYou`).
+
+Session 5 = the dry rows: `--cmd rows` lists the unlabelled ones with their pages; Claude sends the pages in
+batches (every detail written out), labels per Dev (`label` drops the pages), `report --since <first id>`.
+
+**When likes come back** is Dev's guess (2026-11-24): 24 h after the last like. Day mode counts likes since local
+midnight; a paywall anyway waits until the last like + 24 h, then one try: through → `likes_back` action + Telegram
+"the 24 h guess holds" → set `BUDDY_SCREENER_LIKES_24H=1` and update this section and #80; a paywall again → hold.
+
 ## Chat flow (step 4, #77)
 
 Host: `chat.md` (copied from `preferences.md` 2026-11-19: *Screening questions*, *Match rule*, *Handover*, *Tone*,
@@ -227,7 +260,7 @@ Pi, then `--cmd fixture <out dir> <dumps…>` (all dumps of one walk in one call
 - Free likes run out (seen after 2 sent likes on 2026-11-18): "send like" opens a paywall (`OUT_OF_LIKES`, its own
   kind: closing it isn't a popup on the way). `send_like` closes it (Close only) and stops: the comment stays in the
   panel, but the field loses focus and reads empty until tapped: `send_like` taps the field before the read-back. Not always: on 2026-11-19 and 2026-11-22 closing it showed the next profile (the liked one gone, like
-  not sent): `send_like` reports that instead of waiting for the panel. Shadow doesn't count the day's likes yet (#80).
+  not sent): `send_like` reports that instead of waiting for the panel. Since #80 the budget (`likes.py`) stops before it.
 - A voice prompt is a section (`voice N`: View "Voice Prompt: <question>", buttons "Play Voice Prompt" / "Like voice
   prompt", 2026-11-20): listed to the bot, never liked. Unknown, it left a screen with no anchor (lost track).
 - Friends' cards are sections (`friend N`: View "Friend's Take. <Photo: caption | Prompt: q Answer: a>, From: <name,
