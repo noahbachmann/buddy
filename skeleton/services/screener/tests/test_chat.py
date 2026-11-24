@@ -145,9 +145,9 @@ def test_her_reply_to_our_like_comment_is_answered_before_the_introduction():
     # Dev, 2026-11-24: she answered the like comment with a question about him: answer it, then introduce, then wait
     d = Driver(like_comment="Metal or techno, but not both.")
     d.her("Techno! And you, what do you listen to?")
-    d.run(Converse("Noah hört fast alles ausser Metal, am liebsten Indie.", "screening", lang="de", ask=1))
+    d.run(Converse("Er hört fast alles ausser Metal, am liebsten Indie.", "screening", lang="de", ask=1))
     assert d.kinds() == ["like_comment", "opener", "disclosure"]
-    assert d.ours()[1] == "Noah hört fast alles ausser Metal, am liebsten Indie."   # the ask was dropped: no question
+    assert d.ours()[1] == "Er hört fast alles ausser Metal, am liebsten Indie."   # the ask was dropped: no question
     kind, task, transcript = d.calls[0]
     assert task == "opener" and transcript == [(US, "Metal or techno, but not both."),
                                                (THEM, "Techno! And you, what do you listen to?")]

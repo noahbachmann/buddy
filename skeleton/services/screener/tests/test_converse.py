@@ -37,6 +37,12 @@ def answer(**kw):
 
 # --- prompts ---------------------------------------------------------------------------------------------------------
 
+def test_the_bot_never_fakes_feelings_or_takes_his_compliments():
+    # the owner, 2026-11-24: a bot that's "flattered" reads fake; it relays how he'd feel, in the third person
+    s = converse_system(RULES)
+    assert "no feelings of your own" in s and "never yours to accept" in s and "he'd feel flattered" in s
+
+
 def test_systems_hold_rules_and_preferences_but_no_contact():
     for s in (converse_system(RULES), verify_system(RULES)):
         assert "Builds robots." in s and "Looking for?" in s

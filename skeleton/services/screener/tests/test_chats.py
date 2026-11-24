@@ -74,10 +74,10 @@ def ask() -> Converse:
 
 def opener() -> Converse:
     # her message answers our like comment: the bot answers first (Dev, 2026-11-24); a question asked is dropped
-    return Converse("Noah loves indie.", "screening", lang="en", ask=1)
+    return Converse("He loves indie.", "screening", lang="en", ask=1)
 
 
-OPENER = "Noah loves indie."
+OPENER = "He loves indie."
 
 
 def test_our_like_is_linked_and_the_chat_starts_with_the_disclosure(tmp_path):
