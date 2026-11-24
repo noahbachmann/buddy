@@ -3,15 +3,20 @@ assembly = "assembly.scad"
 
 [parts.fit-check]
 [parts.lid]
-[parts.cover]
+[parts.cover-top]
+[parts.cover-bottom]
 
 [plates.0-fit-check]
 note = "PETG · 0.28 mm · 2 walls · flat · no supports: lay it over the cooler corner before the big prints"
 parts = ["fit-check"]
 
-[plates.1-cover]
+[plates.1-cover-top]
 note = "PETG · 0.20 mm · 3 walls · 15 % · top down · no supports"
-parts = ["cover"]
+parts = ["cover-top"]
+
+[plates.3-cover-bottom]
+note = "PETG · 0.20 mm · 3 walls · 15 % · floor down · no supports"
+parts = ["cover-bottom"]
 
 [plates.2-lid]
 note = "PETG · 0.20 mm · 3 walls · 15 % · top down · no supports · 250 mm wide: nothing else on the plate"

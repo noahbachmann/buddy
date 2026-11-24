@@ -26,6 +26,9 @@ assert(seam_x + wall_t / 2 + cover_boss[0] / 2 < cooler_x[0] - 1 && seam_y + wal
 assert(lid_x1 < cooler_x[0] && lid_y1 < cooler_y[0], "lid reaches under the cooler");
 assert(cb_nut - nut_slot[0] / 2 > z_lid1, "nut pocket's 45° floor cuts into the lid");
 assert(cb_full + (cover_boss[0] - wall_t) / 2 > z_ceil, "cover boss must reach the cover's top");
+bt_z = floor_t + 4.5;                       // cover-bottom ↔ cover-top screws
+assert(floor_t + bottom_tab_h < hs_z0 - 1, "bottom tabs reach the heatsink");
+assert(bt_z - nut_slot[0] / cos(30) / 2 > floor_t, "bottom tab nut slot cuts into the floor");
 
 // --- helpers -----------------------------------------------------------------------
 module box(xr, yr, zr) translate([xr[0], yr[0], zr[0]]) cube([xr[1] - xr[0], yr[1] - yr[0], zr[1] - zr[0]]);
@@ -153,18 +156,59 @@ module cover() let(zv = [vent_margin, z_ceil - vent_margin]) difference() {
     difference() {
       linear_extrude(z_top) cover_2d();
       translate([0, 0, -1]) linear_extrude(z_ceil + 1) rect([seam_x + wall_t, cx1 - wall_t], [seam_y + wall_t, cy1 - wall_t]);
-      translate([0, 0, z_ceil - 1]) linear_extrude(skin_t + 2) cover_openings_2d();
+      translate([0, 0, z_ceil - 1]) linear_extrude(cover_skin + 2) cover_openings_2d();
     }
     at_seam_screws() cover_boss_local();
   }
   box([-big, tray_wall_x + tray_gap], [-big, board[1] + tray_gap], [-1, z_lid1]);
   box([-big, plate_x1 + tray_gap], [board[1] + tray_gap, big], [-1, plate_clear]);
   box([board[0], cable_cover_x], [seam_y - 1, seam_y + wall_t + 1], [-1, z_lid1 + 4]);   // right ribbons
+  box([-big, big], [-big, big], [-1, floor_t]);                                           // stands on the floor
   at_seam_screws() cover_boss_cut_local();
-  // exhaust over the heatsink's outlet face, windows elsewhere
-  vents_y([fins_y[0] + slot_w / 2 : slot_pitch : fins_y[1] - slot_w / 2], cx1 - wall_t - 1, cx1 + 1, zv[0], zv[1], slot_w);
-  vents_x(vent_pos(plate_x1 + 14, cx1 - 20, [], 0), cy1 - wall_t, cy1, zv[0], zv[1]);   // past the plate: full height
-  vents_x(vent_pos(cable_cover_x + 14, cx1 - 20, [], 0), seam_y, seam_y + wall_t, zv[0], zv[1]);
+  // cover-bottom screws, from outside
+  for (x = bottom_tabs_front) hole_y(x, bt_z, seam_y - 1, seam_y + wall_t + 1, -1);
+  for (x = bottom_tabs_back) hole_y(x, bt_z, cy1 - wall_t - 1, cy1 + 1, -1);
+  for (y = bottom_tabs_right) hole_x(y, bt_z, cx1 - wall_t - 1, cx1 + 1, -1);
+  // exhaust over the heatsink's outlet face (it starts at hs_z0), windows elsewhere
+  vents_y([fins_y[0] + slot_w / 2 : slot_pitch : fins_y[1] - slot_w / 2], cx1 - wall_t - 1, cx1 + 1, hs_z0 + 1, z_ceil - 4, slot_w);
+  vents_x(vent_pos(plate_x1 + 14, cx1 - 20, bottom_tabs_back, tab_w / 2 + vent_w), cy1 - wall_t, cy1, zv[0], zv[1]);
+  vents_x(vent_pos(cable_cover_x + 14, cx1 - 20, bottom_tabs_front, tab_w / 2 + vent_w), seam_y, seam_y + wall_t, zv[0], zv[1]);
+}
+
+// --- cover-bottom: floor under the heatsink (raised) and in front of it; the fan stands on the table ------
+module cover_floor_2d() difference() {
+  cover_2d();
+  rect([-big, tray_wall_x + tray_gap], [-big, board[1] + tray_gap]);          // tray
+  rect([-big, plate_x1 + tray_gap], [board[1] + tray_gap, big]);              // silver plate
+  rect([-big, fan_x1 + side_gap], [fan_y0 - side_gap, cooler_y[1] + tray_gap]);   // fan, on the table
+}
+module bottom_tabs_2d() {
+  for (x = bottom_tabs_front) rect([x - tab_w / 2, x + tab_w / 2], [seam_y, seam_y + wall_t + 0.2 + tab_t]);
+  for (x = bottom_tabs_back) rect([x - tab_w / 2, x + tab_w / 2], [cy1 - wall_t - 0.2 - tab_t, cy1]);
+  for (y = bottom_tabs_right) rect([cx1 - wall_t - 0.2 - tab_t, cx1], [y - tab_w / 2, y + tab_w / 2]);
+}
+module cover_bottom_2d() difference() {
+  cover_floor_2d();
+  difference() {
+    offset(r = 3) offset(delta = -3) difference() {
+      offset(delta = -perim) cover_floor_2d();
+      for (x = cover_grid_x) rect([x - bar / 2, x + bar / 2], [-big, big]);
+      for (y = cover_grid_y) rect([-big, big], [y - bar / 2, y + bar / 2]);
+    }
+    offset(delta = bar / 2) bottom_tabs_2d();
+  }
+}
+module bottom_tab(along_x, p, t0) let(zr = [floor_t / 2, floor_t + bottom_tab_h], c = t0 + tab_t / 2) difference() {
+  if (along_x) box([t0, t0 + tab_t], [p - tab_w / 2, p + tab_w / 2], zr);
+  else box([p - tab_w / 2, p + tab_w / 2], [t0, t0 + tab_t], zr);
+  if (along_x) { hole_x(p, bt_z, t0 - 1, t0 + tab_t + 1, 1); nut_slot_x(c, p, bt_z, 1, big); }
+  else { hole_y(p, bt_z, t0 - 1, t0 + tab_t + 1, 1); nut_slot_y(p, c, bt_z, 1, big); }
+}
+module cover_bottom() {
+  linear_extrude(floor_t) cover_bottom_2d();
+  for (x = bottom_tabs_front) bottom_tab(false, x, seam_y + wall_t + 0.2);
+  for (x = bottom_tabs_back) bottom_tab(false, x, cy1 - wall_t - 0.2 - tab_t);
+  for (y = bottom_tabs_right) bottom_tab(true, y, cx1 - wall_t - 0.2 - tab_t);
 }
 
 // --- fit-check: flat template of the cooler corner, laid over the hardware ----------------
@@ -184,4 +228,8 @@ module tray_ghost() {
   box([board[0], tray_wall_x], [0, cooler_y[0]], [0, board_h]);
   box([board[0] - tray_wall_x, plate_x1], [0, 290], [0, plate_z]);
 }
-module cooler_ghost() linear_extrude(cooler_h) cooler_hw_2d();
+module cooler_ghost() {   // fan on the table, heatsink raised
+  intersection() { linear_extrude(cooler_h) cooler_hw_2d(); box([-big, fan_x1], [fan_y0, big], [0, cooler_h]); }
+  intersection() { linear_extrude(cooler_h) cooler_hw_2d(); box([-big, fan_x1], [-big, fan_y0], [hs_z0, cooler_h]); }   // heat pipe, raised
+  intersection() { linear_extrude(cooler_h) cooler_hw_2d(); box([fan_x1, big], [-big, big], [hs_z0, cooler_h]); }
+}

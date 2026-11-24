@@ -4,4 +4,5 @@ explode = 0;
 color("silver", 0.35) tray_ghost();
 color("orange", 0.35) cooler_ghost();
 color("steelblue") translate([0, 0, explode]) lid();
+color("dimgray") cover_bottom();
 color("seagreen") translate([0, 0, explode * 1.5]) cover();
