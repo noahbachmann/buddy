@@ -1,0 +1,19 @@
+# Fit-test skeletons of the PC case: cad build pc-case/skeleton (parts/CLAUDE.md)
+assembly = "assembly.scad"
+
+[parts.lid-skeleton]
+[parts.cover-top-skeleton]
+[parts.cover-bottom-skeleton]
+
+[plates.1-cover-top-skeleton]
+note = "PETG · 0.20 mm (same as the real parts: the fits must match) · 3 walls · 15 % · top down · no supports"
+parts = ["cover-top-skeleton"]
+
+[plates.2-lid-skeleton]
+note = "PETG · 0.20 mm · 3 walls · 15 % · top down · no supports · 250 mm wide: alone on the plate"
+parts = ["lid-skeleton"]
+bed = [254, 254]
+
+[plates.3-cover-bottom-skeleton]
+note = "PETG · 0.20 mm · 3 walls · 15 % · floor down · no supports"
+parts = ["cover-bottom-skeleton"]
