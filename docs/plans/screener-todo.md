@@ -101,7 +101,16 @@ ssh -t buddy micro ~/buddy/config/screener/templates.md
 ```
 
 - [ ] More like comments added
-- [ ] Active hours and daily like count decided (for step 3, #80): tell Claude
+- [x] Active hours and daily like count decided (for step 3, #80): 8 likes, 10:00–18:00 (2026-11-23)
+
+## Session 5: the dry loop (#80, from 2026-11-24)
+
+The screener browses on its own 10:00–18:00 and skips what it would skip. When it would like a profile, or hits
+something it can't handle, it stops and asks you on Telegram:
+
+- [ ] A held like: like it on the phone (or tell Claude the row number to send it), or skip it, then tap **Resume**
+  (Telegram or the panel's screener card). **Stop** ends the loop until you resume.
+- [ ] Label the skipped profiles in batches when Claude sends their screenshots (≥ 50 profiles for the gate).
 
 Step 0 is done (2026-11-16). The phone keeps its keyboard set to the screener's own one (no keys): to type by hand,
 tap the keyboard icon at the bottom right and pick SwiftKey.

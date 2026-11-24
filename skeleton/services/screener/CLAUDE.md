@@ -6,8 +6,9 @@ comes from `BUDDY_SCREENER_APP` in the host's `buddy.env`. Personal data (dumps,
 `~/buddy/{config,data}/screener` on the Pi.
 
 State: step 1 (service skeleton, device layer, screen model, navigator), step 2 (decision layer + shadow mode;
-shadow sessions 1–4 done, session 5 next to measure session 4's fixes; poll options liked since #82) and step 4's offline part (#77: chat flow + `--sim`, gate
-passed 2026-11-19; live wiring waits for step 3, #80). Where things stand: #66's body.
+shadow sessions 1–4 done; poll options liked since #82), step 3 built (#80: the browse loop, running dry since
+2026-11-24; its rows from #176 are measure session 5) and step 4's offline part (#77: chat flow + `--sim`, gate
+passed 2026-11-19; live wiring next). Where things stand: #66's body.
 Step 3 (#80): the service runs the browse loop (`browse.py`) when `BUDDY_SCREENER_BROWSE` is `dry` or `live`
 (default `off`: a deploy never starts tapping). Shadow mode stays as offline commands; `--cmd skip|send <id>` carry
 out Dev's label of a row. No code path taps a paid option or a chat send.
@@ -141,7 +142,7 @@ Every profile, both kinds:
 the new file). No `report`: its numbers mix preference versions. End: summary of the changes, prompt/code issues
 into #66 (neutral wording).
 
-**Session 2+ (session 5 next), measure:** `preferences.md` frozen. Note the first shadow row id. Step 3's proposals go into
+**Session 2+, measure** (session 5 = the dry loop's rows, labelled in batches): `preferences.md` frozen. Note the first shadow row id. Step 3's proposals go into
 `data/screener/session-<N>.md` (host only), not into the preferences. Continue on the next days with the same frozen
 file until ≥ 50 profiles (`GATE_PROFILES`). End: `report --since <first row id>` (this session's rows and their shadow calls only; when preferences or the decide
 code changed mid-session, one report per part with `--until <last row id>`; the bot's `uncovered`
@@ -183,7 +184,7 @@ Host: `chat.md` (copied from `preferences.md` 2026-11-19: *Screening questions*,
 `contact_offer`, `contact_number`, `contact_instagram`, `closing`, `opt_out`, `question`), `number`, `instagram`. The chat calls
 see `chat.md` + *About Dev*, *Looking for*, *Good fit*, *Soft negatives/positives*, *Dealbreakers* (not *Physical*).
 
-- A driver runs `ChatFlow` (the sim now, the live loop after step 3): `step` → send / converse / verify / unmatch /
+- A driver runs `ChatFlow` (the sim now; the service's loop once step 4 is wired, #77): `step` → send / converse / verify / unmatch /
   notify / wait; the driver reports back (`delivered`, `conversed`, `verified`, `unmatched`).
 - Code, not the model: disclosure first; our like comment seeded into the sent log; ours on screen not in the log →
   `manual` for good; media → handover; match = required answers + no flag + ≥ 3 turns + verifier; the held `reply`
