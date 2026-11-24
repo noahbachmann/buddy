@@ -285,8 +285,13 @@ class ChatFlow:
 
     def conversed(self, chat: Chat, c: Converse, now: float) -> Action:
         task, chat.pending_task = chat.pending_task, ""
+        screen = self._screens.get(chat.key, [])
+        new = [m for m in screen if m.side == THEM][chat.theirs_seen:chat.pending_seen]
         chat.theirs_seen = chat.pending_seen
-        chat.lang = chat_lang(c.lang, chat.lang)
+        # her language counts once she writes sentences: "Hello hello" on a Swiss German profile stays German
+        # (Dev, 2026-11-24)
+        if not new or not all(_SMALL_TALK.fullmatch(m.text) for m in new):
+            chat.lang = chat_lang(c.lang, chat.lang)
         for n, a in c.answers.items():
             if a:
                 chat.answers[n] = a

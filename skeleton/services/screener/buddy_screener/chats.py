@@ -197,8 +197,10 @@ class ChatDriver:
             chat.log.append("linked to our like")
         elif not self.store.liked(row.name) and not ours:
             cap = self.nav.chat_profile()
-            langs = [guess_lang(s.text.partition("\n")[2]) or "other" for s in cap.profile.sections
-                     if s.kind == "prompt"]
+            # no decision to take her prompts' languages from: word lists; none readable → German (Dev, 2026-11-24:
+            # no extra model call for the few old matches, new matches carry the decision's languages)
+            answers = [s.text.partition("\n")[2] for s in cap.profile.sections if s.kind == "prompt"]
+            langs = [g for a in answers if (g := guess_lang(a))] or ["de"]
             chat = Chat(row.key, row.name, now, profile=profile_text(cap.profile), like_comment=origin.comment,
                         liked_kind=origin.kind, prompt_langs=langs)
             flow.open(chat, origin.comment, langs, now)

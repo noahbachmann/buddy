@@ -167,6 +167,20 @@ def test_a_greeting_gets_the_introduction_at_once_without_a_call(hers):
     assert d.kinds() == ["disclosure"] and d.calls == []
 
 
+def test_small_talk_never_switches_the_language():
+    # Dev, 2026-11-24: "Hello hello" on a Swiss German profile: the chat stays German
+    d = Driver(langs=["de-ch", "de-ch"], like_comment="")
+    d.her("Hello hello")
+    d.run()
+    assert d.ours()[0] == "Hi Alex! Ich bin ein KI-Assistent." and d.chat.lang == "de"
+    d.her("Hi :)")
+    d.run(Converse("Schön! Darf ich dir ein paar Fragen stellen?", "screening", lang="en"))
+    assert d.chat.lang == "de"
+    d.her("Sorry, I only speak English, is that ok?")
+    d.run(ask("Of course! What are you looking for?", lang="en"))
+    assert d.chat.lang == "en"   # a real sentence in English does switch it
+
+
 def test_an_empty_opener_from_the_model_also_means_the_introduction_alone():
     d = Driver(like_comment="")
     d.her("Oh nice, a bot")

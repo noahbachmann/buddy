@@ -113,7 +113,7 @@ def test_an_old_match_we_only_liked_reads_her_profile_tab(tmp_path):
     c = r.store.chat("Robin")
     assert c.state == NEW and c.like_comment == "Text 7" and c.liked_kind == "photo"
     assert "Profile details:" in c.profile and "Robin" not in c.profile
-    assert c.prompt_langs and set(c.prompt_langs) <= {"de", "en", "other"}
+    assert c.prompt_langs == ["de"] and c.lang == "en"   # placeholders read as nothing → German; her message: English
     assert any(a[2] == "Profile" for a in r.phone.actions if a[0] == "tap")
     assert r.phone.ours[0] == OPENER and r.phone.ours[1].startswith("Hi Robin!")
 
