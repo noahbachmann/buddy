@@ -6,7 +6,7 @@ comes from `BUDDY_SCREENER_APP` in the host's `buddy.env`. Personal data (dumps,
 `~/buddy/{config,data}/screener` on the Pi.
 
 State: step 1 (service skeleton, device layer, screen model, navigator), step 2 (decision layer + shadow mode;
-shadow sessions 1 and 2 done, session 3 next, #79 fixes in) and step 4's offline part (#77: chat flow + `--sim`, gate
+shadow sessions 1–4 done, session 5 next to measure session 4's fixes; poll options liked since #82) and step 4's offline part (#77: chat flow + `--sim`, gate
 passed 2026-11-19; live wiring waits for step 3, #80). Where things stand: #66's body.
 The service itself acts on nothing; shadow mode runs as offline commands. Skip and send are taps only through
 `--cmd skip|send <id>`, each carrying out Dev's label of that row (2026-11-17, Dev's call: the start of step 3). No
@@ -68,14 +68,17 @@ code path taps a paid option or a chat send.
   `report` counts them: the input for the next preferences diff.
 - Soft flags carry their evidence (#85): each is `{flag, source, quote}`; `sourced_flags` keeps `flag (source:
   "quote")` only when the source is a section of the profile or "details" and, for text, the quote is in it
-  (normalized); absences ("none stated", "no X visible", a "?") are dropped. Drops go to `dropped_flags`, not `fixes`.
+  (normalized; a details quote may name several details, each part must be there, #166); absences ("none
+  stated", "no X visible", a "?") are dropped. Drops go to `dropped_flags`, not `fixes`.
   `report` lists every profile's flags for a check against the preferences' wording. Health and sensitive traits
   never in `uncovered` (prompt only).
 - Like comments are written freely in Dev's voice (#84, Dev 2026-11-22; before: adapted patterns, #78; session 3:
   Dev sent the bot's comment 0 of 8 times). `templates.md` *Voice* describes the voice, the *Like comments* are
   examples of it, not a menu; `comment` = the example it leaned on (a note) or `own`. Facts about Dev only from
   *About Dev* + the examples. Language: German/Swiss German chat → Swiss German (`de-ch`), standard German (Dev,
-  2026-11-22: allowed) or English; English chat → English. Checks, in order: code (`comment_problem`: `refusal`
+  2026-11-22: allowed) or English; never dialect when most of her German prompts are standard German (#158, #163);
+  English chat → English, or German/Swiss German when she lists German among her languages (`speaks_german`: Dev
+  did that 3 times in session 4). Checks, in order: code (`comment_problem`: `refusal`
   with the longest example as the limit, the language rule, a copy = 4 words in a row or ≥ 60 % shared
   words with an example), then a check call (`comment_check`, `BUDDY_SCREENER_CHECK_MODEL`: a translation of an
   example, invented facts about Dev). Refused → one second try (`comment`: the profile again + why), else no
@@ -130,13 +133,15 @@ Every profile, both kinds:
 the new file). No `report`: its numbers mix preference versions. End: summary of the changes, prompt/code issues
 into #66 (neutral wording).
 
-**Session 2+ (session 3 next), measure:** `preferences.md` frozen. Note the first shadow row id. Step 3's proposals go into
+**Session 2+ (session 5 next), measure:** `preferences.md` frozen. Note the first shadow row id. Step 3's proposals go into
 `data/screener/session-<N>.md` (host only), not into the preferences. Continue on the next days with the same frozen
 file until ≥ 50 profiles (`GATE_PROFILES`). End: `report --since <first row id>` (this session's rows and their shadow calls only; when preferences or the decide
 code changed mid-session, one report per part with `--until <last row id>`; the bot's `uncovered`
 list feeds the proposals), evaluate, then show Dev the
 proposed preference changes as a diff. Dev decides: good enough → automate (step 3), or another measure session
-with the changes applied.
+with the changes applied. Session 4 (#130–#175, 2026-11-23/24): agreement 36/43 = 84 %, the bot's comment sent as
+written 2/7; changes applied after it (preferences + 2712e4e, bf52406, 42ad83b, fb895d8).
+Screenshots (`--cmd shots`, sent to Dev) only while Dev is away from the phone; back home he looks himself.
 
 ## Chat flow (step 4, #77)
 
