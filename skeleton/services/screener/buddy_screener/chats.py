@@ -22,11 +22,11 @@ from pathlib import Path
 
 from . import screens
 from . import vocab as v
-from .chat import (CLOSED, DONE, FOREIGN, HANDOVER, MANUAL, NEW, OPEN, THEM, US, Action, Chat, ChatFlow, ChatLimits,
-                   Message, guess_lang)
+from .chat import (CLOSED, DONE, FOREIGN, HANDOVER, LIKED, MANUAL, NEW, OPEN, THEM, US, Action, Chat, ChatFlow,
+                   ChatLimits, Message, guess_lang)
 from .decide import BudgetSpent, DecideError, UsageLimited, profile_text
 from .library import ChatRules, Contacts, LibraryError
-from .navigator import ChatRow, Navigator, NeedsYou
+from .navigator import ChatRow, Navigator, NeedsYou, same_chat
 from .store import Store
 
 OFF, HOLD, LIVE = "off", "hold", "live"
@@ -141,7 +141,7 @@ class ChatDriver:
         for row in self.nav.matches():
             if row.name in ignore:
                 continue
-            chat = self.store.chat(row.key)
+            chat = self._known(row)
             if chat is not None and not self._wants(chat, row):
                 continue
             self.nav.open_chat(row.key)
@@ -158,6 +158,14 @@ class ChatDriver:
         """Out of the chat, if still in it (an unmatch already left it)."""
         if self.nav.stable().kind in (screens.Kind.CHAT, screens.Kind.CHAT_PROFILE):
             self.nav.leave_chat()
+
+    def _known(self, row: ChatRow) -> Chat | None:
+        """The chat of this row: by its key, or the same name with a thumbnail hash a few bits off (a crop can shift
+        by a pixel between passes: a known chat must never look new, it would turn `foreign`)."""
+        if (chat := self.store.chat(row.key)) is not None:
+            return chat
+        near = [c for c in self.store.chats() if c.state != LIKED and same_chat(c.key, row.key)]
+        return near[0] if len(near) == 1 else None
 
     def _wants(self, chat: Chat, row: ChatRow) -> bool:
         """Open this chat? She wrote, or a timer is due. Ended chats never."""

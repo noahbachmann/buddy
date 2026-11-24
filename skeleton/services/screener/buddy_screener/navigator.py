@@ -102,6 +102,17 @@ class ChatRow:
     section: str             # screens.YOUR_TURN | THEIR_TURN | ""
 
 
+KEY_HASH_MAX = 6   # bits a row's thumbnail hash may differ and still be the same chat (a crop shifted by a pixel)
+
+
+def same_chat(a: str, b: str) -> bool:
+    """Two row keys (name#hash, or a bare name without a hasher) of the same chat."""
+    if a == b:
+        return True
+    (na, _, ha), (nb, _, hb) = a.rpartition("#"), b.rpartition("#")
+    return bool(na) and na == nb and bool(ha) and bool(hb) and hash_distance(ha, hb) <= KEY_HASH_MAX
+
+
 def _norm(text: str) -> str:
     return " ".join(text.split())
 
@@ -624,15 +635,17 @@ class Navigator:
             return row.name
         return f"{row.name}#{self.hasher(shot, row.avatar)}"
 
-    def _open_their_turn(self, s: Screen, done: list[bool]) -> Screen:
+    def _open_their_turn(self, s: Screen, done: list[bool], at_end: bool = False) -> Screen:
         """"Their turn (N)" starts collapsed: tap it open (once per pass: a second tap would close it) when it has
-        chats, none of its rows show and there's room under it for one (an open one shows a row right under it)."""
+        chats, none of its rows show and there's room under it for one (an open one shows a row right under it).
+        `at_end`: the list can't scroll further, so nothing hides below the header: it's closed, room or not (a
+        short list keeps it on the tab bar, seen 2026-11-24)."""
         if done[0]:
             return s
         rows = screens.match_rows(s.root)
         bottom = min([t.node.bounds.top for t in s.tabs.values()] or [s.root.children[0].bounds.bottom])
         for h in screens.turn_headers(s.root):
-            if h.section == screens.THEIR_TURN and h.count and bottom - h.node.bounds.bottom > 100 \
+            if h.section == screens.THEIR_TURN and h.count and (at_end or bottom - h.node.bounds.bottom > 100) \
                     and not any(r.section == screens.THEIR_TURN for r in rows):
                 self.tap(s, h.node, "their turn header")
                 done[0] = True
@@ -660,7 +673,10 @@ class Navigator:
             self._swipe_screen(up=True)
             s = self._open_their_turn(self.expect(Kind.MATCHES), done)
             if _signature(s.root) == sig:
-                return
+                opened = self._open_their_turn(s, done, at_end=True)
+                if opened is s:
+                    return
+                s = opened   # the end showed a closed "Their turn": its rows come next
         raise self.needs_you("matches list has no end")
 
     def matches(self) -> list[ChatRow]:
@@ -676,7 +692,7 @@ class Navigator:
         """Opens the chat of the row with this key (marks it read in the app; the app has no read receipts)."""
         for s, rows in self._match_pages():
             for k, r in rows:
-                if k == key:
+                if k is not None and same_chat(k, key):
                     self.tap(s, r.node, "match row")
                     c = self.wait_for(lambda x: x.kind is Kind.CHAT, "chat")
                     if screens.chat_view(c.root).name != r.name:

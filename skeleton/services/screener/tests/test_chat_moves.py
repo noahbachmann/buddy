@@ -4,7 +4,7 @@ import pytest
 
 from buddy_screener import screens
 from buddy_screener import vocab as v
-from buddy_screener.navigator import Navigator, NeedsYou, stitch
+from buddy_screener.navigator import Navigator, NeedsYou, same_chat, stitch
 from buddy_screener.screens import Kind, Message
 from fake_chat_phone import PROFILE, FakeChatPhone
 from fixture_files import PACKAGE
@@ -133,3 +133,18 @@ def test_turn_header_is_tappable_menu_rows_are_not():
     their = [h for h in screens.turn_headers(s.root) if h.section == screens.THEIR_TURN][0]
     assert screens.tappable(s, their.node)
     assert v.MENU_UNMATCH in v.MENU_ITEMS
+
+
+def test_same_chat_allows_a_few_bits_of_thumbnail_drift():
+    assert same_chat("Alex#00ff", "Alex#00ff") and same_chat("Alex#00ff", "Alex#00fe")
+    assert not same_chat("Alex#00ff", "Sam#00ff") and not same_chat("Alex#0000", "Alex#ffff")
+    assert same_chat("Alex", "Alex") and not same_chat("Alex", "Alex#00ff")
+
+
+def test_a_closed_their_turn_on_a_short_list_is_opened_at_its_end():
+    # the list doesn't scroll (only the header on the tab bar): opened at the end of the pass anyway
+    phone = FakeChatPhone("matches-turns")
+    phone.swipe = lambda x, y1, y2, ms: phone.actions.append(("swipe", phone.screen, y1 - y2, x))
+    rows = nav(phone).matches()
+    assert [a for a in phone.actions if a[0] == "tap"] == [("tap", "matches-turns", "Their turn (1)")]
+    assert rows[-1].section == screens.THEIR_TURN
