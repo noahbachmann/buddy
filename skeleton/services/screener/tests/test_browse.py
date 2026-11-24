@@ -181,3 +181,13 @@ def test_parse_range():
     assert browse.parse_range("10-18", "X") == (10.0, 18.0)
     with pytest.raises(ValueError):
         browse.parse_range("18-10", "X")
+
+
+def test_rows_lists_unlabelled_dry_rows(tmp_path):
+    from buddy_screener.main import dry_rows
+    r = Rig(tmp_path, SKIP)
+    r.b.step()
+    out = dry_rows(r.store, tmp_path)
+    assert out[0].startswith("#1 ") and "bot skip: 2 pages in" in out[0] and any("reason: generic" in x for x in out)
+    r.store.label(1, {"decision": "skip"})
+    assert dry_rows(r.store, tmp_path) == ["no unlabelled dry rows"]

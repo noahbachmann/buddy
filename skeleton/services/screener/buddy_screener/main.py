@@ -18,6 +18,8 @@ Shadow mode (step 2; only skip/send act, and only on Dev's label; details in sha
     --cmd skip <id>               carry out Dev's skip (or unjudged) label: skip that profile (the captured one only)
     --cmd send <id>               carry out Dev's like label: send the typed comment (upsell → plain like, never paid)
     --cmd report [--since <id>] [--until <id>]   step 2's done-when numbers, missing comments, usage (rows in range)
+    --cmd rows                    the dry loop's unlabelled rows (#80, session 5): summary + screenshot pages (tmpfs,
+                                  deleted when the row is labelled)
 Chat sim (step 4, #77; no phone, real chat calls with sentinel contacts, transcripts to tmpfs):
     --sim [--case NAME …]         the scripted cases (all, or the named ones) and the gate report
     --sim --personas N [--case all]  N persona chats (a model plays her), with or without the cases
@@ -36,7 +38,7 @@ from pathlib import Path
 from buddy_shared import lifecycle, systemd, topics
 from buddy_shared.mqtt import Mqtt
 
-from . import likes, screens, vocab
+from . import browse, likes, screens, vocab
 from .config import Config
 from .decide import DecideConfig, DecideError, Decider
 from .device import OUR_IME, AdbError, Device, Stopped
@@ -71,6 +73,21 @@ def _decider(cfg: Config, store: Store) -> Decider:
 def like_status(cfg: Config, store: Store) -> likes.LikeStatus:
     now = time.time()
     return likes.status(store.actions(now - 7 * likes.DAY), now, cfg.daily_likes, cfg.likes_24h)
+
+
+def dry_rows(store: Store, tmp_dir: Path) -> list[str]:
+    """The dry loop's rows Dev hasn't labelled yet (session 5): what the bot did, its summary, the screenshot pages."""
+    out = []
+    for r in store.shadow():
+        if r.bot.get("run") != browse.DRY or r.dev:
+            continue
+        d = browse.rows_dir(tmp_dir) / str(r.id)
+        pages = sorted(d.glob("page-*.jpg")) if d.is_dir() else []
+        out.append(f"#{r.id} {time.strftime('%m-%d %H:%M', time.localtime(r.ts))} bot {r.bot['decision']}: "
+                   + (f"{len(pages)} pages in {d}" if pages else "no pages (tmpfs cleared?)"))
+        if (d / "describe.txt").exists():
+            out += ["  " + x for x in (d / "describe.txt").read_text().splitlines()[1:]]
+    return out or ["no unlabelled dry rows"]
 
 
 def _ensure_our_ime(dev: Device) -> None:
@@ -156,6 +173,9 @@ def cmd_shadow(cfg: Config, args: argparse.Namespace) -> int:
         print(f"{len(lib.like_comments)} like comments ok; voice: "
               + (f"{len(lib.voice.splitlines())} lines" if lib.voice else "missing (## Voice in templates.md)"))
         return 0
+    if args.cmd == "rows":
+        print("\n".join(dry_rows(store, cfg.tmp_dir)))
+        return 0
     if args.cmd == "report":
         rows, usage = shadow.session_rows(store.shadow(), store.usage_rows, args.since, args.until)
         print("\n".join(shadow.report(rows, usage)))
@@ -179,6 +199,7 @@ def cmd_shadow(cfg: Config, args: argparse.Namespace) -> int:
             print(f"label: {e}", file=sys.stderr)
             return 2
         store.label(row_id, dev_label)
+        browse.drop_pages(cfg.tmp_dir, row_id)   # a dry row's screenshots: only until it's labelled
         print(f"#{row_id} labelled: {dev_label['decision']}"
               + (f" {dev_label['comment_on']} / {dev_label['comment']}" if dev_label["decision"] == "like" else ""))
         st = like_status(cfg, store)
@@ -244,7 +265,7 @@ def cmd_shadow(cfg: Config, args: argparse.Namespace) -> int:
 
 
 def offline(cfg: Config, args: argparse.Namespace) -> int:
-    if args.cmd in ("templates", "report", "label", "shadow", "type", "skip", "send"):
+    if args.cmd in ("templates", "rows", "report", "label", "shadow", "type", "skip", "send"):
         try:
             return cmd_shadow(cfg, args)
         except LibraryError as e:
@@ -380,7 +401,7 @@ def main() -> int:
     p = argparse.ArgumentParser(prog="buddy-screener")
     p.add_argument("--cmd", help="screen | dump [name] | fixture <out> <xml…> | profile | back-out | walk | templates | shots [dir]"
                                  " | shadow | label <id> like|skip|unjudged [section comment] | type <id> | skip <id>"
-                                 " | send <id> | report")
+                                 " | send <id> | report | rows")
     p.add_argument("--show", action="store_true", help="profile: print texts (host terminal only)")
     p.add_argument("--since", type=int, help="report: only shadow rows from this id on (one session)")
     p.add_argument("--until", type=int, help="report: only shadow rows up to this id (a part of a session)")
