@@ -275,9 +275,9 @@ TEST(Chat, Cancel) {
     chat.command(ask("c", "Noted?", {"y"}), t0);
     phone.deliver(chat);
     chat.command(Cancel{"c", "▶ resumed"}, t0);
-    phone.deliver(chat);
-    ASSERT_EQ(phone.edits.size(), 2u);
-    EXPECT_EQ(phone.edits[1].text, "❓ Noted?\n\n▶ resumed");
+    phone.deliver(chat);  // deliver() keeps only this round's edits
+    ASSERT_EQ(phone.edits.size(), 1u);
+    EXPECT_EQ(phone.edits[0].text, "❓ Noted?\n\n▶ resumed");
 }
 
 TEST(Chat, MessageTelegramRefusesFailsTheQuestion) {
