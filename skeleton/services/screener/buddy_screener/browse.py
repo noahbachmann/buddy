@@ -20,7 +20,7 @@ from typing import Any
 from . import likes, shadow
 from .decide import BudgetSpent, DecideError, UsageLimited
 from .device import AdbError, Stopped
-from .library import Library
+from .library import Library, LibraryError
 from .navigator import Navigator, NeedsYou, OutOfLikes
 from .store import Store
 
@@ -35,6 +35,7 @@ HOLD_WOULD_LIKE = "would_like"
 HOLD_SCREEN = "screen"
 HOLD_LIKES = "likes"
 HOLD_DECIDE = "decide"
+HOLD_FILES = "files"   # preferences.md / templates.md refused
 
 DECIDE_FAILURES = 3   # decisions failing in a row (timeouts, no answer) before Dev is asked
 
@@ -167,7 +168,10 @@ class Browser:
 
     def _profile(self, st: likes.LikeStatus) -> float:
         self._set(BROWSING)
-        lib = self.load_lib()
+        try:
+            lib = self.load_lib()
+        except LibraryError as e:
+            return self._hold(HOLD_FILES, f"library: {e}")
         try:
             r = shadow.judge(self.nav, self.decider, lib, self.store, self.tmp_dir, run=self.cfg.mode)
         except UsageLimited as e:

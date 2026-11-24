@@ -141,13 +141,23 @@ class Config:
         run = os.environ.get("XDG_RUNTIME_DIR") or f"/tmp/screener-{os.getuid()}"
         return Path(run) / "screener"
 
-    def mode(self) -> str:
-        return "stopped" if self.stop_file.exists() else "paused" if self.pause_file.exists() else "active"
+    @property
+    def needs_you_file(self) -> Path:
+        """The loop holds for Dev (#80): JSON {kind, row, ask}; `resume` removes it."""
+        return self.data_dir / "needs_you"
 
-    def guard(self, running=lambda: True) -> None:
-        """Before every input action on the phone."""
+    def mode(self) -> str:
+        if self.stop_file.exists():
+            return "stopped"
+        if self.needs_you_file.exists():
+            return "needs_you"
+        return "paused" if self.pause_file.exists() else "active"
+
+    def guard(self, running=lambda: True, hold_ok: bool = False) -> None:
+        """Before every input action on the phone. `hold_ok`: Dev's own commands work while the loop holds for Dev
+        (that's how Dev handles a held profile); the loop's don't."""
         if not running():
             raise Stopped("shutting down")
         mode = self.mode()
-        if mode != "active":
+        if mode != "active" and not (hold_ok and mode == "needs_you"):
             raise Stopped(mode)

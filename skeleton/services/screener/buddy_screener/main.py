@@ -24,14 +24,16 @@ Chat sim (step 4, #77; no phone, real chat calls with sentinel contacts, transcr
     --sim [--case NAME …]         the scripted cases (all, or the named ones) and the gate report
     --sim --personas N [--case all]  N persona chats (a model plays her), with or without the cases
 
-Service (no flags): retained state, `stop|pause|resume` on buddy/screener/cmd, phone check. Step 1 acts on nothing
-by itself; browsing and chats come in later steps.
+Service (no flags): retained state, `stop|pause|resume` on buddy/screener/cmd, phone check, and the browse loop
+(#80, browse.py) when BUDDY_SCREENER_BROWSE is dry or live: holds go to Dev's Telegram (hub.py), Dev's Resume/Stop
+answers come back. Chats come in a later step.
 """
 
 import argparse
 import json
 import queue
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -51,8 +53,9 @@ from .store import Store
 TEST_TEXT = "Test äöü ß – ok"   # typed into a comment field and read back, never sent
 
 
-def _device(cfg: Config) -> Device:
-    return Device(cfg.serial, guard=lambda: cfg.guard(lifecycle.running))
+def _device(cfg: Config, hold_ok: bool = True) -> Device:
+    """`hold_ok`: Dev's commands work while the loop holds for Dev; the loop's own device has it off."""
+    return Device(cfg.serial, guard=lambda: cfg.guard(lifecycle.running, hold_ok))
 
 
 def _navigator(cfg: Config, dev: Device) -> Navigator:
@@ -330,17 +333,47 @@ def offline(cfg: Config, args: argparse.Namespace) -> int:
 
 
 def service(cfg: Config) -> int:
+    """Phone check, retained state, `stop|pause|resume`, Dev's Telegram answers; the browse loop (#80) on a worker
+    thread (a profile takes ~2 min: the watchdog and MQTT stay on this one)."""
+    from .browse import Browser
+    from .hub import Hub
+
     dev = _device(cfg)
     events: queue.Queue = queue.Queue()
     mqtt = Mqtt("screener")
-    mqtt.subscribe(topics.screener_cmd, lambda _t, payload: events.put(payload))
+    mqtt.subscribe(topics.screener_cmd, lambda _t, payload: events.put(("cmd", payload)))
+    mqtt.subscribe(topics.messenger_event, lambda _t, payload: events.put(("answer", payload)))
     if not mqtt.start():
         return 0
+    hub = Hub(cfg, lambda topic, msg: events.put(("publish", (topic, msg))))
+    store = Store(cfg.db_path)
+    wake = threading.Event()
+    browser = None
+    if cfg.browse != "off":
+        def worker() -> None:
+            wdev = _device(cfg, hold_ok=False)
+            wstore = Store(cfg.db_path)   # sqlite: one connection per thread
+            b = Browser(cfg.browse_config(), _navigator(cfg, wdev), _decider(cfg, wstore),
+                        lambda: Library.load(cfg.config_dir), wstore, cfg.tmp_dir, hold=hub.hold, notify=hub.notify,
+                        mode=cfg.mode, pages=_shot_pages, log=mqtt.log)
+            nonlocal browser
+            browser = b
+
+            def wait(seconds: float) -> None:
+                wake.wait(seconds)
+                wake.clear()
+            try:
+                b.run(lifecycle.running, wait, on_state=lambda: events.put(("state", None)))
+            except Exception as e:   # noqa: BLE001: the service stays up (state, stop/resume); Dev looks
+                mqtt.log(f"browse loop died: {type(e).__name__}: {e}")
+                events.put(("died", None))
+        threading.Thread(target=worker, name="browse", daemon=True).start()
 
     published = None
     reason = ""
     next_check = 0.0
     phone = "?"
+    died = False
     while lifecycle.running():
         systemd.notify_watchdog()
         if time.monotonic() >= next_check:
@@ -351,22 +384,37 @@ def service(cfg: Config) -> int:
                 except AdbError:
                     phone = "offline"
             next_check = time.monotonic() + cfg.check_s
-        state = {"state": {"active": "idle"}.get(cfg.mode(), cfg.mode()), "phone": phone}
+        state = state_payload(cfg, store, browser, phone, died)
         if reason:
             state["reason"] = reason
         if state != published:
             mqtt.publish(topics.screener_state, json.dumps(state), qos=1, retain=True)
-            mqtt.log(f"state {state['state']}, phone {phone}")
+            if published is None or (state["state"], phone) != (published["state"], published["phone"]):
+                mqtt.log(f"state {state['state']}, phone {phone}")
             published = state
         try:
-            payload = events.get(timeout=5)
+            kind, payload = events.get(timeout=5)
         except queue.Empty:
             continue
+        if kind == "publish":
+            mqtt.publish(payload[0], json.dumps(payload[1]), qos=1)
+            continue
+        if kind == "died":
+            died = True
+            continue
+        if kind == "state":
+            continue
         try:
-            action = json.loads(payload).get("action", "")
-        except (ValueError, AttributeError):
-            action = ""
-        reason = handle(cfg, dev, action) or ""
+            msg = json.loads(payload)
+        except ValueError:
+            msg = {}
+        if not isinstance(msg, dict):
+            msg = {}
+        action = msg.get("action", "") if kind == "cmd" else hub.answer(msg)
+        if action is None:
+            continue
+        reason = handle(cfg, dev, action, hub) or ""
+        wake.set()
         next_check = 0.0
     published = {"state": "offline", "phone": phone}
     mqtt.publish(topics.screener_state, json.dumps(published), qos=1, retain=True)
@@ -374,8 +422,36 @@ def service(cfg: Config) -> int:
     return 0
 
 
-def handle(cfg: Config, dev: Device, action: str) -> str | None:
-    """stop: the stop file (survives restarts); pause: Dev uses the phone (stock keyboard); resume: both off."""
+def _shot_pages(shots: list) -> list[bytes]:
+    from .imaging import shot_pages
+    return shot_pages(shots)
+
+
+def state_payload(cfg: Config, store: Store, browser, phone: str, died: bool = False) -> dict:
+    """buddy/screener/state: counts and kinds only, never names or texts (the panel has no login, D19)."""
+    from .browse import today
+    mode = cfg.mode()
+    st = like_status(cfg, store)
+    out = {"state": mode if mode != "active" else "idle", "mode": cfg.browse, "phone": phone,
+           "today": today(store, time.time()) | {"likes_left": st.left, "likes_max": cfg.daily_likes}}
+    if died:
+        out["state"] = "failed"
+    elif browser is not None and mode == "active":
+        ls = browser.state
+        out["state"] = ls.state
+        if ls.until:
+            out["until"] = round(ls.until)
+    if browser is not None:
+        if browser.state.last:
+            out["last"] = browser.state.last
+        if mode == "needs_you" and browser.state.reason:
+            out["hold"] = browser.state.reason
+    return out
+
+
+def handle(cfg: Config, dev: Device, action: str, hub=None) -> str | None:
+    """stop: the stop file (survives restarts); pause: Dev uses the phone (stock keyboard); resume: all off, also a
+    hold for Dev (#80: the loop goes on)."""
     cfg.config_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     cfg.data_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     try:
@@ -388,6 +464,10 @@ def handle(cfg: Config, dev: Device, action: str) -> str | None:
         elif action == "resume":
             cfg.stop_file.unlink(missing_ok=True)
             cfg.pause_file.unlink(missing_ok=True)
+            if hub is not None:
+                hub.resumed()
+            else:
+                cfg.needs_you_file.unlink(missing_ok=True)
             _ensure_our_ime(dev)
         else:
             return f"unknown action {action[:20]!r}"
