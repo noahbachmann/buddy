@@ -168,7 +168,7 @@ def test_tabs_matches_chat_and_back():
     n = nav(phone)
     assert n.go_tab(v.TAB_LIKES).kind is Kind.LIKES
     n.go_tab(v.TAB_MATCHES)
-    c = n.open_chat(0)
+    c = n.open_chat(n.matches()[0].key)
     assert c.kind is Kind.CHAT
     assert n.go_tab(v.TAB_DISCOVER).kind is Kind.FEED   # leaves the chat by its back button first
     assert ("tap", "chat", "Back") in phone.actions

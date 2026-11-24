@@ -94,6 +94,31 @@ def _clear_start(view: ProfileView, x: int, y: int, up: bool) -> int:
     return vp.bottom - 150 if up else vp.top + 150
 
 
+@dataclass
+class ChatRow:
+    key: str                 # name + thumbnail hash
+    name: str
+    last: str
+    section: str             # screens.YOUR_TURN | THEIR_TURN | ""
+
+
+def _norm(text: str) -> str:
+    return " ".join(text.split())
+
+
+def stitch(pages: list[list[screens.Message]]) -> list[screens.Message]:
+    """Pages of one chat, top to bottom, overlapping: each next page joined on the longest run that ends the text so
+    far and starts it (side, sender, text, media; positions differ between pages)."""
+    def k(m: screens.Message) -> tuple:
+        return m.side, m.sender, m.text, m.media
+    out: list[screens.Message] = []
+    for page in pages:
+        keys, new = [k(m) for m in out], [k(m) for m in page]
+        n = next((n for n in range(min(len(keys), len(new)), 0, -1) if keys[-n:] == new[:n]), 0)
+        out += page[n:]
+    return out
+
+
 def _signature(root: Node) -> tuple:
     """What a still screen keeps between dumps; a playing video's clock is left out (it ticks every second)."""
     return tuple((n.cls, n.desc, n.text, n.rid, n.bounds, n.selected) for n in root.iter()
@@ -111,6 +136,8 @@ class Navigator:
     pause: Callable[[float], object] = human_pause
     log: Callable[[str], None] = print
     last: Screen | None = field(default=None, init=False)
+    where: Kind = field(default=Kind.FEED, init=False)   # where a profile is read: the feed or a chat's Profile tab
+    _chat_name: str = field(default="", init=False)
     _xml: str = field(default="", init=False)
     _earlier: list[str] = field(default_factory=list, init=False)   # the last distinct dumps before `_xml`
 
@@ -215,8 +242,10 @@ class Navigator:
         s = self.ensure_app()
         if s.kind is Kind.SHEET:
             raise self.needs_you("comment sheet open: back out first")
-        if s.kind is Kind.CHAT:
+        if s.kind in (Kind.CHAT, Kind.CHAT_PROFILE):
             s = self.leave_chat()
+        if s.kind is Kind.CHAT_MENU:
+            raise self.needs_you("a chat's menu is open")
         if s.selected_tab == name:
             return s
         tab = s.tabs.get(name)
@@ -242,8 +271,8 @@ class Navigator:
         self.pause(0.6)
 
     def _profile(self) -> tuple[Screen, ProfileView]:
-        s = self.expect(Kind.FEED)
-        return s, screens.profile_view(s.root)
+        s = self.expect(self.where)
+        return s, screens.profile_view(s.root, self._chat_name if self.where is Kind.CHAT_PROFILE else None)
 
     def _profile_past(self, view: ProfileView, delta: int) -> tuple[Screen, ProfileView, int]:
         """`_profile()` after a swipe by `delta`. An autoplaying video keeps the screen from ever being idle, so
@@ -578,16 +607,180 @@ class Navigator:
 
     # --- matches and chat ---
 
-    def open_chat(self, index: int = 0) -> Screen:
-        """Opens the n-th visible row of the matches list (marks the chat read in the app)."""
-        s = self.expect(Kind.MATCHES)
+    # --- chats (#77) ---
+
+    def _swipe_screen(self, up: bool) -> None:
+        """A list swipe in the middle of the screen (matches list, chat): `up` = content moves up (further down)."""
+        w, h = self.dev.size()
+        a, b = int(h * 0.62), int(h * 0.32)
+        self.dev.swipe(w // 2, a if up else b, b if up else a, SWIPE_MS)
+        self.pause(0.6)
+
+    def _row_key(self, row: screens.MatchRow, shot: Any) -> str | None:
+        """name + the thumbnail's hash: two matches may share a name. A cut thumbnail → None (read it elsewhere)."""
+        if row.avatar is None:
+            return None
+        if self.hasher is None or shot is None:
+            return row.name
+        return f"{row.name}#{self.hasher(shot, row.avatar)}"
+
+    def _open_their_turn(self, s: Screen, done: list[bool]) -> Screen:
+        """"Their turn (N)" starts collapsed: tap it open (once per pass: a second tap would close it) when it has
+        chats, none of its rows show and there's room under it for one (an open one shows a row right under it)."""
+        if done[0]:
+            return s
         rows = screens.match_rows(s.root)
-        if index >= len(rows):
-            raise self.needs_you(f"no match row {index + 1}")
-        self.tap(s, rows[index].node, "match row")
-        return self.wait_for(lambda x: x.kind is Kind.CHAT, "chat")
+        bottom = min([t.node.bounds.top for t in s.tabs.values()] or [s.root.children[0].bounds.bottom])
+        for h in screens.turn_headers(s.root):
+            if h.section == screens.THEIR_TURN and h.count and bottom - h.node.bounds.bottom > 100 \
+                    and not any(r.section == screens.THEIR_TURN for r in rows):
+                self.tap(s, h.node, "their turn header")
+                done[0] = True
+                return self.expect(Kind.MATCHES)
+        return s
+
+    def _matches_top(self) -> Screen:
+        s = self.go_tab(v.TAB_MATCHES)
+        for _ in range(MAX_SWIPES):
+            sig = _signature(s.root)
+            self._swipe_screen(up=False)
+            s = self.expect(Kind.MATCHES)
+            if _signature(s.root) == sig:
+                return s
+        raise self.needs_you("matches list doesn't scroll back to its top")
+
+    def _match_pages(self):
+        """The matches list page by page from its top: (screen, rows with keys)."""
+        done = [False]
+        s = self._open_their_turn(self._matches_top(), done)
+        for _ in range(MAX_SWIPES):
+            shot = self.dev.screencap() if self.hasher is not None else None
+            yield s, [(self._row_key(r, shot), r) for r in screens.match_rows(s.root)]
+            sig = _signature(s.root)
+            self._swipe_screen(up=True)
+            s = self._open_their_turn(self.expect(Kind.MATCHES), done)
+            if _signature(s.root) == sig:
+                return
+        raise self.needs_you("matches list has no end")
+
+    def matches(self) -> list[ChatRow]:
+        """Every row of the matches list, top to bottom, keyed."""
+        out: dict[str, ChatRow] = {}
+        for _, rows in self._match_pages():
+            for key, r in rows:
+                if key is not None and key not in out:
+                    out[key] = ChatRow(key, r.name, r.last, r.section)
+        return list(out.values())
+
+    def open_chat(self, key: str) -> Screen:
+        """Opens the chat of the row with this key (marks it read in the app; the app has no read receipts)."""
+        for s, rows in self._match_pages():
+            for k, r in rows:
+                if k == key:
+                    self.tap(s, r.node, "match row")
+                    c = self.wait_for(lambda x: x.kind is Kind.CHAT, "chat")
+                    if screens.chat_view(c.root).name != r.name:
+                        raise self.needs_you("the chat opened isn't the row tapped")
+                    return c
+        raise self.needs_you("the chat's row is gone from the matches list")
 
     def leave_chat(self) -> Screen:
-        s = self.expect(Kind.CHAT)
+        s = self.expect(Kind.CHAT, Kind.CHAT_PROFILE)
         self.tap(s, screens.chat_view(s.root).back, "chat back")
-        return self.wait_for(lambda x: x.kind is not Kind.CHAT, "leaving the chat")
+        return self.wait_for(lambda x: x.kind not in (Kind.CHAT, Kind.CHAT_PROFILE), "leaving the chat")
+
+    def _chat_bottom(self) -> Screen:
+        s = self.expect(Kind.CHAT)
+        for _ in range(MAX_SWIPES):
+            sig = _signature(s.root)
+            self._swipe_screen(up=True)
+            s = self.expect(Kind.CHAT)
+            if _signature(s.root) == sig:
+                return s
+        raise self.needs_you("chat has no end")
+
+    def read_chat(self) -> tuple[list[screens.Message], screens.Origin]:
+        """The whole chat, top to bottom: scrolls up until our like (the chat's head) shows, stitches the pages,
+        then back down (a sent message shows at the bottom). Her texts live only in the returned list."""
+        s = self.expect(Kind.CHAT)
+        pages = [screens.chat_view(s.root)]
+        for _ in range(MAX_SWIPES):
+            if pages[-1].origin.comment or pages[-1].origin.liked_line:
+                break   # the head's anchor is on screen: nothing above it but the liked section's card
+            sig = _signature(s.root)
+            self._swipe_screen(up=False)
+            s = self.expect(Kind.CHAT)
+            if _signature(s.root) == sig:
+                break   # the top without a head: its card isn't recognised (the flow decides)
+            pages.append(screens.chat_view(s.root))
+        else:
+            raise self.needs_you("chat has no top")
+        msgs = stitch([p.messages for p in reversed(pages)])
+        if len(pages) > 1:
+            self._chat_bottom()
+        return msgs, pages[-1].origin
+
+    def chat_profile(self) -> Capture:
+        """Her profile from the chat's Profile tab (an old match has no decision to take it from), back on the chat
+        tab afterwards."""
+        s = self.expect(Kind.CHAT)
+        c = screens.chat_view(s.root)
+        self.tap(s, c.tab_nodes[v.CHAT_PROFILE_TAB], "chat profile tab")
+        self.wait_for(lambda x: x.kind is Kind.CHAT_PROFILE, "the chat's profile tab")
+        self.where, self._chat_name = Kind.CHAT_PROFILE, c.name
+        try:
+            cap = self.capture_profile()
+        finally:
+            self.where, self._chat_name = Kind.FEED, ""
+        s = self.expect(Kind.CHAT_PROFILE)
+        self.tap(s, screens.chat_view(s.root).tab_nodes[v.CHAT_TAB], "chat tab")
+        self.wait_for(lambda x: x.kind is Kind.CHAT, "the chat tab")
+        return cap
+
+    def type_message(self, text: str) -> None:
+        """Into the chat's field through our keyboard, read back: exactly `text` or NeedsYou. Never sends."""
+        s = self.expect(Kind.CHAT)
+        c = screens.chat_view(s.root)
+        if c.field is None:
+            raise self.needs_you("no message field")
+        self.tap(s, c.field, "message field")
+        self.pause(0.7)
+        before = self.dev.ime_read()
+        if not before.ok or before.text:
+            raise self.needs_you("the message field isn't empty")
+        r = self.dev.ime_type(text)
+        if not r.ok or r.text != text:
+            raise self.needs_you(f"typed message didn't land ({'ok' if r.ok else r.text}, {len(r.text)} chars)")
+        back = self.dev.ime_read()
+        if not back.ok or back.text != text:
+            raise self.needs_you("message read-back differs from the typed text")
+
+    def field_holds(self, text: str) -> bool:
+        """Does the chat's field still hold exactly `text` (typed and held: Dev may have changed it)?"""
+        r = self.dev.ime_read()
+        return r.ok and r.text == text
+
+    def clear_message(self) -> None:
+        self.dev.ime_clear()
+
+    def send_message(self, text: str) -> None:
+        """Sends the typed message: the field must read back `text`; done once it shows as our last message."""
+        if not self.field_holds(text):
+            raise self.needs_you("the message field doesn't hold the message")
+        s = self.expect(Kind.CHAT)
+        self._act(s, screens.chat_view(s.root).send, "send message")
+
+        def shown(x: Screen) -> bool:
+            if x.kind is not Kind.CHAT:
+                return False
+            ours = [m for m in screens.chat_view(x.root).messages if m.side == "right"]
+            return bool(ours) and _norm(ours[-1].text) == _norm(text)
+        self.wait_for(shown, "our message in the chat")
+
+    def unmatch(self) -> Screen:
+        """More → Unmatch on the open chat. A confirmation step (unseen yet, #77 step 9) stops with its dump."""
+        s = self.expect(Kind.CHAT)
+        self.tap(s, screens.chat_view(s.root).more, "More")
+        s = self.wait_for(lambda x: x.kind is Kind.CHAT_MENU, "the chat's menu")
+        self._act(s, screens.unmatch_item(s.root), "unmatch")
+        return self.wait_for(lambda x: x.kind is Kind.MATCHES, "the matches list after unmatching")

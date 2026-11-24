@@ -15,7 +15,7 @@ def screen(name: str) -> screens.Screen:
     *[(f, Kind.FEED) for f in FEED],
     ("sheet", Kind.SHEET), ("sheet-typed", Kind.SHEET), ("sheet-option", Kind.SHEET), ("sheet-option-typed", Kind.SHEET), ("feed-poll-all", Kind.FEED),
     ("likes", Kind.LIKES), ("matches", Kind.MATCHES), ("chat", Kind.CHAT), ("popup", Kind.POPUP),
-    ("matches-turns", Kind.MATCHES), ("matches-expanded", Kind.MATCHES), ("chat-comment", Kind.CHAT),
+    ("matches-turns", Kind.MATCHES), ("matches-expanded", Kind.MATCHES), ("matches-scrolled", Kind.MATCHES), ("chat-comment", Kind.CHAT),
     ("chat-comment-top", Kind.CHAT), ("chat-photo-comment", Kind.CHAT), ("chat-multiline", Kind.CHAT),
     *[(f"chat-profile-{i:02d}", Kind.CHAT_PROFILE) for i in range(1, 19)], ("chat-menu", Kind.CHAT_MENU),
 ])

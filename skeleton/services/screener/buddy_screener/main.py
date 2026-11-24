@@ -138,8 +138,10 @@ def cmd_walk(cfg: Config, dev: Device, nav: Navigator) -> None:
     print("likes:", screens.summary(s))
     s = nav.go_tab(vocab.TAB_MATCHES)
     print("matches:", screens.summary(s))
-    if screens.match_rows(s.root):
-        c = nav.open_chat(0)
+    rows = nav.matches()
+    print(f"matches: {len(rows)} chats")
+    if rows:
+        c = nav.open_chat(rows[0].key)
         chat = screens.chat_view(c.root)
         sides = {side: sum(m.side == side for m in chat.messages) for side in ("left", "right")}
         print(f"chat: {len(chat.messages)} messages ({sides['left']} theirs, {sides['right']} ours)"

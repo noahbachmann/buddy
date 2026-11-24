@@ -217,11 +217,15 @@ def _inside(n: Node, ancestor: Node) -> bool:
     return False
 
 
-def profile_view(root: Node) -> ProfileView:
-    """Sections, details and tap obstacles of the profile on screen (FEED or SHEET)."""
+CHAT_TOP_GAP = 40   # px of padding above the first content: the chat's Profile tab at its top (scrolled: flush)
+
+
+def profile_view(root: Node, name: str | None = None) -> ProfileView:
+    """Sections, details and tap obstacles of the profile on screen (FEED or SHEET; with `name` from the chat's header:
+    a chat's Profile tab, which has no skip button)."""
     box = _scroll_container(root)
-    skip = skip_button(root)
-    if box is None or skip is None:
+    skip = skip_button(root) if name is None else None
+    if box is None or (skip is None and name is None):
         raise ValueError("not a profile: no list or no skip button")
     vp = box.bounds
     sections: list[SectionView] = []
@@ -270,10 +274,18 @@ def profile_view(root: Node) -> ProfileView:
     # anchors for the shift (a poll's options are sections: they stay after its question scrolled off, 2026-11-21)
     texts = [SectionView("text", n.text, n.bounds, n.bounds.top <= vp.top, n.bounds.bottom >= vp.bottom, None)
              for n in box.iter() if not n.bounds.empty and n.cls == "TextView" and n.text]
-    name = v.SKIP.fullmatch(skip.desc).group(1).strip()   # app keeps a trailing space from the profile ("Skip Ana ")
-    # At the top of a profile the header is expanded and shows the name as text above the list (it collapses into
-    # the skip button's label once scrolled): the list can't move up, so whatever touches its top edge starts there.
-    at_top = root.first(lambda n: n.cls == "TextView" and n.text.strip() == name and not _inside(n, box)) is not None
+    if name is None:
+        name = v.SKIP.fullmatch(skip.desc).group(1).strip()   # app keeps a trailing space ("Skip Ana ")
+        # At the top of a profile the header is expanded and shows the name as text above the list (it collapses
+        # into the skip button's label once scrolled): the list can't move up, so whatever touches its top edge
+        # starts there.
+        at_top = root.first(lambda n: n.cls == "TextView" and n.text.strip() == name
+                            and not _inside(n, box)) is not None
+    else:
+        # the chat's Profile tab: its top keeps padding above the first content, a scrolled list cuts flush (#77)
+        tops = [n.bounds.top for n in box.iter() if n is not box and not n.bounds.empty
+                and (n.text or n.desc or n.children)]
+        at_top = bool(tops) and min(tops) - vp.top >= CHAT_TOP_GAP
     if at_top:
         for sv in sections + texts:
             sv.top_cut = False
@@ -543,7 +555,8 @@ def tappable(screen: Screen, node: Node) -> bool:
     if screen.kind is Kind.SHEET:
         return node.desc == v.EDIT_COMMENT
     if screen.kind is Kind.MATCHES:
-        return any(r.node is node for r in match_rows(screen.root))
+        return any(r.node is node for r in match_rows(screen.root)) or any(
+            h.node is node for h in turn_headers(screen.root))
     if screen.kind in (Kind.CHAT, Kind.CHAT_PROFILE):
         c = chat_view(screen.root)
         other = [n for t, n in c.tab_nodes.items() if t != c.tab and n.clickable]
