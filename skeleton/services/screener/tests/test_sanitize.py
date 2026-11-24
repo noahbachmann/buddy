@@ -36,6 +36,19 @@ def test_prompts_texts_and_dates_replaced():
     assert 'text="Like photo"' in out
 
 
+def test_chat_ui_strings_kept_names_and_captions_replaced():
+    # #77 walk: the matches list's sections, the chat header, the More menu, a photo caption on the Profile tab
+    out = sanitize(dump(node(text="Their turn (1)"),
+                        node(desc="Zoë, Verified"), node(desc="Verified"), node(desc="Record voice note"),
+                        node(desc="Press back to close"), node(text="Unmatch"), node(text="We Met"),
+                        node(desc="Photo prompt: My weekends"), node(desc="Languages Spoken")), PKG)
+    assert "Zoë" not in out and "My weekends" not in out
+    for kept in ('text="Their turn (1)"', 'content-desc="Alex, Verified"',
+                 'content-desc="Verified"', "Record voice note", "Press back to close", 'text="Unmatch"',
+                 'text="We Met"', "Photo prompt: Question 1", "Languages Spoken"):
+        assert kept in out
+
+
 def test_package_and_ids_replaced_defaults_dropped():
     out = sanitize(dump(node(rid=f"{PKG}:id/messageComposition")), PKG)
     assert PKG not in out and "realapp" not in out

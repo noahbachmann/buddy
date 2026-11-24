@@ -58,17 +58,29 @@ LIKES_HEADER = "Likes You"
 NO_LIKES = "No likes yet"                        # prefix of the empty state's title
 MATCHES_HEADER = "Matches"
 YOUR_TURN = re.compile(r"Your turn \((\d+)\)")
+THEIR_TURN = re.compile(r"Their turn \((\d+)\)")   # a collapsed section header (tap expands it): chats waiting on her
 
 # Chat (classic views with resource ids)
 CHAT_INPUT = "messageComposition"
 CHAT_SEND = "sendChatButtonContainer"
 CHAT_VOICE = "microphoneButton"                  # never tapped
+CHAT_VOICE_DESC = "Record voice note"
 CHAT_HEADER = "header"
 BACK = "Back"
 CHAT_TAB = "Chat"
 CHAT_PROFILE_TAB = "Profile"
 CHAT_HINT = "Send a message"
 DOUBLE_TAP_HINT = "Double tap to like a message"  # the bot never double-taps in a chat
+CHAT_NAME_VERIFIED = re.compile(r"(.+), Verified", re.S)   # the chat header's name with the verified badge
+VERIFIED_BADGE = "Verified"
+PHOTO_PROMPT = re.compile(r"Photo prompt: (.+)", re.S)    # a photo's caption (chat's Profile tab)
+# The chat's More menu (a popup list): only Unmatch is ever tapped, by the unmatch move
+MENU_HINT = "Press back to close"
+MENU_WE_MET = "We Met"
+MENU_UNMATCH = "Unmatch"
+MENU_HIDE = "Hide"
+MENU_REPORT = "Report"
+MENU_ITEMS = (MENU_WE_MET, MENU_UNMATCH, MENU_HIDE, MENU_REPORT)
 MESSAGE = re.compile(r" (.+?): (.*)\. ", re.S)   # " <name>: <text>. "
 MATCH_ORIGIN = re.compile(r"You liked (.+)'s (photo|prompt)\.", re.S)
 DATE_SEPARATOR = re.compile(
@@ -79,6 +91,7 @@ DATE_SEPARATOR = re.compile(
 DETAIL_LABELS = frozenset({
     "Age", "Gender", "Sexuality", "Height", "Job", "Work", "School", "Hometown", "Location", "Politics", "Religion",
     "Relationship Type", "Pronouns", "Children", "Family Plans", "Drinking", "Smoking", "Pets", "Languages",
+    "Languages Spoken",
     "Ethnicity", "Zodiac Sign",
 })
 
@@ -86,4 +99,5 @@ DETAIL_LABELS = frozenset({
 KEEP = frozenset({
     *TABS, *LIKE_BUTTONS, LIKE_VIDEO, *VIDEO_CONTROLS, *VOICE_CONTROLS, UNDO_SKIP, MORE, VERIFIED, EDIT_COMMENT, SEND_LIKE, SEND_LIKE_WITH,
     LIKES_HEADER, MATCHES_HEADER, CLOSE, SEND_ANYWAY, OUT_OF_LIKES, CLOSE_SHEET, BACK, CHAT_TAB, CHAT_PROFILE_TAB, CHAT_HINT, DOUBLE_TAP_HINT, PROMO_ACTION, *DETAIL_LABELS,
+    CHAT_VOICE_DESC, VERIFIED_BADGE, MENU_HINT, *MENU_ITEMS,
 })

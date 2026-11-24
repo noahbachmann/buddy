@@ -48,7 +48,7 @@ class _Mapper:
 
     def collect(self, s: str) -> None:
         """First pass: names from the patterns that carry them."""
-        for rx in (v.SKIP, v.PHOTO, v.VIDEO, v.MATCH_ORIGIN):
+        for rx in (v.SKIP, v.PHOTO, v.VIDEO, v.MATCH_ORIGIN, v.CHAT_NAME_VERIFIED):
             if (m := rx.fullmatch(s)) is not None:
                 self.name(m.group(1))
         if (m := v.MESSAGE.fullmatch(s)) is not None:
@@ -59,8 +59,12 @@ class _Mapper:
             return s
         if (m := v.TAB_BADGE.search(s)) and s.split(",", 1)[0] in v.TABS:
             return s
-        if v.YOUR_TURN.fullmatch(s):
+        if v.YOUR_TURN.fullmatch(s) or v.THEIR_TURN.fullmatch(s):
             return s
+        if (m := v.CHAT_NAME_VERIFIED.fullmatch(s)) is not None:
+            return f"{self.name(m.group(1))}, Verified"
+        if (m := v.PHOTO_PROMPT.fullmatch(s)) is not None:
+            return f"Photo prompt: {self.placeholder(m.group(1), 'Question')}"
         if s.startswith(v.NO_LIKES):
             return v.NO_LIKES
         if (m := v.SKIP.fullmatch(s)) is not None:
