@@ -526,3 +526,12 @@ def test_a_poll_option_can_be_liked_with_a_comment():
     b = check_browse(raw(comment_on="option 2", comment_text="the hut, if it has a woodstove"), p, LIB)
     assert (b.comment_on, b.comment_text, b.fixes) == ("option 2", "the hut, if it has a woodstove", [])
     assert p.poll_of(p.find("option 2")).ref == "poll 1"
+
+
+def test_swiss_german_in_an_english_chat_only_if_she_speaks_german():
+    # Dev wrote Swiss German to English profiles of women who list German (#150, #159, #166)
+    p = profile()
+    raw_ = raw(prompt_langs=["en", "en"], comment_text="ich MUESS jedere Katz hoi sege", comment_lang="de-ch")
+    assert check_browse(raw_, p, LIB).comment_text == ""
+    p.details.append(("Languages Spoken", "English, German, Swedish"))
+    assert check_browse(raw_, p, LIB).comment_text == "ich MUESS jedere Katz hoi sege"

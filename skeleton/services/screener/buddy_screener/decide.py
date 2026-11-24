@@ -113,7 +113,8 @@ hobby, a past, something he owns or a shared interest ("a fellow …", "me too" 
 - `comment_lang`: the language `comment_text` is written in. The chat language (see Languages) decides: Swiss \
 German prompts → Swiss German dialect ("de-ch", as most examples are), standard German ("de") or English ("en"); \
 standard German prompts → standard German or English, never dialect (she's likely not from here, or says she \
-doesn't speak it); otherwise English.
+doesn't speak it); English prompts → English, or Swiss German when she lists German among her languages (the \
+owner often does that); otherwise English.
 - No good comment possible: `comment_text` "", `comment` "none", `missing_hook` says briefly what kind of comment \
 would fit (the hook and the tone), without quoting the profile. Otherwise `missing_hook` is "".
 - A skip: `comment_on` "none", `comment` "none", `comment_text` "", `comment_lang` "none", `missing_hook` "".
@@ -404,12 +405,19 @@ def copy_of(text: str, lib: Library) -> str | None:
     return None
 
 
+def speaks_german(p: Profile) -> bool:
+    """She lists German among her languages: Dev writes her in (Swiss) German even when her prompts are English
+    (#150, #159, #166)."""
+    return any("languages" in label.casefold() and re.search(r"\b(german|deutsch)\b", value, re.IGNORECASE)
+               for label, value in p.details)
+
+
 def comment_problem(text: str, lang: str, chat_lang: str, lib: Library,
-                    prompt_langs: list[str] | None = None) -> str | None:
+                    prompt_langs: list[str] | None = None, german: bool = False) -> str | None:
     """Why a written like comment must not go out (None = fine): code's checks, whatever the model was told."""
     if (why := refusal(text, comment_max(lib))) is not None:
         return why
-    allowed = ("de-ch", "de", "en") if chat_lang == "de" else ("en",)
+    allowed = ("de-ch", "de", "en") if chat_lang == "de" or german else ("en",)
     if lang not in allowed:
         return f"written in {lang[:10] or '?'} for a {chat_lang} chat"
     langs = prompt_langs or []
@@ -428,7 +436,7 @@ def settle_comment(b: Browse, text: str, leaned: str, lang: str, p: Profile, lib
     if not text:
         b.comment, b.comment_text = "none", ""
         return
-    if (why := comment_problem(text, lang, b.chat_lang, lib, b.prompt_langs)) is not None:
+    if (why := comment_problem(text, lang, b.chat_lang, lib, b.prompt_langs, speaks_german(p))) is not None:
         b.comment_refused.append(why)
         b.comment, b.comment_text = "none", ""
         return
