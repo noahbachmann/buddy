@@ -141,7 +141,8 @@ module cover_boss_local() let(w = cover_boss[0]) hull() {
 // Nut pocket, open towards +u; its floor (in use) is a 45° V: in print that's the roof, no bridge.
 module cover_boss_cut_local() {
   translate([0, 0, z_lid1 - 1]) cylinder(d = m3_clear, h = cb_full - z_lid1);
-  translate([-nut_slot[0] / cos(30) / 2, 0, 0]) rotate([90, 0, 90]) linear_extrude(big)
+  // only through the boss: an endless pocket ran on through the cover's far wall
+  translate([-nut_slot[0] / cos(30) / 2, 0, 0]) rotate([90, 0, 90]) linear_extrude(nut_slot[0] / cos(30) / 2 + cover_boss[0] / 2 + 1)
     polygon([[-nut_slot[0] / 2, cb_nut + nut_slot[1]], [-nut_slot[0] / 2, cb_nut], [0, cb_nut - nut_slot[0] / 2],
              [nut_slot[0] / 2, cb_nut], [nut_slot[0] / 2, cb_nut + nut_slot[1]]]);
 }
