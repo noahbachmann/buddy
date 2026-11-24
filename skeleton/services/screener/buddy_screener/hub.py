@@ -13,6 +13,7 @@ from typing import Any
 from buddy_shared import topics
 
 from .browse import HOLD_DECIDE, HOLD_FILES, HOLD_LIKES, HOLD_SCREEN, HOLD_WOULD_LIKE
+from .chats import HOLD_CHAT_FILES, HOLD_CHAT_MESSAGE, HOLD_CHAT_SCREEN, HOLD_CHAT_UNMATCH
 from .config import Config
 
 OPTIONS = ["Resume", "Stop"]
@@ -31,6 +32,17 @@ HOLD_TEXT = {
                  "To do: usually the plan's usage or the network. Resume tries again; if it keeps failing, tell Claude.",
     HOLD_FILES: "Screener stopped: preferences.md or templates.md was refused ({why}).\n"
                 "To do: fix that line (ssh -t buddy micro ~/buddy/config/screener/templates.md), then Resume.",
+    # chats (#77): {why} is the message's kind (disclosure, reply, nudge, …) or the navigator's reason, never a text
+    HOLD_CHAT_MESSAGE: "Screener typed a chat message ({why}) and didn't send it. It's in the open chat on the phone.\n"
+                       "To do: read it there. Fine → Resume (the bot sends it). Not fine → write your own instead "
+                       "(that chat is yours from then on), then Resume.",
+    HOLD_CHAT_UNMATCH: "Screener wants to unmatch a closed chat (no fit, or she opted out, a day ago).\n"
+                       "To do: Resume lets it unmatch. To keep the match, tell Claude first.",
+    HOLD_CHAT_SCREEN: "Screener stopped in the chats at {time}: {why}.\n"
+                      "To do: look at the phone. Bring it back to the matches list (no dialog, no menu open), then "
+                      "Resume. If it stops at the same spot again, tell Claude: the screen is saved on the Pi.",
+    HOLD_CHAT_FILES: "Screener's chats stopped: chat.md, templates.md or a contact file was refused ({why}).\n"
+                     "To do: fix it (ssh -t buddy micro ~/buddy/config/screener/chat.md), then Resume.",
 }
 WHY_MAX = 200
 

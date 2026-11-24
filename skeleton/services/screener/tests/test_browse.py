@@ -206,3 +206,16 @@ def test_rows_lists_unlabelled_dry_rows(tmp_path):
     assert out[0].startswith("#1 ") and "bot skip: 2 pages in" in out[0] and any("reason: generic" in x for x in out)
     r.store.label(1, {"decision": "skip"})
     assert dry_rows(r.store, tmp_path) == ["no unlabelled dry rows"]
+
+
+def test_run_steps_the_chats_first_and_waits_the_shorter(tmp_path):
+    r = Rig(tmp_path, SKIP, mode=browse.OFF)
+    order, waits, turns = [], [], iter([True, True, False])
+
+    def chats():
+        order.append("chats")
+        return 42.0
+    step = r.b.step
+    r.b.step = lambda: (order.append("browse"), step())[1]
+    r.b.run(lambda: next(turns), waits.append, first=chats)
+    assert order == ["chats", "browse"] * 2 and waits == [42.0, 42.0]

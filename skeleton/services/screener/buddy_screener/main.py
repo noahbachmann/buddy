@@ -341,6 +341,8 @@ def service(cfg: Config) -> int:
     """Phone check, retained state, `stop|pause|resume`, Dev's Telegram answers; the browse loop (#80) on a worker
     thread (a profile takes ~2 min: the watchdog and MQTT stay on this one)."""
     from .browse import Browser
+    from .chats import ChatDriver
+    from .converse import Talker
     from .hub import Hub
 
     dev = _device(cfg)
@@ -354,13 +356,17 @@ def service(cfg: Config) -> int:
     store = Store(cfg.db_path)
     wake = threading.Event()
     browser = None
-    if cfg.browse != "off":
+    if cfg.browse != "off" or cfg.chat != "off":
         def worker() -> None:
             wdev = _device(cfg, hold_ok=False)
             wstore = Store(cfg.db_path)   # sqlite: one connection per thread
-            b = Browser(cfg.browse_config(), _navigator(cfg, wdev), _decider(cfg, wstore),
+            wnav, wdecider = _navigator(cfg, wdev), _decider(cfg, wstore)
+            b = Browser(cfg.browse_config(), wnav, wdecider,
                         lambda: Library.load(cfg.config_dir), wstore, cfg.tmp_dir, hold=hub.hold, notify=hub.notify,
                         mode=cfg.mode, pages=_shot_pages, log=mqtt.log)
+            # the chats on the same phone, between profiles (#77): one worker, one phone
+            c = ChatDriver(cfg.chat_config(), wnav, Talker(wdecider), wstore, cfg.config_dir, hold=hub.hold,
+                           notify=hub.notify, mode=cfg.mode, limits=cfg.chat_limits(), log=mqtt.log)
             nonlocal browser
             browser = b
 
@@ -368,7 +374,7 @@ def service(cfg: Config) -> int:
                 wake.wait(seconds)
                 wake.clear()
             try:
-                b.run(lifecycle.running, wait, on_state=lambda: events.put(("state", None)))
+                b.run(lifecycle.running, wait, on_state=lambda: events.put(("state", None)), first=c.step)
             except Exception as e:   # noqa: BLE001: the service stays up (state, stop/resume); Dev looks
                 mqtt.log(f"browse loop died: {type(e).__name__}: {e}")
                 events.put(("died", None))
@@ -450,8 +456,24 @@ def state_payload(cfg: Config, store: Store, browser, phone: str, died: bool = F
     if browser is not None:
         if browser.state.last:
             out["last"] = browser.state.last
-        if mode == "needs_you" and browser.state.reason:
-            out["hold"] = browser.state.reason
+    if mode == "needs_you":
+        try:
+            out["hold"] = json.loads(cfg.needs_you_file.read_text()).get("kind", "")   # browse's or a chat's
+        except (OSError, ValueError):
+            pass
+    out["chat_mode"] = cfg.chat
+    out["chats"] = chat_counts(store)
+    return out
+
+
+def chat_counts(store: Store) -> dict[str, int]:
+    """The chats by state for the panel (#77): counts only."""
+    from .chat import CLOSED, DONE, FOREIGN, HANDOVER, LIKED, MANUAL, OPEN
+    groups = {"liked": (LIKED,), "open": OPEN, "handover": (HANDOVER,), "done": (DONE,), "manual": (MANUAL,),
+              "closed": (CLOSED,), "foreign": (FOREIGN,)}
+    cs = store.chats()
+    out = {k: sum(c.state in states for c in cs) for k, states in groups.items()}
+    out["held"] = sum(bool(c.held) for c in cs)
     return out
 
 
@@ -504,6 +526,7 @@ def main() -> int:
     args = p.parse_args()
     try:
         cfg = Config.from_env()
+        cfg.browse_config(), cfg.chat_config()   # typos stop here, before MQTT, not on the worker thread
     except ValueError as e:
         print(f"[screener] config: {e}", file=sys.stderr)
         return 1

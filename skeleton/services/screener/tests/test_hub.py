@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from buddy_screener import browse
+from buddy_screener import browse, chats
 from buddy_screener.config import Config
 from buddy_screener.device import Stopped
 from buddy_screener.hub import HOLD_TEXT, Hub
@@ -20,11 +20,12 @@ def cfg(tmp_path):
 def test_every_hold_says_what_happened_and_what_to_do(cfg):
     sent = []
     hub = Hub(cfg, lambda topic, msg: sent.append(msg))
-    for kind in (browse.HOLD_WOULD_LIKE, browse.HOLD_SCREEN, browse.HOLD_LIKES, browse.HOLD_DECIDE, browse.HOLD_FILES):
-        hub.hold(kind, 12, "waited for the app, got unknown")
+    for kind in (browse.HOLD_WOULD_LIKE, browse.HOLD_SCREEN, browse.HOLD_LIKES, browse.HOLD_DECIDE, browse.HOLD_FILES,
+                 chats.HOLD_CHAT_MESSAGE, chats.HOLD_CHAT_UNMATCH, chats.HOLD_CHAT_SCREEN, chats.HOLD_CHAT_FILES):
+        hub.hold(kind, 12 if kind.startswith(("would", "screen")) else None, "waited for the app, got unknown")
         text = sent[-1]["text"]
-        assert "{" not in text and "To do:" in text
-        assert kind == browse.HOLD_WOULD_LIKE or "waited for the app" in text
+        assert "{" not in text and "To do:" in text and "None" not in text
+        assert kind in (browse.HOLD_WOULD_LIKE, chats.HOLD_CHAT_UNMATCH) or "waited for the app" in text
     hub.hold(browse.HOLD_SCREEN, None, "x " * 300)
     assert len(sent[-1]["text"]) < 600
 
@@ -91,3 +92,25 @@ def test_state_payload_has_counts_and_no_names(cfg):
     out = state_payload(cfg, store, b, "ok")
     assert (out["state"], out["hold"]) == ("needs_you", "would_like")
     assert "a like waits" not in json.dumps(out)
+
+
+def test_state_payload_counts_chats_by_state_only(cfg):
+    from buddy_screener.chat import LIKED, MANUAL, SCREENING, Chat
+    store = Store(":memory:")
+    store.save_chat(Chat("liked:x", "Alex", 1.0, state=LIKED, like_comment="secret comment"))
+    store.save_chat(Chat("Sam#1", "Sam", 1.0, state=SCREENING, held={"kind": "send", "text": "Hi Sam"}))
+    store.save_chat(Chat("Kim#2", "Kim", 1.0, state=MANUAL))
+    b = type("B", (), {})()
+    b.state = browse.LoopState("browsing", None, "", {})
+    Hub(cfg, lambda *a: None).hold(chats.HOLD_CHAT_MESSAGE, None, "disclosure")
+    out = state_payload(cfg, store, b, "ok")
+    assert out["chats"] == {"liked": 1, "open": 1, "handover": 0, "done": 0, "manual": 1, "closed": 0, "foreign": 0,
+                            "held": 1}
+    assert out["hold"] == chats.HOLD_CHAT_MESSAGE and out["chat_mode"] == "off"
+    text = json.dumps(out)
+    assert not any(x in text for x in ("Alex", "Sam", "Kim", "secret", "Hi "))
+
+
+def test_a_typo_in_the_chat_mode_is_refused():
+    with pytest.raises(ValueError, match="BUDDY_SCREENER_CHAT"):
+        Config(package="x", chat="sent").chat_config()

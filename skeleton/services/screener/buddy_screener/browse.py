@@ -275,10 +275,13 @@ class Browser:
     # --- the worker ---
 
     def run(self, running: Callable[[], bool], wait: Callable[[float], None],
-            on_state: Callable[[], None] = lambda: None) -> None:
+            on_state: Callable[[], None] = lambda: None, first: Callable[[], float] | None = None) -> None:
+        """The worker's loop. `first`: another step on the same phone before each profile (the chats, #77): the
+        wait is the shorter of the two."""
         while running():
             try:
-                delay = self.step()
+                delay = first() if first is not None else float("inf")
+                delay = min(delay, self.step())
             except Stopped:
                 delay = 5.0
             except AdbError as e:
