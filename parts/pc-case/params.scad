@@ -6,88 +6,67 @@
 $fn = 64;
 
 // --- hardware -------------------------------------------------------------------
-board    = [250, 210];   // tray outline; 250 = the lid's outer width
-board_h  = 28;           // tray + board + everything on it
-cooler_x = [188, 350];   // 162 wide; right edge 100 past the board's right edge
-cooler_y = [122, 250];   // 128 deep at the heatsink; back edge 40 past the board's back edge
-cooler_h = 38;           // fan and heatsink alike
+board    = [250, 210];   // tray outline = the lid's outline
+board_h  = 28;           // the tray's own walls: the lid lies on them
+cooler_x = [188, 350];   // 162 wide; right edge 100 past the tray's right edge
+cooler_y = [122, 250];   // 128 deep at the heatsink; back edge 40 past the tray's back edge
+cooler_h = 38;           // fan and heatsink alike, standing on the table
 // Fan side of the cooler's outline: an arc through these points (left edge, fan column at 115 deep, heat pipe corner).
-// The housing's left side is 200 from the board's left edge; the 12 mm left of it is its bracket strip.
+// The housing's left side is 200 from the tray's left edge; the 12 mm left of it is its bracket strip.
 seam_pts = [[188, 185], [235, 135], [258, 122]];   // ⚠️
 fan_c    = [239, 196];   // ⚠️ fan hub
 fan_in_r = 26;           // ⚠️ intake opening around the hub
 fins_y   = [128, 246];   // ⚠️ heatsink outlet face (right side, x 350)
 
-// cable openings (green in the photo) ⚠️
-cable_left  = [58, 126];   // y, left wall
-cable_right = [85, 112];   // y, right wall
-cable_back  = [160, 176];  // x, back wall: antenna wires
-cable_h     = 16;          // notch height from the wall's lower edge
-
-// Tray side edges: the lid and cooler-top side walls sit over them (the lid hangs from the base tabs).
-rail_h   = 5;            // ⚠️ not measured: height of the tray's side edge above its underside
-rail_gap = 0.5;          // walls stop this far above it
+// cable notches in the lid's edges (green in the photo) ⚠️
+cable_left  = [58, 126];   // y
+cable_right = [85, 112];   // y
+cable_back  = [160, 176];  // x: antenna wires
+cable_d     = 6;           // notch depth into the lid
 
 // --- stack-up -------------------------------------------------------------------
-floor_t  = 2.4;          // cooler floor and base ribs on the table (no feet: a raised floor would print as a bridge)
-z_base   = floor_t;                   // tray and cooler bottoms
-head_gap = 1;            // over the cooler (tallest)
-skin_t   = 2.4;          // top skins
+skin_t   = 2.4;          // lid plate, cover top
 wall_t   = 2.4;          // walls, steps of 0.4 (docs/3d-printing.md)
-z_ceil   = z_base + cooler_h + head_gap;
-z_top    = z_ceil + skin_t;            // one flat top for lid and cooler
-z_board  = z_base + board_h;           // highest point of the board
+z_lid    = board_h;                    // lid's underside, on the tray walls
+z_lid1   = z_lid + skin_t;             // lid's top
+head_gap = 0.6;          // over the cooler
+z_ceil   = cooler_h + head_gap;        // cover's underside
+z_top    = z_ceil + skin_t;            // cover's top: the highest point (41)
 
 // --- outline --------------------------------------------------------------------
-tray_gap = 0.5;          // tray to base tabs / bars
-side_gap = 1;            // cooler to the cooler shell's walls (right, back)
-seam_gap = 0.3;          // between lid and cooler-top skins
-// Lid ↔ cooler-top split: two straight seams, far enough from the cooler for a tab pair and a screw head.
+tray_gap = 0.5;          // tray to the cover's walls
+side_gap = 1;            // cooler to the cover's walls (right, back)
+// Lid ↔ cover split: two straight seams, far enough from the cooler for the seam wall and a screw head.
 seam_x = cooler_x[0] - 9;   // vertical seam (for y ≥ seam_y)
 seam_y = cooler_y[0] - 9;   // horizontal seam (for x ≥ seam_x)
 
 // --- M3 hardware ---------------------------------------------------------------
-m3_clear  = 3.4;         // screw passes: clearance, not a fit (tolerances stack over 250 mm)
+m3_clear  = 3.4;         // screw passes: clearance, not a fit
 nut_af    = 5.5;
 nut_t     = 2.4;
 nut_slot  = [nut_af + 0.2, nut_t + 0.3];   // slip +0.10/side (vertical, Fits), thickness like arm's nut slots
-nut_press = nut_af + 0.1;                 // press fit +0.05/side: top-module nuts stay in when the lid is flipped
+nut_press = nut_af + 0.1;                 // press fit +0.05/side: top-module nuts stay in from below
 tab_t     = 5.6;         // tab with a nut slot: 2.7 slot + ~1.45 each side
 tab_w     = 14;
-plain_t   = 2.4;         // tab without a nut (the screw-head side)
-head_room = 3.6;         // M3 head height + play, between a seam tab and the cooler
+tab_gap   = 0.2;         // lid tab to the cover's seam wall
+head_room = 3.6;         // M3 head height + play, between the seam wall and the cooler
 
 // --- lid ------------------------------------------------------------------------
-lid_y = [-tray_gap - tab_t - 0.2 - wall_t, board[1] + tray_gap + tab_t + 0.2 + wall_t];   // front/back walls outside the base tabs
-perim  = 8;              // solid band around the lid skin
+perim  = 10;             // solid band round the lid plate (rests on the tray walls, carries the seam tabs)
 bar    = 6;              // lattice bars
-grid_x = [20, 60, 100, 140, 180, 220];   // lattice lines (x ≥ seam_x only where y < seam_y)
+grid_x = [20, 60, 100, 140, 180, 220];   // lattice lines
 grid_y = [60, 100, 140, 180];
 shield_y   = 60;         // front band over the metal shield: open, only these bars cross it
 shield_xs  = [100, 180];
-boss_d     = 11;         // top-module mount under each lattice node over the board
-boss_h     = 4;          // below the skin; nut pocket from its lower face
+boss_d     = 11;         // top-module mounts on the lattice nodes, standing on the lid
+boss_h     = 4;          // above the lid; nut pocket from below
+seam_tab_h = 8;          // lid tabs standing at the seams, under the cover's seam walls' screws
+seam_tabs_x = [150, 196];   // y positions on the vertical seam
+seam_tabs_y = [200, 232];   // x positions on the horizontal seam
 
-// --- base -----------------------------------------------------------------------
-rib_w     = 8;           // ribs under the tray (2.4 tall, lying flat)
-base_xs   = [12, 125];   // full-depth ribs under the tray
-base_xr   = 238;         // right rib, stops short of the fan (tray assumed notched there ⚠️)
-base_xr_y = 104;
-base_cross_y = 104;      // cross rib along x
-base_tab_xs_front = [12, 125, 238];
-base_tab_xs_back  = [12, 90, 165];
-base_tab_top = z_base + 18;
-screw_z_base = z_base + 11;
-
-// --- cooler ---------------------------------------------------------------------
-seam_tab_h = z_top - z_board - 1.4;   // seam tabs hang from the skin, ≥ 1.4 above the board
-seam_tabs_x = [150, 196];            // y positions on the vertical seam
-seam_tabs_y = [200, 232];            // x positions on the horizontal seam
-cb_tabs_left   = [236];               // y: cooler-bottom tabs inside the cooler-top's left wall
-cb_tabs_bottom = [282, 330];          // x: inside its bottom wall
-cb_tab_h = 16;
-cooler_grid_x = [220, 260, 300, 330];   // cooler-top lattice lines
-cooler_grid_y = [150, 190, 220];
+// --- cover ----------------------------------------------------------------------
+cover_grid_x = [220, 260, 300, 330];   // cover lattice lines
+cover_grid_y = [150, 190, 220];
 
 // --- airflow --------------------------------------------------------------------
 slot_w     = 3;          // grille slits

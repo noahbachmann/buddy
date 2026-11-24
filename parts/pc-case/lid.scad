@@ -1,3 +1,3 @@
-// Lid over the board: lattice top, top-module mounts, seam tabs to cooler-top. Prints top skin down.
+// Lid: flat lattice plate on the tray walls, top-module mounts, seam tabs for the cover. Prints as it lies.
 include <lib.scad>
-flip_top() lid();
+translate([0, 0, -z_lid]) lid();
