@@ -113,6 +113,17 @@ def test_a_flag_without_a_verifiable_source_is_dropped(item, why):
     assert (b.dropped_flags[0].startswith(why) if why else b.dropped_flags == [])
 
 
+@pytest.mark.parametrize("quote, kept", [("Age: 29, Dating Intentions: Life partner", True),
+                                         ("29 and Life partner", True), ("Age: 29 · Life partner", True),
+                                         ("Age: 29, Long-term relationship", False)])
+def test_a_details_flag_may_quote_several_details(quote, kept):
+    # #166: "28+ and life partner" rests on age and intentions, two details apart
+    p = profile()
+    p.details[:] = [("Age", "29"), ("Height", "158 cm"), ("Dating Intentions", "Life partner")]
+    b = check_browse(raw(soft_flags=[flag("28+ and life partner", "details", quote)]), p, LIB)
+    assert bool(b.soft_flags) == kept
+
+
 def test_a_photo_flag_needs_only_an_existing_photo():
     b = check_browse(raw(soft_plus=[flag("climbs", "photo 1", "on a climbing wall")]), profile(), LIB)
     assert b.soft_plus == ['climbs (photo 1: "on a climbing wall")']

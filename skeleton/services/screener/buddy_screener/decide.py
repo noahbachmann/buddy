@@ -373,8 +373,10 @@ def sourced_flags(raw: Any, p: Profile, dropped: list[str]) -> list[str]:
         else:
             dropped.append(f"unknown source {source[:20]!r}: {flag}")
             continue
-        if where is not None and _norm(quote) not in _norm(where):
-            dropped.append(f"quote not in {source}: {flag}")
+        # a flag can rest on several details at once ("28+ and life partner": age and intentions, #166)
+        parts = re.split(r"[;·|]|,\s|\s\+\s|\band\b", quote) if source == "details" else [quote]
+        if where is not None and not all(_norm(x) in _norm(where) for x in parts if _norm(x)):
+            dropped.append(f"quote not in {source}: {flag} ({quote[:60]!r})")
             continue
         out.append(f'{flag} ({source}: "{quote}")')
     return out
