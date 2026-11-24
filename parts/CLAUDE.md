@@ -80,6 +80,9 @@ section through every fit (bearing seat, slot, channel). Numbers can't see a mis
   lies in another face's plane, can leave duplicate vertices ~1e-9 apart: watertight in double, pinched (edges used 4×)
   in the float32 STL. Build such faces from one solid (`frame()`: plate + bed as one extruded L profile) or offset the
   cut by 0.01.
+- The x-ray colours faces, not islands: a region that starts in mid-air over nothing (Bambu: "floating parts") can
+  show as a small orange roof. Before a plate goes out, slice it in 0.2 mm layers and flag polygons that touch nothing
+  in the layer below (2026-11-24: the roller frame's rib tongues started 2 mm up).
 - trimesh's `polygons_full` can come back empty for valid rings (a cut exactly through a peg's axis in its socket):
   `render.section` then falls back to the closed rings, so check a blank section against the mesh.
 - A param change rebuilds STLs in other parts than the one being worked on (fits are shared): commit every changed
