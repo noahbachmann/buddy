@@ -192,6 +192,12 @@ see `chat.md` + *About Dev*, *Looking for*, *Good fit*, *Soft negatives/positive
   `opener` call answers her first (About facts only, no screening question), then the disclosure as its own message;
   else the disclosure alone. Then the flow **waits** until she answers the introduction: in → `first` (the first
   question), out → `opt_out`; no answer → closed silently after `CLOSE_DAYS` (no nudge: she never opted in).
+- Opener only when there's something to answer (Dev): her messages that are only greetings, laughs or emojis skip
+  the call, the introduction goes out at once. Small talk never switches the chat's language. An old match's prompt
+  languages come from word lists; none readable → German (Dev: no extra model call for the few old matches).
+- The prompt (`CONVERSE_SYSTEM`) keeps Dev's tone rules general: no feelings of its own, never takes a compliment
+  meant for him (relays how he'd feel), never upgrades an About fact ("likes cooking" ≠ "cooks well"). Dev's
+  wording and examples live in the host's `chat.md` *Tone and style*.
 - Code, not the model: disclosure first (only an opener may precede it); our like comment seeded into the sent log; ours on screen not in the log →
   `manual` for good; media → handover; match = required answers + no flag + ≥ 3 turns + verifier; the held `reply`
   keeps screening when that fails; contact phone/both → number (Dev), instagram → handle, unclear once → ask again;
@@ -214,7 +220,9 @@ see `chat.md` + *About Dev*, *Looking for*, *Good fit*, *Soft negatives/positive
   `config/screener/chat-ignore` and everything else (`foreign`, Dev told once) are never touched. The model sees our
   like comment first: her first reply answers it. `hold` (Dev, the first ~5 chats): each message typed into the
   field, not sent, Telegram asks (no text); Resume = the field still holds it → sent; Dev sending it himself counts as
-  ours, any other change → `manual`. Messages go out as soon as seen (Dev: no delay, no hours). Notices are fixed per
+  ours, any other change → `manual`. Messages go out as soon as seen (Dev: no delay, no hours). A held message that
+  needs rewriting (Dev changed a rule or a fact): clear the field and the chat's `held` while the loop is held, then
+  resume; never run a script on the phone while the loop can act (a killed reader breaks serve mode until restart). Notices are fixed per
   end state, never the flow's text (it carries the model's reason). 3 failed calls on a chat → handover.
 - Findings fixed by the sim (2026-11-19): a fit line written about her for Dev and sent to her; dialect replies to a
   Swiss German profile; a nudge in the wrong language; the verifier without the profile (it flagged the bot's
@@ -308,11 +316,13 @@ Pi, then `--cmd fixture <out dir> <dumps…>` (all dumps of one walk in one call
 - Chats (#77 walk, 2026-11-24): the matches list has "Your turn (N)" and a **collapsed** "Their turn (N)" header (a
   tap opens it; a second closes it); on the list's first screen it sits on the tab bar. A chat is a reversed list:
   its head is our like (the section's card, then our comment as a bare text, or "You liked X's photo." without one),
-  her messages carry " Name: text. " as description, dates are separators. The Profile tab lists the details
+  her messages carry " Name: text. " as description, dates are separators. Our sent message reads the same way on
+  the right; with text typed, the voice note button becomes `sendMessageButton` ("Send message"). A chat we wrote
+  last moves under "Their turn"; on a short list that header stays closed on the tab bar: opened at the list's end.
+  Row keys tolerate a few bits of thumbnail-hash drift (`same_chat`). The Profile tab lists the details
   vertically plus a sideways row, and at its top keeps padding above the first content (`CHAT_TOP_GAP`). More opens a
   popup: We Met / Unmatch / Hide / Report, closed with Back. Two kept UI strings were forbidden words (the intentions
   label, a paid feature's row marker): they stay placeholders.
 - Carried to later steps (not seen yet): an incoming like's card, an app notification's text, a new match without
-  messages, our own sent message and the send button with text typed (step 9's first held message), the unmatch
-  confirmation, a photo or voice note from her (any unreadable item = media → handover). Each → a sanitized fixture
+  messages, the unmatch confirmation, a photo or voice note from her (any unreadable item = media → handover). Each → a sanitized fixture
   when first seen.
