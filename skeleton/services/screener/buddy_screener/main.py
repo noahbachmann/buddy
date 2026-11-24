@@ -261,6 +261,9 @@ def cmd_shadow(cfg: Config, args: argparse.Namespace) -> int:
             raise
         kind = likes.SKIP if args.cmd == "skip" else likes.LIKE if acted.get("text") else likes.LIKE_PLAIN
         store.add_action(kind, "shadow", row_id)
+        if args.cmd == "send":   # kept for its chat once she matches (#77)
+            store.save_chat(shadow.liked_chat(cap, rows[0].bot.get("prompt_langs", []), acted.get("comment_on", ""),
+                                              acted.get("text", ""), time.time()))
         if kind != likes.SKIP and st.probe:
             store.add_action(likes.LIKES_BACK, "shadow", row_id, f"{(time.time() - st.last_like) / 3600:.1f} h")
         store.label(row_id, acted)

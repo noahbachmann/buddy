@@ -1,6 +1,6 @@
 """SQLite store: the chats table and its retention (#77)."""
 
-from buddy_screener.chat import CLOSED, HANDOVER, SCREENING, Chat, Sent
+from buddy_screener.chat import CLOSED, HANDOVER, LIKED, NEW, SCREENING, Chat, Sent
 from buddy_screener.store import KEEP_DAYS, Store
 
 DAY = 86400.0
@@ -29,6 +29,20 @@ def test_ended_chats_go_after_keep_days_open_ones_stay(tmp_path):
     assert sorted(c.key for c in later.chats()) == ["closed", "open"]
     much_later = Store(db, clock=lambda: (KEEP_DAYS + 11) * DAY)
     assert [c.key for c in much_later.chats()] == ["open"]
+
+
+def test_a_like_that_never_matched_goes_after_keep_days(tmp_path):
+    db = tmp_path / "s.db"
+    s = Store(db, clock=lambda: 0.0)
+    s.save_chat(Chat("liked:a", "Alex", 0.0, state=LIKED, like_comment="Hi", liked_kind="prompt"))
+    s.save_chat(Chat("liked:b", "Sam", 0.0, state=LIKED))
+    assert [c.key for c in s.liked("Alex")] == ["liked:a"] and s.liked("Kim") == []
+    linked = s.liked("Sam")[0]   # matched: linked to its chat's key, open from now on
+    s.drop_chat(linked.key)
+    linked.key, linked.state = "Sam#abc", NEW
+    s.save_chat(linked)
+    later = Store(db, clock=lambda: (KEEP_DAYS + 1) * DAY)
+    assert [c.key for c in later.chats()] == ["Sam#abc"]
 
 
 def test_live_and_sim_spend_apart():

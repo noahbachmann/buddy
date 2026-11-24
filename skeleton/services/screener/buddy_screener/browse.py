@@ -22,6 +22,7 @@ from .decide import BudgetSpent, DecideError, UsageLimited
 from .device import AdbError, Stopped
 from .library import Library, LibraryError
 from .navigator import Navigator, NeedsYou, OutOfLikes
+from .chat import Chat
 from .store import Store
 
 DRY, LIVE, OFF = "dry", "live", "off"
@@ -92,7 +93,7 @@ class Browser:
         self.break_until = 0.0
         self.next_break = self._break_after()
         self.decide_failures = 0
-        self.pending: tuple[int, str, str] | None = None   # a like the paywall kept in its panel: row, name, text
+        self.pending: tuple[int, str, str, Chat] | None = None   # a like the paywall kept in its panel: row, name, text, its chat
         self.told_done: float | None = None                # the batch whose "likes used up" Dev was told about
 
     # --- schedule ---
@@ -210,39 +211,43 @@ class Browser:
                 self.nav.open_sheet(s, sv)
                 if text:
                     self.nav.type_comment(text)
-                self._send(r.row_id, name, text, st)
+                liked = shadow.liked_chat(r.capture, b.prompt_langs, b.comment_on, text, self.clock())
+                self._send(r.row_id, name, text, st, liked)
             else:
                 self.nav.skip_profile(name)
                 self._act(likes.SKIP, r.row_id)
         except OutOfLikes as e:
-            return self._paywall(e, r.row_id, name, b.comment_text if b.comment != "none" else "")
+            return self._paywall(e, r.row_id, name, b.comment_text if b.comment != "none" else "",
+                                 shadow.liked_chat(r.capture, b.prompt_langs, b.comment_on,
+                                                   b.comment_text if b.comment != "none" else "", self.clock()))
         except NeedsYou as e:
             return self._hold(HOLD_SCREEN, e.reason, r.row_id)
         return self._gap()
 
-    def _send(self, row_id: int, name: str, text: str, st: likes.LikeStatus) -> None:
+    def _send(self, row_id: int, name: str, text: str, st: likes.LikeStatus, liked: Chat) -> None:
         self.nav.send_like(name, text)
         self._act(likes.LIKE if text else likes.LIKE_PLAIN, row_id)
+        self.store.save_chat(liked)   # kept for its chat once she matches (#77)
         if st.probe and st.last_like is not None:
             hours = (self.clock() - st.last_like) / 3600
             self._act(likes.LIKES_BACK, row_id, f"{hours:.1f} h")
             self.notify(f"likes came back {hours:.1f} h after the last like: the 24 h guess holds")
 
-    def _paywall(self, e: OutOfLikes, row_id: int, name: str, text: str) -> float:
+    def _paywall(self, e: OutOfLikes, row_id: int, name: str, text: str, liked: Chat) -> float:
         self._act(likes.OUT_OF_LIKES, row_id, "moved on" if e.moved_on else "panel kept")
         if not e.moved_on:
-            self.pending = (row_id, name, text)   # sent from the open panel once the likes are back
+            self.pending = (row_id, name, text, liked)   # sent from the open panel once the likes are back
         self.log(f"paywall: {e.reason}")
         return 5.0
 
     def _send_pending(self, st: likes.LikeStatus) -> float:
-        row_id, name, text = self.pending
+        row_id, name, text, liked = self.pending
         self.pending = None
         self._set(BROWSING)
         try:
-            self._send(row_id, name, text, st)
+            self._send(row_id, name, text, st, liked)
         except OutOfLikes as e:
-            return self._paywall(e, row_id, name, text)
+            return self._paywall(e, row_id, name, text, liked)
         except NeedsYou as e:
             return self._hold(HOLD_SCREEN, e.reason, row_id)
         return self._gap()

@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .chat import OPEN, Chat
+from .chat import LIKED, OPEN, Chat
 
 KEEP_DAYS = 30
 
@@ -146,6 +146,14 @@ class Store:
     def chat(self, key: str) -> Chat | None:
         row = self.db.execute("SELECT data FROM chats WHERE key = ?", (key,)).fetchone()
         return Chat.from_dict(json.loads(row[0])) if row else None
+
+    def drop_chat(self, key: str) -> None:
+        self.db.execute("DELETE FROM chats WHERE key = ?", (key,))
+        self.db.commit()
+
+    def liked(self, name: str) -> list[Chat]:
+        """Our likes with this name still waiting for their match (#77)."""
+        return [c for c in self.chats((LIKED,)) if c.name == name]
 
     def chats(self, states: tuple[str, ...] | None = None) -> list[Chat]:
         rows = self.db.execute("SELECT state, data FROM chats ORDER BY started").fetchall()

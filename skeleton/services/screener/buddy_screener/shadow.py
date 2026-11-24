@@ -23,9 +23,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from . import vocab
-from .chat import refusal
+from .chat import LIKED, Chat, refusal
 from .decide import (OWN, TASK_BROWSE, TASK_COMMENT, TASK_COMMENT_CHECK, TASK_PHOTO, TASK_TEXT, Browse, Decider,
-                     Usage)
+                     Usage, profile_text)
 from .library import COMMENT_MAX, Library
 from .navigator import Navigator
 from .profile import Capture
@@ -225,6 +225,17 @@ def act_label(nav: Navigator, row: ShadowRow, cap: Capture, lib: Library, action
     else:
         raise LabelError("skip or send")
     return dev | {"acted": action}, nxt
+
+
+def liked_chat(cap: Capture, prompt_langs: list[str], section_ref: str, comment: str, now: float) -> Chat:
+    """What a sent like leaves for its chat (#77): her profile as text, the decision's prompt languages, our comment
+    and the liked section's kind (the chat's head shows it). Linked to the chat by name once she matches."""
+    p = cap.profile
+    first = next((x.text for x in p.sections if x.kind == "prompt"), "")
+    sec = p.find(section_ref)
+    return Chat(key=f"liked:{profile_key(p.name, p.details, first)}", name=p.name, started=now, state=LIKED,
+                profile=profile_text(p), like_comment=comment, prompt_langs=list(prompt_langs),
+                liked_kind="photo" if sec is not None and sec.kind == "photo" else "prompt")
 
 
 def _text_first(rows: list[ShadowRow], usage_rows: list[tuple]) -> list[str]:

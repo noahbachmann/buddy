@@ -9,7 +9,7 @@ from test_decide import FakeSdk, limit, result
 from test_library import CHAT_MD, CHAT_TEMPLATES, PREFS
 
 from buddy_screener import sim
-from buddy_screener.chat import CLOSED, DONE, HANDOVER, MANUAL, US, Chat, Message, Sent
+from buddy_screener.chat import CLOSED, DONE, HANDOVER, MANUAL, US, Chat, Message, Sent, guess_lang
 from buddy_screener.config import Config
 from buddy_screener.sim_cases import BY_NAME, CASES
 from buddy_screener.store import Store
@@ -151,9 +151,10 @@ def test_leaks_ignore_spacing():
 
 
 def test_guess_lang():
-    assert sim.guess_lang("Und was suchst du?") == "de"
-    assert sim.guess_lang("And what are you looking for?") == "en"
-    assert sim.guess_lang("👍") == ""
+    assert guess_lang("Und was suchst du?") == "de"
+    assert guess_lang("And what are you looking for?") == "en"
+    assert guess_lang("👍") == ""
+    assert guess_lang("Metal isch es ned, aber mini Musig") == "de"   # Swiss German: an old match's prompts (#77)
 
 
 def test_transcript_marks_media_and_failures():

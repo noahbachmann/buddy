@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .chat import (CLOSED, CONTACT_CHOICE, CONTACT_KINDS, DONE, HANDOVER, MANUAL, OPEN, THEM, US, Chat, ChatFlow,
-                   Message, Sent, first_lang)
+                   Message, Sent, first_lang, guess_lang)
 from .config import Config
 from .converse import Talker
 from .decide import BudgetSpent, DecideConfig, DecideError, Decider, UsageLimited, _sdk_runner
@@ -214,17 +214,6 @@ def start_case(case: Case, flow: ChatFlow, rules: ChatRules) -> SimChat:
 
 # --- checks ----------------------------------------------------------------------------------------------------------
 
-_WORD = re.compile(r"[a-zäöüß']+")
-_DE = {"und", "ich", "du", "dich", "dir", "ist", "nicht", "was", "wie", "dein", "deine", "hast", "bist", "schön",
-       "gern", "gerne", "mit", "auf", "für", "das", "der", "die", "ein", "eine", "magst", "noch", "auch", "sehr"}
-_EN = {"and", "i", "you", "is", "not", "what", "how", "your", "have", "are", "nice", "with", "for", "the", "a",
-       "do", "to", "love", "like", "would", "that", "it's", "so", "really"}
-
-
-def guess_lang(text: str) -> str:
-    words = _WORD.findall(text.lower())
-    de, en = sum(w in _DE for w in words), sum(w in _EN for w in words)
-    return "de" if de > en else "en" if en > de else ""
 
 
 def check_chat(sim: SimChat, case: Case | None) -> None:

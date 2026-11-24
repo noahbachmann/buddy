@@ -299,6 +299,12 @@ def profile_content(p: Profile, photos: bool = True) -> list[dict[str, Any]]:
     return blocks
 
 
+def profile_text(p: Profile) -> str:
+    """Her profile as text for the chat calls (#77): details and every section's text, no photos, no name."""
+    lines = "\n".join(b["text"] for b in profile_content(p, photos=False) if b["type"] == "text").splitlines()
+    return "\n".join(lines[2:]).strip()   # without the stage line and its blank
+
+
 def photo_content(p: Profile) -> list[dict[str, Any]]:
     """The photo check's message: only the photos' labels and crops, no text from the profile. [] = no crops."""
     blocks: list[dict[str, Any]] = []

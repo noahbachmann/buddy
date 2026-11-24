@@ -29,6 +29,8 @@ from .library import ChatRules, Contacts, fill
 NEW, SCREENING, CONTACT_CHOICE = "new", "screening", "contact_choice"
 DONE, CLOSED, HANDOVER, MANUAL = "done", "closed", "handover", "manual"
 OPEN = (NEW, SCREENING, CONTACT_CHOICE)
+LIKED = "liked"      # our like went out, no match yet: kept for its chat (profile, comment), 30 days, never stepped
+FOREIGN = "foreign"  # a match the bot doesn't take (Dev's own chat, or no unique like to link it to): never touched
 
 THEM, US = "them", "us"
 CONTACT_KINDS = ("contact_number", "contact_instagram")
@@ -137,6 +139,9 @@ class Chat:
     unmatched: bool = False
     reason: str = ""             # why it's closed / handed over / manual (no message text)
     log: list[str] = field(default_factory=list)   # decisions, no message text (the sim's report reads it)
+    like_comment: str = ""       # our like's comment as sent ("" = a like without one)
+    liked_kind: str = ""         # the liked section: photo | prompt (the chat's head shows it)
+    prompt_langs: list[str] = field(default_factory=list)   # the decision's, for the first message's language
 
     @property
     def bot_msgs(self) -> int:
@@ -179,6 +184,24 @@ def first_lang(prompt_langs: list[str]) -> str:
     if de == en == 0:
         return "de" if not prompt_langs else "en"
     return "de" if de >= en else "en"
+
+
+_WORD = re.compile(r"[a-zäöüß']+")
+_DE = {"und", "ich", "du", "dich", "dir", "ist", "nicht", "was", "wie", "dein", "deine", "hast", "bist", "schön",
+       "gern", "gerne", "mit", "auf", "für", "das", "der", "die", "ein", "eine", "magst", "noch", "auch", "sehr",
+       # Swiss German (an old match's prompts: no decision to take the languages from, #77)
+       "isch", "esch", "ned", "nöd", "mini", "min", "dini", "vo", "ond", "aber", "oder", "mir", "mi", "bi", "gsi",
+       "au", "chan", "chasch", "wenn", "dass", "zum", "im", "es", "mis", "dis", "gärn", "öppis", "nüt"}
+_EN = {"and", "i", "you", "is", "not", "what", "how", "your", "have", "are", "nice", "with", "for", "the", "a",
+       "do", "to", "love", "like", "would", "that", "it's", "so", "really", "my", "me", "of", "in", "on", "or",
+       "but", "if", "when", "be", "can", "i'm", "am", "will", "just"}
+
+
+def guess_lang(text: str) -> str:
+    """German (incl. Swiss German) or English by function words; "" when it can't tell."""
+    words = _WORD.findall(text.lower())
+    de, en = sum(w in _DE for w in words), sum(w in _EN for w in words)
+    return "de" if de > en else "en" if en > de else ""
 
 
 def chat_lang(lang: str, current: str) -> str:

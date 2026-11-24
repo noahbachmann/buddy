@@ -89,6 +89,17 @@ def test_live_likes_with_or_without_a_comment(tmp_path, bot, kind, sent):
     typed = [a[2] for a in r.phone.actions if a[0] == "type"]
     assert typed == (["Wo ist dieser See?"] if kind == likes.LIKE else [])
     assert r.store.shadow()[0].bot["run"] == "live" and not (tmp_path / "rows").exists()
+    # the like is kept for its chat (#77): her profile as text, our comment, the liked section's kind
+    (c,) = r.store.liked("Alex")
+    assert c.state == "liked" and c.like_comment == (typed[0] if typed else "") and c.liked_kind == "photo"
+    assert c.profile and "Alex" not in c.profile and c.started == r.clock()
+
+
+def test_dry_and_skips_keep_no_liked_chat(tmp_path):
+    for bot, mode in ((like(), browse.DRY), (SKIP, browse.LIVE)):
+        r = Rig(tmp_path, bot, mode=mode)
+        r.b.step()
+        assert r.store.chats() == []
 
 
 def test_live_stops_before_the_budget(tmp_path):
@@ -147,6 +158,7 @@ def test_paywall_keeps_the_panel_and_sends_once_the_likes_are_back(tmp_path):
     r.clock.t = T0 + 12 * H + 2
     r.b.step()
     assert [a[2] for a in r.phone.sent()] == ["Send like"] and r.kinds()[-2:] == [likes.LIKE, likes.LIKES_BACK]
+    assert len(r.store.liked("Alex")) == 1   # the like the paywall held still leaves its chat
     assert any("24 h guess holds" in n for n in r.notes)
 
 
