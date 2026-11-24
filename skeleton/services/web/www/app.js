@@ -641,6 +641,46 @@ function systemCard(s, online) {
       s.disk.used_gb / s.disk.total_gb >= 0.9));
 }
 
+// --- screener (#80) --------------------------------------------------------------------------------------------
+
+// buddy/screener/state: counts and kinds only (never names). The browse loop's state, today's counts, stop/pause/resume.
+const SCREENER_STATE = { idle: "idle", browsing: "browsing", break: "on a break", waiting: "outside its hours",
+  done_today: "likes used up", limit: "usage limit", needs_you: "needs you", paused: "paused", stopped: "stopped",
+  failed: "loop failed (see the log)", offline: "phone offline" };
+const SCREENER_HOLD = { would_like: "a like waits on the phone", screen: "a screen it couldn't handle",
+  likes: "the likes didn't come back", decide: "decisions keep failing", files: "preferences/templates refused" };
+const hhmm = (ts) => new Date(ts * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+function renderScreener() {
+  const s = state["buddy/screener/state"];
+  const online = state["buddy/screener/status"] === "online";
+  $("screener-section").hidden = !s;
+  if (!s) return;
+  keyed($("screener"), [["screener", JSON.stringify([s, online]), () => screenerCard(s, online)]]);
+}
+
+function screenerCard(s, online) {
+  const t = s.today ?? {};
+  const what = [SCREENER_STATE[s.state] ?? s.state, s.hold && SCREENER_HOLD[s.hold], s.until && `until ${hhmm(s.until)}`]
+    .filter(Boolean).join(" · ");
+  const cmd = (action) => send("screener", { action });
+  const stopped = s.state === "stopped", paused = s.state === "paused" || s.state === "needs_you";
+  return el("div", { class: `card${online ? "" : " offline"}` },
+    el("div", { class: "row" },
+      el("div", { class: "name" }, `Screener (${s.mode ?? "off"})`, el("small", {}, online ? what : "offline")),
+      s.phone !== "ok" ? el("span", { class: "flag bad", title: "phone" }, `phone ${s.phone}`) : null),
+    meter("Likes", t.likes_max ? (t.likes_max - (t.likes_left ?? 0)) / t.likes_max : 0,
+      `${(t.likes_max ?? 0) - (t.likes_left ?? 0)} / ${t.likes_max ?? 0}`),
+    el("div", { class: "row muted" },
+      `Today: ${t.profiles ?? 0} profiles, ${t.skips ?? 0} skipped, ${t.likes ?? 0} liked` +
+      (t.would_like ? `, ${t.would_like} held` : "") +
+      (s.last ? ` · last: ${s.last.action} at ${hhmm(s.last.ts)}` : "")),
+    el("div", { class: "controls" },
+      el("button", { class: "chip-btn", disabled: !online || stopped, onclick: () => cmd("stop") }, "Stop"),
+      el("button", { class: "chip-btn", disabled: !online || stopped || paused, onclick: () => cmd("pause") }, "Pause"),
+      el("button", { class: "chip-btn", disabled: !online || !(stopped || paused), onclick: () => cmd("resume") }, "Resume")));
+}
+
 // --- riftbound (5.6) --------------------------------------------------------------------------------------------
 
 // buddy/game/state is built from cards everyone knows (public_view): Buddy's hand is a count, Dev's real cards are
@@ -1085,7 +1125,15 @@ const SERVICE_CHIPS = [
   { name: "speakers", members: ["speakers"] },
   { name: "game", members: ["game", "table"], detail: gameDetail },
   { name: "messenger", members: ["messenger"], detail: messengerDetail },
+  { name: "screener", members: ["screener"], detail: screenerDetail },
 ];
+
+// The loop's state unless idle; a hold first (Dev is needed).
+function screenerDetail() {
+  const s = state["buddy/screener/state"];
+  if (!s || s.state === "idle") return "";
+  return s.state === "needs_you" ? "needs you" : SCREENER_STATE[s.state] ?? s.state;
+}
 
 // A Riftbound game running: what it waits for (buddy/game/state's status; table has no /state of its own).
 const GAME_DETAIL = { setup: "setup", dev_to_act: "your move", dev_to_reveal: "name a card", thinking: "thinking",
@@ -1130,6 +1178,7 @@ function render() {
     renderLights();
     renderMusic();
     renderSystem();
+    renderScreener();
   }
 }
 
