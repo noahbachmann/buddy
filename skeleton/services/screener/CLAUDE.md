@@ -7,11 +7,12 @@ comes from `BUDDY_SCREENER_APP` in the host's `buddy.env`. Personal data (dumps,
 
 State: step 1 (service skeleton, device layer, screen model, navigator), step 2 (decision layer + shadow mode;
 shadow sessions 1–4 done; poll options liked since #82), step 3 built (#80: the browse loop, running dry since
-2026-11-24; its rows from #176 are measure session 5) and step 4's offline part (#77: chat flow + `--sim`, gate
-passed 2026-11-19; live wiring next). Where things stand: #66's body.
+2026-11-24; its rows from #176 are measure session 5) and step 4 (#77: chat flow + `--sim`, gate passed 2026-11-19;
+the live chats built 2026-11-24, off until Dev's supervised start in `hold`). Where things stand: #66's body.
 Step 3 (#80): the service runs the browse loop (`browse.py`) when `BUDDY_SCREENER_BROWSE` is `dry` or `live`
 (default `off`: a deploy never starts tapping). Shadow mode stays as offline commands; `--cmd skip|send <id>` carry
-out Dev's label of a row. No code path taps a paid option or a chat send.
+out Dev's label of a row. No code path taps a paid option. A chat message is sent only by the chat driver
+(`chats.py`, `BUDDY_SCREENER_CHAT=hold|live`), only after its read-back.
 
 ## Modules (`buddy_screener/`)
 
@@ -19,24 +20,25 @@ out Dev's label of a row. No code path taps a paid option or a chat send.
 |---|---|
 | `uitree.py` | `uiautomator` XML → `Node` tree (`desc`, `text`, `rid` without package, `Rect` bounds, flags) |
 | `vocab.py` | Every app UI string the model relies on (English UI). The sanitizer keeps exactly these |
-| `screens.py` | `classify()` → `Kind` (feed, sheet, likes, matches, chat, popup, upsell, other_app, unknown); readers `profile_view` (sections + their like buttons, details, floating obstacles, `at_top`), `sheet_view` (for a poll: the picked option), `match_rows`, `chat_view` (side left/right by position); `tappable()` = the allowlist, `actable()` = the acting one |
+| `screens.py` | `classify()` → `Kind` (feed, sheet, likes, matches, chat, chat_profile, chat_menu, popup, upsell, other_app, unknown); readers `profile_view` (sections + their like buttons, details, floating obstacles, `at_top`; with a `name`: the chat's Profile tab), `sheet_view` (for a poll: the picked option), `match_rows` (+ section under "Your/Their turn", thumbnail) and `turn_headers`, `chat_view` (the head = our like: card + comment or "You liked …"; messages by side; unreadable items = media; field, send, More, header tabs), `unmatch_item`; `tappable()` = the allowlist, `actable()` = the acting one (skip, send like, upsell's plain like, chat send, Unmatch) |
 | `profile.py` | `Capture`: one profile stitched across scroll dumps (offset per dump measured by voting on shared sections/texts, checked by `verify_shift`; a blind gap past a video by the swipes' scale), `Section` refs `photo N` / `prompt N` / `video N` in content y; `dhash` |
 | `imaging.py` | Pillow: crop of a screenshot (`Image`) → dhash (photos all read "<name>'s photo" in the tree), → JPEG for the decision; `shot_pages` (half-size screenshots 4 to a JPEG page) |
 | `device.py` | adb: `dump` (our reader `android/screener-dump` in serve mode over `adb forward`, else its one-shot mode, else `uiautomator dump` with retries and `NotIdle`; `close()`/atexit ends serve mode), `screencap` (raw pixels → RGB `Image`, `half`), `tap` (jitter inside the middle half), `swipe`/`swipe_h` (jittered start, drift, speed; length only shorter), `key`, `launch`, `foreground`, keyboard type/clear/read (`buddy.screener.ime` broadcasts), `ime_set`, `notifications`, `state`. `guard()` before every input action |
-| `navigator.py` | Moves: `go_tab`, `capture_profile` (+ each detail row swiped to its end and flung back), `scroll_to(ref)`, `open_sheet` (+ scroll the panel clear), `type_comment` (read back), `skip_profile`, `send_like` (via `_act`; keeps the upsell's raw dump as tmpfs `upsell-last.xml`), `back_out`, `open_chat`/`leave_chat`, `screenshots` (the profile top to end, a screen per swipe, for `--cmd shots`). `NeedsYou` keeps the raw dump in tmpfs |
+| `navigator.py` | Moves: `go_tab`, `capture_profile` (+ each detail row swiped to its end and flung back), `scroll_to(ref)`, `open_sheet` (+ scroll the panel clear), `type_comment` (read back), `skip_profile`, `send_like` (via `_act`; keeps the upsell's raw dump as tmpfs `upsell-last.xml`), `back_out`, chats (#77): `matches()` (keyed rows: name + thumbnail hash, "Their turn" opened once per pass), `open_chat(key)`/`leave_chat`, `read_chat()` (scroll up to the head, `stitch` pages), `chat_profile()` (the Profile tab through the feed's capture, `where`), `type_message`/`field_holds`/`send_message`/`clear_message`, `unmatch()`; `screenshots` (the profile top to end, a screen per swipe, for `--cmd shots`). `NeedsYou` keeps the raw dump in tmpfs |
 | `sanitize.py` | Real dumps → fixtures: one mapping across a walk, names/prompts/texts → placeholders, package → `app.example`; refuses output with a word from `~/buddy/config/screener/forbidden` (host) |
 | `library.py` | Host input: `preferences.md` (verbatim into the system prompt), `templates.md` section *Like comments* (`- id \| de\|en \| fit hint \| text`; broken line → whole file refused). Loaded per decision. Chat (#77): `parse_chat_templates` (EN/DE blocks, placeholders per template), `ChatRules` (`chat.md` + the chat's preference sections + questions + allowed links), `Contacts` (number/instagram files, hidden from repr) |
 | `chat.py` | The chat as a pure state machine (`ChatFlow.step/conversed/verified/delivered`, one `Action` at a time): disclosure first, manual detection, code's match checks, contact by template only, generated-text refusals, language, nudge/close/unmatch timers, `ChatLimits` |
 | `converse.py` | The chat's calls on `Decider.call`: `converse` (reply + state + answers + flags + contact + lang), `verify` (strict second opinion, profile + transcript), prompts with escaped `<msg>` elements, `check_converse`/`check_verify` |
 | `sim.py`, `sim_cases.py`, `sim_personas.py` | `--sim`: driver loop on a fake clock, 21 scripted cases, 8 persona cards (a model plays her), sentinel contacts, prompt leak check, gate report, transcripts in tmpfs |
 | `decide.py` | Agent SDK wrapper (`Decider.decide` = text check, photo check (#83), then `browse` with photos): locked-down CLI options, text + browse schemas, `check_text`, `check_browse` (code re-checks: unknown section/comment → none, soft flags without a verifiable quote dropped, dealbreaker → skip, a like on a profile it called `generic` → skip (#107), adapted comment refused → the template's text or none, `fixes` kept), usage per call, `limit_until` pause, daily $ cap |
-| `store.py` | SQLite `data/screener/screener.db`: `usage` (kept; live and `sim-` tasks capped apart), `shadow` (bot decision + Dev's label as JSON, profile key only, 30 days; the loop's rows carry `run: dry|live`), `actions` (every act and stop: kind, mode dry/live/shadow, row id, a detail without names; 30 days), `chats` (`chat.Chat` as JSON, never her texts; 30 days after it ended) |
-| `shadow.py` | Step 2 commands' logic: `run_shadow` (capture → decide → row; capture pickled to tmpfs without crops), `make_label`, `type_label`, `act_label` (skip/send on Dev's label; a relabel keeps `acted`), `report` (done-when numbers; `unjudged` rows left out; comment target = the text Dev sent) |
+| `chats.py` | The chats on the phone (#77): `ChatDriver.step()` = a pass over the matches list (badge or every `CHAT_CHECK_MIN`) or a held message's resume; links a match to our `liked` chat or an old match (Profile tab), else `foreign`; runs `ChatFlow` with the `Talker`; `hold` mode types and holds each message (and an unmatch); fixed notices per end state; `chat-ignore` |
+| `store.py` | SQLite `data/screener/screener.db`: `usage` (kept; live and `sim-` tasks capped apart), `shadow` (bot decision + Dev's label as JSON, profile key only, 30 days; the loop's rows carry `run: dry|live`), `actions` (every act and stop: kind, mode dry/live/shadow, row id, a detail without names; 30 days), `chats` (`chat.Chat` as JSON, never her texts; 30 days after it ended; `liked` = a like waiting for its match, 30 days) |
+| `shadow.py` | Step 2 commands' logic: `liked_chat` (what a sent like keeps for its chat, #77), `run_shadow` (capture → decide → row; capture pickled to tmpfs without crops), `make_label`, `type_label`, `act_label` (skip/send on Dev's label; a relabel keeps `acted`), `report` (done-when numbers; `unjudged` rows left out; comment target = the text Dev sent) |
 | `likes.py` | The like budget from the action log: likes left in the batch, the paywall wait (until the last like + 24 h, Dev's guess), `probe` (the first like after it confirms the guess: `likes_back`), `stuck` (a paywall the guess can't explain → Dev). `BUDDY_SCREENER_DAILY_LIKES`, `_LIKES_24H` |
 | `browse.py` | Step 3's loop (#80): `Browser.step()` = one profile (window, likes, breaks → `shadow.judge` → skip / hold / like) with injected nav, decider, store, clock, rng; `hold(kind, row)` and `notify(text)` callbacks; dry rows' screenshot pages + summary in tmpfs `rows/<id>/`; `today()` counts |
 | `hub.py` | The service's side of a hold: `needs_you` file, the Telegram ask (Resume/Stop; per kind: what happened (the code's reason, never a name) and what Dev does), Dev's answer → resume/stop; a resume elsewhere marks the question "▶ resumed on the panel / by Claude" |
 | `config.py` | `BUDDY_SCREENER_*` (incl. model, effort, decide timeout, daily $), kill switch files (`config/screener/stop`, `data/screener/paused`), token/limit/db paths, tmpfs dir |
-| `main.py` | Service loop (phone check every 30 s, state on change, commands, Dev's Telegram answers; the browse loop on a worker thread) + `--cmd screen\|dump\|fixture\|profile\|back-out\|walk\|shots\|templates\|shadow\|label\|type\|skip\|send\|report\|rows`, `--sim [--case NAME…\|all] [--personas N]` |
+| `main.py` | Service loop (phone check every 30 s, state on change, commands, Dev's Telegram answers; one worker thread: a chat step, then a profile) + `--cmd screen\|dump\|fixture\|profile\|back-out\|walk\|shots\|templates\|shadow\|label\|type\|skip\|send\|report\|rows`, `--sim [--case NAME…\|all] [--personas N]` |
 
 ## Rules the code enforces
 
@@ -184,16 +186,16 @@ Host: `chat.md` (copied from `preferences.md` 2026-11-19: *Screening questions*,
 `contact_offer`, `contact_number`, `contact_instagram`, `closing`, `opt_out`, `question`), `number`, `instagram`. The chat calls
 see `chat.md` + *About Dev*, *Looking for*, *Good fit*, *Soft negatives/positives*, *Dealbreakers* (not *Physical*).
 
-- A driver runs `ChatFlow` (the sim now; the service's loop once step 4 is wired, #77): `step` → send / converse / verify / unmatch /
-  notify / wait; the driver reports back (`delivered`, `conversed`, `verified`, `unmatched`).
+- A driver runs `ChatFlow` (`sim.run_chat` offline, `chats.ChatDriver` on the phone): `step` → send / converse /
+  verify / unmatch / notify / wait; the driver reports back (`delivered`, `conversed`, `verified`, `unmatched`).
 - Code, not the model: disclosure first; our like comment seeded into the sent log; ours on screen not in the log →
   `manual` for good; media → handover; match = required answers + no flag + ≥ 3 turns + verifier; the held `reply`
   keeps screening when that fails; contact phone/both → number (Dev), instagram → handle, unclear once → ask again;
   every generated text refused (→ handover) on length, digit runs, handles, links not in `chat.md`, contact values.
 - Screening questions are Dev's words (Dev, 2026-11-19: never rephrased): `chat.md` has each as `N. "English"` + an
   indented `DE: "German"` line (+ free note lines for the model). The model only returns `ask` (the number) and a short
-  reaction; code appends the question verbatim in the chat's language through the `question` template ("Noah
-  asks: …"). Only the model's part goes through the refusal checks.
+  reaction; code appends the question verbatim in the chat's language through the `question` template (Dev's
+  wording, host-only). Only the model's part goes through the refusal checks.
 - Language: first message by the prompts' majority (tie → German), then her latest message (German / Swiss German →
   standard German, never dialect; anything else → English). First message and nudge get the language stated.
 - Our sent contact messages are redacted in every transcript (`[contact sent]`): no contact value reaches a prompt.
@@ -201,6 +203,15 @@ see `chat.md` + *About Dev*, *Looking for*, *Good fit*, *Soft negatives/positive
   --personas N` (both). ~5 s per call; the 21 cases ≈ 55 calls ≈ 4 % of the 5 h window, 8 personas ≈ 9 %. Own cap
   `BUDDY_SCREENER_SIM_USD` (24 h, apart from the live cap). Persona outcomes on profile fit are reported, never
   asserted: the repo is public and fit is the host preferences' call.
+- **Live (#77, 2026-11-24).** `BUDDY_SCREENER_CHAT=off|hold|live` (off by default). Which chats (Dev): a match linked
+  to exactly one of our `liked` chats (a sent like keeps her profile text, prompt languages, our comment, the section
+  kind; linked by name, the head must show the same kind and comment), or an old match where we sent nothing but the
+  like (her profile read from the chat's Profile tab, languages by `guess_lang`); names in the host's
+  `config/screener/chat-ignore` and everything else (`foreign`, Dev told once) are never touched. The model sees our
+  like comment first: her first reply answers it. `hold` (Dev, the first ~5 chats): each message typed into the
+  field, not sent, Telegram asks (no text); Resume = the field still holds it → sent; Dev sending it himself counts as
+  ours, any other change → `manual`. Messages go out as soon as seen (Dev: no delay, no hours). Notices are fixed per
+  end state, never the flow's text (it carries the model's reason). 3 failed calls on a chat → handover.
 - Findings fixed by the sim (2026-11-19): a fit line written about her for Dev and sent to her; dialect replies to a
   Swiss German profile; a nudge in the wrong language; the verifier without the profile (it flagged the bot's
   profile reference as invented); a held reply without a question (the chat stalled).
@@ -214,7 +225,7 @@ sideways to its end, 2026-11-17), `photo-caption` (a captioned photo: its button
 sent like, real dump 2026-11-23: the paid button's texts are placeholders),
 `own-profile` (unknown), `feed-video` (a video between a photo and a prompt, 2026-11-17), `feed-video-prompt` (a
 profile's top with a playing video prompt under photo 1, 2026-11-18), `feed-poll` (a poll's card, a feature ad, prompt 1, 2026-11-18), `out-of-likes` (the paywall after "send like"
-once the day's free likes are gone, 2026-11-18), `feed-voice-1..4` (video prompt, feature ad, voice prompt, prompt: the capture lost track before voice prompts were sections, 2026-11-20), `feed-friend-1..5` (friends' cards carousel, feature ad, poll, prompt, 2026-11-20), `feed-poll-off-1..3` (a poll's question scrolls off, its options and a voice prompt left, 2026-11-21), `feed-poll-all` → `sheet-option` → `sheet-option-typed` (an option's heart tapped: the panel with option 2 picked, then scrolled clear and typed, 2026-11-23). `fixture_files.py` loads them, `fake_phone.py` replays them as a phone (taps/swipes move between
+once the day's free likes are gone, 2026-11-18), `feed-voice-1..4` (video prompt, feature ad, voice prompt, prompt: the capture lost track before voice prompts were sections, 2026-11-20), `feed-friend-1..5` (friends' cards carousel, feature ad, poll, prompt, 2026-11-20), `feed-poll-off-1..3` (a poll's question scrolls off, its options and a voice prompt left, 2026-11-21), `feed-poll-all` → `sheet-option` → `sheet-option-typed` (an option's heart tapped: the panel with option 2 picked, then scrolled clear and typed, 2026-11-23); #77 walk (2026-11-24): `matches-turns` / `matches-scrolled` / `matches-expanded` (the list, scrolled ~200 px, "Their turn" tapped open), `chat-comment` / `chat-comment-top` / `chat-photo-comment` / `chat-multiline` (our like with a comment heads the chat, her one reply), `chat-profile-01..18` (a chat's Profile tab to its end), `chat-menu` (More). `fake_chat_phone.py` walks them (typed and sent chats synthetic until step 9). `fixture_files.py` loads them, `fake_phone.py` replays them as a phone (taps/swipes move between
 dumps, records actions, `sent()` must stay empty). `test_decide.py` runs the decider against a fake SDK stream
 (real `ResultMessage`/`RateLimitEvent` objects); `test_shadow.py` runs shadow → label → type on the fake phone. New fixture: `deploy/run.sh screener --cmd dump <name>` on the
 Pi, then `--cmd fixture <out dir> <dumps…>` (all dumps of one walk in one call), check the texts, copy over.
@@ -290,5 +301,14 @@ Pi, then `--cmd fixture <out dir> <dumps…>` (all dumps of one walk in one call
   whatever the gap hid are lost or incomplete (never liked). A profile ending on a video: capture backs up until
   readable. Untested on the phone: whether a partly visible video already plays.
 - `exec-out uiautomator dump /dev/tty` appends "UI hierchary dumped to: /dev/tty": `Device.dump` cuts it.
-- Carried to later steps (not seen yet): an incoming like's card, an app notification's text, our own sent message's
-  format in a chat. Each → a sanitized fixture when first seen.
+- Chats (#77 walk, 2026-11-24): the matches list has "Your turn (N)" and a **collapsed** "Their turn (N)" header (a
+  tap opens it; a second closes it); on the list's first screen it sits on the tab bar. A chat is a reversed list:
+  its head is our like (the section's card, then our comment as a bare text, or "You liked X's photo." without one),
+  her messages carry " Name: text. " as description, dates are separators. The Profile tab lists the details
+  vertically plus a sideways row, and at its top keeps padding above the first content (`CHAT_TOP_GAP`). More opens a
+  popup: We Met / Unmatch / Hide / Report, closed with Back. Two kept UI strings were forbidden words (the intentions
+  label, a paid feature's row marker): they stay placeholders.
+- Carried to later steps (not seen yet): an incoming like's card, an app notification's text, a new match without
+  messages, our own sent message and the send button with text typed (step 9's first held message), the unmatch
+  confirmation, a photo or voice note from her (any unreadable item = media → handover). Each → a sanitized fixture
+  when first seen.
