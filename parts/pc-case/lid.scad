@@ -1,3 +1,4 @@
-// Lid: flat lattice plate on the tray walls, top-module mounts, seam tabs for the cover. Prints as it lies.
+// Lid: flat lattice plate between the tray walls, top flush with them; tabs into the slits beside the board carry it.
+// Top-module nut bosses underneath. Prints top down.
 include <lib.scad>
-translate([0, 0, -z_lid]) lid();
+flip_lid() lid();
