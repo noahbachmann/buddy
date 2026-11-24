@@ -110,11 +110,24 @@ def test_label_rules(store):
     assert (lab["decision"], lab["comment_on"], lab["dealbreaker"]) == ("skip", "none", True)
 
 
-def test_type_needs_a_liked_comment(store):
+def test_type_needs_a_like(store):
     r = row(store, like())
-    r.dev = shadow.make_label(r, "like", "photo 1", "none", LIB)
+    r.dev = shadow.make_label(r, "skip", None, None, LIB)
     with pytest.raises(shadow.LabelError, match="nothing to type"):
         shadow.type_label(None, r, None, LIB)
+
+
+def test_a_like_without_a_comment_opens_the_panel_and_sends_it_empty(store, tmp_path):
+    phone = FakePhone("feed-01")
+    phone.upsell = False
+    n = nav(phone)
+    r = shadow.run_shadow(n, FakeDecider(like(comment="none", missing="x")), LIB, store, tmp_path)
+    store.label(r.row_id, shadow.make_label(store.shadow(r.row_id)[0], "like", None, None, LIB))
+    row_ = store.shadow(r.row_id)[0]
+    assert row_.dev["comment"] == "none" and shadow.type_label(n, row_, r.capture, LIB) == ""
+    assert phone.screen == "sheet" and not any(a[0] == "type" for a in phone.actions)
+    _, nxt = shadow.act_label(n, row_, r.capture, LIB, "send")
+    assert nxt == "Kim" and [a[2] for a in phone.sent()] == ["Send like"]
 
 
 def test_report_numbers(store):
@@ -253,9 +266,9 @@ def test_out_of_likes_can_move_on_to_the_next_profile(store, tmp_path):
     row = store.shadow(r.row_id)[0]
     shadow.type_label(n, row, r.capture, LIB)
     phone.out_of_likes = phone.paywall_moves_on = True   # seen live 2026-11-19
-    with pytest.raises(NeedsYou, match="moved on to the next profile: this one is gone"):
+    with pytest.raises(NeedsYou, match="moved on to the next profile: this one is gone") as e:
         shadow.act_label(n, row, r.capture, LIB, "send")
-    assert phone.sent() == []
+    assert phone.sent() == [] and "Kim" not in str(e.value) and "Alex" not in str(e.value)   # no names (#80)
 
 
 def test_skip_works_on_an_unjudged_row(store, tmp_path):

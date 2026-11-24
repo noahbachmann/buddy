@@ -6,7 +6,7 @@ A session is a sequence of offline commands (run from Claude's session or a term
 2. Dev decides on the phone. `label <id> like|skip [section] [comment]`: Dev's choice; a like without section and
    comment takes the bot's. A comment Dev writes themselves goes into `templates.md` first, then gets labelled by id.
    `label <id> unjudged`: Dev couldn't see the profile; `report` leaves the row out, `skip` still works on it.
-3. `type <id>` (a like with a comment): scroll to the labelled section, open its panel, type the comment through our
+3. `type <id>` (a like): scroll to the labelled section, open its panel, type the comment (if any) through our
    keyboard and read it back. **Dev taps send**: nothing here sends, skips or likes.
 4. `report`: the done-when numbers.
 
@@ -170,9 +170,11 @@ def make_label(row: ShadowRow, decision: str, section: str | None, comment: str 
 
 
 def _label_text(dev: dict, lib: Library) -> str:
-    """What goes out for a like label (labels before #78 had no text: the template's)."""
+    """What goes out for a like label: "" = no comment (labels before #78 had no text: the template's)."""
     if dev.get("text"):
         return dev["text"]
+    if dev["comment"] == "none":
+        return ""
     c = lib.comment(dev["comment"])
     if c is None:
         raise LabelError(f"comment {dev['comment']!r} is gone from templates.md")
@@ -189,12 +191,13 @@ def load_capture(tmp_dir: Path, row_id: int) -> Capture | None:
 def type_label(nav: Navigator, row: ShadowRow, cap: Capture, lib: Library) -> str:
     """Brings the labelled section's comment panel up with the comment typed and read back. Returns the text."""
     dev = row.dev
-    if not dev or dev["decision"] != "like" or dev["comment"] == "none":
-        raise LabelError("nothing to type: label it as a like with a comment first")
+    if not dev or dev["decision"] != "like":
+        raise LabelError("nothing to type: label it as a like first")
     text = _label_text(dev, lib)
     s, sv = nav.scroll_to(cap, dev["comment_on"])   # checks it's the same profile and section
     nav.open_sheet(s, sv)
-    nav.type_comment(text)
+    if text:   # a like without a comment (#80: none fitted): the panel open, the field empty
+        nav.type_comment(text)
     return text
 
 
@@ -209,8 +212,8 @@ def act_label(nav: Navigator, row: ShadowRow, cap: Capture, lib: Library, action
             raise LabelError("the label isn't a skip")
         nxt = nav.skip_profile(cap.profile.name)
     elif action == "send":
-        if dev["decision"] != "like" or dev["comment"] == "none":
-            raise LabelError("the label isn't a like with a comment (type it first)")
+        if dev["decision"] != "like":
+            raise LabelError("the label isn't a like (type it first)")
         nxt = nav.send_like(cap.profile.name, _label_text(dev, lib))
     else:
         raise LabelError("skip or send")
