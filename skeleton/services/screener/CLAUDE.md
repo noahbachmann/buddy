@@ -215,7 +215,10 @@ Pi, then `--cmd fixture <out dir> <dumps…>` (all dumps of one walk in one call
   text = the question, first seen right under photo 1, 2026-11-18): listed to the bot, never commented
   on or liked. Its player adds a native layer larger than the card that can swallow a swipe starting on it: the
   capture took that for the profile's end and stopped at the first video (2026-11-17). Swipes start in the list's
-  right margin (`_margin_x`, beside the cards), and the end = two swipes in a row that move nothing.
+  right margin (`_margin_x`, beside the cards), and the end = two swipes in a row that move nothing. The friends'
+  carousel spans the full width and takes a swipe that starts on it sideways: the capture stopped after it (#165,
+  2026-11-24). `_clear_start` moves the start off anything in `ProfileView.sideways`; `run_shadow` never judges a
+  capture without details (every profile has a details card).
 - Free likes run out (seen after 2 sent likes on 2026-11-18): "send like" opens a paywall (`OUT_OF_LIKES`, its own
   kind: closing it isn't a popup on the way). `send_like` closes it (Close only) and stops: the comment stays in the
   panel, but the field loses focus and reads empty until tapped: `send_like` taps the field before the read-back. Not always: on 2026-11-19 and 2026-11-22 closing it showed the next profile (the liked one gone, like

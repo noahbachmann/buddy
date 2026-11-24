@@ -104,6 +104,8 @@ class FakePhone:
         self.actions.append(("swipe", self.screen, y1 - y2, x))
         if self.swallow:
             self.swallow -= 1
+        elif self._on_carousel(x, y1):
+            pass   # the friends' carousel takes a swipe that starts on it sideways: the list doesn't move (#165)
         elif self.screen in self.walk:
             i = self.walk.index(self.screen) + (1 if y2 < y1 else -1)
             self.screen = self.walk[max(0, min(len(self.walk) - 1, i))]
@@ -111,6 +113,15 @@ class FakePhone:
             self.screen = "sheet"   # the panel moved up, clear of the skip button
         elif self.screen == "sheet-option" and y2 < y1:
             self.screen = "sheet-option-typed"   # same, for an option's panel (that dump was taken typed)
+
+    def _on_carousel(self, x: int, y: int) -> bool:
+        """On the friends' carousel: the innermost sideways scroller holding friends' cards (not the list itself)."""
+        boxes = [n for n in parse(load(self.screen)).iter() if n.scrollable
+                 and n.first(lambda c: c.desc.startswith("Friend's Take")) is not None]
+        if not boxes:
+            return False
+        b = min(boxes, key=lambda n: n.bounds.width * n.bounds.height).bounds
+        return len(boxes) > 1 and b.left <= x < b.right and b.top <= y < b.bottom
 
     def swipe_h(self, y: int, x1: int, x2: int, ms: int) -> None:
         self.guard()

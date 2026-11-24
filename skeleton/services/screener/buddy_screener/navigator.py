@@ -70,6 +70,22 @@ def _margin_x(view: ProfileView) -> int:
     return (edge + vp.right) // 2 if vp.right - edge >= MIN_MARGIN else vp.center[0]
 
 
+def _clear_start(view: ProfileView, x: int, y: int, up: bool) -> int:
+    """A swipe start off anything that scrolls sideways: a full-width carousel (friends' cards) under the start
+    takes the swipe and nothing moves, which the capture reads as the profile's end (#165). Moves the start past it
+    towards where the swipe goes (it then covers less, the tracking measures the real move); kept if no spot is
+    clear."""
+    vp = view.viewport
+    for _ in range(len(view.sideways) + 1):
+        hit = next((r for r in view.sideways if r.left <= x < r.right and r.top <= y < r.bottom), None)
+        if hit is None:
+            return y
+        y = hit.top - 20 if up else hit.bottom + 20
+        if not vp.top + 80 <= y <= vp.bottom - 80:
+            break
+    return vp.bottom - 150 if up else vp.top + 150
+
+
 def _signature(root: Node) -> tuple:
     """What a still screen keeps between dumps; a playing video's clock is left out (it ticks every second)."""
     return tuple((n.cls, n.desc, n.text, n.rid, n.bounds, n.selected) for n in root.iter()
@@ -205,10 +221,10 @@ class Navigator:
         and the like buttons and the skip button sit on or left of the cards."""
         x = _margin_x(view)
         if delta > 0:
-            y1 = view.viewport.bottom - 150
+            y1 = _clear_start(view, x, view.viewport.bottom - 150, up=True)
             self.dev.swipe(x, y1, max(view.viewport.top + 50, y1 - delta), SWIPE_MS)
         else:
-            y1 = view.viewport.top + 150
+            y1 = _clear_start(view, x, view.viewport.top + 150, up=False)
             self.dev.swipe(x, y1, min(view.viewport.bottom - 50, y1 - delta), SWIPE_MS)
         self.pause(0.6)
 

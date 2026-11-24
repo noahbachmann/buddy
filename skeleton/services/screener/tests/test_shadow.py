@@ -348,3 +348,12 @@ def test_an_option_label_is_normalised():
     r = row(store=Store(":memory:"), bot=like())
     lab = shadow.make_label(r, "like", "Option-2", "own", LIB, ["photo 1", "poll 1", "option 2"], text="the hut")
     assert (lab["comment_on"], lab["text"]) == ("option 2", "the hut")
+
+
+def test_a_capture_without_details_is_never_judged(store, tmp_path):
+    # #165: a capture that ended early (no details card) went to the bot anyway
+    decider = FakeDecider(like())
+    walk = [f"feed-friend-{i}" for i in range(1, 6)]   # a profile's top only: no details card
+    with pytest.raises(NeedsYou, match="no details"):
+        shadow.run_shadow(nav(FakePhone("feed-friend-1", walk=walk)), decider, LIB, store, tmp_path)
+    assert decider.seen is None   # the bot never saw it, no row was stored

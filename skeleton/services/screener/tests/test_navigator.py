@@ -323,3 +323,17 @@ def test_a_panel_open_for_another_option_needs_you():
     with pytest.raises(NeedsYou, match="another section"):
         n.open_sheet(s, _option(s, "Option 3"))   # the app picked option 2
     assert phone.sent() == [] and not any(a[0] == "type" for a in phone.actions)
+
+
+FRIEND_WALK = [f"feed-friend-{i}" for i in range(1, 6)]
+
+
+def test_capture_starts_swipes_off_the_friends_carousel():
+    # #165: the carousel filled the list's bottom where swipes started; it took them sideways, nothing moved twice,
+    # and the capture ended there as if at the profile's bottom (photo 1 and two friends' cards only)
+    phone = FakePhone("feed-friend-1", walk=FRIEND_WALK)
+    cap = nav(phone).capture_profile()
+    refs = [s.ref for s in cap.profile.sections]
+    assert phone.screen == "feed-friend-5" and refs[:4] == ["photo 1", "friend 1", "friend 2", "poll 1"]
+    assert refs[-1] == "prompt 1"
+    assert phone.sent() == []

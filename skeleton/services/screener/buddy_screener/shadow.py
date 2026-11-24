@@ -63,6 +63,9 @@ def run_shadow(nav: Navigator, decider: Decider, lib: Library, store: Store, tmp
     cap = nav.capture_profile()
     capture_s = time.monotonic() - t
     p = cap.profile
+    if not p.details:
+        # every profile shows a details card (age at least): none = the capture ended early (#165), never judge it
+        raise nav.needs_you("no details captured: the capture stopped before the profile's end")
     browse, usage = decider.decide(p, lib)
     first_prompt = next((s.text for s in p.sections if s.kind == "prompt"), "")
     bot = browse.to_dict() | {"chat_lang": browse.chat_lang}
