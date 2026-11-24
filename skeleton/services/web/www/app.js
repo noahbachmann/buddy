@@ -648,7 +648,9 @@ const SCREENER_STATE = { idle: "idle", browsing: "browsing", break: "on a break"
   done_today: "likes used up", limit: "usage limit", needs_you: "needs you", paused: "paused", stopped: "stopped",
   failed: "loop failed (see the log)", offline: "phone offline" };
 const SCREENER_HOLD = { would_like: "a like waits on the phone", screen: "a screen it couldn't handle",
-  likes: "the likes didn't come back", decide: "decisions keep failing", files: "preferences/templates refused" };
+  likes: "the likes didn't come back", decide: "decisions keep failing", files: "preferences/templates refused",
+  chat_message: "a chat message waits on the phone", chat_unmatch: "an unmatch waits for you",
+  chat_screen: "a chat screen it couldn't handle", chat_files: "chat files refused" };
 const hhmm = (ts) => new Date(ts * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
 function renderScreener() {
@@ -675,10 +677,20 @@ function screenerCard(s, online) {
       `Today: ${t.profiles ?? 0} profiles, ${t.skips ?? 0} skipped, ${t.likes ?? 0} liked` +
       (t.would_like ? `, ${t.would_like} held` : "") +
       (s.last ? ` · last: ${s.last.action} at ${hhmm(s.last.ts)}` : "")),
+    s.chats ? el("div", { class: "row muted" }, screenerChats(s)) : null,
     el("div", { class: "controls" },
       el("button", { class: "chip-btn", disabled: !online || stopped, onclick: () => cmd("stop") }, "Stop"),
       el("button", { class: "chip-btn", disabled: !online || stopped || paused, onclick: () => cmd("pause") }, "Pause"),
       el("button", { class: "chip-btn", disabled: !online || !(stopped || paused), onclick: () => cmd("resume") }, "Resume")));
+}
+
+// The chats (#77): counts by state, never a name or a message.
+function screenerChats(s) {
+  const c = s.chats;
+  const parts = [["open", "open"], ["held", "held"], ["handover", "need you"], ["done", "got your contact"],
+    ["manual", "yours"], ["closed", "closed"], ["liked", "likes waiting"]]
+    .filter(([k]) => c[k]).map(([k, label]) => `${c[k]} ${label}`);
+  return `Chats (${s.chat_mode ?? "off"}): ${parts.length ? parts.join(", ") : "none"}`;
 }
 
 // --- riftbound (5.6) --------------------------------------------------------------------------------------------
