@@ -58,6 +58,13 @@ class ShadowResult:
 
 
 def run_shadow(nav: Navigator, decider: Decider, lib: Library, store: Store, tmp_dir: Path) -> ShadowResult:
+    return judge(nav, decider, lib, store, tmp_dir)
+
+
+def judge(nav: Navigator, decider: Decider, lib: Library, store: Store, tmp_dir: Path,
+          run: str | None = None) -> ShadowResult:
+    """Capture the profile on screen, decide, store the row, keep the capture in tmpfs. `run` = the loop's mode (dry |
+    live, #80) stored with the bot's decision; None = a shadow command."""
     nav.go_tab(vocab.TAB_DISCOVER)
     t = time.monotonic()
     cap = nav.capture_profile()
@@ -68,7 +75,7 @@ def run_shadow(nav: Navigator, decider: Decider, lib: Library, store: Store, tmp
         raise nav.needs_you("no details captured: the capture stopped before the profile's end")
     browse, usage = decider.decide(p, lib)
     first_prompt = next((s.text for s in p.sections if s.kind == "prompt"), "")
-    bot = browse.to_dict() | {"chat_lang": browse.chat_lang}
+    bot = browse.to_dict() | {"chat_lang": browse.chat_lang} | ({"run": run} if run else {})
     row_id = store.add_shadow(profile_key(p.name, p.details, first_prompt), capture_s, bot, usage)
 
     for s in p.sections:

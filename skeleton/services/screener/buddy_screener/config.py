@@ -28,6 +28,11 @@ class Config:
     photo_model: str = ""        # its model; empty = `model`
     photo_check_px: int = 1024   # its crops' long side: ≥ the screen's 960 px photos = not downscaled
     check_model: str = ""        # the like comment's copy/invention check (#84); empty = `model`
+    browse: str = "off"          # the loop (#80): off | dry (decides, skips, holds likes for Dev) | live
+    hours: str = "10-18"         # active window, local hours (likes_24h: starts when the likes are back)
+    gap_s: str = "20-90"         # seconds between two profiles
+    break_every: str = "6-12"    # profiles between random breaks
+    break_min: str = "5-20"      # a break's minutes
     daily_likes: int = 8         # the app's free likes per batch (#80): the budget stops before its paywall
     likes_24h: bool = False      # likes come back 24 h after a used-up batch's last like (Dev's guess, likes.py)
     chat_min_exchanges: int = ChatLimits.min_exchanges   # chat (#77): meanings in chat.ChatLimits
@@ -59,6 +64,11 @@ class Config:
             photo_model=env_string("BUDDY_SCREENER_PHOTO_MODEL", d.photo_model),
             photo_check_px=env_int("BUDDY_SCREENER_PHOTO_CHECK_PX", d.photo_check_px),
             check_model=env_string("BUDDY_SCREENER_CHECK_MODEL", d.check_model),
+            browse=env_string("BUDDY_SCREENER_BROWSE", d.browse),
+            hours=env_string("BUDDY_SCREENER_HOURS", d.hours),
+            gap_s=env_string("BUDDY_SCREENER_GAP_S", d.gap_s),
+            break_every=env_string("BUDDY_SCREENER_BREAK_EVERY", d.break_every),
+            break_min=env_string("BUDDY_SCREENER_BREAK_MIN", d.break_min),
             daily_likes=env_int("BUDDY_SCREENER_DAILY_LIKES", d.daily_likes),
             likes_24h=env_int("BUDDY_SCREENER_LIKES_24H", int(d.likes_24h)) != 0,
             chat_min_exchanges=env_int("BUDDY_SCREENER_CHAT_MIN_EXCHANGES", d.chat_min_exchanges),
@@ -77,9 +87,22 @@ class Config:
             raise ValueError(f"BUDDY_SCREENER_EFFORT={c.effort!r}: low|medium|high|xhigh|max")
         if not 1 <= c.daily_likes <= 100:
             raise ValueError(f"BUDDY_SCREENER_DAILY_LIKES={c.daily_likes}: 1..100")
+        if c.browse not in ("off", "dry", "live"):
+            raise ValueError(f"BUDDY_SCREENER_BROWSE={c.browse!r}: off|dry|live")
+        c.browse_config()   # the ranges parse
         if not c.package:
             raise ValueError("BUDDY_SCREENER_APP is not set (the app's package, in buddy.env)")
         return c
+
+    def browse_config(self):
+        from .browse import BrowseConfig, parse_range
+        hours = parse_range(self.hours, "BUDDY_SCREENER_HOURS")
+        if hours[1] > 24:
+            raise ValueError(f"BUDDY_SCREENER_HOURS={self.hours!r}: hours of a day")
+        every = parse_range(self.break_every, "BUDDY_SCREENER_BREAK_EVERY")
+        return BrowseConfig(self.browse, hours, parse_range(self.gap_s, "BUDDY_SCREENER_GAP_S"),
+                            (int(every[0]), int(every[1])), parse_range(self.break_min, "BUDDY_SCREENER_BREAK_MIN"),
+                            self.daily_likes, self.likes_24h)
 
     def chat_limits(self) -> ChatLimits:
         return ChatLimits(self.chat_min_exchanges, self.chat_max_bot, self.chat_max_days, self.chat_nudge_days,
