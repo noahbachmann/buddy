@@ -65,8 +65,9 @@ the lift in place and the 4023 turned. It also holds bought parts as stand-ins (
   ribs) and the back plate (4023, motor gear, back pins) are separate (Dev, 2026-11-24: the back plate is where all the
   screwing is, easier with no bed over it). The O-rings go on the drums while those sit on the back pins; the frame then
   slides in from the front with the bed between the belt runs (a 1.5 mm chamfer on its back edge lifts the belts).
-  Ribs 0 and 1 end in 3 mm tongues that go into pockets in the back plate: they line the frame up with it, so the front
-  and back pins stay coaxial.
+  Ribs 0 and 1 end in 3 mm tongues, full height up to the bed's top (they print from the build plate up), that go into
+  pockets open at the back plate's top: they line the frame up with it, so the front and back pins stay coaxial. The
+  tongues' tips are chamfered like the bed's edge.
 - **Into the box:** the right gate's legs and lip are in the way from above, so the back plate slides in from the open
   left side (under the left wall and the right gate's legs), the drums onto its pins from the front, then the frame from
   the front. The bed is open over both drums and the drum gear along its whole length, and the left gate's front peg runs
@@ -290,7 +291,7 @@ the frame being pulled flat onto the floor; the left wall and the gate's legs le
 |---|---|---|
 | Lift nut → lift tab | 4 pegs on the flange's top into the tab (Ø3 holes at ±8). The screw pushes the nut up into the tab, the lift's weight keeps it there; the pegs only stop it turning | `fit_press` (vertical) |
 | Pusher nut → pusher tab | 2 pegs on the flange's tab side (above and below the screw). Pushing presses the flange onto the tab; the pressed pegs carry the light return stroke. No clip: a groove for one would cut into the nut's 1.3 mm wall under the thread | `fit_press_h` (horizontal, flat-topped teardrops) |
-| Frame → back plate | Ribs 0 and 1: 3 mm tongues into pockets in the back plate. They line the frame up; its 2 floor screws hold it | `tongue_fit` 0.1 per side ⚠️ untested |
+| Frame → back plate | Ribs 0 and 1: 3 mm full-height tongues into pockets open at the back plate's top. They line the frame up; its 2 floor screws hold it | `tongue_fit` 0.1 per side ⚠️ untested |
 | Steel pins | Back ones in the back plate's blind holes, front ones pushed through the front plate into the bearings, flush with its outer face. All 4 holes Ø5.05 (Dev measured 2026-11-24: Ø5.2 printed ~5.2, Ø4.95 vertical printed 4.9) | `pin_hole` |
 | Borders H, B | 4 printed pins (`border-pin`): head outside, through the case's Ø3.4 screw holes into the border. The case is unchanged | H: `fit_press` (vertical), B: `fit_press_h` |
 

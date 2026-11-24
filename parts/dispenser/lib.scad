@@ -182,8 +182,15 @@ module peg_sockets(y)
   translate([gate_x(), y, bed_top - peg[2] - 0.5]) linear_extrude(peg[2] + 1.5)
     square([peg[0] + 2 * peg_fit, peg[1] + 2 * peg_fit], center = true);
 // rib i, y range: the right rib stops short of the gear pair, the others reach into the back plate
-function rib_y(i) = [front_y[1] - 1, i == 2 ? gear_y[0] - 0.5 : back_y[0] + rib_tongue];
 bed_end = back_y[0] - bed_gap;
+tongue_end = back_y[0] + rib_tongue;
+// tongues past the bed's end: full height down to bed_top (in print: from the build plate up, else they float),
+// 0.01 wider than the rib each side so no cut face lies in a rib face
+tongue_xs = [for (i = [0 : 1]) [rib_xs[i] - 0.01, rib_xs[i] + rib_t + 0.01]];
+function rib_y(i) = [front_y[1] - 1, i == 2 ? gear_y[0] - 0.5 : tongue_end - 0.5];   // short of the tongue's end face
+// x ranges between and beside the tongues, widened by m
+function off_tongues(m) = [[frame_x[0] - 1, tongue_xs[0][0] - m], [tongue_xs[0][1] + m, tongue_xs[1][0] - m],
+                           [tongue_xs[1][1] + m, frame_x[1] + 1]];
 // the left gate's front peg: slot open to the back, through the bed: the frame slides in under the gate (pegged into
 // the back plate), the peg runs in the slot and ends in the front plate's socket
 module gate_slot() let(w = peg[0] + 2 * peg_fit)
@@ -192,6 +199,10 @@ module gate_slot() let(w = peg[0] + 2 * peg_fit)
 // Front plate + bed: one L profile (y-z) extruded along X, then cut. Unioning them leaves coplanar faces, and those
 // pinch vertices in the float32 STL. Nothing of the bed over the drums and the drum gear along the whole way: the
 // drums sit on the back pins while the frame slides in.
+// 45° chamfer on the top edge at y over x range r: lifts the belts as the frame slides under them
+module lead_in(r, y) translate([r[0], 0, 0]) rotate([90, 0, 90]) linear_extrude(r[1] - r[0])
+  polygon([[y - bed_lead - 1, bed_top + 1], [y + 1, bed_top + 1], [y + 1, bed_top - bed_lead - 1]]);
+
 module frame() {
   w = rim_r + open_clear;
   gr = gear_mod * (drum_teeth + 2) / 2 + open_clear;
@@ -200,7 +211,7 @@ module frame() {
   difference() {
     union() {
       translate([frame_x[0], 0, 0]) rotate([90, 0, 90]) linear_extrude(frame_x[1] - frame_x[0])
-        polygon([[front_y[0], 0], [front_y[1], 0], [front_y[1], bed_bot], [bed_end, bed_bot], [bed_end, bed_top],
+        polygon([[front_y[0], 0], [front_y[1], 0], [front_y[1], bed_bot], [tongue_end, bed_bot], [tongue_end, bed_top],
                  [front_y[0], bed_top]]);
       for (i = [0 : 2]) box([rib_xs[i], rib_xs[i] + rib_t], rib_y(i), [rib_bot, bed_bot + 1]);
       // bosses: touch only the bearings' inner races
@@ -212,9 +223,11 @@ module frame() {
     box([drive_x - gr, frame_x[1] + 1], [gear_y[0] - 0.5, bed_end + 1], cz);
     box([frame_x[0] - 1, idler_x + w], [cy, bed_end + 1], cz);
     box(cam_window[0], cam_window[1], cz);
-    // lead-in under the belts
-    translate([frame_x[0] - 1, 0, 0]) rotate([90, 0, 90]) linear_extrude(frame_x[1] - frame_x[0] + 2)
-      polygon([[bed_end - bed_lead - 1, bed_top + 1], [bed_end + 1, bed_top + 1], [bed_end + 1, bed_top - bed_lead - 1]]);
+    // the bed ends at bed_end, only the tongues go on
+    for (r = off_tongues(0)) box(r, [bed_end, tongue_end + 1], cz);
+    // lead-ins under the belts: the bed's back edge beside the tongues, the tongues' tips
+    for (r = off_tongues(0.02)) lead_in(r, bed_end);
+    lead_in([frame_x[0] - 1, frame_x[1] + 1], tongue_end);
     // front pins: through, pushed in from the front into the bearings
     for (x = axle_xs) hole_y(x, drum_z, pin_hole, front_y[0] - eps, front_y[1] + boss + eps, -1);
     // screwdriver access to the motor screws
@@ -243,8 +256,8 @@ module back_plate() {
     }
     peg_sockets(plate_cy[0]);
     // pockets for the rib tongues
-    for (i = [0 : 1]) box([rib_xs[i] - tongue_fit, rib_xs[i] + rib_t + tongue_fit], [back_y[0] - eps, back_y[0] + rib_tongue + 0.3],
-                          [rib_bot - tongue_fit, bed_bot + 1 + tongue_fit]);   // ribs reach 1 into the bed
+    for (t = tongue_xs) box([t[0] - tongue_fit, t[1] + tongue_fit], [back_y[0] - eps, back_y[0] + rib_tongue + 0.3],
+                          [rib_bot - tongue_fit, bed_top + 1]);   // open at the top: the tongues run full height
     for (p = floor_screws) if (p[1] > -90) translate([p[0], p[1], floor_top - eps]) cylinder(d = screw_pilot, h = 10);
   }
 }
