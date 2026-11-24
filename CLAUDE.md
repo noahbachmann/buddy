@@ -257,7 +257,7 @@ buddy/
 │   ├── firmware/pico-motion/ ← Pico 2 firmware: all servos (separate CMake project, D17)
 │   ├── android/screener-ime/ ← keyboard on the screener phone: types and reads back text (Gradle project, Kotlin, #66)
 │   └── deploy/              ← PC scripts; pi/ = scripts that run on the Pi; config/ = units, env example, PipeWire
-└── parts/                   ← printable parts: one folder per module (arm/, dispenser/ card roller: parametric OpenSCAD), lib/ (BOSL2,
+└── parts/                   ← printable parts: one folder per module (arm/, dispenser/ card roller, pc-case/: parametric OpenSCAD), lib/ (BOSL2,
                                 NopSCADlib submodules), tools/ (setup.sh, CAD checks, #54)
 ```
 

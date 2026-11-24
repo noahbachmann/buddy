@@ -1,6 +1,6 @@
 # parts/ – printable parts
 
-Parametric OpenSCAD, one folder per module (`arm/`, `dispenser/`, later `neck/`, `body/`, `head/`). A module is a folder with a
+Parametric OpenSCAD, one folder per module (`arm/`, `dispenser/`, `pc-case/` (#87, Dev asked for it here), later `neck/`, `body/`, `head/`). A module is a folder with a
 `cad.toml`. The CAD environment is built in #54: toolchain, `cad build` and `cad render` exist; `cad check/sweep/slice`
 come next.
 
