@@ -170,41 +170,67 @@ module right_gate() {
 }
 function gate_x() = gate_xs[0] + gate_w / 2;   // left gate's peg centre
 
-// --- Frame: back plate (holds the 4023) + bed + ribs. Prints upside down: bed on the build plate. ---
-module plate_profile(top) {
-  // left of step_x it stands on the table, right of it on the box floor
-  translate([frame_x[0], 0]) square([step_x - frame_x[0], top]);
-  translate([step_x, floor_top]) square([frame_x[1] - step_x, top - floor_top]);
-}
+// --- Roller: frame (front plate + bed + ribs) and back plate (holds the 4023), two parts. Both print upside down:
+// plate top on the build plate. The back plate goes in first (motor and gear screwed on with nothing over them), the
+// frame slides in from the front, its bed between the belt runs, ribs 0 and 1 into the back plate's pockets. ---
+module plate_profile(top)   // left of step_x it stands on the table, right of it on the box floor
+  polygon([[frame_x[0], 0], [step_x, 0], [step_x, floor_top], [frame_x[1], floor_top], [frame_x[1], top], [frame_x[0], top]]);
 module xz_plate(yr, top = bed_top)
   translate([0, yr[1], 0]) rotate([90, 0, 0]) linear_extrude(yr[1] - yr[0]) plate_profile(top);
 // gate peg sockets in a plate's top
 module peg_sockets(y)
   translate([gate_x(), y, bed_top - peg[2] - 0.5]) linear_extrude(peg[2] + 1.5)
     square([peg[0] + 2 * peg_fit, peg[1] + 2 * peg_fit], center = true);
-// rib i, y range: the right rib stops short of the gear pair
-function rib_y(i) = [front_y[1], i == 2 ? gear_y[0] - 0.5 : back_y[0] + eps];
-function rib_screw(i) = [rib_xs[i] + rib_t / 2, (rib_bot + bed_bot) / 2];
+// rib i, y range: the right rib stops short of the gear pair, the others reach into the back plate
+function rib_y(i) = [front_y[1] - 1, i == 2 ? gear_y[0] - 0.5 : back_y[0] + rib_tongue];
+bed_end = back_y[0] - bed_gap;
+// the left gate's front peg: slot open to the back, through the bed: the frame slides in under the gate (pegged into
+// the back plate), the peg runs in the slot and ends in the front plate's socket
+module gate_slot() let(w = peg[0] + 2 * peg_fit)
+  box([gate_x() - w / 2, gate_x() + w / 2], [plate_cy[1] - peg[1] / 2 - peg_fit, back_y[0]], [bed_top - peg[2] - 0.5, bed_top + 1]);
 
+// Front plate + bed: one L profile (y-z) extruded along X, then cut. Unioning them leaves coplanar faces, and those
+// pinch vertices in the float32 STL. Nothing of the bed over the drums and the drum gear along the whole way: the
+// drums sit on the back pins while the frame slides in.
 module frame() {
+  w = rim_r + open_clear;
+  gr = gear_mod * (drum_teeth + 2) / 2 + open_clear;
+  cz = [bed_bot - 1, bed_top + 1];
+  cy = front_y[1] - 0.01;   // 0.01 into the plate: a cut flush with its back face pinches vertices too
   difference() {
     union() {
-      xz_plate(back_y, bed_bot + 1);   // ends inside the bed: no coplanar top faces
-      box([frame_x[0] + 1, frame_x[1]], [front_y[1], back_y[1]], [bed_bot, bed_top]);   // 1 mm short: no coplanar end face
-      for (i = [0 : 2]) box([rib_xs[i], rib_xs[i] + rib_t], rib_y(i), [rib_bot, bed_bot + eps]);
-      // bosses at the rib ends for the front plate's pegs: teardrop tip into the bed (the frame prints upside down)
-      for (i = [0 : 2]) hole_y(rib_screw(i)[0], rib_screw(i)[1], rib_boss[0], front_y[1], front_y[1] + rib_boss[1], 1);
+      translate([frame_x[0], 0, 0]) rotate([90, 0, 90]) linear_extrude(frame_x[1] - frame_x[0])
+        polygon([[front_y[0], 0], [front_y[1], 0], [front_y[1], bed_bot], [bed_end, bed_bot], [bed_end, bed_top],
+                 [front_y[0], bed_top]]);
+      for (i = [0 : 2]) box([rib_xs[i], rib_xs[i] + rib_t], rib_y(i), [rib_bot, bed_bot + 1]);
       // bosses: touch only the bearings' inner races
+      for (x = axle_xs) translate([x, front_y[1] - eps, drum_z]) rotate([-90, 0, 0]) cylinder(d = boss_d, h = boss + eps);
+    }
+    // the plate's foot right of step_x stands on the box floor
+    box([step_x, frame_x[1] + 1], [front_y[0] - 1, front_y[1] + 1], [-1, floor_top]);
+    box([drive_x - w, frame_x[1] + 1], [cy, bed_end + 1], cz);
+    box([drive_x - gr, frame_x[1] + 1], [gear_y[0] - 0.5, bed_end + 1], cz);
+    box([frame_x[0] - 1, idler_x + w], [cy, bed_end + 1], cz);
+    box(cam_window[0], cam_window[1], cz);
+    // lead-in under the belts
+    translate([frame_x[0] - 1, 0, 0]) rotate([90, 0, 90]) linear_extrude(frame_x[1] - frame_x[0] + 2)
+      polygon([[bed_end - bed_lead - 1, bed_top + 1], [bed_end + 1, bed_top + 1], [bed_end + 1, bed_top - bed_lead - 1]]);
+    // front pins: through, pushed in from the front into the bearings
+    for (x = axle_xs) hole_y(x, drum_z, pin_hole, front_y[0] - eps, front_y[1] + boss + eps, -1);
+    // screwdriver access to the motor screws
+    for (o = motor_hole_offs) hole_y(motor_x + o[0], motor_z + o[1], 7, front_y[0] - eps, front_y[1] + eps, -1);
+    gate_slot();
+    for (p = floor_screws) if (p[1] < -90) translate([p[0], p[1], floor_top - eps]) cylinder(d = screw_pilot, h = 10);
+  }
+}
+
+module back_plate() {
+  difference() {
+    union() {
+      xz_plate(back_y);
       for (x = axle_xs) translate([x, back_y[0] + eps, drum_z]) rotate([90, 0, 0]) cylinder(d = boss_d, h = boss + eps);
     }
-    // drums and the drum gear: nothing of the bed over them
-    w = rim_r + open_clear;
-    box([drive_x - w, frame_x[1] + 1], [drum_y[1] - 1, gear_y[0] - 0.5], [bed_bot - 1, bed_top + 1]);
-    box([frame_x[0] - 1, idler_x + w], [drum_y[1] - 1, drum_y[0] + 0.5], [bed_bot - 1, bed_top + 1]);
-    gr = gear_mod * (drum_teeth + 2) / 2 + open_clear;
-    box([drive_x - gr, frame_x[1] + 1], [gear_y[0] - 0.5, drum_y[0] + 0.5], [bed_bot - 1, bed_top + 1]);
-    box(cam_window[0], cam_window[1], [bed_bot - 1, bed_top + 1]);
-    // pins: blind in the back plate
+    // pins: blind
     for (x = axle_xs) hole_y(x, drum_z, pin_hole, back_y[0] - boss - eps, back_pin_y[1], -1);
     // 4023: boss recess and shaft hole, 3 screws from the front with heads sunk (the drum gear runs there)
     translate([motor_x, 0, motor_z]) {
@@ -216,29 +242,10 @@ module frame() {
       }
     }
     peg_sockets(plate_cy[0]);
-    // sockets for the front plate's pegs (horizontal in print, tip up = world -Z), floor screws from below
-    for (i = [0 : 2]) translate([rib_screw(i)[0], front_y[1] - eps, rib_screw(i)[1]]) rotate([-90, 0, 0])
-      linear_extrude(plate_peg_h + 0.5) rotate(180) teardrop2d(peg_d + 2 * fit_slip_h, -1, flat = true);
+    // pockets for the rib tongues
+    for (i = [0 : 1]) box([rib_xs[i] - tongue_fit, rib_xs[i] + rib_t + tongue_fit], [back_y[0] - eps, back_y[0] + rib_tongue + 0.3],
+                          [rib_bot - tongue_fit, bed_bot + 1 + tongue_fit]);   // ribs reach 1 into the bed
     for (p = floor_screws) if (p[1] > -90) translate([p[0], p[1], floor_top - eps]) cylinder(d = screw_pilot, h = 10);
-  }
-}
-
-// --- Front plate: separate so the closed O-rings slide on from the front. Prints flat. --------------
-// Pegs into the rib ends locate it, the 2 floor screws hold it. The front pins are pushed in by hand and stay in it
-// (press fit, no keepers): the plate comes off with them.
-module front_plate() {
-  difference() {
-    union() {
-      xz_plate(front_y);
-      for (x = axle_xs) translate([x, front_y[1] - eps, drum_z]) rotate([-90, 0, 0]) cylinder(d = boss_d, h = boss + eps);
-      for (i = [0 : 2]) translate([rib_screw(i)[0], front_y[1] - eps, rib_screw(i)[1]]) rotate([-90, 0, 0])
-        peg_z(plate_peg_h + eps);
-    }
-    for (x = axle_xs) hole_y(x, drum_z, pin_hole, front_y[0] - eps, front_y[1] + boss + eps);
-    // screwdriver access to the motor screws
-    for (o = motor_hole_offs) hole_y(motor_x + o[0], motor_z + o[1], 7, front_y[0] - eps, front_y[1] + eps);
-    peg_sockets(plate_cy[1]);
-    for (p = floor_screws) if (p[1] < -90) translate([p[0], p[1], floor_top - eps]) cylinder(d = screw_pilot, h = 10);
   }
 }
 

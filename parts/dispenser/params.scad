@@ -54,7 +54,7 @@ cord_out    = groove_root + cord_s;         // top of the cord on the drum
 bearing     = [5, 11, 5];    // 685ZZ: id, od, width (#59; idler end wall 1.7)
 press       = 0.1;           // bearing seat oversize (as arm/), tune with a test print
 pin         = [5, 20];       // dowel pin ISO 8734 (RS PRO 5 x 20), bought: no cutting (#57, #60)
-pin_hole    = 5.05;          // Ø5 steel pins, both plates. Dev measured 2026-11-24: Ø5.2 (horizontal) printed ~5.2, Ø4.95 (vertical) 4.9
+pin_hole    = 5.05;          // both plates (horizontal teardrops in print). Dev measured 2026-11-24: 5.2 → ~5.2, 4.95 vertical → 4.9
 pin_pocket  = [5.6, 1];      // drum: pocket behind each bearing for the pin tip (d, clearance past the tip)
 boss        = 1;             // plate boss on the pin: touches only the inner race (685 ~7 mm)
 boss_d      = 7;
@@ -86,12 +86,12 @@ motor_x       = drive_x - motor_dx;
 motor_z       = drum_z - sqrt(gear_cd * gear_cd - motor_dx * motor_dx);
 
 // --- Frame -----------------------------------------------------------------------------------
-// Closed O-rings: nothing may run through a loop that is tied to both plates. So the front plate is
-// a separate part, and inside the loops there is only what slides on from the front with them:
-// drums, a flat bed (top = underside of the belts) and ribs along Y between the bed and the bottom run.
+// Closed O-rings: nothing may run through a loop that is tied to both plates. So the plates are two parts: the back
+// plate (4023, gear, back pins) on its own, and the frame = front plate + flat bed (top = underside of the belts) +
+// ribs along Y between the bed and the bottom run. The frame slides in from the front, the bed between the belt runs.
 plate_t     = 6;
 back_y      = [motor_face_y - plate_t, motor_face_y];   // back plate = motor plate
-front_y     = [card_yc - card[1] / 2 - 4 - plate_t, card_yc - card[1] / 2 - 4];   // front plate (separate part), 4 in front of the cards
+front_y     = [card_yc - card[1] / 2 - 4 - plate_t, card_yc - card[1] / 2 - 4];   // front plate (part of the frame), 4 in front of the cards
 drum_y      = [back_y[0] - boss, front_y[1] + boss];      // drum length along Y
 gear_y      = [drum_y[0] - gear_w, drum_y[0]];
 bed_top     = belt_top - cord_s;   // belts slide on it: a strand carries ~2.5 N, a pile would sag it
@@ -100,7 +100,10 @@ frame_x     = [idler_x - 10.5, divider_x - 0.5];
 step_x      = -0.3;          // left of this the frame stands on the table (box floor starts at x 0)
 rib_xs      = [-38, 3, 48];  // ribs under the bed (left faces), along Y; the right one clears drum and belts
 rib_t       = thin;
-rib_boss    = [6, 11];       // d, length: around the front plate's screw at each rib's front end (teardrop, merges into the bed)
+rib_tongue  = 3;             // ribs 0 and 1 reach this far into pockets in the back plate: locate the frame on it
+tongue_fit  = 0.1;           // per side, rectangular pocket, horizontal in the back plate's print ⚠️ untested
+bed_gap     = 0.3;           // bed's back end to the back plate
+bed_lead    = 1.5;           // 45° chamfer on the bed's back top edge: lifts the belts as the bed slides under them
 cam_window  = [[10, 46], [card_yc + 24, card_yc + 42]];   // keep free: camera looks up at the bottom card
 open_clear  = 0.6;           // around drums and gears in the bed
 
@@ -273,6 +276,5 @@ nut_flank_steps = [0.10, 0.15, 0.20, 0.25];   // thread test: nut rings 1..4
 bore_steps  = [0.10, 0.15, 0.20];             // thread test: D-bore rings 1..3 (per side)
 peg_cham    = 0.4;           // lead-in at every peg tip
 nut_peg_h   = tab_t - 0.3;   // nut pegs: into the tab, not through it
-plate_peg_h = 5;             // front plate pegs into the rib ends
 bpin_head   = [6, 1.2];      // border pin: head d, h
 bpin_depth  = 6;             // shank in the border (beyond the case's wall or floor)

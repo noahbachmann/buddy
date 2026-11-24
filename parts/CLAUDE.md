@@ -76,6 +76,10 @@ section through every fit (bearing seat, slot, channel). Numbers can't see a mis
   meet, the STL gets zero-area slivers and isn't watertight. Derive touching faces from one base + exact offsets.
   `box()` is translate + size, so its far face lands at `lo + (hi − lo)`, not `hi`. A part that must end flush with a
   cut face: union it before the cut and let the one cut make both faces (`box_trimmed()` + `notch_skin()`).
+- Even with exact values, a union of two solids with coplanar faces (overlapping or touching), or a cut whose face
+  lies in another face's plane, can leave duplicate vertices ~1e-9 apart: watertight in double, pinched (edges used 4×)
+  in the float32 STL. Build such faces from one solid (`frame()`: plate + bed as one extruded L profile) or offset the
+  cut by 0.01.
 - trimesh's `polygons_full` can come back empty for valid rings (a cut exactly through a peg's axis in its socket):
   `render.section` then falls back to the closed rings, so check a blank section against the mesh.
 - A param change rebuilds STLs in other parts than the one being worked on (fits are shared): commit every changed

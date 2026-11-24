@@ -24,7 +24,7 @@ from cad import scad
 
 HERE = Path(__file__).resolve().parent
 PUSHES = [0, 0.1, 0.25, 0.4, 0.5, 0.6, 0.75, 0.9, 1.0]
-FIXED = ["case", "border-h", "border-b", "frame", "front-plate", "gate-left", "drive-drum", "idler-drum",
+FIXED = ["case", "border-h", "border-b", "frame", "back-plate", "gate-left", "drive-drum", "idler-drum",
          "pusher-motor", "pusher-coupling", "pusher-screw"]
 # what the lift passes: the pusher at home and the lift's own motor and coupling (its screw runs through the nut)
 HOME = ["case", "border-h", "border-b", "pusher-motor", "pusher-coupling", "pusher-screw", "pusher", "pusher-nut", "lift-motor",

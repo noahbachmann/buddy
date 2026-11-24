@@ -61,12 +61,17 @@ the lift in place and the 4023 turned. It also holds bought parts as stand-ins (
 - **Direction:** motor **clockwise seen from its shaft end** (that is, from the front) = **take**, counter-clockwise =
   feed. Which way "positive steps" turn depends on the coil wiring and the driver: set it once in the firmware (DIR
   inverted or not), no hardware change needed.
-- **Why the front plate is separate:** a closed O-ring can't go around anything that is held at both ends. With the
-  front plate off, everything inside the loops (drums, bed, ribs) hangs from the back plate, so the O-rings slide on
-  from the front.
-- **Into the box:** the right gate's legs and lip are in the way from above, so the frame slides in from the open left
-  side (under the left wall and the right gate's legs, 0.3 mm above the plates), then the drums and the front plate
-  slide on from the front (checked step by step against the box).
+- **Why two parts:** a closed O-ring can't go around anything that is held at both ends. The frame (front plate, bed,
+  ribs) and the back plate (4023, motor gear, back pins) are separate (Dev, 2026-11-24: the back plate is where all the
+  screwing is, easier with no bed over it). The O-rings go on the drums while those sit on the back pins; the frame then
+  slides in from the front with the bed between the belt runs (a 1.5 mm chamfer on its back edge lifts the belts).
+  Ribs 0 and 1 end in 3 mm tongues that go into pockets in the back plate: they line the frame up with it, so the front
+  and back pins stay coaxial.
+- **Into the box:** the right gate's legs and lip are in the way from above, so the back plate slides in from the open
+  left side (under the left wall and the right gate's legs), the drums onto its pins from the front, then the frame from
+  the front. The bed is open over both drums and the drum gear along its whole length, and the left gate's front peg runs
+  in a slot through the bed into the front plate's socket. Swept in 1 mm steps against the case, border B, back plate,
+  left gate, drums, motor gear and back pins: only the foot sliding on the floor touches.
 
 ## How the pusher works
 
@@ -222,8 +227,8 @@ STLs and `parts/cad render dispenser` for the sheets (`parts/CLAUDE.md`).
 | `params.scad` | Box measurements, card, belts, drums, gears, layout | |
 | `lib.scad` | Geometry of every piece, placed in the box frame | |
 | `assembly.scad` | Preview in the box (cut box, lift, turned 4023, card, pile B); `part=` exports one placed piece; poses `-D push=0…1 -D lift_top=97.04` | – |
-| `roller-frame.scad` | Back plate (holds the 4023), bed, 3 ribs (3 mm, a Ø6 boss at each front end for the front plate's screw) | bed down (upside down) |
-| `front-plate.scad` | Front plate: 3 pegs into the rib ends, front pins pressed in, access holes for the motor screws | outer face down |
+| `roller-frame.scad` | Frame: front plate (front pins, access holes for the motor screws), bed, 3 ribs (3 mm; ribs 0 and 1 with tongues into the back plate), slot for the left gate's front peg | bed down (upside down) |
+| `back-plate.scad` | Back plate: holds the 4023, back pins (blind), pockets for the rib tongues | top edge down (upside down), brim |
 | `drive-drum.scad` | 16T gear + 3 grooves, 2 bearing seats, solid between the pin pockets | standing, gear down |
 | `idler-drum.scad` | 3 grooves, 2 bearing seats, solid between the pin pockets | standing |
 | `motor-gear.scad` | 20T, D-bore for the 4023's shaft, M3 set screw + nut slot | gear down |
@@ -257,7 +262,7 @@ cd parts/tools && uv run python ../dispenser/check_pusher.py # after a pusher, l
 | 4 | Dowel pin Ø5 × 20 mm, ISO 8734 (hardened, m6), RS PRO | One per bearing, bought ready-made: nothing to cut (#57). Fixed: the drums turn on their bearings |
 | 3 | M3×6 socket head | 4023 to the back plate (the 4th hole would cut into the drive pin's hole) |
 | 1 | M3×5 set screw + M3 nut | Motor gear onto the shaft's flat (5 mm from the flat to the hub surface: flush) |
-| 4 | M3×12 | Frame and front plate to the box floor, from below (2 each): they set the belt height, so screws, not pegs |
+| 4 | M3×12 | Back plate and frame to the box floor, from below (2 each): they set the belt height, so screws, not pegs |
 
 **Pusher and lift motor**
 
@@ -285,13 +290,13 @@ the frame being pulled flat onto the floor; the left wall and the gate's legs le
 |---|---|---|
 | Lift nut → lift tab | 4 pegs on the flange's top into the tab (Ø3 holes at ±8). The screw pushes the nut up into the tab, the lift's weight keeps it there; the pegs only stop it turning | `fit_press` (vertical) |
 | Pusher nut → pusher tab | 2 pegs on the flange's tab side (above and below the screw). Pushing presses the flange onto the tab; the pressed pegs carry the light return stroke. No clip: a groove for one would cut into the nut's 1.3 mm wall under the thread | `fit_press_h` (horizontal, flat-topped teardrops) |
-| Front plate → rib ends | 3 pegs, 5 long, into sockets in the rib bosses. They locate the plate; its 2 floor screws hold it | `fit_slip_h` (horizontal in the frame) |
-| Steel pins | Back ones in the frame's blind holes, front ones pushed through the front plate into the bearings by hand, flush with its outer face. They come off with the plate. All 4 holes Ø5.05 (Dev measured 2026-11-24: Ø5.2 printed ~5.2, Ø4.95 vertical printed 4.9) | `pin_hole` |
+| Frame → back plate | Ribs 0 and 1: 3 mm tongues into pockets in the back plate. They line the frame up; its 2 floor screws hold it | `tongue_fit` 0.1 per side ⚠️ untested |
+| Steel pins | Back ones in the back plate's blind holes, front ones pushed through the front plate into the bearings, flush with its outer face. All 4 holes Ø5.05 (Dev measured 2026-11-24: Ø5.2 printed ~5.2, Ø4.95 vertical printed 4.9) | `pin_hole` |
 | Borders H, B | 4 printed pins (`border-pin`): head outside, through the case's Ø3.4 screw holes into the border. The case is unchanged | H: `fit_press` (vertical), B: `fit_press_h` |
 
 **8 holes, 4 pins:** the case has 8 Ø3.4 holes along the front and under the roller. 4 take border pins (2 through the
 left wall into border H, 2 up through the floor into border B). The other 4 (floor, under the roller) take the frame's
-4× M3×12: they cut their own thread into the 2.5 mm pilot holes in the back plate's and the front plate's feet, so a
+4× M3×12: they cut their own thread into the 2.5 mm pilot holes in the back plate's and the frame's feet, so a
 pin doesn't fit there by design. Border B's pins hold against gravity: a pin that slides out of B means its hole is
 too big, not a pin that's too short.
 
@@ -366,7 +371,8 @@ parts (for reprints, e.g. only the left gate). `parts/cad plate dispenser` rebui
 | `1-petg-fine.stl` | drive drum, idler drum, motor gear, left gate, pusher nut, lift nut, 2 couplings, 4 border pins | PETG | 0.12 mm, 4 walls, 15 %, no supports, **brim: outer only** (the drums stand 107 mm on Ø15–18) |
 | `1d-plug-couplings.stl` | 2 plug couplings | PETG | 0.12 mm, 4 walls, **100 % infill**, no supports |
 | `1c-reprint.stl` | motor gear, pusher nut, lift nut with the thread test's values ("Thread test") | PETG | 0.12 mm, 4 walls, 15 %, no supports, **brim: outer only** (the lift nut) |
-| `2-petg.stl` | roller frame, front plate, border H, border B: **after the fit test** | PETG | 0.20 mm, 4 walls, 15 %, no supports |
+| `2-petg.stl` | roller frame, back plate, border H, border B: **after the fit test** | PETG | 0.20 mm, 4 walls, 15 %, no supports, **brim** (the back plate stands on its 6 mm edge) |
+| `2b-roller-reprint.stl` | roller frame, back plate: the split roller (2026-11-24) with Ø5.05 pin holes | PETG | as plate 2 |
 | `3-pla.stl` | pusher, lift: **after the fit test** | PLA | 0.20 mm, 4 walls, 15 %, **supports on: tree (auto), on build plate only** |
 | `stl/case.stl` | case (a plate of its own) | PETG | 0.20 mm, 4 walls, 15 %, no supports, textured PEI |
 | `stl/case-spares.stl` | or this one instead: the case with ~112 g less PETG | PETG | as the case |
@@ -415,28 +421,29 @@ Why these settings:
 
 ## Assembly
 
-The 4023 sits in the back wall and the right gate (case) is above the frame's right end, so the frame goes in first,
-from the left, and everything else follows from behind and from the front.
+The 4023 sits in the back wall and the right gate (case) is above the plates' right ends, so the back plate goes in
+first, from the left, and everything else follows from behind and from the front.
 
 0. **Border B** (any time): over the floor from the front until its lip stops at the floor's front edge, 2 border
    pins from below through the floor's holes, pressed in by thumb. To take a border out, pull its pins by the heads
    (pliers).
 
 1. **Bearings:** press 2 685ZZ into each drum, pushing only on the outer race.
-2. **Frame into the box:** left gate pressed into its sockets first. Slide the frame in from the open left side, under
-   the left wall and the right gate's legs, until its step sits against the left edge of the box floor. 2× M3×12 from
-   below into the back plate.
+2. **Back plate into the box:** left gate pressed into the back plate's socket first. Slide the plate in from the open
+   left side, under the left wall and the right gate's legs, until its step sits against the left edge of the box
+   floor. 2× M3×12 from below.
 3. **Motor:** cable plugged in. Push the 4023 through the back wall's window from behind, sliding on the hold,
    connector down in the channel, cable out under the box. Boss into the plate's recess, 3× M3×6 from the front;
-   the heads sink into the plate. The drum gear will run over them.
+   the heads sink into the plate. The drum gear will run over them. Nothing is in front of the plate yet.
 4. **Motor gear:** on the shaft, flush with the drum gear's plane (7 mm in front of the motor face). Tighten the set screw on the flat.
 5. **Drums:** drop the 2 back pins into the back plate's blind holes, then slide the drums onto them from the front with
    the drive drum's gear at the back, meshing. The drive drum passes under the right gate's lip and front leg.
-6. **Belts:** slide the 3 O-rings over both drums from the front, into the grooves. They pass over the bed and the ribs.
-7. **Front plate:** its 3 pegs into the rib ends, 2× M3×12 from below through the floor. Then push the 2 front pins
-   through its holes into the front bearings until flush with the plate's outer face (firm hand pressure: the plate
-   holds them by press fit; never hammer through a bearing). For new O-rings: border H out (step 8), floor screws
-   out, pull the plate off, the pins come with it.
+6. **Belts:** the 3 O-rings over both drums, into the grooves.
+7. **Frame:** from the front, bed between the belts' top and bottom runs (its chamfered back edge lifts them), the left
+   gate's front peg in the bed's slot, until the rib tongues sit in the back plate's pockets and the gate's peg in the
+   front plate's socket. 2× M3×12 from below through the floor. Then push the 2 front pins through the plate into the
+   front bearings until flush with its outer face (firm hand pressure; never hammer through a bearing). For new
+   O-rings: border H out (step 8), front pins and floor screws out, pull the frame off to the front.
 8. **Border H**, last: it reaches down to under the belt top, so the drum gear and the O-rings can't pass under it.
    From the front between the left wall and the right gate until its step stops at the gate's front face, 2 border
    pins through the left wall from outside.
@@ -472,11 +479,11 @@ coupling's thread, turn it in until it jams, tighten.
 ## Tuning the gap
 
 1. `gap` = 0.55 (set by Dev), `card_t` = 0.5 the sleeved card pressed flat (upper bound). Keep the case as printed:
-   a different gap only changes the frame, front plate and left gate.
+   a different gap only changes the frame, back plate and left gate.
 2. **Take** (left gate): if 2 cards pass or the bottom card jams, reprint only the left gate, e.g.
    `parts/cad build dispenser gate-left -D gate_gap=0.6`, and swap it.
 3. **Feed** (right gate): its gap = the divider block's underside (z 66.04) − the belt top. Changing it means new belts
-   heights: `parts/cad build dispenser roller-frame front-plate gate-left -D gap=0.5` (never the case: it stays at
+   heights: `parts/cad build dispenser roller-frame back-plate gate-left -D gap=0.5` (never the case: it stays at
    0.55, its legs leave room to raise the belts by 0.4), or shims under the frame to raise them.
 
 ## Changes to Dev's box (`case.scad`)

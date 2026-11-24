@@ -2,7 +2,7 @@
 assembly = "assembly.scad"
 
 [parts.roller-frame]
-[parts.front-plate]
+[parts.back-plate]
 [parts.drive-drum]
 [parts.idler-drum]
 [parts.motor-gear]
@@ -37,8 +37,12 @@ note = "PETG · 0.12 mm · 4 walls · 15 % · no supports · outer brim (lift nu
 parts = ["motor-gear", "pusher-nut", "lift-nut"]
 
 [plates.2-petg]
-note = "PETG · 0.20 mm · 4 walls · 15 % · no supports"
-parts = ["roller-frame", "front-plate", "border-h", "border-b"]
+note = "PETG · 0.20 mm · 4 walls · 15 % · no supports · brim on (the back plate stands on its 6 mm edge)"
+parts = ["roller-frame", "back-plate", "border-h", "border-b"]
+
+[plates.2b-roller-reprint]
+note = "PETG · 0.20 mm · 4 walls · 15 % · no supports · brim on (the back plate stands on its 6 mm edge) · roller split 2026-11-24: frame with the front plate, back plate alone, pin holes Ø5.05"
+parts = ["roller-frame", "back-plate"]
 
 [plates.3-pla]
 note = "PLA · 0.20 mm · 4 walls · 15 % · supports on (tree auto, build plate only): the lift's tab"

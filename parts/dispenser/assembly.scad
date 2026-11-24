@@ -8,7 +8,7 @@ lift_top = lift_min;
 
 module piece(name) {
   if (name == "frame")           frame();
-  else if (name == "front-plate") front_plate();
+  else if (name == "back-plate")  back_plate();
   else if (name == "drive-drum") drum_tf(drive_x) drum(true);
   else if (name == "idler-drum") drum_tf(idler_x) drum(false);
   else if (name == "motor-gear") motor_tf() motor_gear();
@@ -38,7 +38,7 @@ else {
   color("lightsteelblue") { piece("border-h"); piece("border-b"); }
   color("plum") piece("lift");
   color("goldenrod") piece("lift-nut");
-  color("orange") { piece("frame"); piece("front-plate"); }
+  color("orange") { piece("frame"); piece("back-plate"); }
   color("teal") { piece("drive-drum"); piece("idler-drum"); piece("motor-gear"); }
   color("gold") piece("gate-left");
   color("dimgray") piece("motor");
