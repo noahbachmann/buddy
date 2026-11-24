@@ -54,7 +54,7 @@ cord_out    = groove_root + cord_s;         // top of the cord on the drum
 bearing     = [5, 11, 5];    // 685ZZ: id, od, width (#59; idler end wall 1.7)
 press       = 0.1;           // bearing seat oversize (as arm/), tune with a test print
 pin         = [5, 20];       // dowel pin ISO 8734 (RS PRO 5 x 20), bought: no cutting (#57, #60)
-pin_hole    = 5.2;           // slip fit in the back plate (front plate: pin_press_d)
+pin_hole    = 5.05;          // Ø5 steel pins, both plates. Dev measured 2026-11-24: Ø5.2 (horizontal) printed ~5.2, Ø4.95 (vertical) 4.9
 pin_pocket  = [5.6, 1];      // drum: pocket behind each bearing for the pin tip (d, clearance past the tip)
 boss        = 1;             // plate boss on the pin: touches only the inner race (685 ~7 mm)
 boss_d      = 7;
@@ -271,7 +271,6 @@ bore_gap    = 0.125;         // 4023 D-shaft in the motor gear (5, flat at 2.0),
                              // tight, 0.15 very slightly loose → between ⚠️ untested value
 nut_flank_steps = [0.10, 0.15, 0.20, 0.25];   // thread test: nut rings 1..4
 bore_steps  = [0.10, 0.15, 0.20];             // thread test: D-bore rings 1..3 (per side)
-pin_press_d = 4.95;          // front plate: Ø5 steel pin pushed in by hand (firm), stays in when the plate comes off. ⚠️ not tested yet
 peg_cham    = 0.4;           // lead-in at every peg tip
 nut_peg_h   = tab_t - 0.3;   // nut pegs: into the tab, not through it
 plate_peg_h = 5;             // front plate pegs into the rib ends

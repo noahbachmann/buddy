@@ -286,7 +286,7 @@ the frame being pulled flat onto the floor; the left wall and the gate's legs le
 | Lift nut → lift tab | 4 pegs on the flange's top into the tab (Ø3 holes at ±8). The screw pushes the nut up into the tab, the lift's weight keeps it there; the pegs only stop it turning | `fit_press` (vertical) |
 | Pusher nut → pusher tab | 2 pegs on the flange's tab side (above and below the screw). Pushing presses the flange onto the tab; the pressed pegs carry the light return stroke. No clip: a groove for one would cut into the nut's 1.3 mm wall under the thread | `fit_press_h` (horizontal, flat-topped teardrops) |
 | Front plate → rib ends | 3 pegs, 5 long, into sockets in the rib bosses. They locate the plate; its 2 floor screws hold it | `fit_slip_h` (horizontal in the frame) |
-| Front pins | Pushed through the front plate into the bearings by hand, flush with the outer face; the press fit holds them (no keepers). They come off with the plate | `pin_press_d` |
+| Steel pins | Back ones in the frame's blind holes, front ones pushed through the front plate into the bearings by hand, flush with its outer face. They come off with the plate. All 4 holes Ø5.05 (Dev measured 2026-11-24: Ø5.2 printed ~5.2, Ø4.95 vertical printed 4.9) | `pin_hole` |
 | Borders H, B | 4 printed pins (`border-pin`): head outside, through the case's Ø3.4 screw holes into the border. The case is unchanged | H: `fit_press` (vertical), B: `fit_press_h` |
 
 **8 holes, 4 pins:** the case has 8 Ø3.4 holes along the front and under the roller. 4 take border pins (2 through the
@@ -311,7 +311,7 @@ five hole numbers (press and slip, vertical and horizontal; pin): they go into `
 rebuilt. The pegs themselves don't change, so plate 1 can print right away.
 
 Result (2026-11-09): vertical press 3, slip 4; horizontal press 2, slip 3 (vertical holes print smaller). The steel
-pin is still untested: `pin_press_d` 4.95 is a guess ⚠️.
+pin: Dev measured the first roller print instead (2026-11-24, above): `pin_hole` Ø5.05 in both plates.
 
 Checked on the borders (2026-11-11): printed from a stale plate 2 with the pre-test fits, border H's Ø3.0 vertical
 holes (= hole 2) were too tight and border B's Ø3.1 horizontal holes (= hole 3) let the pin slide out: both as the fit

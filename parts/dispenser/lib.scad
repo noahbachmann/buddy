@@ -234,7 +234,7 @@ module front_plate() {
       for (i = [0 : 2]) translate([rib_screw(i)[0], front_y[1] - eps, rib_screw(i)[1]]) rotate([-90, 0, 0])
         peg_z(plate_peg_h + eps);
     }
-    for (x = axle_xs) hole_y(x, drum_z, pin_press_d, front_y[0] - eps, front_y[1] + boss + eps);
+    for (x = axle_xs) hole_y(x, drum_z, pin_hole, front_y[0] - eps, front_y[1] + boss + eps);
     // screwdriver access to the motor screws
     for (o = motor_hole_offs) hole_y(motor_x + o[0], motor_z + o[1], 7, front_y[0] - eps, front_y[1] + eps);
     peg_sockets(plate_cy[1]);
