@@ -40,6 +40,10 @@ _DIGITS = re.compile(r"\d(?:[\s\-./()]*\d){5,}")      # a phone number, however 
 _HANDLE = re.compile(r"(?<![\w.])@\w")
 _LINK = re.compile(r"https?://[^\s\"')<>]+|\bwww\.\S+", re.I)
 _SPACE = re.compile(r"\s+")
+# a message that needs no answer before the introduction: greetings, laughs, emojis, punctuation (Dev, 2026-11-24)
+_SMALL_TALK = re.compile(
+    r"(?:\s|[\W_]|hi+|hey+|hel+o+|hallo+|hoi+|sali+|salü|servus|grüezi|gr[üu]ess? ?di|moin|yo+|na|ha(?:ha)*|he(?:he)*"
+    r"|lol|:\)|:d|;\))*", re.I)
 
 
 def refusal(text: str, limit: int, contacts=(), urls=()) -> str | None:
@@ -250,7 +254,8 @@ class ChatFlow:
         if not any(s.kind == "disclosure" for s in chat.sent):
             # she answered our like comment before we introduced ourselves: answer her first, then the
             # introduction (Dev, 2026-11-24)
-            if theirs and not any(s.kind == "opener" for s in chat.sent) and chat.pending_task != TASK_OPENER:
+            if theirs and not all(_SMALL_TALK.fullmatch(m.text) for m in theirs) \
+                    and not any(s.kind == "opener" for s in chat.sent) and chat.pending_task != TASK_OPENER:
                 return self._converse(chat, screen, TASK_OPENER, len(theirs))
             return self._send(chat, "disclosure", fill(self._t("disclosure", chat), name=chat.name))
         if now - chat.started >= self.limits.max_days * 86400 and chat.state in (NEW, SCREENING):

@@ -158,9 +158,18 @@ def test_her_reply_to_our_like_comment_is_answered_before_the_introduction():
     assert d.calls[1][1] == "first" and d.kinds()[-1] == "reply"
 
 
-def test_a_greeting_needs_no_opener():
+@pytest.mark.parametrize("hers", [["Hello hello"], ["Hey!"], ["Hoi 😊", "haha"], ["Hiii :)"], ["Sali"]])
+def test_a_greeting_gets_the_introduction_at_once_without_a_call(hers):
+    # Dev, 2026-11-24: nothing worth answering → the introduction right away
     d = Driver(like_comment="")
-    d.her("Hey!")
+    d.her(*hers)
+    d.run()
+    assert d.kinds() == ["disclosure"] and d.calls == []
+
+
+def test_an_empty_opener_from_the_model_also_means_the_introduction_alone():
+    d = Driver(like_comment="")
+    d.her("Oh nice, a bot")
     d.run(Converse("", "screening", lang="de"))
     assert d.kinds() == ["disclosure"] and d.calls[0][1] == "opener"
 
