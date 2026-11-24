@@ -141,7 +141,7 @@ class Browser:
             return 300.0
         mode = self.mode()
         if mode != "active":
-            self._set(mode)
+            self._set(mode, reason=self.state.reason if mode == NEEDS_YOU else "")
             return 5.0
         now = self.clock()
         win = self.window(now)
@@ -173,6 +173,7 @@ class Browser:
         except LibraryError as e:
             return self._hold(HOLD_FILES, f"library: {e}")
         try:
+            self.nav.wake()   # the screen sleeps during gaps and breaks
             r = shadow.judge(self.nav, self.decider, lib, self.store, self.tmp_dir, run=self.cfg.mode)
         except UsageLimited as e:
             self._act(likes.LIMIT, detail="usage limit")

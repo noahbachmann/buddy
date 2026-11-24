@@ -133,6 +133,8 @@ class FakePhone:
     def key(self, code: int) -> None:
         self.guard()
         self.actions.append(("key", self.screen, code))
+        if code == 224:   # wake up: the fake's screen is always on
+            return
         assert code == 4
         if self.ime_shown:
             self.ime_shown = False

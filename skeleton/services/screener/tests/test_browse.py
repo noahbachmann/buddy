@@ -55,6 +55,7 @@ def test_dry_skips_and_keeps_the_rows_pages(tmp_path):
     r = Rig(tmp_path, SKIP)
     gap = r.b.step()
     assert 20 <= gap <= 90 and r.kinds() == [likes.SKIP]
+    assert r.phone.actions[0] == ("key", "feed-01", 224)                  # woken first
     assert [a[2] for a in r.phone.sent()] == ["Skip Alex"]
     row = r.store.shadow()[0]
     assert row.bot["run"] == "dry"
@@ -73,6 +74,7 @@ def test_dry_holds_a_like_for_dev_and_waits(tmp_path):
     n = len(r.phone.actions)
     r.b.step()
     assert len(r.phone.actions) == n and r.b.state.state == "needs_you"   # paused until Dev resumes
+    assert r.b.state.reason == browse.HOLD_WOULD_LIKE                     # the panel says why
 
 
 @pytest.mark.parametrize("bot,kind,sent", [

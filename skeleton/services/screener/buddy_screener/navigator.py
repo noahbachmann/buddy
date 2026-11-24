@@ -19,7 +19,7 @@ from pathlib import Path
 
 from . import screens
 from . import vocab as v
-from .device import KEY_BACK, Device, NotIdle
+from .device import KEY_BACK, KEY_WAKEUP, Device, NotIdle
 from .profile import Capture, LostTrack, Section, hash_distance
 from .screens import Kind, ProfileView, Screen, SectionView
 from .uitree import Node, Rect, parse
@@ -193,6 +193,11 @@ class Navigator:
             raise self.needs_you(f"refused {why}: not on the acting allowlist")
         self.dev.tap(node.bounds)
         self.pause(0.8)
+
+    def wake(self) -> None:
+        """The screen on: asleep it reads as an unknown screen (seen at session 3's start and the loop's first run)."""
+        self.dev.key(KEY_WAKEUP)
+        self.pause(0.5)
 
     def ensure_app(self) -> Screen:
         """The app in front on a known screen; launched if another app is."""

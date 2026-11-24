@@ -20,6 +20,7 @@ from PIL import Image
 from .uitree import Rect
 
 KEY_BACK = 4
+KEY_WAKEUP = 224   # wakes the screen; no-op when it's on (unlike POWER, which toggles)
 IDLE_ERROR = "could not get idle state"
 IDLE_TRIES = 2   # a blinking cursor passes on the 2nd try; a playing video never does
 OUR_IME = "buddy.screener.ime/.ScreenerIme"
