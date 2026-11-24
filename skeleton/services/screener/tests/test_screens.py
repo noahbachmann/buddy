@@ -173,12 +173,12 @@ def test_upsell_acts_only_on_the_plain_like():
     assert s.kind is Kind.UPSELL
     anyway = screens.send_anyway_button(s.root)
     # the paid button: the other clickable one (sanitized: its text is a placeholder)
-    rose = s.root.first(lambda n: n.clickable and n is not anyway and n.desc != v.CLOSE_SHEET)
-    assert rose is not None
+    paid = s.root.first(lambda n: n.clickable and n is not anyway and n.desc != v.CLOSE_SHEET)
+    assert paid is not None
     close = s.root.first(lambda n: n.desc == v.CLOSE_SHEET)
     assert screens.actable(s, anyway)
-    assert not screens.actable(s, rose) and not screens.actable(s, close)
-    assert not any(screens.tappable(s, n) for n in (anyway, rose, close))   # never through the browse allowlist
+    assert not screens.actable(s, paid) and not screens.actable(s, close)
+    assert not any(screens.tappable(s, n) for n in (anyway, paid, close))   # never through the browse allowlist
 
 
 def test_acting_allowlist():

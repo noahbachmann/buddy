@@ -47,8 +47,8 @@ out Dev's label of a row. No code path taps a paid option or a chat send.
   be fully inside it and clear of the floating skip/header buttons (`ProfileView.safe`).
 - Acting taps (skip button, plain send-like button, the upsell's "Send Like anyway") only via `Navigator._act` on
   `actable()`, from `--cmd skip|send` on Dev's label or from the loop on its own decision, only on the captured
-  profile (name check), send only when the field reads back the comment (empty for a like without one). Never "Send
-  a Rose…" (paid) or "Close sheet" (unclear if it drops the like).
+  profile (name check), send only when the field reads back the comment (empty for a like without one). Never the upsell's
+  paid option or "Close sheet" (unclear if it drops the like).
 - Likes stop before the budget (`likes.py`): shadow's `type`/`send` refuse, `label … like` warns, the loop stops
   for the day. Every act and stop goes into `actions`.
 - Text only through our keyboard, always read back.
