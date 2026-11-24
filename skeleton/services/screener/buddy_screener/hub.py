@@ -16,26 +16,37 @@ from .browse import HOLD_DECIDE, HOLD_FILES, HOLD_LIKES, HOLD_SCREEN, HOLD_WOULD
 from .config import Config
 
 OPTIONS = ["Resume", "Stop"]
+# What happened and what Dev does about it. {why}: the code's reason (the navigator's carry no names, D22 allows it).
 HOLD_TEXT = {
-    HOLD_WOULD_LIKE: "Screener: a profile it would like waits on the phone (row #{row}). Like it or skip it, "
-                     "then resume.",
-    HOLD_SCREEN: "Screener stopped at a screen it couldn't handle. It waits on the phone until you resume.",
-    HOLD_LIKES: "Screener stopped: the likes didn't come back as expected (paywall). It waits until you resume.",
-    HOLD_DECIDE: "Screener stopped: its decisions keep failing. It waits until you resume.",
-    HOLD_FILES: "Screener stopped: preferences.md or templates.md was refused (a broken line?). Fix it, then resume.",
+    HOLD_WOULD_LIKE: "Screener would like a profile (row #{row}). It's on the phone now.\n"
+                     "To do: like it on the phone (or tell Claude \"send #{row}\"), or skip it if you don't want it. "
+                     "Then Resume.",
+    HOLD_SCREEN: "Screener stopped at {time}: {why}.\n"
+                 "To do: look at the phone. If it isn't on a profile in Discover (a popup, a dialog, another app, the "
+                 "screen off), bring it back there, then Resume. If it is, or it stops at the same spot again, tell "
+                 "Claude: the screen is saved on the Pi.",
+    HOLD_LIKES: "Screener stopped: {why}. The likes didn't come back when expected (24 h after the last like).\n"
+                "To do: nothing on the phone. Tell Claude (the reset rule needs a look). Resume tries again.",
+    HOLD_DECIDE: "Screener stopped at {time}: its decisions failed 3 times in a row ({why}).\n"
+                 "To do: usually the plan's usage or the network. Resume tries again; if it keeps failing, tell Claude.",
+    HOLD_FILES: "Screener stopped: preferences.md or templates.md was refused ({why}).\n"
+                "To do: fix that line (ssh -t buddy micro ~/buddy/config/screener/templates.md), then Resume.",
 }
+WHY_MAX = 200
 
 
 class Hub:
     def __init__(self, cfg: Config, publish: Callable[[str, dict], None], clock: Callable[[], float] = time.time):
         self.cfg, self.publish, self.clock = cfg, publish, clock
 
-    def hold(self, kind: str, row_id: int | None) -> None:
+    def hold(self, kind: str, row_id: int | None, why: str = "") -> None:
         ask = f"screener-{int(self.clock() * 1000)}"
         self.cfg.data_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.cfg.needs_you_file.write_text(json.dumps({"kind": kind, "row": row_id, "ask": ask}))
+        text = HOLD_TEXT[kind].format(row=row_id, why=" ".join(why.split())[:WHY_MAX] or "no reason given",
+                                      time=time.strftime("%H:%M", time.localtime(self.clock())))
         self.publish(topics.messenger_cmd, {"action": "ask", "id": ask, "from": "screener", "ttl_s": 0,
-                                            "text": HOLD_TEXT[kind].format(row=row_id), "options": OPTIONS})
+                                            "text": text, "options": OPTIONS})
 
     def notify(self, text: str) -> None:
         """Info only (no sound): limits, likes used up. `text` is the loop's, built from counts and times."""
@@ -54,8 +65,10 @@ class Hub:
             return None
         return {0: "resume", 1: "stop"}.get(payload.get("option"))
 
-    def resumed(self) -> None:
+    def resumed(self, how: str = "on the panel") -> None:
+        """The hold is over: Dev's question on Telegram says so instead of "withdrawn" (an answer there needs no
+        note: messenger already shows it)."""
         h = self.held()
         self.cfg.needs_you_file.unlink(missing_ok=True)
         if h and h.get("ask"):
-            self.publish(topics.messenger_cmd, {"action": "cancel", "id": h["ask"]})
+            self.publish(topics.messenger_cmd, {"action": "cancel", "id": h["ask"], "note": f"▶ resumed {how}"})

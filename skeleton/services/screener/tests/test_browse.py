@@ -30,7 +30,7 @@ class Rig:
         self.clock = Clock(now)
         self.store = Store(":memory:", clock=self.clock)
         self.decider = FakeDecider(bot)
-        self.holds, self.notes, self.paused = [], [], False
+        self.holds, self.whys, self.notes, self.paused = [], [], [], False
         self.tmp = tmp_path
         self.b = Browser(BrowseConfig(mode=mode, **cfg), nav(self.phone), self.decider, lambda: LIB, self.store,
                          tmp_path, hold=self.hold, notify=self.notes.append,
@@ -38,8 +38,9 @@ class Rig:
                          clock=self.clock, rng=random.Random(1), day_start=utc_day, log=lambda s: None)
         self.phone.screencap = lambda half=False: self.phone.screen.encode()
 
-    def hold(self, kind, row_id):
+    def hold(self, kind, row_id, why):
         self.holds.append((kind, row_id))
+        self.whys.append(why)
         self.paused = True
 
     def kinds(self):
@@ -157,7 +158,7 @@ def test_decide_errors_retry_then_hold(tmp_path):
     r.decider.decide = fail
     assert r.b.step() == 60.0 and r.b.step() == 60.0 and not r.holds
     r.b.step()
-    assert r.holds == [(browse.HOLD_DECIDE, None)]
+    assert r.holds == [(browse.HOLD_DECIDE, None)] and r.whys == ["last: DecideError: timeout"]
 
 
 def test_usage_limit_waits(tmp_path):

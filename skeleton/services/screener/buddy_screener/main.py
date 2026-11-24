@@ -413,7 +413,8 @@ def service(cfg: Config) -> int:
         action = msg.get("action", "") if kind == "cmd" else hub.answer(msg)
         if action is None:
             continue
-        reason = handle(cfg, dev, action, hub) or ""
+        how = "on Telegram" if kind == "answer" else "by Claude" if msg.get("from") == "claude" else "on the panel"
+        reason = handle(cfg, dev, action, hub, how) or ""
         wake.set()
         next_check = 0.0
     published = {"state": "offline", "phone": phone}
@@ -449,7 +450,7 @@ def state_payload(cfg: Config, store: Store, browser, phone: str, died: bool = F
     return out
 
 
-def handle(cfg: Config, dev: Device, action: str, hub=None) -> str | None:
+def handle(cfg: Config, dev: Device, action: str, hub=None, how: str = "on the panel") -> str | None:
     """stop: the stop file (survives restarts); pause: Dev uses the phone (stock keyboard); resume: all off, also a
     hold for Dev (#80: the loop goes on)."""
     cfg.config_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -465,7 +466,7 @@ def handle(cfg: Config, dev: Device, action: str, hub=None) -> str | None:
             cfg.stop_file.unlink(missing_ok=True)
             cfg.pause_file.unlink(missing_ok=True)
             if hub is not None:
-                hub.resumed()
+                hub.resumed(how)
             else:
                 cfg.needs_you_file.unlink(missing_ok=True)
             _ensure_our_ime(dev)

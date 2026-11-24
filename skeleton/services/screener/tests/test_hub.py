@@ -17,15 +17,22 @@ def cfg(tmp_path):
     return Config(package="app.example", config_dir=tmp_path / "c", data_dir=tmp_path / "d", browse="dry")
 
 
-def test_every_hold_kind_has_a_text_without_placeholders_but_the_row():
+def test_every_hold_says_what_happened_and_what_to_do(cfg):
+    sent = []
+    hub = Hub(cfg, lambda topic, msg: sent.append(msg))
     for kind in (browse.HOLD_WOULD_LIKE, browse.HOLD_SCREEN, browse.HOLD_LIKES, browse.HOLD_DECIDE, browse.HOLD_FILES):
-        assert "{" not in HOLD_TEXT[kind].format(row=12)
+        hub.hold(kind, 12, "waited for the app, got unknown")
+        text = sent[-1]["text"]
+        assert "{" not in text and "To do:" in text
+        assert kind == browse.HOLD_WOULD_LIKE or "waited for the app" in text
+    hub.hold(browse.HOLD_SCREEN, None, "x " * 300)
+    assert len(sent[-1]["text"]) < 600
 
 
 def test_hold_asks_dev_and_the_answer_resumes(cfg):
     sent = []
     hub = Hub(cfg, lambda topic, msg: sent.append((topic, msg)), clock=lambda: 1.5)
-    hub.hold(browse.HOLD_WOULD_LIKE, 12)
+    hub.hold(browse.HOLD_WOULD_LIKE, 12, "")
     assert cfg.mode() == "needs_you"
     topic, ask = sent[0]
     assert topic == "buddy/messenger/cmd" and ask["action"] == "ask" and ask["options"] == ["Resume", "Stop"]
@@ -36,7 +43,8 @@ def test_hold_asks_dev_and_the_answer_resumes(cfg):
     assert hub.answer({"event": "answered", "id": ask["id"], "option": 1}) == "stop"
     assert hub.answer({"event": "answered", "id": ask["id"], "option": 0}) == "resume"
     hub.resumed()
-    assert cfg.mode() == "active" and sent[-1][1] == {"action": "cancel", "id": ask["id"]}
+    assert cfg.mode() == "active"
+    assert sent[-1][1] == {"action": "cancel", "id": ask["id"], "note": "▶ resumed on the panel"}
 
 
 def test_a_hold_stops_the_loops_input_but_not_devs(cfg):
@@ -65,7 +73,8 @@ def test_resume_clears_stop_pause_and_hold(cfg, monkeypatch):
     hub = Hub(cfg, lambda topic, msg: sent.append(msg))
     hub.hold(browse.HOLD_SCREEN, None)
     assert handle(cfg, Dev(), "stop", hub) is None and cfg.mode() == "stopped"
-    assert handle(cfg, Dev(), "resume", hub) is None and cfg.mode() == "active" and sent[-1]["action"] == "cancel"
+    assert handle(cfg, Dev(), "resume", hub, "by Claude") is None and cfg.mode() == "active"
+    assert sent[-1] == {"action": "cancel", "id": sent[0]["id"], "note": "▶ resumed by Claude"}
 
 
 def test_state_payload_has_counts_and_no_names(cfg):

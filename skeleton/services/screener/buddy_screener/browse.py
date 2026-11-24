@@ -81,7 +81,7 @@ class LoopState:
 
 class Browser:
     def __init__(self, cfg: BrowseConfig, nav: Navigator, decider, load_lib: Callable[[], Library], store: Store,
-                 tmp_dir: Path, hold: Callable[[str, int | None], None], notify: Callable[[str], None],
+                 tmp_dir: Path, hold: Callable[[str, int | None, str], None], notify: Callable[[str], None],
                  mode: Callable[[], str], pages: Callable[[list], list[bytes]] | None = None,
                  clock: Callable[[], float] = time.time, rng: random.Random | None = None,
                  day_start: Callable[[float], float] = likes.local_midnight, log: Callable[[str], None] = print):
@@ -129,7 +129,7 @@ class Browser:
         self._act(likes.NEEDS_YOU if kind != HOLD_WOULD_LIKE else likes.WOULD_LIKE, row_id, why[:120])
         self._set(NEEDS_YOU, reason=kind)
         self.log(f"hold ({kind}): {why}")
-        self.hold(kind, row_id)
+        self.hold(kind, row_id, why)
         return 5.0
 
     # --- one step ---
@@ -190,7 +190,7 @@ class Browser:
             self.log(f"decide failed ({self.decide_failures}): {e}")
             if self.decide_failures >= DECIDE_FAILURES:
                 self.decide_failures = 0
-                return self._hold(HOLD_DECIDE, f"decisions failed {DECIDE_FAILURES} times in a row")
+                return self._hold(HOLD_DECIDE, f"last: {type(e).__name__}: {str(e)[:80]}")
             return 60.0
         except NeedsYou as e:
             return self._hold(HOLD_SCREEN, e.reason)
