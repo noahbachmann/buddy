@@ -36,12 +36,12 @@ from pathlib import Path
 from buddy_shared import lifecycle, systemd, topics
 from buddy_shared.mqtt import Mqtt
 
-from . import screens, vocab
+from . import likes, screens, vocab
 from .config import Config
 from .decide import DecideConfig, DecideError, Decider
 from .device import OUR_IME, AdbError, Device, Stopped
 from .library import Library, LibraryError
-from .navigator import Navigator, NeedsYou
+from .navigator import Navigator, NeedsYou, OutOfLikes
 from .profile import Capture
 from .sanitize import read_forbidden, sanitize_many
 from .store import Store
@@ -66,6 +66,11 @@ def _decider(cfg: Config, store: Store) -> Decider:
                                 cfg.limit_file, cfg.tmp_dir / "claude", cfg.text_first,
                                 photo_check=cfg.photo_check, photo_model=cfg.photo_model or cfg.model,
                                 check_model=cfg.check_model or cfg.model), store)
+
+
+def like_status(cfg: Config, store: Store) -> likes.LikeStatus:
+    now = time.time()
+    return likes.status(store.actions(now - 7 * likes.DAY), now, cfg.daily_likes, cfg.likes_24h)
 
 
 def _ensure_our_ime(dev: Device) -> None:
@@ -176,6 +181,11 @@ def cmd_shadow(cfg: Config, args: argparse.Namespace) -> int:
         store.label(row_id, dev_label)
         print(f"#{row_id} labelled: {dev_label['decision']}"
               + (f" {dev_label['comment_on']} / {dev_label['comment']}" if dev_label["decision"] == "like" else ""))
+        st = like_status(cfg, store)
+        if dev_label["decision"] == "like" and not st.left:
+            # #129: the paywall would drop the profile; keep it on screen until the likes are back
+            print(f"warning: {likes.describe(st, cfg.daily_likes)}: leave the profile on screen, type/send later",
+                  file=sys.stderr)
         return 0
 
     dev = _device(cfg)
@@ -190,6 +200,10 @@ def cmd_shadow(cfg: Config, args: argparse.Namespace) -> int:
         cap = shadow.load_capture(cfg.tmp_dir, row_id)
         if not rows or cap is None:
             print(f"#{row_id}: no capture in tmpfs (only the newest shadow row's): run shadow again", file=sys.stderr)
+            return 2
+        st = like_status(cfg, store)
+        if not st.left:
+            print(f"type: {likes.describe(st, cfg.daily_likes)}: not opening the panel", file=sys.stderr)
             return 2
         _ensure_our_ime(dev)
         try:
@@ -207,11 +221,22 @@ def cmd_shadow(cfg: Config, args: argparse.Namespace) -> int:
         if not rows or cap is None:
             print(f"#{row_id}: no capture in tmpfs (only the newest shadow row's)", file=sys.stderr)
             return 2
+        st = like_status(cfg, store)
+        if args.cmd == "send" and not st.left:
+            print(f"send: {likes.describe(st, cfg.daily_likes)}", file=sys.stderr)
+            return 2
         try:
             acted, nxt = shadow.act_label(nav, rows[0], cap, lib, args.cmd)
         except shadow.LabelError as e:
             print(f"{args.cmd}: {e}", file=sys.stderr)
             return 2
+        except OutOfLikes as e:
+            store.add_action(likes.OUT_OF_LIKES, "shadow", row_id, "moved on" if e.moved_on else "panel kept")
+            raise
+        kind = likes.SKIP if args.cmd == "skip" else likes.LIKE if acted.get("text") else likes.LIKE_PLAIN
+        store.add_action(kind, "shadow", row_id)
+        if kind != likes.SKIP and st.probe:
+            store.add_action(likes.LIKES_BACK, "shadow", row_id, f"{(time.time() - st.last_like) / 3600:.1f} h")
         store.label(row_id, acted)
         print(f"#{row_id}: {'skipped' if args.cmd == 'skip' else 'like sent'}; next profile: {nxt}")
         return 0

@@ -28,6 +28,8 @@ class Config:
     photo_model: str = ""        # its model; empty = `model`
     photo_check_px: int = 1024   # its crops' long side: ≥ the screen's 960 px photos = not downscaled
     check_model: str = ""        # the like comment's copy/invention check (#84); empty = `model`
+    daily_likes: int = 8         # the app's free likes per batch (#80): the budget stops before its paywall
+    likes_24h: bool = False      # likes come back 24 h after a used-up batch's last like (Dev's guess, likes.py)
     chat_min_exchanges: int = ChatLimits.min_exchanges   # chat (#77): meanings in chat.ChatLimits
     chat_max_bot: int = ChatLimits.max_bot
     chat_max_days: float = ChatLimits.max_days
@@ -57,6 +59,8 @@ class Config:
             photo_model=env_string("BUDDY_SCREENER_PHOTO_MODEL", d.photo_model),
             photo_check_px=env_int("BUDDY_SCREENER_PHOTO_CHECK_PX", d.photo_check_px),
             check_model=env_string("BUDDY_SCREENER_CHECK_MODEL", d.check_model),
+            daily_likes=env_int("BUDDY_SCREENER_DAILY_LIKES", d.daily_likes),
+            likes_24h=env_int("BUDDY_SCREENER_LIKES_24H", int(d.likes_24h)) != 0,
             chat_min_exchanges=env_int("BUDDY_SCREENER_CHAT_MIN_EXCHANGES", d.chat_min_exchanges),
             chat_max_bot=env_int("BUDDY_SCREENER_CHAT_MAX_BOT", d.chat_max_bot),
             chat_max_days=env_float("BUDDY_SCREENER_CHAT_MAX_DAYS", d.chat_max_days),
@@ -71,6 +75,8 @@ class Config:
                 raise ValueError(f"BUDDY_SCREENER_{key}={px}: 256..1568")
         if c.effort not in ("low", "medium", "high", "xhigh", "max"):
             raise ValueError(f"BUDDY_SCREENER_EFFORT={c.effort!r}: low|medium|high|xhigh|max")
+        if not 1 <= c.daily_likes <= 100:
+            raise ValueError(f"BUDDY_SCREENER_DAILY_LIKES={c.daily_likes}: 1..100")
         if not c.package:
             raise ValueError("BUDDY_SCREENER_APP is not set (the app's package, in buddy.env)")
         return c

@@ -3,6 +3,8 @@
 - `usage`: one row per Claude call (kept: it sets active hours and model choice).
 - `shadow`: step 2's labelled set: the bot's decision on a profile and Dev's choice for it. No name, no images, no
   profile text: a profile is a key (hash of name, age, first prompt). Rows older than `KEEP_DAYS` are deleted.
+- `actions` (#80): every act on the phone and every stop of the loop (kind, run mode, shadow row id, a detail that is
+  never a name or profile text): the like budget counts from it. `KEEP_DAYS`.
 - `chats` (#77): one row per chat, `chat.Chat` as JSON (state, answers, flags, our sent log with its times; never her
   message texts). Deleted `KEEP_DAYS` after the chat ended (closed, done, handed over or manual).
 """
@@ -31,6 +33,11 @@ CREATE TABLE IF NOT EXISTS shadow (
     bot TEXT NOT NULL,           -- decide.Browse as JSON
     dev TEXT, labelled REAL      -- Dev's label as JSON
 );
+CREATE TABLE IF NOT EXISTS actions (
+    id INTEGER PRIMARY KEY, ts REAL NOT NULL, kind TEXT NOT NULL,
+    mode TEXT NOT NULL,          -- dry | live | shadow (Dev's label carried out)
+    row_id INTEGER, detail TEXT  -- detail: counts, reasons by kind; never a name or profile text
+);
 CREATE TABLE IF NOT EXISTS chats (
     key TEXT PRIMARY KEY, state TEXT NOT NULL, started REAL NOT NULL, updated REAL NOT NULL,
     ended REAL,                  -- closed / done / handover / manual: retention counts from here
@@ -42,6 +49,15 @@ CREATE TABLE IF NOT EXISTS chats (
 def profile_key(name: str, details: list[tuple[str, str]], first_prompt: str) -> str:
     age = next((v for label, v in details if label == "Age"), "")
     return hashlib.sha256(f"{name}\0{age}\0{first_prompt}".encode()).hexdigest()[:16]
+
+
+@dataclass
+class Action:
+    ts: float
+    kind: str
+    mode: str
+    row_id: int | None = None
+    detail: str = ""
 
 
 @dataclass
@@ -65,6 +81,7 @@ class Store:
         self.db.executescript(_SCHEMA)
         self.clock = clock
         self.db.execute("DELETE FROM shadow WHERE ts < ?", (clock() - KEEP_DAYS * 86400,))
+        self.db.execute("DELETE FROM actions WHERE ts < ?", (clock() - KEEP_DAYS * 86400,))
         self.db.execute("DELETE FROM chats WHERE ended IS NOT NULL AND ended < ?", (clock() - KEEP_DAYS * 86400,))
         self.db.commit()
 
@@ -101,6 +118,17 @@ class Store:
                                (() if row_id is None else (row_id,))).fetchall()
         return [ShadowRow(r[0], r[1], r[2], r[3] or 0.0, r[4] or 0, r[5] or 0.0, r[6] or 0, json.loads(r[7]),
                           json.loads(r[8]) if r[8] else None) for r in rows]
+
+    def add_action(self, kind: str, mode: str, row_id: int | None = None, detail: str = "",
+                   ts: float | None = None) -> None:
+        self.db.execute("INSERT INTO actions (ts, kind, mode, row_id, detail) VALUES (?,?,?,?,?)",
+                        (self.clock() if ts is None else ts, kind, mode, row_id, detail))
+        self.db.commit()
+
+    def actions(self, since: float = 0.0) -> list[Action]:
+        rows = self.db.execute("SELECT ts, kind, mode, row_id, detail FROM actions WHERE ts >= ? ORDER BY ts, id",
+                               (since,)).fetchall()
+        return [Action(r[0], r[1], r[2], r[3], r[4] or "") for r in rows]
 
     def usage_rows(self, since: float = 0.0, until: float = float("inf")) -> list[tuple]:
         return self.db.execute("SELECT task, model, input, cache_read, cache_write, output, cost, ms, five_hour, "

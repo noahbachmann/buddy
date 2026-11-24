@@ -253,7 +253,7 @@ def test_out_of_likes_can_move_on_to_the_next_profile(store, tmp_path):
     row = store.shadow(r.row_id)[0]
     shadow.type_label(n, row, r.capture, LIB)
     phone.out_of_likes = phone.paywall_moves_on = True   # seen live 2026-11-19
-    with pytest.raises(NeedsYou, match="moved on to the next profile \\(Kim\\)"):
+    with pytest.raises(NeedsYou, match="moved on to the next profile: this one is gone"):
         shadow.act_label(n, row, r.capture, LIB, "send")
     assert phone.sent() == []
 

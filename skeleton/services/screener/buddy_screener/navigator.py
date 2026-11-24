@@ -54,6 +54,14 @@ class NeedsYou(RuntimeError):
         self.reason, self.dump = reason, dump
 
 
+class OutOfLikes(NeedsYou):
+    """"Send like" hit the paywall: nothing sent. `moved_on`: closing it showed the next profile (this one is gone)."""
+
+    def __init__(self, reason: str, moved_on: bool):
+        super().__init__(reason)
+        self.moved_on = moved_on
+
+
 _rng = random.Random()
 
 
@@ -534,10 +542,10 @@ class Navigator:
                               (x.kind is Kind.FEED and screens.profile_view(x.root).name != name),
                               "the comment panel or the next profile")
             if s.kind is Kind.FEED:
-                raise self.needs_you(f"out of free likes for today: not sent, and the app moved on to the next "
-                                     f"profile ({screens.profile_view(s.root).name}): this one is gone")
-            raise self.needs_you("out of free likes for today: not sent, the comment stays in the panel "
-                                 "(send it once the likes are back)")
+                raise OutOfLikes("out of free likes: not sent, and the app moved on to the next profile: this one "
+                                 "is gone", moved_on=True)
+            raise OutOfLikes("out of free likes: not sent, the comment stays in the panel (send it once the likes "
+                             "are back)", moved_on=False)
         if s.kind is Kind.UPSELL:
             if self.dump_dir is not None:   # raw, tmpfs: for a real fixture (the first one was hand-built)
                 self.dump_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
