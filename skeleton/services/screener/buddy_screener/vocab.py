@@ -74,11 +74,12 @@ MATCH_ORIGIN = re.compile(r"You liked (.+)'s (photo|prompt)\.", re.S)
 DATE_SEPARATOR = re.compile(
     r"(Today|Yesterday|Mon|Tue|Wed|Thu|Fri|Sat|Sun)\b.*\d{1,2}:\d{2}")
 
-# Profile detail labels worth keeping in fixtures (icons with a content-desc next to a value). Others → placeholder.
+# Profile detail labels worth keeping in fixtures (icons with a content-desc next to a value). Others → placeholder,
+# also the intentions label: it names the kind of app (public repo).
 DETAIL_LABELS = frozenset({
     "Age", "Gender", "Sexuality", "Height", "Job", "Work", "School", "Hometown", "Location", "Politics", "Religion",
     "Relationship Type", "Pronouns", "Children", "Family Plans", "Drinking", "Smoking", "Pets", "Languages",
-    "Dating Intentions", "Ethnicity", "Zodiac Sign",
+    "Ethnicity", "Zodiac Sign",
 })
 
 # Strings kept verbatim by the sanitizer (besides the patterns above)
