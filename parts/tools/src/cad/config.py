@@ -10,6 +10,7 @@
     [plates.1-petg]                 # optional: one print job = one STL in <module>/plates (`cad plate`)
     note = "PETG · 0.2 mm"          # material and slicer settings, printed with the plate
     parts = ["a", "b", "b", ["c", "c-support"]]   # repeat = more copies; a list = one group in its own frame
+    bed = [254, 254]                # optional: usable bed for this plate (default 230 × 230, room for brims)
 """
 
 from __future__ import annotations
@@ -39,6 +40,7 @@ class Plate:
     name: str
     note: str
     items: list[list[str]]       # each item: part names merged in their common coordinates
+    bed: tuple[float, float] | None = None   # None = plate.BED
 
 
 @dataclass
@@ -108,6 +110,9 @@ def load(d: Path) -> Module:
         unknown = sorted({n for i in items for n in i} - parts.keys())
         if not items or unknown:
             raise SystemExit(f"{d / CONFIG}: plate {name}: " + (f"unknown part(s) {', '.join(unknown)}" if unknown else "no parts"))
-        plates[name] = Plate(name, spec.get("note", ""), items)
+        bed = spec.get("bed")
+        if bed is not None and (len(bed) != 2 or not all(isinstance(v, (int, float)) and 0 < v <= 256 for v in bed)):
+            raise SystemExit(f"{d / CONFIG}: plate {name}: bed must be [w, d] in mm, at most 256 (X2D)")
+        plates[name] = Plate(name, spec.get("note", ""), items, tuple(float(v) for v in bed) if bed else None)
     asm = raw.get("assembly")
     return Module(d, parts, d / asm if asm else None, plates)

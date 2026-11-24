@@ -49,3 +49,20 @@ def test_config_plates(tmp_path):
     (tmp_path / config.CONFIG).write_text('[parts.a]\n[plates.p1]\nparts = ["a", "zz"]\n')
     with pytest.raises(SystemExit, match="zz"):
         config.load(tmp_path)
+
+
+def test_config_plate_bed(tmp_path):
+    (tmp_path / "a.scad").write_text("cube(1);")
+    (tmp_path / config.CONFIG).write_text('[parts.a]\n[plates.p1]\nparts = ["a"]\nbed = [254, 250]\n[plates.p2]\nparts = ["a"]\n')
+    mod = config.load(tmp_path)
+    assert mod.plates["p1"].bed == (254.0, 250.0)
+    assert mod.plates["p2"].bed is None
+    (tmp_path / config.CONFIG).write_text('[parts.a]\n[plates.p1]\nparts = ["a"]\nbed = [300, 250]\n')
+    with pytest.raises(SystemExit, match="bed"):
+        config.load(tmp_path)
+
+
+def test_pack_wide_part_needs_wide_bed():
+    with pytest.raises(ValueError, match="plate full"):
+        plate.pack([_box(250, 220)])
+    assert plate.pack([_box(250, 220)], bed=(254, 254)).extents[0] == pytest.approx(250)

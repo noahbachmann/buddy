@@ -41,7 +41,7 @@ cd parts/tools && uv run pytest -q                 # tool tests (fixtures in tes
   cable channels: anything inside.
 - **Plates** (`tools/src/cad/plate.py`): `[plates.<name>]` in `cad.toml` lists parts (repeat = copies; a list =
   one group kept in its common frame, e.g. parts that print in one frame) and a `note` (filament, settings). Parts
-  turn only about Z, pack into rows on 230 × 230 with 8 mm gaps, centred. One STL per plate = one object in Bambu
+  turn only about Z, pack into rows on 230 × 230 (`bed = [w, d]` per plate for parts wider than that, ≤ 256) with 8 mm gaps, centred. One STL per plate = one object in Bambu
   Studio: settings apply to the whole plate, auto brim judges the whole plate. Dev prints from `plates/`.
 - **Assembly sheet**: OpenSCAD's own preview from 4 directions (gimbal camera), keeps `color()` and `%` ghosts.
 - Print classes (`tools/src/cad/mesh.py`): +Z = build direction, lowest Z = bed, 45° counts as fine (teardrops,
