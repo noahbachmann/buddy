@@ -176,8 +176,8 @@ see `chat.md` + *About Dev*, *Looking for*, *Good fit*, *Soft negatives/positive
 Fixtures are sanitized real dumps (step 1, 2026-11-16): `feed-01..11` one profile top to bottom (6 photos, 3
 prompts), `sheet`/`sheet-typed` (photo panel), `sheet-low` (prompt panel under the skip button), `likes` (empty),
 `matches`, `chat`, `popup` (feature ad on launch, 2026-11-17), `row-0..3` (another profile's detail row swiped
-sideways to its end, 2026-11-17), `photo-caption` (a captioned photo: its button reads "Like photo prompt"), `upsell` (hand-built from a live
-dump's node list: replace with a real dump when next seen),
+sideways to its end, 2026-11-17), `photo-caption` (a captioned photo: its button reads "Like photo prompt"), `upsell` (the paid-upgrade sheet after a
+sent like, real dump 2026-11-23: the paid button's texts are placeholders),
 `own-profile` (unknown), `feed-video` (a video between a photo and a prompt, 2026-11-17), `feed-video-prompt` (a
 profile's top with a playing video prompt under photo 1, 2026-11-18), `feed-poll` (a poll's card, a feature ad, prompt 1, 2026-11-18), `out-of-likes` (the paywall after "send like"
 once the day's free likes are gone, 2026-11-18), `feed-voice-1..4` (video prompt, feature ad, voice prompt, prompt: the capture lost track before voice prompts were sections, 2026-11-20), `feed-friend-1..5` (friends' cards carousel, feature ad, poll, prompt, 2026-11-20), `feed-poll-off-1..3` (a poll's question scrolls off, its options and a voice prompt left, 2026-11-21), `feed-poll-all` → `sheet-option` → `sheet-option-typed` (an option's heart tapped: the panel with option 2 picked, then scrolled clear and typed, 2026-11-23). `fixture_files.py` loads them, `fake_phone.py` replays them as a phone (taps/swipes move between

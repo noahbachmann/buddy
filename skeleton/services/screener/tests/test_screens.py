@@ -171,9 +171,11 @@ def test_captioned_photo_has_its_like_button():
 def test_upsell_acts_only_on_the_plain_like():
     s = screen("upsell")
     assert s.kind is Kind.UPSELL
-    rose = s.root.first(lambda n: n.text == "Send a Rose").parent
-    close = s.root.first(lambda n: n.desc == v.CLOSE_SHEET)
     anyway = screens.send_anyway_button(s.root)
+    # the paid button: the other clickable one (sanitized: its text is a placeholder)
+    rose = s.root.first(lambda n: n.clickable and n is not anyway and n.desc != v.CLOSE_SHEET)
+    assert rose is not None
+    close = s.root.first(lambda n: n.desc == v.CLOSE_SHEET)
     assert screens.actable(s, anyway)
     assert not screens.actable(s, rose) and not screens.actable(s, close)
     assert not any(screens.tappable(s, n) for n in (anyway, rose, close))   # never through the browse allowlist
