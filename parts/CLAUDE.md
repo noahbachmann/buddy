@@ -88,6 +88,9 @@ section through every fit (bearing seat, slot, channel). Numbers can't see a mis
 - A param change rebuilds STLs in other parts than the one being worked on (fits are shared): commit every changed
   `stl/`, `plates/` and `dispenser-roller.stl` with it. `git status` clean under `parts/` after a commit. Dev prints
   from GitHub: a stale plate there printed the borders with the pre-test fits (2026-11-11).
+- A cut extruded `big` along its axis runs on through every wall behind it: bound cuts to their own feature (the PC
+  case's nut pockets notched the far wall, 2026-11-24). Catch slivers by slicing and eroding each layer by 0.4 mm:
+  a polygon that vanishes is thinner than two lines.
 - Manifold booleans need watertight input: an open reference mesh (e.g. `dispenser/ref/lift.stl`) silently intersects
   as 0. Check `is_watertight` before trusting an overlap volume.
 - BOSL2's thread `$slop` is radial (4·$slop on the diameter). On a TR thread that's ¼ at the flanks: size thread gaps per

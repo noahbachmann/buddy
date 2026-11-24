@@ -27,6 +27,9 @@ All: PETG, 0.20 mm, 3 walls, 15 %, no supports (no overhang > 45°, no bridge, n
 - Cable notches: left edge y 54–66 (ribbon out through the left slit), right edge y 104–128 (ribbons out over the
   right tray wall; the cover's front wall is open there up to 32 mm), back edge x 160–176 (antenna wires).
 
+**Before the real parts:** `skeleton/` has fit-test skeletons of lid, cover-top and cover-bottom (84 g together,
+same geometry where it matters): assemble them on the hardware first (`skeleton/README.md`).
+
 ## Hardware
 
 | Joint | Screws | Nuts |
