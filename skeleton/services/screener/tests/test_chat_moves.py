@@ -122,6 +122,14 @@ def test_stitch_keeps_a_repeated_text_that_isnt_overlap():
     assert [x.text for x in stitch([top, bottom])] == ["q", "haha", "haha", "ok"]
 
 
+def test_stitch_takes_a_page_that_saw_a_message_the_page_before_missed():
+    # 2026-11-25 live: her "c" was missing on the top page; the next page starts at "b": no exact overlap, our "b"
+    # and "d" were read twice. The fuller page replaces the tail.
+    top = [m("left", "a"), m("right", "b"), m("right", "d")]
+    bottom = [m("right", "b"), m("left", "c"), m("right", "d"), m("left", "e")]
+    assert [x.text for x in stitch([top, bottom])] == ["a", "b", "c", "d", "e"]
+
+
 def test_stitch_without_overlap_appends():
     assert [x.text for x in stitch([[m("left", "a")], [m("left", "b")]])] == ["a", "b"]
 

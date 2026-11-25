@@ -119,15 +119,28 @@ def _norm(text: str) -> str:
 
 def stitch(pages: list[list[screens.Message]]) -> list[screens.Message]:
     """Pages of one chat, top to bottom, overlapping: each next page joined on the longest run that ends the text so
-    far and starts it (side, sender, text, media; positions differ between pages)."""
+    far and starts it (side, sender, text, media; positions differ between pages). No exact run: a page that holds
+    the text so far's tail in order, plus items that page missed, replaces that tail (2026-11-25: one of her messages
+    was missing on a page, nothing matched and our two messages were read twice)."""
     def k(m: screens.Message) -> tuple:
         return m.side, m.sender, m.text, m.media
     out: list[screens.Message] = []
     for page in pages:
         keys, new = [k(m) for m in out], [k(m) for m in page]
         n = next((n for n in range(min(len(keys), len(new)), 0, -1) if keys[-n:] == new[:n]), 0)
+        if n == 0 and new:
+            i = next((i for i in range(max(0, len(keys) - len(new)), len(keys))
+                      if keys[i] == new[0] and _in_order(keys[i:], new)), None)
+            if i is not None:
+                out = out[:i]
         out += page[n:]
     return out
+
+
+def _in_order(sub: list, seq: list) -> bool:
+    """Is `sub` a subsequence of `seq` (same order, gaps allowed)?"""
+    it = iter(seq)
+    return all(any(x == y for y in it) for x in sub)
 
 
 def _signature(root: Node) -> tuple:
