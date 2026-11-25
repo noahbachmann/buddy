@@ -124,6 +124,8 @@ class ChatDriver:
             return self._hold(HOLD_CHAT_FILES, f"chat files: {e}")
         flow = ChatFlow(rules, contacts, self.limits)
         try:
+            # the screen sleeps between passes: a dark screenshot keys every match as name#000… (2026-11-25)
+            self.nav.wake()
             if (held := self._held()) is not None:
                 if not self._resume(held, flow):
                     return 5.0

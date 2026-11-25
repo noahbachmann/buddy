@@ -148,3 +148,14 @@ def test_a_closed_their_turn_on_a_short_list_is_opened_at_its_end():
     rows = nav(phone).matches()
     assert [a for a in phone.actions if a[0] == "tap"] == [("tap", "matches-turns", "Their turn (1)")]
     assert rows[-1].section == screens.THEIR_TURN
+
+
+def test_a_dark_screen_never_keys_the_matches():
+    # screen off: dumps still read, screenshots are black → every thumbnail hash 0 (2026-11-25, the give-back missed)
+    phone = FakeChatPhone("matches-turns")
+    phone.screencap = lambda half=False: "black"
+    n = Navigator(phone, PACKAGE, pause=lambda s: None, log=lambda s: None, hasher=lambda shot, rect: "0" * 16)
+    with pytest.raises(NeedsYou, match="dark"):
+        n.matches()
+    n.hasher = lambda shot, rect: "f0e68ebff9caccf0"
+    assert all(r.key.endswith("#f0e68ebff9caccf0") for r in n.matches())

@@ -633,7 +633,11 @@ class Navigator:
             return None
         if self.hasher is None or shot is None:
             return row.name
-        return f"{row.name}#{self.hasher(shot, row.avatar)}"
+        h = self.hasher(shot, row.avatar)
+        if not h.strip("0"):
+            # a black screenshot (screen off: dumps still read): every key would be name#000…, matching nothing
+            raise self.needs_you("the screen is dark: the thumbnails read black")
+        return f"{row.name}#{h}"
 
     def _open_their_turn(self, s: Screen, done: list[bool], at_end: bool = False) -> Screen:
         """"Their turn (N)" starts collapsed: tap it open (once per pass: a second tap would close it) when it has
