@@ -188,3 +188,8 @@ def test_off_topic_only_when_true_and_the_prompt_declines_unrelated_work():
     assert not check_converse(answer(off_topic="yes"), RULES, "reply", "screening")[0].off_topic
     assert "off_topic" in converse_schema(RULES)["required"]
     assert "no math, code, homework" in converse_system(RULES)
+
+
+def test_the_bot_shows_no_interest_of_its_own():
+    system = converse_system(RULES)
+    assert "No interest or opinions of your own" in system and "personal touch" not in system
