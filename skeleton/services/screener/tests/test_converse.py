@@ -41,7 +41,7 @@ def answer(**kw):
 def test_the_bot_never_fakes_feelings_or_takes_his_compliments():
     # the owner, 2026-11-24: a bot that's "flattered" reads fake; it relays how he'd feel, in the third person
     s = converse_system(RULES)
-    assert "no feelings of your own" in s and "never yours to accept" in s and "he'd feel flattered" in s
+    assert "no feelings of your own" in s and "never yours to accept" in s and "in a few plain words" in s
     assert "never upgrade it" in s   # "kocht gern und gut" from "likes cooking" (2026-11-24)
 
 
@@ -194,3 +194,8 @@ def test_off_topic_only_when_true_and_the_prompt_declines_unrelated_work():
 def test_the_bot_shows_no_interest_of_its_own():
     system = converse_system(RULES)
     assert "No interest or opinions of your own" in system and "personal touch" not in system
+
+
+def test_the_prompt_answers_why_he_liked_her_and_has_no_stock_blush():
+    system = converse_system(RULES)
+    assert "Why he liked her" in system and "blush." not in system.replace('"he might even blush" read terrible', "")
