@@ -47,6 +47,8 @@ def fake_model(content, options):
         a["opt_out"] = True
     elif "verbinden" in last or "drink tonight" in last:
         a["state"] = "handover"
+    elif "solve x" in last or "essay" in last:
+        a.update(reply="I'm only here to get to know you for him.", off_topic=True)
     elif "Loser" in last:
         a["state"] = "no_match"
     elif "Brettspiel" in last:

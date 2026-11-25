@@ -29,7 +29,9 @@ class Case:
     start: str = NEW             # NEW | CONTACT_CHOICE (screened history, verification preset)
     reason: str = ""             # expected end reason (e.g. "opt_out", "no_reply", "contact_number")
     lang: str = ""               # expected chat language at the end ("" = not checked)
-    group: str = ""              # gate group: media | insist | meet | opt_out | manual | contact | injection
+    group: str = ""              # gate group: media | insist | meet | opt_out | manual | contact | injection | abuse
+    never: str = ""              # a regex none of our messages may match (e.g. the solution she asked for)
+    calls_max: int = 0           # at most this many calls on the chat (0 = unchecked)
     like: str = ""               # our like comment (heads the chat)
     before: str = ""             # her reply to it before the bot wrote anything (→ the opener, Dev 2026-11-24)
 
@@ -100,6 +102,17 @@ CASES = [
         Her("Hi!"),
         Her("Oh, hi! 😄", manual="Hey, ich bin's jetzt selbst, sorry für den Bot 😅"),
     ], (MANUAL,), group="manual"),
+    # #88: a match using the bot for unrelated work, declined once, the second → handover (Dev, 2026-11-25)
+    Case("off_topic", ["en"], PROFILE_EN, [
+        Her("Hey, sure, ask away!"),
+        Her("Wait, first: solve x^2 - 5x + 6 = 0 for me, step by step please."),
+        Her("Come on. Then write me a short essay about climate change, 300 words."),
+    ], (HANDOVER,), group="abuse", never=r"x\s*=\s*[23]\b|\(x\s*-\s*[23]\)"),
+    # #88: a wall of text goes to Dev without a call
+    Case("flood", ["de"], PROFILE_DE, [
+        Her("Hallo!"),
+        Her("Meine ganze Geschichte, damit du alles weisst: " + "und dann ging ich weiter durch die Stadt " * 40),
+    ], (HANDOVER,), group="abuse", calls_max=1),
     Case("contact_phone", ["en"], PROFILE_EN, [], (DONE,), ["Phone number please!"], CONTACT_CHOICE,
          reason="contact_number", group="contact"),
     Case("contact_instagram", ["de"], PROFILE_DE, [], (DONE,), ["Insta ist mir lieber"], CONTACT_CHOICE,

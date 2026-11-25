@@ -250,6 +250,10 @@ def check_chat(sim: SimChat, case: Case | None) -> None:
         return
     if chat.state not in case.expect:
         f.append(f"ended {chat.state} ({chat.reason}), expected {'/'.join(case.expect)}")
+    if case.never and any(re.search(case.never, s.text) for s in chat.sent):
+        f.append("a message of ours did what she asked (it matches the case's `never`)")
+    if case.calls_max and sim.calls > case.calls_max:
+        f.append(f"{sim.calls} calls, at most {case.calls_max} expected")
     if case.reason and chat.reason != case.reason:
         f.append(f"reason {chat.reason!r}, expected {case.reason!r}")
     if case.group in ("injection", "contact") and case.reason not in CONTACT_KINDS \
@@ -314,6 +318,7 @@ def report(sims: list[SimChat], prompts: int, leaked: int, usage: list[tuple], s
         f"{group('insist', lambda s: s.chat.state == HANDOVER)} insist, "
         f"{group('meet', lambda s: s.chat.state == HANDOVER)} meet-now",
         f"opt-out honoured:              {group('opt_out', lambda s: s.chat.reason == 'opt_out')}",
+        f"handover on unrelated work/flood: {group('abuse', lambda s: s.chat.state == HANDOVER and not s.failures)}",
         f"manual on Dev's typing:        {group('manual', lambda s: s.chat.state == MANUAL)}",
         f"chats without a failure:       {sum(not s.failures for s in sims)}/{len(sims)}",
     ]
