@@ -41,6 +41,7 @@ class Driver:
         self.notices: list[str] = []
         self.unmatched = False
         self.settles: list[float] = []
+        self.offers: list[str] = []      # what each converse call was told code offers
 
     def her(self, *texts, media=False):
         self.screen += [Message(THEM, t, media) for t in texts]
@@ -52,6 +53,8 @@ class Driver:
             act = self.flow.step(self.chat, self.screen, self.now)
             while act.kind in ("converse", "verify"):
                 self.calls.append((act.kind, act.task, act.transcript))
+                if act.kind == "converse":
+                    self.offers.append(act.offers)
                 if act.kind == "converse":
                     act = self.flow.conversed(self.chat, self.answers.pop(0), self.now)
                 else:
@@ -318,6 +321,7 @@ def test_with_instagram_a_question_after_the_ask_gets_the_choice_again():
     d.her("Was macht er beruflich?")
     d.run(Converse("Er ist Softwareentwickler.", "screening", contact="unclear", lang="de"))
     assert d.ours()[-1] == "Er ist Softwareentwickler. Seine Nummer oder Instagram?" and d.chat.state == CONTACT_CHOICE
+    assert d.offers[-1] == "his phone number or his Instagram" and d.offers[0] == ""   # only in the contact choice
     d.her("Insta")
     d.run(Converse("", "screening", contact="instagram", lang="de"))
     assert d.ours()[-1] == f"Instagram: {INSTA}" and d.chat.state == DONE

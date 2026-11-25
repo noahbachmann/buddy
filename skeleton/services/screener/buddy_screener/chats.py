@@ -326,7 +326,7 @@ class ChatDriver:
             try:
                 if act.kind == "converse":
                     c, fixes, usage = self.talker.converse(rules, act.task, chat.state, chat.lang, chat.profile,
-                                                           sorted(chat.answers), act.transcript)
+                                                           sorted(chat.answers), act.transcript, act.offers)
                     self._count(chat, act.task, usage)
                     if fixes:
                         chat.log.append(f"fixes: {len(fixes)}")

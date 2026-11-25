@@ -78,7 +78,7 @@ def run_chat(flow: ChatFlow, talker: Talker, rules: ChatRules, sim: SimChat, res
                 sim.calls += 1
                 if act.kind == "converse":
                     c, fixes, usage = talker.converse(rules, act.task, chat.state, chat.lang, chat.profile,
-                                                      sorted(chat.answers), act.transcript)
+                                                      sorted(chat.answers), act.transcript, act.offers)
                     count_call(chat, act.task, usage, now)
                     sim.fixes += fixes
                     act = flow.conversed(chat, c, now)

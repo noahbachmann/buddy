@@ -61,9 +61,11 @@ def test_render_escapes_so_a_message_cant_pose_as_ours():
 
 def test_converse_content():
     text = converse_content("reply", CONTACT_CHOICE, "en", "Age: 29; prompt 1: Hiking", [1],
-                            [(US, "Hi"), (THEM, "Hey")])[0]["text"]
+                            [(US, "Hi"), (THEM, "Hey")], "his phone number or his Instagram")[0]["text"]
     lines = text.splitlines()
-    assert lines[:4] == ["Task: reply", "Chat state: contact choice (we asked whether she wants his contact: read her answer)",
+    assert lines[:4] == ["Task: reply", "Chat state: contact choice (we asked whether she wants his contact: read her "
+                         "answer). Code offers her his phone number or his Instagram, and code itself asks for her "
+                         "choice after your `reply`",
                          "Write `reply` in: her latest message's language",
                          "Questions answered so far (code's record): 1"]
     nudge = converse_content("nudge", "screening", "en", "", [], [])[0]["text"]

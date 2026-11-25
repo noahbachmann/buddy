@@ -188,9 +188,10 @@ def render(transcript: list[tuple[str, str]]) -> str:
 
 
 def converse_content(task: str, state: str, lang: str, profile: str, answered: list[int],
-                     transcript: list[tuple[str, str]]) -> list[dict[str, Any]]:
-    stage = "contact choice (we asked whether she wants his contact: read her answer)" if state == CONTACT_CHOICE \
-        else "screening"
+                     transcript: list[tuple[str, str]], offers: str = "") -> list[dict[str, Any]]:
+    # the options, so a question about them gets a real answer (#89: "only his number? no Instagram?" got "comes next")
+    stage = (f"contact choice (we asked whether she wants his contact: read her answer). Code offers her {offers}, "
+             "and code itself asks for her choice after your `reply`") if state == CONTACT_CHOICE else "screening"
     # a nudge: code knows the chat's language; anything else follows her latest message (#77, Dev 2026-11-18)
     reply_lang = LANG_NAMES.get(lang, lang) if task == TASK_NUDGE else "her latest message's language"
     text = "\n".join([
@@ -291,9 +292,9 @@ class Talker:
         self.decider, self.prefix = decider, prefix      # prefix "sim-": the sim's usage rows apart from live ones
 
     def converse(self, rules: ChatRules, task: str, state: str, lang: str, profile: str, answered: list[int],
-                 transcript: list[tuple[str, str]]) -> tuple[Converse, list[str], Usage]:
+                 transcript: list[tuple[str, str]], offers: str = "") -> tuple[Converse, list[str], Usage]:
         out = self.decider.call(self.prefix + TASK_CONVERSE, converse_system(rules),
-                                converse_content(task, state, lang, profile, answered, transcript),
+                                converse_content(task, state, lang, profile, answered, transcript, offers),
                                 converse_schema(rules), chat=True)
         c, fixes = check_converse(out.structured, rules, task, state)
         return c, fixes, out.usage

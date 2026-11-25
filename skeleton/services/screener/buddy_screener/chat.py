@@ -202,6 +202,7 @@ class Action:
     wait_s: float = 0.0          # settle: read the chat again after this long
     task: str = ""               # converse: first | reply | nudge
     transcript: list[tuple[str, str]] = field(default_factory=list)   # converse/verify: (side, text), contacts redacted
+    offers: str = ""             # converse in the contact choice: what code offers her ("his phone number or …")
 
 
 WAIT = Action("wait")
@@ -451,7 +452,9 @@ class ChatFlow:
         chat.burst_since = 0.0
         chat.pending_task, chat.pending_seen = task, seen
         self._screens[chat.key] = screen
-        return Action("converse", task=task, transcript=self.transcript(chat, screen))
+        offers = ("his phone number or his Instagram" if self.contacts.instagram else "his phone number") \
+            if chat.state == CONTACT_CHOICE else ""
+        return Action("converse", task=task, transcript=self.transcript(chat, screen), offers=offers)
 
     def _settle(self, chat: Chat, seen: int, now: float) -> float:
         """Seconds to wait for more of her burst (0 = answer now): quiet for `settle_s` since her count last changed,
