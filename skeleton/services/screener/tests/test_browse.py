@@ -123,17 +123,6 @@ def test_outside_the_window_waits_untouched(tmp_path):
     assert r.b.state.until == T0 + DAY + 10 * H and r.phone.actions == []
 
 
-def test_likes_24h_moves_the_window_to_when_they_are_back(tmp_path):
-    r = Rig(tmp_path, SKIP, now=T0 + DAY + 10.5 * H, likes_24h=True)
-    for i in range(8):
-        r.store.add_action(likes.LIKE, "live", ts=T0 + 11 * H + i * 300)
-    back = T0 + 11 * H + 7 * 300 + DAY
-    w = r.b.window(r.clock())
-    assert (w.start, w.end) == (back, back + 8 * H)
-    r.b.step()
-    assert r.b.state.state == "waiting" and r.phone.actions == []
-
-
 def test_another_profile_after_the_decision_holds_without_a_tap(tmp_path):
     r = Rig(tmp_path, SKIP)
 
@@ -147,7 +136,7 @@ def test_another_profile_after_the_decision_holds_without_a_tap(tmp_path):
 
 def test_paywall_keeps_the_panel_and_sends_once_the_likes_are_back(tmp_path):
     r = Rig(tmp_path, like(), mode=browse.LIVE)
-    r.store.add_action(likes.LIKE, "live", ts=T0 - 12 * H + 1)   # yesterday's last like: back at 12:00 + 1 s
+    r.store.add_action(likes.LIKE, "live", ts=T0 - 12 * H + 1)   # the one like in the window: back at 12:00 + 1 s
     r.clock.t = T0 + 11 * H
     r.phone.out_of_likes = True
     r.b.step()
@@ -159,7 +148,6 @@ def test_paywall_keeps_the_panel_and_sends_once_the_likes_are_back(tmp_path):
     r.b.step()
     assert [a[2] for a in r.phone.sent()] == ["Send like"] and r.kinds()[-2:] == [likes.LIKE, likes.LIKES_BACK]
     assert len(r.store.liked("Alex")) == 1   # the like the paywall held still leaves its chat
-    assert any("24 h guess holds" in n for n in r.notes)
 
 
 def test_decide_errors_retry_then_hold(tmp_path):

@@ -29,14 +29,13 @@ class Config:
     photo_check_px: int = 1024   # its crops' long side: ≥ the screen's 960 px photos = not downscaled
     check_model: str = ""        # the like comment's copy/invention check (#84); empty = `model`
     browse: str = "off"          # the loop (#80): off | dry (decides, skips, holds likes for Dev) | live
-    hours: str = "10-18"         # active window, local hours (likes_24h: starts when the likes are back)
+    hours: str = "10-18"         # active window, local hours
     gap_s: str = "20-90"         # seconds between two profiles
     break_every: str = "6-12"    # profiles between random breaks
     break_min: str = "5-20"      # a break's minutes
     daily_likes: int = 8         # the app's free likes per batch (#80): the budget stops before its paywall
     chat: str = "off"            # the chats (#77): off | hold (typed, Dev resumes to send) | live
     chat_check_min: float = 10   # minutes between passes over the matches list (a new-message badge: at once)
-    likes_24h: bool = False      # likes come back 24 h after a used-up batch's last like (Dev's guess, likes.py)
     chat_min_exchanges: int = ChatLimits.min_exchanges   # chat (#77): meanings in chat.ChatLimits
     chat_max_bot: int = ChatLimits.max_bot
     chat_max_days: float = ChatLimits.max_days
@@ -76,7 +75,6 @@ class Config:
             break_every=env_string("BUDDY_SCREENER_BREAK_EVERY", d.break_every),
             break_min=env_string("BUDDY_SCREENER_BREAK_MIN", d.break_min),
             daily_likes=env_int("BUDDY_SCREENER_DAILY_LIKES", d.daily_likes),
-            likes_24h=env_int("BUDDY_SCREENER_LIKES_24H", int(d.likes_24h)) != 0,
             chat=env_string("BUDDY_SCREENER_CHAT", d.chat),
             chat_check_min=env_float("BUDDY_SCREENER_CHAT_CHECK_MIN", d.chat_check_min),
             chat_min_exchanges=env_int("BUDDY_SCREENER_CHAT_MIN_EXCHANGES", d.chat_min_exchanges),
@@ -114,7 +112,7 @@ class Config:
         every = parse_range(self.break_every, "BUDDY_SCREENER_BREAK_EVERY")
         return BrowseConfig(self.browse, hours, parse_range(self.gap_s, "BUDDY_SCREENER_GAP_S"),
                             (int(every[0]), int(every[1])), parse_range(self.break_min, "BUDDY_SCREENER_BREAK_MIN"),
-                            self.daily_likes, self.likes_24h)
+                            self.daily_likes)
 
     def chat_config(self):
         from .chats import HOLD, LIVE, OFF, ChatConfig

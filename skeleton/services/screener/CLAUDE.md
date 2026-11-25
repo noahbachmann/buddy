@@ -35,7 +35,7 @@ out Dev's label of a row. No code path taps a paid option. A chat message is sen
 | `chatcmd.py` | Dev's chat commands (#88): `--cmd chats` (open chats, review notes, each call's tokens and $), `chat-edit <name> "<text>"` (Dev's wording into the held message's field), `chat-back <name>` (a manual chat back to the bot) |
 | `store.py` | SQLite `data/screener/screener.db`: `usage` (kept; live and `sim-` tasks capped apart), `shadow` (bot decision + Dev's label as JSON, profile key only, 30 days; the loop's rows carry `run: dry|live`), `actions` (every act and stop: kind, mode dry/live/shadow, row id, a detail without names; 30 days), `chats` (`chat.Chat` as JSON, never her texts; 30 days after it ended; `liked` = a like waiting for its match, 30 days) |
 | `shadow.py` | Step 2 commands' logic: `liked_chat` (what a sent like keeps for its chat, #77), `run_shadow` (capture → decide → row; capture pickled to tmpfs without crops), `make_label`, `type_label`, `act_label` (skip/send on Dev's label; a relabel keeps `acted`), `report` (done-when numbers; `unjudged` rows left out; comment target = the text Dev sent) |
-| `likes.py` | The like budget from the action log: likes left in the batch, the paywall wait (until the last like + 24 h, Dev's guess), `probe` (the first like after it confirms the guess: `likes_back`), `stuck` (a paywall the guess can't explain → Dev). `BUDDY_SCREENER_DAILY_LIKES`, `_LIKES_24H` |
+| `likes.py` | The like budget from the action log: at most `BUDDY_SCREENER_DAILY_LIKES` (8) in any 24 h, each like's slot back 24 h after it (measured 2026-11-25); a paywall anyway waits for the oldest like before it to turn 24 h, then `probe` (through: `likes_back`); `stuck` (a paywall with no like in the 24 h before it → Dev) |
 | `browse.py` | Step 3's loop (#80): `Browser.step()` = one profile (window, likes, breaks → `shadow.judge` → skip / hold / like) with injected nav, decider, store, clock, rng; `hold(kind, row)` and `notify(text)` callbacks; dry rows' screenshot pages + summary in tmpfs `rows/<id>/`; `today()` counts |
 | `hub.py` | The service's side of a hold: `needs_you` file, the Telegram ask (Resume/Stop; per kind: what happened (the code's reason, never a name) and what Dev does), Dev's answer → resume/stop; a resume elsewhere marks the question "▶ resumed on the panel / by Claude" |
 | `config.py` | `BUDDY_SCREENER_*` (incl. model, effort, decide timeout, daily $), kill switch files (`config/screener/stop`, `data/screener/paused`), token/limit/db paths, tmpfs dir |
@@ -159,9 +159,8 @@ Screenshots (`--cmd shots`, sent to Dev) only while Dev is away from the phone; 
 
 `BUDDY_SCREENER_BROWSE=dry|live` → `main.service` starts `Browser.run` on a worker thread. One `step()`:
 
-1. Off, stopped, paused or held → nothing. Outside the window (`BUDDY_SCREENER_HOURS`, 10–18; with `LIKES_24H=1`
-   it starts when yesterday's used-up likes come back and keeps its length) → `waiting`. No likes left → `done_today`
-   (Dev told once per batch). A break → `break`.
+1. Off, stopped, paused or held → nothing. Outside the window (`BUDDY_SCREENER_HOURS`, 10–18) → `waiting`. No
+   likes left in the last 24 h → waits until the next slot frees (Dev told once). A break → `break`.
 2. `shadow.judge(run=mode)`: capture, decide, shadow row with `run`, pickle in tmpfs.
 3. Dry: screenshots → `rows/<id>/page-N.jpg` + `describe.txt` (tmpfs, deleted by `label`); skip → `skip_profile`;
    like → hold `would_like` (the profile stays on screen; Dev likes it by hand or with `label/type/send <id>`, or
@@ -176,9 +175,10 @@ back (same process only: after a restart the open panel is a `NeedsYou`).
 Session 5 = the dry rows: `--cmd rows` lists the unlabelled ones with their pages; Claude sends the pages in
 batches (every detail written out), labels per Dev (`label` drops the pages), `report --since <first id>`.
 
-**When likes come back** is Dev's guess (2026-11-24): 24 h after the last like. Day mode counts likes since local
-midnight; a paywall anyway waits until the last like + 24 h, then one try: through → `likes_back` action + Telegram
-"the 24 h guess holds" → set `BUDDY_SCREENER_LIKES_24H=1` and update this section and #80; a paywall again → hold.
+**When likes come back** (measured 2026-11-25, every logged like fits it): at most 8 in any 24 h, each like's slot
+back 24 h after it was sent. No reset at midnight or per batch: Dev's batch guess said none before 14:39, yet the app
+took a like at 10:24 (3 of the day before were still in the window) and showed the paywall at 14:19 with 8 in it.
+The day mode (since local midnight) had counted 7 and sent the 8th into the paywall, which dropped the profile.
 
 ## Chat flow (step 4, #77)
 

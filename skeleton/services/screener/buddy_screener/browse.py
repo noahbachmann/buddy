@@ -44,12 +44,11 @@ DECIDE_FAILURES = 3   # decisions failing in a row (timeouts, no answer) before 
 @dataclass
 class BrowseConfig:
     mode: str = OFF
-    hours: tuple[float, float] = (10.0, 18.0)   # local hours; with likes_24h the start moves to when likes are back
+    hours: tuple[float, float] = (10.0, 18.0)   # local hours
     gap_s: tuple[float, float] = (20.0, 90.0)   # between two profiles
     break_every: tuple[int, int] = (6, 12)      # profiles between random breaks
     break_min: tuple[float, float] = (5.0, 20.0)
     daily_likes: int = 8
-    likes_24h: bool = False
 
 
 def parse_range(text: str, name: str) -> tuple[float, float]:
@@ -103,20 +102,12 @@ class Browser:
         return self.rng.randint(int(lo), int(hi))
 
     def window(self, now: float) -> Window:
-        """Today's active window. With `likes_24h` (Dev's rule once confirmed): starts when yesterday's used-up likes
-        come back, if that's later than the configured start, and keeps its length (likes back 11:30 → 11:30–19:30)."""
+        """Today's active window (likes come back one by one, 24 h after each: no shifted start, #88)."""
         day = self.day_start(now)
-        start, end = day + self.cfg.hours[0] * 3600, day + self.cfg.hours[1] * 3600
-        if self.cfg.likes_24h:
-            st = self._likes(start)
-            if not st.left and st.back_at and st.back_at > start:
-                end = min(st.back_at + (end - start), day + 86400 - 60)   # not past midnight: the next day's own
-                start = st.back_at
-        return Window(start, end)
+        return Window(day + self.cfg.hours[0] * 3600, day + self.cfg.hours[1] * 3600)
 
     def _likes(self, now: float) -> likes.LikeStatus:
-        return likes.status(self.store.actions(now - 7 * likes.DAY), now, self.cfg.daily_likes, self.cfg.likes_24h,
-                            self.day_start)
+        return likes.status(self.store.actions(now - 7 * likes.DAY), now, self.cfg.daily_likes)
 
     def _set(self, state: str, until: float | None = None, reason: str = "") -> None:
         self.state.state, self.state.until, self.state.reason = state, until, reason
@@ -230,8 +221,7 @@ class Browser:
         self.store.save_chat(liked)   # kept for its chat once she matches (#77)
         if st.probe and st.last_like is not None:
             hours = (self.clock() - st.last_like) / 3600
-            self._act(likes.LIKES_BACK, row_id, f"{hours:.1f} h")
-            self.notify(f"likes came back {hours:.1f} h after the last like: the 24 h guess holds")
+            self._act(likes.LIKES_BACK, row_id, f"{hours:.1f} h")   # the 24 h window rule held after a paywall
 
     def _paywall(self, e: OutOfLikes, row_id: int, name: str, text: str, liked: Chat) -> float:
         self._act(likes.OUT_OF_LIKES, row_id, "moved on" if e.moved_on else "panel kept")

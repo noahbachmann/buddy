@@ -76,7 +76,7 @@ def _decider(cfg: Config, store: Store) -> Decider:
 
 def like_status(cfg: Config, store: Store) -> likes.LikeStatus:
     now = time.time()
-    return likes.status(store.actions(now - 7 * likes.DAY), now, cfg.daily_likes, cfg.likes_24h)
+    return likes.status(store.actions(now - 7 * likes.DAY), now, cfg.daily_likes)
 
 
 def dry_rows(store: Store, tmp_dir: Path) -> list[str]:
