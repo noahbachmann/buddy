@@ -29,3 +29,6 @@ deploy/run.sh screener --cmd screen      # from skeleton/: reads through serve m
 
 - Only one UiAutomation connection at a time on the phone: never run it in parallel with `uiautomator dump`.
 - A new debug key (VM rebuilt) → `adb uninstall buddy.screener.dump` before installing.
+- Nodes not visible to the user are dropped (as `uiautomator`). Keeping them doesn't help for the detail row (#89,
+  2026-11-25: a reader that kept them, one profile's whole row on screen): the row is lazy, the details off to its
+  right aren't in the tree at all. The only off-screen nodes were the collapsed header's. The sideways swipes stay.

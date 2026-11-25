@@ -304,7 +304,7 @@ Pi, then `--cmd fixture <out dir> <dumps…>` (all dumps of one walk in one call
   skipped (the likes banner stayed at "Step 1 of 5").
 - The details under prompt 1 start with a row that scrolls **sideways** (age, gender, height → location, children →
   family plans, zodiac): uiautomator lists only what's on screen, so the dealbreaker details hid off to the right
-  until 2026-11-17. A 900 ms swipe moves it one screen; the end = an unchanged dump; a 150 ms fling right restores
+  until 2026-11-17 (a lazy row: they aren't in the tree at all, not even as invisible nodes, #89). A 900 ms swipe moves it one screen; the end = an unchanged dump; a 150 ms fling right restores
   the exact start dump. Bounds are clipped to the list: a row touching the list's edge is cut, its y unusable at the
   top. Adds ~30 s per profile.
 - A photo with a caption has a "Like photo prompt" button (a photo like, not a prompt); the caption text isn't in
