@@ -245,6 +245,7 @@ STLs and `parts/cad render dispenser` for the sheets (`parts/CLAUDE.md`).
 | `lift-nut.scad` | TR8x8 nut of the lift: body Ø11, 45° cone up to the flange, 4 pegs into the tab | body down |
 | `border-pin.scad` | Pin with a head, 4×: holds the borders through the case's screw holes | head down |
 | `fit-test.scad` | Fit test for the printed joints: peg holes (vertical, horizontal), steel pin holes | as in the file |
+| `pilot-test.scad` | Pilot test: M3 pilot holes 2.6…3.0 in a 6 mm wall, as in the roller plates' feet | as in the file |
 | `plates/` | Print jobs: `cad.toml` → `[plates]`, built by `parts/cad plate dispenser` ("Print") | as in the file |
 | `make_copy.py` | `ref/` (box, lift, 4023 from `dispenser.stl`) + `dispenser-roller.stl` (case, roller, pusher, lift, lift motor under the floor) | – |
 | `check_pusher.py` | Collisions over the pusher's stroke with the lift at push height and a full pile, and of the lift with its nut (lowest, 2 between, push height) with the box, the pusher at home and its own motor and coupling | – |
@@ -263,7 +264,7 @@ cd parts/tools && uv run python ../dispenser/check_pusher.py # after a pusher, l
 | 4 | Dowel pin Ø5 × 20 mm, ISO 8734 (hardened, m6), RS PRO | One per bearing, bought ready-made: nothing to cut (#57). Fixed: the drums turn on their bearings |
 | 3 | M3×6 socket head | 4023 to the back plate (the 4th hole would cut into the drive pin's hole) |
 | 1 | M3×5 set screw + M3 nut | Motor gear onto the shaft's flat (5 mm from the flat to the hub surface: flush) |
-| 4 | M3×12 | Back plate and frame to the box floor, from below (2 each): they set the belt height, so screws, not pegs |
+| 4 | M3×12 | Back plate and frame to the box floor, from below (2 each): they set the belt height, so screws, not pegs. Plain machine screws, threaded into pilot holes sized by the pilot test |
 
 **Pusher and lift motor**
 
@@ -278,7 +279,7 @@ pusher's then sticks out of the left wall by 75 mm (x −78…−3, at y −145.
 top (z 178.8…226, at x 109.8, y −16.9). ⚠️ Both turn while the dispenser runs: keep cables, hair and fingers away from
 the ends; nothing may be mounted there.
 
-Screws into printed parts go into 2.5 mm pilot holes (self-tapping): only the 4 frame screws are left (#63).
+Screws into printed parts go into pilot holes (`screw_pilot`, from the pilot test): only the 4 frame screws are left (#63).
 
 ## Printed joints
 
@@ -297,8 +298,8 @@ the frame being pulled flat onto the floor; the left wall and the gate's legs le
 
 **8 holes, 4 pins:** the case has 8 Ø3.4 holes along the front and under the roller. 4 take border pins (2 through the
 left wall into border H, 2 up through the floor into border B). The other 4 (floor, under the roller) take the frame's
-4× M3×12: they cut their own thread into the 2.5 mm pilot holes in the back plate's and the frame's feet, so a
-pin doesn't fit there by design. Border B's pins hold against gravity: a pin that slides out of B means its hole is
+4× M3×12: they press their own thread into the pilot holes in the back plate's and the frame's feet, so a pin doesn't
+fit there by design. Border B's pins hold against gravity: a pin that slides out of B means its hole is
 too big, not a pin that's too short.
 
 **Fit test first** (`plates/0-fit-test.stl`, PETG 0.2 mm, 10 % infill, ~15 min). Holes 1…6 count from the chamfered corner:
@@ -343,6 +344,23 @@ its number: it goes into `nut_flank` / `bore_gap`, and that part is reprinted fr
 ring 2 (0.15) very slightly loose, so `bore_gap` = 0.125 ⚠️ (between two tested steps). The gear and nuts from 1b
 (bore 0.10, nuts 0.15) are replaced by `plates/1c-reprint.stl`.
 
+**Pilot test** (`plates/0c-pilot-test.stl`, PETG 0.2 mm, ~10 min). The first roller plates had Ø2.5 pilots: an M3
+machine screw (core Ø2.39) can't be turned into them by hand (Dev, 2026-11-25). Vertical holes print ~0.1 small, so
+that hole was the screw's core: the thread had to push aside its full depth of PETG, and a machine screw has no
+cutting edge. 2.5 is the pilot for screws made for plastic (PT/K30 type), not for M3 machine screws. The test block
+is the plates' feet: a 6 mm wall, holes 10 deep, open at the top with a 0.5 mm lead-in, holes 1…5 from the chamfered
+corner:
+
+| Hole | 1 | 2 | 3 | 4 | 5 |
+|---|---|---|---|---|---|
+| Pilot Ø (`pilot_steps`) | 2.6 | 2.7 | 2.8 | 2.9 | 3.0 |
+
+Turn an M3×12 into each hole with an Allen key or a screwdriver, all the way, then tighten it gently. Pick the
+**tightest hole it goes into without a fight** that still grips: the screw doesn't spin freely when tightened and
+doesn't pull out by hand. Tell Claude the number: it goes into `screw_pilot` and `plates/2b-roller-reprint.stl`
+is rebuilt and reprinted. Already printed plates: a drill bit of that size turned by hand (fingers or a pin vise)
+opens the holes in soft PETG, no machine needed.
+
 **Couplings: printed and rigid** (2026-11-17). The Purecrea flexible couplings let the screws flop: a flexible
 coupling only works when the screw has its own bearing at the far end, and the lift's screw has none (its top is
 free). A rigid coupling lets the motor's bearings hold the screw straight. No bought rigid coupling fit, so it's
@@ -369,6 +387,7 @@ parts (for reprints, e.g. only the left gate). `parts/cad plate dispenser` rebui
 | Plate | Parts | Filament | Settings (rest: Bambu's preset) |
 |---|---|---|---|
 | `0-fit-test.stl` | fit test, 2 test pins: **print first** ("Printed joints") | PETG | 0.20 mm, 4 walls, 10 %, no supports |
+| `0c-pilot-test.stl` | M3 pilot holes for the roller's floor screws ("Pilot test"): before plate 2b | PETG | 0.20 mm, 4 walls, 15 %, no supports |
 | `1-petg-fine.stl` | drive drum, idler drum, motor gear, left gate, pusher nut, lift nut, 2 couplings, 4 border pins | PETG | 0.12 mm, 4 walls, 15 %, no supports, **brim: outer only** (the drums stand 107 mm on Ø15–18) |
 | `1d-plug-couplings.stl` | 2 plug couplings | PETG | 0.12 mm, 4 walls, **100 % infill**, no supports |
 | `1c-reprint.stl` | motor gear, pusher nut, lift nut with the thread test's values ("Thread test") | PETG | 0.12 mm, 4 walls, 15 %, no supports, **brim: outer only** (the lift nut) |

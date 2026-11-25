@@ -18,6 +18,7 @@ assembly = "assembly.scad"
 [parts.border-pin]
 [parts.fit-test]
 [parts.thread-test]
+[parts.pilot-test]
 [parts.coupling]
 [parts.plug-coupling]
 
@@ -26,6 +27,10 @@ assembly = "assembly.scad"
 [plates.0-fit-test]
 note = "PETG · 0.20 mm · 4 walls · 10 % · no supports · print first, fits → params.scad, rebuild plates 2 and 3"
 parts = ["fit-test", "border-pin", "border-pin"]
+
+[plates.0c-pilot-test]
+note = "PETG · 0.20 mm · 4 walls · 15 % · no supports · M3 pilot holes 1..5 (2.6..3.0), ~10 min: pick screw_pilot, then reprint plate 2b"
+parts = ["pilot-test"]
 
 [plates.1-petg-fine]
 note = "PETG · 0.12 mm · 4 walls · 15 % · no supports · outer brim"

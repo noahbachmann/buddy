@@ -124,7 +124,9 @@ slot_bot  = lip_top - 0.06;  // the divider's lower part, cut down under the slo
 lip_edge  = 0.8;             // thinnest the lip gets at its drum-side edge
 lip_clear = open_clear;      // around the drum gear's tips: the drums slide onto their pins under the lip
 slit_play = 1;               // per side, beside the card at the slit's exit
-screw_pilot = 2.5;           // M3 self-tapping into PETG
+screw_pilot = 2.5;           // M3 machine screw threads itself into PETG. 2.5 too tight by hand (Dev, 2026-11-25):
+                             // value from the pilot test (pilot_steps) ⚠️
+pilot_cham  = 0.5;           // lead-in at the pilot's mouth: the screw starts straight
 screw_clear = 3.4;
 screw_head  = 6.2;           // counterbore
 
@@ -274,6 +276,7 @@ bore_gap    = 0.125;         // 4023 D-shaft in the motor gear (5, flat at 2.0),
                              // tight, 0.15 very slightly loose → between ⚠️ untested value
 nut_flank_steps = [0.10, 0.15, 0.20, 0.25];   // thread test: nut rings 1..4
 bore_steps  = [0.10, 0.15, 0.20];             // thread test: D-bore rings 1..3 (per side)
+pilot_steps = [2.6, 2.7, 2.8, 2.9, 3.0];      // pilot test: M3 pilot holes 1..5 (diameters), from the chamfered end
 peg_cham    = 0.4;           // lead-in at every peg tip
 nut_peg_h   = tab_t - 0.3;   // nut pegs: into the tab, not through it
 bpin_head   = [6, 1.2];      // border pin: head d, h

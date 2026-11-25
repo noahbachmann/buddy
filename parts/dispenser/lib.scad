@@ -170,6 +170,12 @@ module right_gate() {
 }
 function gate_x() = gate_xs[0] + gate_w / 2;   // left gate's peg centre
 
+// M3 pilot from a foot's underside z0 up: 10 deep, 45° lead-in at the mouth (top of the print: the plates print upside down)
+module pilot_hole(x, y, z0, d) translate([x, y, z0]) {
+  translate([0, 0, -eps]) cylinder(d = d, h = 10);
+  translate([0, 0, -1]) cylinder(d1 = d + 2 * (pilot_cham + 1), d2 = d, h = pilot_cham + 1);
+}
+
 // --- Roller: frame (front plate + bed + ribs) and back plate (holds the 4023), two parts. Both print upside down:
 // plate top on the build plate. The back plate goes in first (motor and gear screwed on with nothing over them), the
 // frame slides in from the front, its bed between the belt runs, ribs 0 and 1 into the back plate's pockets. ---
@@ -233,7 +239,7 @@ module frame() {
     // screwdriver access to the motor screws
     for (o = motor_hole_offs) hole_y(motor_x + o[0], motor_z + o[1], 7, front_y[0] - eps, front_y[1] + eps, -1);
     gate_slot();
-    for (p = floor_screws) if (p[1] < -90) translate([p[0], p[1], floor_top - eps]) cylinder(d = screw_pilot, h = 10);
+    for (p = floor_screws) if (p[1] < -90) pilot_hole(p[0], p[1], floor_top, screw_pilot);
   }
 }
 
@@ -258,7 +264,7 @@ module back_plate() {
     // pockets for the rib tongues
     for (t = tongue_xs) box([t[0] - tongue_fit, t[1] + tongue_fit], [back_y[0] - eps, back_y[0] + rib_tongue + 0.3],
                           [rib_bot - tongue_fit, bed_top + 1]);   // open at the top: the tongues run full height
-    for (p = floor_screws) if (p[1] > -90) translate([p[0], p[1], floor_top - eps]) cylinder(d = screw_pilot, h = 10);
+    for (p = floor_screws) if (p[1] > -90) pilot_hole(p[0], p[1], floor_top, screw_pilot);
   }
 }
 
@@ -713,6 +719,20 @@ module fit_test() {
     }
     // marker: chamfered corner at step 1
     translate([0, 0, -1]) linear_extrude(14) polygon([[-1, -1], [4, -1], [-1, 4]]);
+  }
+}
+
+// --- Pilot test (plate 0c): M3 pilot holes at pilot_steps in a 6 mm wall like the roller plates' feet ----------
+// Printed as the feet are: mouth at the top (feet print last, the plates are upside down), 10 deep, same lead-in.
+// Hole 1 at the chamfered corner.
+module pilot_test() {
+  n = len(pilot_steps);
+  p = 8;
+  h = 13;
+  difference() {
+    box([0, n * p + 2], [0, plate_t], [0, h]);
+    for (i = [0 : n - 1]) translate([1 + p / 2 + i * p, plate_t / 2, h]) mirror([0, 0, 1]) pilot_hole(0, 0, 0, pilot_steps[i]);
+    translate([0, 0, -1]) linear_extrude(h + 2) polygon([[-1, -1], [3, -1], [-1, 3]]);
   }
 }
 
