@@ -6,7 +6,9 @@
 $fn = 64;
 
 // --- hardware -------------------------------------------------------------------
-board    = [250, 210];   // between the tray's side walls' inner faces (x) = the lid; 100 from the right one to the heatsink end
+// Between the tray's side walls' inner faces (x) = the lid. Measured 250; the printed lid skeleton was one tab width
+// short (Dev 2026-11-25): 252. Grown on the right: the cooler stays put (95 from the wall's outer face, fit-check).
+board    = [252, 210];
 board_h  = 28;           // the tray's side walls: the lid's top is flush with them
 tray_wall_x = 255;       // outer face of the tray's right wall (95 to the heatsink end)
 // 3 mm slits between the board's edges and the tray's side walls: the lid's tabs drop in and stand on the silver
@@ -20,7 +22,7 @@ plate_z   = 1;           // ⚠️ top of the silver plate under the board: the 
 // they stop above it (and above the antenna wires running along the fan's edge).
 plate_x1    = 200;       // ⚠️
 plate_clear = 14;        // ⚠️ plate + its foam pads at the fan edge, with room for the antenna wires
-cooler_x = [188, 350];   // 162 wide; right edge 100 past the tray's right edge
+cooler_x = [188, 350];   // 162 wide; right edge 95 past the tray's right wall (outer face)
 cooler_y = [122, 250];   // 128 deep at the heatsink; back edge 40 past the tray's back edge
 cooler_h = 38;           // fan and heatsink alike
 fan_floor_t = 0.8;      // cover-bottom's floor under the fan: lies flat on the table, carries no bending (Dev 2026-11-25)

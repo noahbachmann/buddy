@@ -15,14 +15,14 @@ stays: it continues behind the board, under the cover's left and back walls.
 | `fit-check` | Flat template of the cooler corner: cover outline, cooler outline + 1 mm, tray's right and back edges | `plates/0-fit-check` | 5 g |
 | `cover-top` | Over the cooler, standing on cover-bottom: lattice top (1.2), slotted intake over the fan hub, exhaust slits over the heatsink's outlet face (from 14.8 mm up), windows. Its walls facing the tray stand on the lid and carry 4 screw bosses; over the tray wall and the silver plate its walls stop above them | `plates/1-cover-top`, top down | 67 g |
 | `cover-bottom` | Lattice floor (1.6) under the raised heatsink and in front of it; solid 0.8 floor under the fan outside the tray (it lies flat on the table: no bending to carry) that the fan stands on; 5 low nut tabs (≤ 11.6, under the heatsink) for cover-top | `plates/3-cover-bottom`, floor down | 24 g |
-| `lid` | Lattice plate between the tray walls (front 60 mm over the metal shield: open), 4 tabs into the slits beside the board that carry it, 18 top-module nut bosses underneath, 3 cable notches | `plates/2-lid`, top down, 250 mm wide: alone on the plate | 62 g |
+| `lid` | Lattice plate between the tray walls (front 60 mm over the metal shield: open), 4 tabs into the slits beside the board that carry it, 18 top-module nut bosses underneath, 3 cable notches | `plates/2-lid`, top down, 251 mm wide: alone on the plate | 62 g |
 
 All: PETG, 0.20 mm, 3 walls, 15 %, no supports (no overhang > 45°, no bridge, no floating layer). Plates 2.4 mm.
 
 ## The lid in the tray
 
-- Edges 0.3 mm inside the tray walls' inner faces: 249.4 wide, 100 from its right edge to the heatsink's end (95 from
-  the tray wall's outer face).
+- Edges 0.3 mm inside the tray walls' inner faces: 251.4 wide (252 between the walls: the 250 lid skeleton was one
+  tab width short, Dev 2026-11-25), ~98 from its right edge to the heatsink's end (95 from the tray wall's outer face).
 - In the ~3 mm slits between the board's edges and the tray walls: 2.0 mm tabs (0.5 play each side), standing on the
   silver plate 8 mm under the board. They carry the lid. Left y 68–103, right y 62–100 (y from the front edge).
 - Cable notches: left edge y 54–66 (ribbon out through the left slit), right edge y 104–128 (ribbons out over the
@@ -59,9 +59,9 @@ at z 28. Screw length ≈ module base + 5 (1.9 mm of lid above the nut, nut 2.4,
 
 ## Measurements and what isn't measured
 
-Measured (Dev, 2026-11-24): tray 250 between its side walls, walls 28, 3 mm slits, board 8 mm above the silver plate;
+Measured (Dev, 2026-11-24): tray 250 between its side walls (252 after the lid skeleton print, 2026-11-25), walls 28, 3 mm slits, board 8 mm above the silver plate;
 cooler 162 × 128 (heatsink) / 115 (fan) × 38, the fan on the table, the heatsink ~13 mm above it (ruler photo); case ≤ 40 high (40.4 accepted for the fan floor,
-2026-11-25); heatsink end 100 from the right wall's inner face, 95 from
+2026-11-25); heatsink end 100 from the right wall's inner face (98 with the 252), 95 from
 its outer face; cooler 40 past the tray's back edge; fan housing 200 from its left edge (the 12 mm left of it: bracket
 strip).
 

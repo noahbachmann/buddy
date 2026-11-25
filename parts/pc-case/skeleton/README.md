@@ -6,7 +6,7 @@ then print the real parts (`../plates`).
 
 | Part | Kept | Plate | PETG (solid, max) |
 |---|---|---|---|
-| `lid-skeleton` | Rim (10.5 mm: the lid's solid band, holds the 4 cover screw holes), the 4 slit tabs, one cross with its 7 top-module nut bosses (the press-fit test) | `plates/2-lid-skeleton`, top down, 250 wide: alone | 40 g |
+| `lid-skeleton` | Rim (10.5 mm: the lid's solid band, holds the 4 cover screw holes), the 4 slit tabs, one cross with its 7 top-module nut bosses (the press-fit test) | `plates/2-lid-skeleton`, top down, 251 wide: alone | 40 g |
 | `cover-top-skeleton` | Top rim (top + upper 3 mm of the walls), corner posts, full-height wall strips at all 9 screws (4 seam bosses, 5 floor tabs) | `plates/1-cover-top-skeleton`, top down | 31 g |
 | `cover-bottom-skeleton` | Floor rim, the whole 0.8 fan floor (it sets the fan's height) and the 5 nut tabs | `plates/3-cover-bottom-skeleton`, floor down | 18 g |
 
