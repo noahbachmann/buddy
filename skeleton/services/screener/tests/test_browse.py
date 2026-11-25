@@ -34,9 +34,13 @@ class Rig:
         self.tmp = tmp_path
         self.b = Browser(BrowseConfig(mode=mode, **cfg), nav(self.phone), self.decider, lambda: LIB, self.store,
                          tmp_path, hold=self.hold, notify=self.notes.append,
-                         mode=lambda: "needs_you" if self.paused else "active", pages=lambda shots: [b"jpg"] * 2,
+                         mode=lambda: "needs_you" if self.paused else "active", pages=self.pages,
                          clock=self.clock, rng=random.Random(1), day_start=utc_day, log=lambda s: None)
         self.phone.screencap = lambda half=False: self.phone.screen.encode()
+
+    def pages(self, shots):
+        self.shots = list(shots)
+        return [b"jpg"] * 2
 
     def hold(self, kind, row_id, why):
         self.holds.append((kind, row_id))
@@ -63,6 +67,9 @@ def test_dry_skips_and_keeps_the_rows_pages(tmp_path):
     d = tmp_path / "rows" / str(row.id)
     assert sorted(f.name for f in d.iterdir()) == ["describe.txt", "page-1.jpg", "page-2.jpg"]
     assert browse.drop_pages(tmp_path, row.id) and not d.exists()
+    # the pages come from the capture's way down: no second pass back up to the top (#89)
+    assert r.shots[0] == b"feed-01" and r.shots[-1] == b"feed-11"
+    assert not any(a[0] == "swipe" and a[2] < 0 for a in r.phone.actions)
     assert browse.today(r.store, r.clock(), utc_day) == {"profiles": 1, "skips": 1, "likes": 0, "would_like": 0}
 
 

@@ -7,7 +7,8 @@ from buddy_screener.navigator import Navigator, NeedsYou
 from buddy_screener.profile import Capture
 from buddy_screener.screens import Kind
 from fake_phone import FakePhone
-from fixture_files import PACKAGE
+from buddy_screener.uitree import parse
+from fixture_files import FEED, PACKAGE, load
 
 
 def nav(phone: FakePhone, tmp_path=None) -> Navigator:
@@ -42,6 +43,58 @@ def test_without_the_gap_two_swipes_that_move_nothing_end_the_capture(monkeypatc
     cap = n.capture_profile()
     assert (n.stats.swipes, n.stats.end, n.stats.end_swipes) == (12, "still", 2)
     assert cap.profile.sections == nav(FakePhone("feed-01")).capture_profile().profile.sections
+
+
+def _feed_offsets() -> dict[str, int]:
+    """Content y of each feed dump's list top, as the capture measures it."""
+    views = [screens.profile_view(screens.classify(parse(load(f)), PACKAGE).root) for f in FEED]
+    cap, out = Capture(views[0]), {FEED[0]: 0}
+    for f, view in zip(FEED[1:], views[1:]):
+        cap.add(view, expect=cap.offset + navigator.STEP)
+        out[f] = cap.offset
+    return out
+
+
+def test_capture_takes_the_dry_pages_on_its_way_down():
+    phone = FakePhone("feed-01")
+    phone.screencap = lambda half=False: (phone.screen, half)
+    n = nav(phone)
+    shots: list = []
+    cap = n.capture_profile(shots)
+    assert cap.profile.sections == nav(FakePhone("feed-01")).capture_profile().profile.sections
+    names = [x[0] for x in shots]
+    assert all(half for _, half in shots) and names[0] == "feed-01" and names[-1] == "feed-11"
+    assert len(names) == len(set(names)) < len(FEED)            # not every dump, none twice
+    off, vp = _feed_offsets(), screens.profile_view(screen_root("feed-02")).viewport
+    for a, b in zip(names, names[1:]):                          # consecutive pages overlap: nothing left out
+        top_a = (screens.profile_view(screen_root(a)).viewport.top if a == "feed-01" else vp.top) + off[a]
+        assert vp.top + off[b] < vp.bottom + off[a] and top_a < vp.top + off[b]
+    assert n.stats.shots == len(shots)
+
+
+def test_dry_pages_reuse_the_photo_hashes_frame():
+    class Frame:
+        def __init__(self, name):
+            self.name = name
+
+        def reduce(self, k):
+            return ("reduced", self.name)
+
+    phone = FakePhone("feed-01")
+    calls = []
+    phone.screencap = lambda half=False: calls.append((phone.screen, half)) or (
+        (phone.screen, half) if half else Frame(phone.screen))
+    n = nav(phone)
+    n.hasher = lambda shot, rect: f"h-{shot.name}-{rect.top}"
+    shots: list = []
+    n.capture_profile(shots)
+    assert len(calls) == len(set(calls))                        # one screencap per dump and size at most
+    assert ("reduced", "feed-01") in shots                      # the top has photos: its frame is the page
+    assert not any(half and name == "feed-01" for name, half in calls)   # no second screencap for it
+
+
+def screen_root(name: str):
+    return screens.classify(parse(load(name)), PACKAGE).root
 
 
 def test_screenshots_from_the_top_to_the_end_tap_nothing():

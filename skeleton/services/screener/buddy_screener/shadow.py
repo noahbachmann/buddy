@@ -19,8 +19,9 @@ import re
 import statistics
 import time
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from . import vocab
 from .chat import LIKED, Chat, refusal
@@ -55,6 +56,7 @@ class ShadowResult:
     browse: Browse
     usage: Usage
     capture_s: float
+    shots: list[Any] = field(default_factory=list)   # half-size screenshots top to end, when asked for (dry pages)
 
 
 def run_shadow(nav: Navigator, decider: Decider, lib: Library, store: Store, tmp_dir: Path) -> ShadowResult:
@@ -62,12 +64,14 @@ def run_shadow(nav: Navigator, decider: Decider, lib: Library, store: Store, tmp
 
 
 def judge(nav: Navigator, decider: Decider, lib: Library, store: Store, tmp_dir: Path,
-          run: str | None = None) -> ShadowResult:
+          run: str | None = None, shots: bool = False) -> ShadowResult:
     """Capture the profile on screen, decide, store the row, keep the capture in tmpfs. `run` = the loop's mode (dry |
-    live, #80) stored with the bot's decision; None = a shadow command."""
+    live, #80) stored with the bot's decision; None = a shadow command. `shots`: screenshots taken on the capture's
+    way down (#89: the dry pages without a second pass)."""
     nav.go_tab(vocab.TAB_DISCOVER)
     t = time.monotonic()
-    cap = nav.capture_profile()
+    taken: list[Any] | None = [] if shots else None
+    cap = nav.capture_profile(taken)
     capture_s = time.monotonic() - t
     p = cap.profile
     if not p.details:
@@ -87,7 +91,7 @@ def judge(nav: Navigator, decider: Decider, lib: Library, store: Store, tmp_dir:
     path = _capture_file(tmp_dir, row_id)
     path.write_bytes(pickle.dumps(cap))
     path.chmod(0o600)
-    return ShadowResult(row_id, cap, browse, usage, capture_s)
+    return ShadowResult(row_id, cap, browse, usage, capture_s, taken or [])
 
 
 def describe(r: ShadowResult, lib: Library) -> list[str]:

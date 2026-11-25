@@ -186,6 +186,7 @@ class Navigator:
     _xml: str = field(default="", init=False)
     _earlier: list[str] = field(default_factory=list, init=False)   # the last distinct dumps before `_xml`
     stats: CaptureStats = field(default_factory=CaptureStats, init=False)   # the last capture's, reset by it
+    _frame: tuple[str, Any] | None = field(default=None, init=False)   # (dump, its full screenshot) in a capture
 
     # --- reading the screen ---
 
@@ -378,6 +379,7 @@ class Navigator:
                 and (sec := cap.section_at(sv)) is not None and not sec.hash]
         if todo:
             shot = self._screencap()
+            self._frame = (self._xml, shot)
             for sv, sec in todo:
                 sec.hash = self.hasher(shot, sv.rect)
                 if self.cropper is not None:
@@ -392,13 +394,40 @@ class Navigator:
         self.stats.shot_s += time.monotonic() - t
         return shot
 
-    def capture_profile(self) -> Capture:
+    def _keep_shot(self, cap: Capture, view: ProfileView, shots: list[Any] | None, last: list[int | None],
+                   final: bool = False) -> None:
+        """Dry pages from the capture's own pass (#89): a half-size screenshot at the top, then on the last dump
+        before the next step would leave less than `SHOT_OVERLAP` shared with the previous shot, and at the end.
+        `last` = [content y of the last shot's bottom]. Reuses the photo hashes' frame of this dump."""
+        if shots is None:
+            return
+        vp = view.viewport
+        if last[0] is not None:
+            if final and last[0] == vp.bottom + cap.offset:
+                return   # the end is shot already
+            if not final and vp.top + cap.offset + STEP < last[0] - SHOT_OVERLAP:
+                return   # the next dump still overlaps the last shot
+        if self._frame is not None and self._frame[0] == self._xml:
+            shots.append(self._frame[1].reduce(2))   # what screencap(half=True) does
+        else:
+            shots.append(self._screencap(half=True))
+        last[0] = vp.bottom + cap.offset
+
+    def capture_profile(self, shots: list[Any] | None = None) -> Capture:
         """Scrolls through the whole profile from its top, collecting every section. Ends at the bottom. Its timings:
-        `stats`."""
+        `stats`. `shots` given: filled with half-size screenshots top to end, as `screenshots()` (dry pages)."""
         self.stats = CaptureStats()
+        try:
+            return self._capture(shots)
+        finally:
+            self._frame = None   # a full frame is ~7 MB
+
+    def _capture(self, shots: list[Any] | None) -> Capture:
         s, view = self._to_top()
         cap = Capture(view)
         self._hash_photos(cap, view)
+        shot_end: list[int | None] = [None]
+        self._keep_shot(cap, view, shots, shot_end)
         rows_seen: list[int] = []
         rows_done: list[int] = []
         self._explore_rows(cap, s, view, rows_seen, rows_done)
@@ -426,10 +455,13 @@ class Navigator:
             sig = _signature(s.root)
             self._track(cap, nxt, cap.offset + STEP + extra, blind=extra != 0)
             self._hash_photos(cap, nxt)
+            self._keep_shot(cap, nxt, shots, shot_end, final=nxt.at_bottom)
             self._explore_rows(cap, s, nxt, rows_seen, rows_done)
             view = nxt
         else:
             raise self.needs_you("profile has no end")
+        if self.stats.end != "gap":
+            self._keep_shot(cap, view, shots, shot_end, final=True)   # the screen now: the last readable dump
         if len(rows_done) < len(rows_seen):
             raise self.needs_you("a detail row was never clear of the floating buttons: its details are missing")
         return cap

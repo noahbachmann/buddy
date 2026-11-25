@@ -166,7 +166,8 @@ class Browser:
             return self._hold(HOLD_FILES, f"library: {e}")
         try:
             self.nav.wake()   # the screen sleeps during gaps and breaks
-            r = shadow.judge(self.nav, self.decider, lib, self.store, self.tmp_dir, run=self.cfg.mode)
+            r = shadow.judge(self.nav, self.decider, lib, self.store, self.tmp_dir, run=self.cfg.mode,
+                             shots=self.cfg.mode == DRY and self.pages is not None)
         except UsageLimited as e:
             self._act(likes.LIMIT, detail="usage limit")
             self.notify(f"usage limit: decisions wait until {time.strftime('%H:%M', time.localtime(e.until))}")
@@ -257,7 +258,7 @@ class Browser:
         d.mkdir(parents=True, exist_ok=True, mode=0o700)
         (d / "describe.txt").write_text("\n".join(shadow.describe(r, lib)) + "\n")
         if self.pages is not None:
-            for i, page in enumerate(self.pages(self.nav.screenshots()), 1):
+            for i, page in enumerate(self.pages(r.shots), 1):   # taken during the capture: no second pass
                 (d / f"page-{i}.jpg").write_bytes(page)
         for f in d.iterdir():
             f.chmod(0o600)
