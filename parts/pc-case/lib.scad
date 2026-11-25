@@ -29,6 +29,7 @@ assert(seam_x + seam_u + seam_boss_d / 2 < lid_x1 - 1 && seam_y + seam_u + seam_
 assert(cb_head - (head_bore - m3_clear) / 2 > z_lid1 + 1, "head recess too deep: no cover under the head");
 // screw from the head's seat (Ø5.5 on the cone) down: through the nut under the lid
 assert(cb_head - (head_bore - 5.5) / 2 - seam_screw_l < z_lid - boss_h + 0.1, "seam screw doesn't pass the nut");
+assert(z_lid1 - back_wall_h > plate_z + 8 + 1, "back wall reaches the board");
 bt_z = floor_t + 4.5;                       // cover-bottom ↔ cover-top screws
 assert(floor_t + bottom_tab_h < hs_z0 - 1, "bottom tabs reach the heatsink");
 assert(bt_z - nut_slot[0] / cos(30) / 2 > floor_t, "bottom tab nut slot cuts into the floor");
@@ -122,13 +123,16 @@ module lid() intersection() {   // one outline cut makes the plate's and the bac
   union() {
     translate([0, 0, z_lid]) linear_extrude(skin_t) lid_plate_2d();
     lid_slit_tabs();
+    lid_back_wall();
     for (n = lid_nodes()) lid_mount(n);
     for (q = seam_screws()) lid_mount(q, seam_boss_d);   // cover screws come down into these
   }
   for (n = concat(lid_nodes(), seam_screws())) lid_mount_cut(n);
+  box(cable_back, [board[1] - cable_d, board[1] + 1], [-1, z_lid + 1]);   // antenna notch through the back wall
  }
 }
-
+// Back edge, left side up to the cover's seam wall: hangs down from the plate (grows up in print).
+module lid_back_wall() box([-1, lid_x1 + 1], [board[1] - wall_t, board[1] + 1], [z_lid1 - back_wall_h, z_lid + 1]);
 
 // --- cover: over the cooler, standing on the table; seam walls stand on the lid --------------
 module cover_openings_2d() {

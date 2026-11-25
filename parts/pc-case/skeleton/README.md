@@ -6,7 +6,7 @@ then print the real parts (`../plates`).
 
 | Part | Kept | Plate | PETG (solid, max) |
 |---|---|---|---|
-| `lid-skeleton` | Rim (10.5 mm: the lid's solid band), the 4 slit tabs, the 4 cover nut bosses, one cross with its 7 top-module nut bosses (the press-fit test) | `plates/2-lid-skeleton`, top down, 252 wide: alone | 53 g |
+| `lid-skeleton` | Rim (10.5 mm: the lid's solid band), the back wall, the 4 slit tabs, the 4 cover nut bosses, one cross with its 7 top-module nut bosses (the press-fit test) | `plates/2-lid-skeleton`, top down, 252 wide: alone | 53 g |
 | `cover-top-skeleton` | Top rim (top + upper 3 mm of the walls), corner posts, full-height wall strips at all 9 screws (4 seam bosses, 5 floor tabs) | `plates/1-cover-top-skeleton`, top down | 29 g |
 | `cover-bottom-skeleton` | Floor rim, the whole 0.8 fan floor (it sets the fan's height) and the 5 nut tabs | `plates/3-cover-bottom-skeleton`, floor down | 18 g |
 
@@ -16,7 +16,7 @@ Print at the real parts' settings (PETG, 0.20 mm, 3 walls): the nut pockets and 
 ## What to check
 
 1. Lid: the tabs slide into the slits beside the board and stand on the silver plate; the top sits at 34 (6 over the
-   tray walls); the edges clear the walls (0.3 mm); the cable notches line up with
+   tray walls); the edges clear the walls (0.3 mm); the back wall clears the board; the cable notches line up with
    the ribbons and antenna wires.
 2. Nuts: press one into each kept top-module pocket and the 4 cover bosses under the lid (press fit), drop the 5 into
    the floor tabs (slip fit).

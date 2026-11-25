@@ -15,7 +15,7 @@ stays: it continues behind the board, under the cover's left and back walls.
 | `fit-check` | Flat template of the cooler corner: cover outline, cooler outline + 1 mm, tray's right and back edges | `plates/0-fit-check` | 5 g |
 | `cover-top` | Over the cooler, standing on cover-bottom: lattice top (1.2), slotted intake over the fan hub, exhaust slits over the heatsink's outlet face (from 14.8 mm up), windows. Its walls facing the tray stand on the lid and carry 4 screw bosses (lid to top, head recessed); over the tray wall and the silver plate its walls stop above them | `plates/1-cover-top`, top down | 63 g |
 | `cover-bottom` | Lattice floor (1.6) under the raised heatsink and in front of it; solid 0.8 floor under the fan outside the tray (it lies flat on the table: no bending to carry) that the fan stands on; 5 low nut tabs (≤ 11.6, under the heatsink) for cover-top | `plates/3-cover-bottom`, floor down | 24 g |
-| `lid` | Lattice plate between the tray walls (front 60 mm over the metal shield: open; ~14 mm windows behind it), 4 tabs into the slits beside the board that carry it, 18 top-module and 4 cover nut bosses underneath, 3 cable notches | `plates/2-lid`, top down, 252 mm wide: alone on the plate | 83 g |
+| `lid` | Lattice plate between the tray walls (front 60 mm over the metal shield: open; ~14 mm windows behind it), 4 tabs into the slits beside the board that carry it, a 22 mm wall down its back edge, 18 top-module and 4 cover nut bosses underneath, 3 cable notches | `plates/2-lid`, top down, 252 mm wide: alone on the plate | 93 g |
 
 All: PETG, 0.20 mm, 3 walls, 15 %, no supports (no overhang > 45°, no bridge, no floating layer). Plates 2.4 mm.
 
@@ -26,6 +26,8 @@ All: PETG, 0.20 mm, 3 walls, 15 %, no supports (no overhang > 45°, no bridge, n
   wall's outer face).
 - Top at 34, plate 31.6–34: 3.6 above the tray walls (28), so the walls no longer guide its edges; the slit tabs
   (now 31.6 tall) locate it. The gap between wall tops and plate stays open (air).
+- Back edge (y 210), left side up to the cover: a 2.4 wall down to z 12 (22 from the top), notched for the antenna
+  wires. ⚠️ 3 mm over the board's top face (plate 1 + 8): nothing taller may stand under it there.
 - In the ~3 mm slits between the board's edges and the tray walls: 2.0 mm tabs (0.5 play each side), standing on the
   silver plate 8 mm under the board. They carry the lid. Left y 68–103, right y 62–100 (y from the front edge).
 - Cable notches: left edge y 54–66 (ribbon out through the left slit), right edge y 104–128 (ribbons out over the
@@ -83,7 +85,7 @@ strip).
 - Lid and cover split along two straight seams 9 mm off the cooler. The lid reaches 4 mm past the cover's seam walls,
   under their bosses. Inside, the cover is open towards the board: the heat pipe and fan cable cross freely, and the
   blower also pulls air through the lid's lattice.
-- Both parts print top down: the lid's tabs and bosses point down in use, so nothing on the lid points up. That's
+- Both parts print top down: the lid's tabs, wall and bosses point down in use, so nothing on the lid points up. That's
   why every nut under the lid is pressed in from below.
 - Lid ↔ cover screws: only 6.4 between the lid's top and the cover's, too little for a nut slid into the cover (V
   floor + nut + roof). So the screw comes from the top: square 9 mm boss on the seam wall from the lid to the top
