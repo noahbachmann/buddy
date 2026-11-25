@@ -9,21 +9,19 @@ skel_lid_band = perim + 0.5;   // lid: its solid rim and 0.5 into the openings (
 skel_post  = 14;         // full-height wall strip kept at each cover corner
 skel_joint = 17;         // wall strip / pad kept round each screw (18 put an edge on an exhaust slit's: pinched STL)
 skel_top   = 3;          // cover-top: rim kept down from its top (skin + top of the walls)
-skel_nodes = [[60, 100], [140, 140]];   // lid: top-module nut pockets kept to test the press fit
-skel_bars_x = [100];     // lid: cross bars kept for stiffness
+skel_bars_x = [100];     // lid: cross bars kept for stiffness, with their top-module nut pockets (press-fit test)
 skel_bars_y = [140];
 
 // Rim of an outline, reaching past it: keep-regions must not share a face with the part (pinched STL).
 module band_2d(w) difference() { offset(delta = 5) children(); offset(delta = -w) children(); }
 
-// --- lid: rim (with the slit tabs and the seam screws), a cross, two mounts ----------------
+// --- lid: rim (with the slit tabs and the seam screws), a cross with its mounts -------------
 module lid_skeleton() intersection() {
   lid();
   translate([0, 0, -1]) linear_extrude(big) {
     band_2d(skel_lid_band) lid_2d();
     for (x = skel_bars_x) rect([x - boss_d / 2 - 1, x + boss_d / 2 + 1], [-big, big]);   // whole bosses along the bar; no shared faces
     for (y = skel_bars_y) rect([-big, big], [y - boss_d / 2 - 1, y + boss_d / 2 + 1]);
-    for (n = skel_nodes) translate(n) circle(d = boss_d + 2);                       // inside the plate's ring
     rect([-1, slit_w + 1], slit_tabs_left);                       // slit tabs (inside the rim anyway)
     rect([board[0] - slit_w - 1, board[0] + 1], slit_tabs_right);
   }
