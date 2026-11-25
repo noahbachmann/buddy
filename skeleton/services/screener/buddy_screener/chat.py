@@ -394,7 +394,7 @@ class ChatFlow:
         else:
             chat.state = SCREENING if self._after_disclosure(chat, screen) else NEW
         # her messages up to our last one are handled (by Dev); after it they're new. The old counter can be off
-        # (Lea, 2026-11-25: 7 kept, 5 on screen: her answer to Dev's question never got a reply)
+        # (2026-11-25: 7 kept, 5 on screen: her answer to Dev's question never got a reply)
         last = max((i for i, m in enumerate(screen) if m.side == US), default=-1)
         chat.theirs_seen = sum(m.side == THEM for m in screen[:last + 1])
         chat.manual_from, chat.reason, chat.closed_at = "", "", None
