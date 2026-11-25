@@ -204,9 +204,11 @@ see `chat.md` + *About Dev*, *Looking for*, *Good fit*, *Soft negatives/positive
   keeps screening when that fails; contact phone/both → number (Dev), instagram → handle, unclear once → ask again;
   every generated text refused (→ handover) on length, digit runs, handles, links not in `chat.md`, contact values.
 - Screening questions are Dev's words (Dev, 2026-11-19: never rephrased): `chat.md` has each as `N. "English"` + an
-  indented `DE: "German"` line (+ free note lines for the model). The model only returns `ask` (the number) and a short
-  reaction; code appends the question verbatim in the chat's language through the `question` template (Dev's
-  wording, host-only). Only the model's part goes through the refusal checks.
+  indented `DE: "German"` line (+ free note lines for the model). The model only says whether a question comes now
+  (`ask` ≠ 0) and writes a short reaction; **code picks which: the next one in `chat.md`'s order** not asked (found by
+  its text in our messages) and not answered, a required one in its place, not first (Dev, 2026-11-25: the model had
+  put the required 3rd question first); a nudge repeats the open one. Code appends it verbatim in the chat's language
+  through the `question` template (Dev's wording, host-only). Only the model's part goes through the refusal checks.
 - Language: first message by the prompts' majority (tie → German), then her latest message (German / Swiss German →
   standard German, never dialect; anything else → English). First message and nudge get the language stated.
 - Our sent contact messages are redacted in every transcript (`[contact sent]`): no contact value reaches a prompt.

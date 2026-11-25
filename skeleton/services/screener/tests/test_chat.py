@@ -645,3 +645,25 @@ def test_settle_never_waits_longer_than_its_cap():
         d.her(f"more {i}")
         act = d.flow.step(d.chat, d.screen, d.now)
     assert act.kind == "converse"                 # 120 s since the burst began ≥ 100: answered anyway
+
+
+def test_code_asks_the_questions_in_the_owners_order():
+    # the model put the required question first (2026-11-25): code takes chat.md's order, the model only says whether
+    rules = ChatRules("rules", "## About Dev\nx", (Question(1, "Pets?", False, "Haustiere?"),
+                                                  Question(2, "Song?", False, "Song?"),
+                                                  Question(3, "Why match?", True, "Warum Match?")),
+                      TEMPLATES, frozenset())
+    d = Driver()
+    d.flow = ChatFlow(rules, Contacts(NUMBER, INSTA), ChatLimits())
+    d.intro()
+    d.run(ask("Gute Frage!", ask=3))
+    assert d.ours()[-1] == "Gute Frage! Er fragt: «Haustiere?»" and "question 3 → 1 (the owner's order)" in d.chat.log
+    d.her("Eine Katze")
+    d.run(ask("Schön.", ask=1, answers={1: "eine Katze"}))
+    assert d.ours()[-1].endswith("«Song?»")
+    d.her("Mag ich")
+    d.run(ask("Cool.", ask=2, answers={2: "mag ihn"}))
+    assert d.ours()[-1].endswith("«Warum Match?»") and d.flow.asked(d.chat) == [1, 2, 3]
+    d.now += 2 * DAY + 1
+    d.run(Converse("Noch da?", "screening", lang="de", ask=1))
+    assert d.kinds()[-1] == "nudge" and d.ours()[-1].endswith("«Warum Match?»")   # the nudge repeats the open one

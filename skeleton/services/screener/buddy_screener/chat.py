@@ -17,8 +17,9 @@ A driver (the sim now, the live loop after step 3) runs it:
 Everything that matters is decided here, by code, never by the model: the disclosure first, the contact only after
 the code checks and the verifier, only the template the match picked (filled here, never generated), every
 generated text checked before it goes out, a message of ours that isn't in our log → `manual` for good. The
-owner's screening questions are his words: the model only names one (`ask`), code appends it verbatim, attributed to
-him by the `question` template (Dev, 2026-11-19: never rephrased).
+owner's screening questions are his words: the model only says whether one comes now (`ask`), code picks which (his
+order in `chat.md`, Dev 2026-11-25) and appends it verbatim, attributed to him by the `question` template (Dev,
+2026-11-19: never rephrased).
 """
 
 import re
@@ -515,6 +516,9 @@ class ChatFlow:
         if chat.bot_msgs >= self.limits.max_bot:
             return self._end(chat, HANDOVER, now, f"{self.limits.max_bot} bot messages without a decision")
         text = text.strip()
+        if ask and (picked := self._pick(chat, kind, ask)) != ask:
+            chat.log.append(f"question {ask} → {picked or 'none'} (the owner's order)")
+            ask = picked
         q = self.rules.question(ask) if ask else None
         if not (q and not text) and (why := self._refuse(text, self.limits.reply_max)) is not None:
             return self._end(chat, HANDOVER, now, f"{kind} refused: {why}")
@@ -523,6 +527,23 @@ class ChatFlow:
             text = f"{text} {asked}" if text else asked
             chat.log.append(f"asks question {q.n}")
         return self._send(chat, kind, text)
+
+    def asked(self, chat: Chat) -> list[int]:
+        """The screening questions already in our messages (by their text: Dev's edits and old chats count too)."""
+        sent = " ".join(_norm(s.text) for s in chat.sent)
+        return [q.n for q in self.rules.questions
+                if _norm(q.text) in sent or (q.de and _norm(q.de) in sent)]
+
+    def _pick(self, chat: Chat, kind: str, ask: int) -> int:
+        """Which question the model's `ask` means: the next one in the owner's order (chat.md) not asked and not
+        answered yet (Dev, 2026-11-25: the model put the required 3rd question first); a nudge repeats the open one.
+        Nothing left → the model's own pick if it's asked but unanswered (a re-ask), else none."""
+        asked = self.asked(chat)
+        open_ = [n for n in asked if not chat.answers.get(n)]
+        if kind == "nudge":
+            return open_[-1] if open_ else 0
+        nxt = [q.n for q in self.rules.questions if q.n not in asked and not chat.answers.get(q.n)]
+        return nxt[0] if nxt else (ask if ask in open_ else 0)
 
     def _refuse(self, text: str, limit: int) -> str | None:
         return refusal(text, limit, self.contacts.values(), self.rules.urls)
