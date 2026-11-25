@@ -124,8 +124,8 @@ slot_bot  = lip_top - 0.06;  // the divider's lower part, cut down under the slo
 lip_edge  = 0.8;             // thinnest the lip gets at its drum-side edge
 lip_clear = open_clear;      // around the drum gear's tips: the drums slide onto their pins under the lip
 slit_play = 1;               // per side, beside the card at the slit's exit
-screw_pilot = 2.5;           // M3 machine screw threads itself into PETG. 2.5 too tight by hand (Dev, 2026-11-25):
-                             // value from the pilot test (pilot_steps) ⚠️
+screw_pilot = 2.7;           // M3 machine screw threads itself into PETG. Pilot test (Dev, 2026-11-25): 2.5 too tight
+                             // by hand, hole 2 (2.7) right
 pilot_cham  = 0.5;           // lead-in at the pilot's mouth: the screw starts straight
 screw_clear = 3.4;
 screw_head  = 6.2;           // counterbore

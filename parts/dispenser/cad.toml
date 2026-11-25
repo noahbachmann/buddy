@@ -29,7 +29,7 @@ note = "PETG · 0.20 mm · 4 walls · 10 % · no supports · print first, fits �
 parts = ["fit-test", "border-pin", "border-pin"]
 
 [plates.0c-pilot-test]
-note = "PETG · 0.20 mm · 4 walls · 15 % · no supports · M3 pilot holes 1..5 (2.6..3.0), ~10 min: pick screw_pilot, then reprint plate 2b"
+note = "PETG · 0.20 mm · 4 walls · 15 % · no supports · M3 pilot holes 1..5 (2.6..3.0), ~10 min: hole 2 (2.7) won, 2026-11-25"
 parts = ["pilot-test"]
 
 [plates.1-petg-fine]
@@ -46,7 +46,7 @@ note = "PETG · 0.20 mm · 4 walls · 15 % · no supports · brim on (the back p
 parts = ["roller-frame", "back-plate", "border-h", "border-b"]
 
 [plates.2b-roller-reprint]
-note = "PETG · 0.20 mm · 4 walls · 15 % · no supports · brim on (the back plate stands on its 6 mm edge) · roller split 2026-11-24: frame with the front plate, back plate alone, pin holes Ø5.05"
+note = "PETG · 0.20 mm · 4 walls · 15 % · no supports · brim on (the back plate stands on its 6 mm edge) · roller split 2026-11-24: frame with the front plate, back plate alone, pin holes Ø5.05, M3 pilots Ø2.7 (pilot test)"
 parts = ["roller-frame", "back-plate"]
 
 [plates.3-pla]

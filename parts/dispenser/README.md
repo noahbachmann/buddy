@@ -361,6 +361,8 @@ doesn't pull out by hand. Tell Claude the number: it goes into `screw_pilot` and
 is rebuilt and reprinted. Already printed plates: a drill bit of that size turned by hand (fingers or a pin vise)
 opens the holes in soft PETG, no machine needed.
 
+**Result (Dev, 2026-11-25):** hole 2 (Ø2.7) is right for M3, so `screw_pilot` = 2.7; plate 2b is rebuilt with it.
+
 **Couplings: printed and rigid** (2026-11-17). The Purecrea flexible couplings let the screws flop: a flexible
 coupling only works when the screw has its own bearing at the far end, and the lift's screw has none (its top is
 free). A rigid coupling lets the motor's bearings hold the screw straight. No bought rigid coupling fit, so it's
@@ -392,7 +394,7 @@ parts (for reprints, e.g. only the left gate). `parts/cad plate dispenser` rebui
 | `1d-plug-couplings.stl` | 2 plug couplings | PETG | 0.12 mm, 4 walls, **100 % infill**, no supports |
 | `1c-reprint.stl` | motor gear, pusher nut, lift nut with the thread test's values ("Thread test") | PETG | 0.12 mm, 4 walls, 15 %, no supports, **brim: outer only** (the lift nut) |
 | `2-petg.stl` | roller frame, back plate, border H, border B: **after the fit test** | PETG | 0.20 mm, 4 walls, 15 %, no supports, **brim** (the back plate stands on its 6 mm edge) |
-| `2b-roller-reprint.stl` | roller frame, back plate: the split roller (2026-11-24) with Ø5.05 pin holes | PETG | as plate 2 |
+| `2b-roller-reprint.stl` | roller frame, back plate: the split roller (2026-11-24) with Ø5.05 pin holes, Ø2.7 M3 pilots | PETG | as plate 2 |
 | `3-pla.stl` | pusher, lift: **after the fit test** | PLA | 0.20 mm, 4 walls, 15 %, **supports on: tree (auto), on build plate only** |
 | `stl/case.stl` | case (a plate of its own) | PETG | 0.20 mm, 4 walls, 15 %, no supports, textured PEI |
 | `stl/case-spares.stl` | or this one instead: the case with ~112 g less PETG | PETG | as the case |
