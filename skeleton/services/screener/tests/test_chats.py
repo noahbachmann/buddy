@@ -336,3 +336,12 @@ def test_her_burst_is_answered_once_she_is_quiet(tmp_path):
     r.d.step()
     # she wrote once (the fixture): one 20 s read after another until a minute of quiet, then one call
     assert r.slept == [20.0, 20.0, 20.0] and len(r.talker.calls) == 1
+
+
+def test_a_hold_during_give_back_keeps_the_key_queued(tmp_path):
+    r = Rig(tmp_path, Talker())
+    r.d.back_file = tmp_path / "give-back"
+    r.store.save_chat(Chat("Nobody#1", "Nobody", T0, state=MANUAL))   # its row isn't on the list: NeedsYou
+    r.d.back_file.write_text("Nobody#1\n")
+    r.d.step()
+    assert r.holds == [chats.HOLD_CHAT_SCREEN] and r.d.back_file.read_text() == "Nobody#1\n"

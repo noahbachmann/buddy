@@ -163,18 +163,28 @@ class ChatDriver:
         except OSError:
             return False
         self.back_file.unlink(missing_ok=True)
-        for key in dict.fromkeys(keys):
-            chat = self.store.chat(key)
-            if chat is None or chat.state != MANUAL:
-                self.log(f"give back: no manual chat for that key ({chat.state if chat else 'none'})")
-                continue
-            self.nav.open_chat(chat.key)
-            msgs, origin = self.nav.read_chat()
-            why = flow.give_back(chat, to_flow(msgs, origin), self.clock())
-            self.store.save_chat(chat)
-            self._leave()
-            self.log(f"give back: {why or chat.state}")
+        todo = list(dict.fromkeys(keys))
+        try:
+            while todo:
+                self._give_back(todo[0], flow)
+                todo.pop(0)
+        except BaseException:
+            with self.back_file.open("a") as f:   # a hold mid-way: the rest waits for the next step
+                f.write("".join(k + "\n" for k in todo))
+            raise
         return bool(keys)
+
+    def _give_back(self, key: str, flow: ChatFlow) -> None:
+        chat = self.store.chat(key)
+        if chat is None or chat.state != MANUAL:
+            self.log(f"give back: no manual chat for that key ({chat.state if chat else 'none'})")
+            return
+        self.nav.open_chat(chat.key)
+        msgs, origin = self.nav.read_chat()
+        why = flow.give_back(chat, to_flow(msgs, origin), self.clock())
+        self.store.save_chat(chat)
+        self._leave()
+        self.log(f"give back: {why or chat.state}")
 
     # --- a pass ---
 
