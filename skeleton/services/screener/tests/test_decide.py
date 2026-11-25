@@ -447,6 +447,8 @@ def test_text_then_photo_then_full(cfg, store, monkeypatch):
                           (result(PLAIN),)])
     b, u = decider(cfg, store, sdk).decide(checked_profile(), LIB)
     assert b.decision == "like" and u.task == "text+photo+browse"
+    # only the photo check runs without the prompt cache: nothing ever reads its prefix back (#89)
+    assert [o.env.get("DISABLE_PROMPT_CACHING") for _, o in sdk.calls] == [None, "1", None]
 
 
 def test_no_check_crops_no_photo_call(cfg, store, monkeypatch):

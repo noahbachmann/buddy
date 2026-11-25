@@ -620,10 +620,13 @@ class Decider:
             return None
         return until if until > self.clock() else None
 
-    def _options(self, system: str, schema: dict[str, Any], model: str, budget: float = 0.0) -> Any:
+    def _options(self, system: str, schema: dict[str, Any], model: str, budget: float = 0.0,
+                 cache: bool = True) -> Any:
         from claude_agent_sdk import ClaudeAgentOptions
 
-        env = {}
+        # the CLI caches with the 1 h TTL (writes 2× input): `cache=False` for a call whose prefix is never read
+        # again, else it pays that write for nothing (#89)
+        env = {} if cache else {"DISABLE_PROMPT_CACHING": "1"}
         if self.cfg.token_file.exists():
             env["CLAUDE_CODE_OAUTH_TOKEN"] = self.cfg.token_file.read_text().strip()
             env["CLAUDE_CONFIG_DIR"] = str(self.cfg.work_dir / ".claude")   # CLI state on tmpfs, not ~/.claude
@@ -636,8 +639,9 @@ class Decider:
             max_budget_usd=budget or None)
 
     def call(self, task: str, system: str, content: list[dict[str, Any]], schema: dict[str, Any],
-             model: str = "", chat: bool = False) -> Outcome:
-        """`chat`: a chat call (#88): its own 24 h pool when `chat_usd` is set, and the per-call cap."""
+             model: str = "", chat: bool = False, cache: bool = True) -> Outcome:
+        """`chat`: a chat call (#88): its own 24 h pool when `chat_usd` is set, and the per-call cap. `cache`: off for
+        a call nothing reads back from the cache."""
         if (until := self.limited_until()) is not None:
             raise UsageLimited(until)
         apart = None if self.cfg.sim or not self.cfg.chat_usd else chat
@@ -646,7 +650,7 @@ class Decider:
         if spent >= cap:
             raise BudgetSpent(f"${spent:.2f} in the last 24 h{' of chat calls' if apart else ''}, cap ${cap:.2f}")
         model = model or self.cfg.model
-        options = self._options(system, schema, model, self.cfg.chat_call_usd if chat else 0.0)
+        options = self._options(system, schema, model, self.cfg.chat_call_usd if chat else 0.0, cache)
         try:
             out = asyncio.run(asyncio.wait_for(self._collect(task, model, content, options), self.cfg.timeout_s))
         except TimeoutError:
@@ -726,7 +730,9 @@ class Decider:
         content = photo_content(p)
         if not content:
             return "", "", None
-        out = self.call(TASK_PHOTO, PHOTO_SYSTEM, content, PHOTO_SCHEMA, self.cfg.photo_model)
+        # its short system prompt is below the cacheable minimum and the photos never repeat: 0 cache reads in 87
+        # calls, each wrote ~6.2k tokens at 2× (2026-11-25)
+        out = self.call(TASK_PHOTO, PHOTO_SYSTEM, content, PHOTO_SCHEMA, self.cfg.photo_model, cache=False)
         verdict, ref = check_photo(out.structured, p)
         return verdict, ref, out.usage
 
