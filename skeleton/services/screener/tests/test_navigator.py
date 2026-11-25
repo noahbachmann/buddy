@@ -24,6 +24,17 @@ def test_capture_whole_profile_and_stop_at_the_end():
     assert [(a[1], a[2] > 0) for a in phone.actions if a[0] == "swipe_h"] == [("feed-03", True), ("feed-03", False)]
 
 
+def test_capture_records_where_its_time_goes():
+    n = nav(FakePhone("feed-01"))
+    n.capture_profile()
+    st = n.stats
+    # feed-01 → feed-11 is 10 swipes, then 2 that move nothing; the detail row once; no hasher: no screenshots
+    assert (st.swipes, st.end, st.end_swipes, st.rows, st.shots) == (12, "still", 2, 1, 0)
+    assert st.reads > st.swipes and set(st.to_dict()) >= {"swipe_s", "read_s", "shot_s", "rows_s"}
+    n.capture_profile()
+    assert n.stats.swipes == 12 + 10   # reset per capture: back to the top first (10 up), then down
+
+
 def test_screenshots_from_the_top_to_the_end_tap_nothing():
     phone = FakePhone("feed-05")
     phone.screencap = lambda half=False: phone.screen.encode()   # which screen was shot

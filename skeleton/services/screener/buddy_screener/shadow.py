@@ -76,7 +76,8 @@ def judge(nav: Navigator, decider: Decider, lib: Library, store: Store, tmp_dir:
     browse, usage = decider.decide(p, lib)
     first_prompt = next((s.text for s in p.sections if s.kind == "prompt"), "")
     bot = browse.to_dict() | {"chat_lang": browse.chat_lang} | ({"run": run} if run else {})
-    row_id = store.add_shadow(profile_key(p.name, p.details, first_prompt), capture_s, bot, usage)
+    row_id = store.add_shadow(profile_key(p.name, p.details, first_prompt), capture_s, bot, usage,
+                              nav.stats.to_dict())
 
     for s in p.sections:
         s.jpeg = s.check_jpeg = b""   # crops never leave memory
@@ -266,6 +267,20 @@ def _photo_check(done: list[ShadowRow]) -> list[str]:
     return out
 
 
+def _capture_phases(rows: list[ShadowRow]) -> list[str]:
+    """Where the capture's time goes (#89), medians over the rows that recorded it."""
+    caps = [r.capture for r in rows if r.capture]
+    if not caps:
+        return []
+    def med(k: str) -> float:
+        return statistics.median(c.get(k, 0) for c in caps)
+    ends = Counter(c.get("end") or "?" for c in caps)
+    return [f"  capture phases ({len(caps)} profiles, medians): {med('swipes'):.0f} swipes {med('swipe_s'):.0f} s, "
+            f"{med('reads'):.0f} reads {med('read_s'):.0f} s, {med('shots'):.0f} shots {med('shot_s'):.0f} s, "
+            f"{med('rows'):.0f} detail rows {med('rows_s'):.0f} s; end by "
+            + ", ".join(f"{k} {n}" for k, n in ends.most_common())]
+
+
 def session_rows(rows: list[ShadowRow], usage_rows_since, since_id: int | None,
                  until_id: int | None = None) -> tuple[list[ShadowRow], list[tuple]]:
     """One session's rows (`since_id` ≤ id ≤ `until_id`, either open) and the shadow calls (text, browse) made for
@@ -376,6 +391,7 @@ def report(rows: list[ShadowRow], usage_rows: list[tuple]) -> list[str]:
         out.append(f"  per profile: capture {statistics.median(caps):.0f} s, decide {statistics.median(ms) / 1000:.0f} s "
                    f"(medians), {statistics.mean(r.tokens for r in rows):.0f} tokens, "
                    f"${statistics.mean(r.cost for r in rows):.3f} API-equivalent (means)")
+        out += _capture_phases(rows)
     if usage_rows:
         by_model: dict[str, list[tuple]] = {}
         for u in usage_rows:

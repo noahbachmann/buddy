@@ -14,7 +14,7 @@ import random
 import time
 from collections.abc import Callable
 from typing import Any
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 from . import screens
@@ -63,6 +63,27 @@ class OutOfLikes(NeedsYou):
 
 
 _rng = random.Random()
+
+
+@dataclass
+class CaptureStats:
+    """Where one capture's time goes (#89), stored with its shadow row. `swipes` = vertical swipes (incl. their
+    pause), `reads` = every dump, `shots` = screencaps; `rows_s` = the sideways detail rows as a whole (their swipes
+    and reads are in it, not in `swipes`). `end`: how the bottom was found: `gap`, `still` (swipes that moved
+    nothing: `end_swipes`) or `video` (backed up from a playing video)."""
+    swipes: int = 0
+    swipe_s: float = 0.0
+    reads: int = 0
+    read_s: float = 0.0
+    shots: int = 0
+    shot_s: float = 0.0
+    rows: int = 0
+    rows_s: float = 0.0
+    end_swipes: int = 0
+    end: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {k: round(x, 2) if isinstance(x, float) else x for k, x in asdict(self).items()}
 
 
 def human_pause(seconds: float) -> None:
@@ -164,6 +185,7 @@ class Navigator:
     _chat_name: str = field(default="", init=False)
     _xml: str = field(default="", init=False)
     _earlier: list[str] = field(default_factory=list, init=False)   # the last distinct dumps before `_xml`
+    stats: CaptureStats = field(default_factory=CaptureStats, init=False)   # the last capture's, reset by it
 
     # --- reading the screen ---
 
@@ -173,7 +195,10 @@ class Navigator:
         return self._xml
 
     def screen(self) -> Screen:
+        t = time.monotonic()
         xml = self.dev.dump()
+        self.stats.reads += 1
+        self.stats.read_s += time.monotonic() - t
         if self._xml and xml != self._xml:
             self._earlier = (self._earlier + [self._xml])[-2:]
         self._xml = xml
@@ -285,6 +310,7 @@ class Navigator:
         """Scroll the content by `delta` px (> 0: further down the profile). Starts in the list's right margin, beside
         the cards: a video's player takes a swipe that starts on it (the capture took that for the profile's end),
         and the like buttons and the skip button sit on or left of the cards."""
+        t = time.monotonic()
         x = _margin_x(view)
         if delta > 0:
             y1 = _clear_start(view, x, view.viewport.bottom - 150, up=True)
@@ -293,6 +319,8 @@ class Navigator:
             y1 = _clear_start(view, x, view.viewport.top + 150, up=False)
             self.dev.swipe(x, y1, min(view.viewport.bottom - 50, y1 - delta), SWIPE_MS)
         self.pause(0.6)
+        self.stats.swipes += 1
+        self.stats.swipe_s += time.monotonic() - t
 
     def _profile(self) -> tuple[Screen, ProfileView]:
         s = self.expect(self.where)
@@ -349,7 +377,7 @@ class Navigator:
         todo = [(sv, sec) for sv in view.sections if sv.kind == "photo" and not sv.top_cut and not sv.bottom_cut
                 and (sec := cap.section_at(sv)) is not None and not sec.hash]
         if todo:
-            shot = self.dev.screencap()
+            shot = self._screencap()
             for sv, sec in todo:
                 sec.hash = self.hasher(shot, sv.rect)
                 if self.cropper is not None:
@@ -357,8 +385,17 @@ class Navigator:
                 if self.check_cropper is not None:
                     sec.check_jpeg = self.check_cropper(shot, sv.rect)
 
+    def _screencap(self, half: bool = False) -> Any:
+        t = time.monotonic()
+        shot = self.dev.screencap(half=half)
+        self.stats.shots += 1
+        self.stats.shot_s += time.monotonic() - t
+        return shot
+
     def capture_profile(self) -> Capture:
-        """Scrolls through the whole profile from its top, collecting every section. Ends at the bottom."""
+        """Scrolls through the whole profile from its top, collecting every section. Ends at the bottom. Its timings:
+        `stats`."""
+        self.stats = CaptureStats()
         s, view = self._to_top()
         cap = Capture(view)
         self._hash_photos(cap, view)
@@ -374,10 +411,12 @@ class Navigator:
             except _Unreadable:
                 # swiped well past any video and still moving: the list stopped at the bottom with a video in view
                 self._back_to_readable(cap, view)
+                self.stats.end = "video"
                 break
             if _signature(s.root) == sig:
                 still += 1
                 if still == 2:
+                    self.stats.end, self.stats.end_swipes = "still", still
                     break   # bottom: two swipes in a row moved nothing (one can be swallowed)
                 continue
             still = 0
@@ -444,6 +483,7 @@ class Navigator:
             if any(abs(y0 - y) < ROW_SAME for y in done) or not whole or not view.safe(row):
                 continue   # explored, or cut / under a floating button: a later dump shows it whole
             done.append(y0)
+            t = time.monotonic()
             start = sig = _signature(s.root)
             y = row.center[1]
             for _ in range(MAX_ROW_SWIPES):
@@ -462,6 +502,8 @@ class Navigator:
                     break
             else:
                 raise self.needs_you("detail row doesn't go back to its start")
+            self.stats.rows += 1
+            self.stats.rows_s += time.monotonic() - t
 
     def _to_top(self) -> tuple[Screen, ProfileView]:
         s, view = self._first_profile()

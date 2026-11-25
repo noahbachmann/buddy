@@ -370,3 +370,16 @@ def test_a_capture_without_details_is_never_judged(store, tmp_path):
     with pytest.raises(NeedsYou, match="no details"):
         shadow.run_shadow(nav(FakePhone("feed-friend-1", walk=walk)), decider, LIB, store, tmp_path)
     assert decider.seen is None   # the bot never saw it, no row was stored
+
+
+def test_report_shows_the_capture_phases_of_rows_that_recorded_them():
+    from buddy_screener.store import ShadowRow
+    rows = [ShadowRow(i, 0.0, "k", 60.0, 9000, 0.1, 1000, {}, None, cap) for i, cap in enumerate([
+        None, {"swipes": 10, "swipe_s": 20.0, "reads": 30, "read_s": 15.0, "shots": 6, "shot_s": 5.4, "rows": 1,
+               "rows_s": 8.0, "end": "gap"},
+        {"swipes": 12, "swipe_s": 24.0, "reads": 34, "read_s": 17.0, "shots": 6, "shot_s": 5.4, "rows": 1,
+         "rows_s": 8.0, "end": "still"}])]
+    line, = shadow._capture_phases(rows)
+    assert line.startswith("  capture phases (2 profiles, medians): 11 swipes 22 s, 32 reads 16 s, 6 shots 5 s")
+    assert line.endswith("end by gap 1, still 1")
+    assert shadow._capture_phases(rows[:1]) == []

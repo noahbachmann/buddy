@@ -1,8 +1,9 @@
 """SQLite state in `~/buddy/data/screener/screener.db` (host only).
 
 - `usage`: one row per Claude call (kept: it sets active hours and model choice).
-- `shadow`: step 2's labelled set: the bot's decision on a profile and Dev's choice for it. No name, no images, no
-  profile text: a profile is a key (hash of name, age, first prompt). Rows older than `KEEP_DAYS` are deleted.
+- `shadow`: step 2's labelled set: the bot's decision on a profile and Dev's choice for it, and where the capture's
+  time went (`capture`, #89). No name, no images, no profile text: a profile is a key (hash of name, age, first
+  prompt). Rows older than `KEEP_DAYS` are deleted.
 - `actions` (#80): every act on the phone and every stop of the loop (kind, run mode, shadow row id, a detail that is
   never a name or profile text): the like budget counts from it. `KEEP_DAYS`.
 - `chats` (#77): one row per chat, `chat.Chat` as JSON (state, answers, flags, our sent log with its times; never her
@@ -31,7 +32,8 @@ CREATE TABLE IF NOT EXISTS shadow (
     id INTEGER PRIMARY KEY, ts REAL NOT NULL, key TEXT NOT NULL,
     capture_s REAL, decide_ms INTEGER, cost REAL, tokens INTEGER,
     bot TEXT NOT NULL,           -- decide.Browse as JSON
-    dev TEXT, labelled REAL      -- Dev's label as JSON
+    dev TEXT, labelled REAL,     -- Dev's label as JSON
+    capture TEXT                 -- navigator.CaptureStats as JSON (#89)
 );
 CREATE TABLE IF NOT EXISTS actions (
     id INTEGER PRIMARY KEY, ts REAL NOT NULL, kind TEXT NOT NULL,
@@ -71,6 +73,7 @@ class ShadowRow:
     tokens: int
     bot: dict[str, Any]
     dev: dict[str, Any] | None
+    capture: dict[str, Any] | None = None
 
 
 class Store:
@@ -79,6 +82,8 @@ class Store:
             path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.db = sqlite3.connect(str(path))
         self.db.executescript(_SCHEMA)
+        if "capture" not in {r[1] for r in self.db.execute("PRAGMA table_info(shadow)")}:
+            self.db.execute("ALTER TABLE shadow ADD COLUMN capture TEXT")   # a DB from before #89
         self.clock = clock
         self.db.execute("DELETE FROM shadow WHERE ts < ?", (clock() - KEEP_DAYS * 86400,))
         self.db.execute("DELETE FROM actions WHERE ts < ?", (clock() - KEEP_DAYS * 86400,))
@@ -100,11 +105,13 @@ class Store:
             where += f" AND task {'IN' if chat else 'NOT IN'} ('converse', 'verify')"
         return self.db.execute(f"SELECT COALESCE(SUM(cost), 0) FROM usage WHERE {where}", (ts,)).fetchone()[0]
 
-    def add_shadow(self, key: str, capture_s: float, bot: dict[str, Any], usage) -> int:
+    def add_shadow(self, key: str, capture_s: float, bot: dict[str, Any], usage,
+                   capture: dict[str, Any] | None = None) -> int:
         tokens = usage.input + usage.cache_read + usage.cache_write + usage.output
         cur = self.db.execute(
-            "INSERT INTO shadow (ts, key, capture_s, decide_ms, cost, tokens, bot) VALUES (?,?,?,?,?,?,?)",
-            (self.clock(), key, capture_s, usage.ms, usage.cost, tokens, json.dumps(bot, ensure_ascii=False)))
+            "INSERT INTO shadow (ts, key, capture_s, decide_ms, cost, tokens, bot, capture) VALUES (?,?,?,?,?,?,?,?)",
+            (self.clock(), key, capture_s, usage.ms, usage.cost, tokens, json.dumps(bot, ensure_ascii=False),
+             None if capture is None else json.dumps(capture)))
         self.db.commit()
         return cur.lastrowid
 
@@ -116,11 +123,11 @@ class Store:
             raise KeyError(f"no shadow row {row_id}")
 
     def shadow(self, row_id: int | None = None) -> list[ShadowRow]:
-        q = "SELECT id, ts, key, capture_s, decide_ms, cost, tokens, bot, dev FROM shadow"
+        q = "SELECT id, ts, key, capture_s, decide_ms, cost, tokens, bot, dev, capture FROM shadow"
         rows = self.db.execute(q + (" WHERE id = ?" if row_id is not None else " ORDER BY id"),
                                (() if row_id is None else (row_id,))).fetchall()
         return [ShadowRow(r[0], r[1], r[2], r[3] or 0.0, r[4] or 0, r[5] or 0.0, r[6] or 0, json.loads(r[7]),
-                          json.loads(r[8]) if r[8] else None) for r in rows]
+                          json.loads(r[8]) if r[8] else None, json.loads(r[9]) if r[9] else None) for r in rows]
 
     def add_action(self, kind: str, mode: str, row_id: int | None = None, detail: str = "",
                    ts: float | None = None) -> None:

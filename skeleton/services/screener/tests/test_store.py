@@ -1,6 +1,9 @@
 """SQLite store: the chats table and its retention (#77)."""
 
+import sqlite3
+
 from buddy_screener.chat import CLOSED, HANDOVER, LIKED, NEW, SCREENING, Chat, Sent
+from buddy_screener.decide import Usage
 from buddy_screener.store import KEEP_DAYS, Store
 
 DAY = 86400.0
@@ -61,3 +64,18 @@ def test_chat_calls_spend_apart_from_the_profiles():
     s.add_usage(12.0, Usage("verify", "m", cost=0.5))
     s.add_usage(13.0, Usage("sim-converse", "m", cost=2.0))
     assert s.cost_since(0, chat=True) == 0.75 and s.cost_since(0, chat=False) == 1.0 and s.cost_since(0) == 1.75
+
+
+def test_shadow_rows_keep_the_capture_timings_and_an_old_db_gains_the_column(tmp_path):
+    db = tmp_path / "s.db"
+    old = sqlite3.connect(db)   # the shadow table as it was before #89
+    old.execute("CREATE TABLE shadow (id INTEGER PRIMARY KEY, ts REAL NOT NULL, key TEXT NOT NULL, capture_s REAL, "
+                "decide_ms INTEGER, cost REAL, tokens INTEGER, bot TEXT NOT NULL, dev TEXT, labelled REAL)")
+    old.execute("INSERT INTO shadow (ts, key, capture_s, bot) VALUES (1.0, 'a', 60.0, '{}')")
+    old.commit()
+    old.close()
+    s = Store(db, clock=lambda: 2.0)
+    rid = s.add_shadow("b", 50.0, {"decision": "skip"}, Usage("browse", "m"), {"swipes": 12, "end": "gap"})
+    rows = Store(db, clock=lambda: 2.0).shadow()
+    assert [(r.key, r.capture) for r in rows] == [("a", None), ("b", {"swipes": 12, "end": "gap"})]
+    assert rows[1].id == rid
