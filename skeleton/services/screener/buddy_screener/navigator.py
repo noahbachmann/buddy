@@ -187,6 +187,7 @@ class Navigator:
     _earlier: list[str] = field(default_factory=list, init=False)   # the last distinct dumps before `_xml`
     stats: CaptureStats = field(default_factory=CaptureStats, init=False)   # the last capture's, reset by it
     _frame: tuple[str, Any] | None = field(default=None, init=False)   # (dump, its full screenshot) in a capture
+    loading_s: float = 20.0   # an unknown screen this long is one; shorter: the app still drawing (#90)
     awake: bool = field(default=False, init=False)   # we woke the screen and haven't turned it off since
 
     # --- reading the screen ---
@@ -286,6 +287,9 @@ class Navigator:
     def ensure_app(self) -> Screen:
         """The app in front on a known screen; launched if another app is."""
         s = self.stable()
+        if s.kind is Kind.UNKNOWN:
+            # after the screen was off a while the feed reloads: tab bar only for a few s (seen 2026-11-25). No taps
+            s = self.wait_for(lambda x: x.kind is not Kind.UNKNOWN, "a known screen", self.loading_s)
         if s.kind is Kind.OTHER_APP:
             self.dev.launch(self.package)
             s = self.wait_for(lambda x: x.kind not in (Kind.OTHER_APP, Kind.UNKNOWN, Kind.POPUP), "the app")

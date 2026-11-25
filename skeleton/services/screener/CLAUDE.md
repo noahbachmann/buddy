@@ -136,7 +136,7 @@ preference sections *About Dev*, *Looking for*, *Good fit*, *Soft negatives/posi
 ## Tests (`tests/`)
 
 Fixtures are sanitized real dumps: `feed-01..11` (one profile top to bottom), sheets (`sheet*`), `likes`,
-`matches*`, `chat*`, `chat-profile-01..18`, `chat-menu`, `popup`, `row-0..3` (a detail row swiped to its end),
+`matches*`, `feed-loading` (tab bar only, after a long sleep), `chat*`, `chat-profile-01..18`, `chat-menu`, `popup`, `row-0..3` (a detail row swiped to its end),
 `photo-caption`, `upsell`, `out-of-likes`, `own-profile`, videos (`feed-video*`), voice (`feed-voice-1..4`), friends'
 cards (`feed-friend-1..5`), polls (`feed-poll*`, `sheet-option*`). `fake_phone.py` / `fake_chat_phone.py` replay them as
 a phone (taps/swipes move between dumps, `sent()` must stay empty); `test_decide.py` runs the decider on a fake SDK
@@ -170,5 +170,7 @@ texts, copy over.
   carry " Name: text. "; with text typed the voice button becomes "Send message". Row keys tolerate a few bits of
   thumbnail-hash drift. The screen is off between passes: wake it first (a dark screenshot keys every row the same).
   The matches badge can stay up (unread chats the bot doesn't touch): only a badge above the one a pass left is news.
+- Woken after ~30 min off, the feed can show the tab bar alone while it reloads (`feed-loading`): `ensure_app` waits
+  up to `loading_s` (20 s) for a known screen before holding.
 - Not seen yet (each → a sanitized fixture when first seen): an incoming like's card, an app notification's text, a
   new match without messages, the unmatch confirmation, a photo or voice note from her.

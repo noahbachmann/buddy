@@ -12,7 +12,7 @@ from fixture_files import FEED, PACKAGE, load
 
 
 def nav(phone: FakePhone, tmp_path=None) -> Navigator:
-    return Navigator(phone, PACKAGE, dump_dir=tmp_path, pause=lambda s: None, log=lambda s: None)
+    return Navigator(phone, PACKAGE, dump_dir=tmp_path, pause=lambda s: None, log=lambda s: None, loading_s=0.0)
 
 
 def test_capture_whole_profile_and_stop_at_the_end():
@@ -421,3 +421,20 @@ def test_a_next_profile_with_the_same_name_is_told_by_its_photo():
     assert n._next_profile(name, "the next profile", photo="0" * 16) == name     # another photo 1: moved on
     assert not n._other_photo(n.stable(), "f" * 16)                              # the same photo: still her
     assert not n._other_photo(n.stable(), "")                                     # no captured photo: names only
+
+
+def test_a_feed_still_loading_is_waited_out_without_input():
+    # #90: woken after a long sleep, the feed showed the tab bar alone for a while (real dump)
+    phone = FakePhone("feed-loading")
+    reads, dump = [0], phone.dump
+
+    def loading():
+        reads[0] += 1
+        if reads[0] == 4:
+            phone.screen = "feed-01"
+        return dump()
+    phone.dump = loading
+    n = nav(phone)
+    n.loading_s = 5.0
+    assert screens.classify(parse(load("feed-loading")), PACKAGE).kind is Kind.UNKNOWN
+    assert n.go_tab(v.TAB_DISCOVER).kind is Kind.FEED and phone.actions == []
