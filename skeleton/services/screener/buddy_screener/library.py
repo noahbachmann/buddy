@@ -253,19 +253,26 @@ class ChatRules:
 
 @dataclass(frozen=True)
 class Contacts:
-    """Dev's contact values. Only code fills them into a template; never in a prompt, a log or a repr."""
+    """Dev's contact values. Only code fills them into a template; never in a prompt, a log or a repr. No
+    `instagram` file = the number only, no choice asked (Dev, 2026-11-25)."""
     number: str = field(repr=False)
-    instagram: str = field(repr=False)
+    instagram: str = field(repr=False, default="")
 
     @classmethod
     def load(cls, config_dir: Path) -> "Contacts":
         try:
-            number, instagram = ((config_dir / f).read_text().strip() for f in ("number", "instagram"))
+            number = (config_dir / "number").read_text().strip()
         except OSError as e:
             raise LibraryError(f"can't read {e.filename}: {e.strerror}") from None
-        if not number or not instagram:
-            raise LibraryError("number / instagram file empty")
+        try:
+            instagram = (config_dir / "instagram").read_text().strip()
+        except FileNotFoundError:
+            instagram = ""
+        except OSError as e:
+            raise LibraryError(f"can't read {e.filename}: {e.strerror}") from None
+        if not number:
+            raise LibraryError("number file empty")
         return cls(number, instagram)
 
     def values(self) -> tuple[str, ...]:
-        return self.number, self.instagram
+        return tuple(v for v in (self.number, self.instagram) if v)   # "" would match every text

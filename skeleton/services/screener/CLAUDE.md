@@ -201,7 +201,8 @@ see `chat.md` + *About Dev*, *Looking for*, *Good fit*, *Soft negatives/positive
   wording and examples live in the host's `chat.md` *Tone and style*.
 - Code, not the model: disclosure first (only an opener may precede it); our like comment seeded into the sent log; ours on screen not in the log →
   `manual` for good; media → handover; match = required answers + no flag + ≥ 3 turns + verifier; the held `reply`
-  keeps screening when that fails; contact phone/both → number (Dev), instagram → handle, unclear once → ask again;
+  keeps screening when that fails; no host `instagram` file (Dev, 2026-11-25: for now) → the fit line + the number in
+  one message, nothing asked; else the choice: phone/both → number (Dev), instagram → handle, unclear once → ask again;
   every generated text refused (→ handover) on length, digit runs, handles, links not in `chat.md`, contact values.
 - Screening questions are Dev's words (Dev, 2026-11-19: never rephrased): `chat.md` has each as `N. "English"` + an
   indented `DE: "German"` line (+ free note lines for the model). The model only says whether a question comes now

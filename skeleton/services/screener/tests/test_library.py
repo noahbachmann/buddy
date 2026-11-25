@@ -209,3 +209,8 @@ def test_contacts_never_in_repr(tmp_path):
     c = Contacts.load(tmp_path)
     assert c.values() == ("+41 79 000 00 00", "someone")
     assert "000" not in repr(c) and "someone" not in repr(c)
+    (tmp_path / "instagram").unlink()
+    assert Contacts.load(tmp_path).values() == ("+41 79 000 00 00",)   # no instagram file: the number only
+    (tmp_path / "number").write_text("\n")
+    with pytest.raises(LibraryError, match="number"):
+        Contacts.load(tmp_path)

@@ -671,3 +671,13 @@ def test_code_asks_the_questions_in_the_owners_order():
     d.now += 2 * DAY + 1
     d.run(Converse("Noch da?", "screening", lang="de", ask=1))
     assert d.kinds()[-1] == "nudge" and d.ours()[-1].endswith("«Warum Match?»")   # the nudge repeats the open one
+
+
+def test_number_only_sends_it_with_the_fit_line_and_asks_nothing():
+    d = Driver()
+    d.flow = ChatFlow(RULES, Contacts(NUMBER), ChatLimits())
+    matched(d)
+    d.run(Converse("Noch eine Frage?", "match", fit_line="Ihr passt gut.", lang="de"), verdicts=[Verdict(True)])
+    assert d.ours()[-1] == f"Ihr passt gut. Nummer: {NUMBER}" and d.chat.state == DONE
+    assert "contact_offer" not in d.kinds() and d.chat.reason == "contact_number"
+    assert Contacts(NUMBER).values() == (NUMBER,)   # no empty value: it would refuse every text

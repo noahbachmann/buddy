@@ -370,6 +370,10 @@ class ChatFlow:
         if (why := self._refuse(fit, self.limits.fit_max)) is not None:
             return self._end(chat, HANDOVER, now, f"fit line refused: {why}")
         chat.verified_at = now
+        if not self.contacts.instagram:
+            # the number only (Dev, 2026-11-25): no choice to ask, the fit line opens the number's message
+            number = fill(self._t("contact_number", chat), name=chat.name, number=self.contacts.number)
+            return self._send(chat, "contact_number", f"{fit} {number}" if fit else number)
         return self._send(chat, "contact_offer", fill(self._t("contact_offer", chat), name=chat.name, fit_line=fit))
 
     def unmatched(self, chat: Chat, now: float) -> None:
