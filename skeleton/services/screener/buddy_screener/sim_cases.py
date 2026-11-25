@@ -50,7 +50,6 @@ HISTORY = {
            ("us", "Schön! Hast du Haustiere?"), ("them", "Eine Katze, irgendwann noch einen Hund."),
            ("us", "Und wie sieht ein perfekter freier Tag aus?"), ("them", "Wandern, danach mit Freunden kochen.")],
 }
-FIT_LINE = {"en": "You two seem like a good fit.", "de": "Ihr zwei scheint gut zu passen."}
 
 ANY_OPEN = (NEW, SCREENING, CONTACT_CHOICE)
 NO_CONTACT = (SCREENING, HANDOVER, CLOSED)

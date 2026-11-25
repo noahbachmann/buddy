@@ -184,7 +184,7 @@ The day mode (since local midnight) had counted 7 and sent the 8th into the payw
 
 Host: `chat.md` (copied from `preferences.md` 2026-11-19: *Screening questions*, *Match rule*, *Handover*, *Tone*,
 *Languages*; Dev removes the duplicates from `preferences.md` after step 4), `templates.md` chat blocks (`disclosure`,
-`contact_offer`, `contact_ask`, `contact_ask_again`, `contact_number`, `contact_instagram`, `closing`, `opt_out`, `question`), `number`, `instagram`. The chat calls
+`contact_ask`, `contact_ask_again`, `contact_choice`, `contact_choice_again`, `contact_number`, `contact_instagram`, `closing`, `opt_out`, `question`), `number`, `instagram`. The chat calls
 see `chat.md` + *About Dev*, *Looking for*, *Good fit*, *Soft negatives/positives*, *Dealbreakers* (not *Physical*).
 
 - A driver runs `ChatFlow` (`sim.run_chat` offline, `chats.ChatDriver` on the phone): `step` → send / converse /
@@ -201,11 +201,11 @@ see `chat.md` + *About Dev*, *Looking for*, *Good fit*, *Soft negatives/positive
   wording and examples live in the host's `chat.md` *Tone and style*.
 - Code, not the model: disclosure first (only an opener may precede it); our like comment seeded into the sent log; ours on screen not in the log →
   `manual` for good; media → handover; match = required answers + no flag + ≥ 3 turns + verifier; the held `reply`
-  keeps screening when that fails; no host `instagram` file (Dev, 2026-11-25: number only, for now) → the bot's
-  answer to her last message + `contact_ask` (Dev's wording: a match? another question? send his number?), her yes →
-  the number, a question → answered once + `contact_ask_again` (yes or no only, Dev 2026-11-25), still neither or her
-  no → handover; with the file the
-  choice: phone/both → number (Dev), instagram → handle, unclear → ask again;
+  keeps screening when that fails; then the bot's answer to her last message + Dev's ask (2026-11-25): without a
+  host `instagram` file `contact_ask` (a match? another question? send his number?), with it `contact_choice` (… his
+  number or his Instagram?); her yes / phone / both / either → the number (Dev), instagram → the handle, a question →
+  answered once + `contact_ask_again` / `contact_choice_again` (no further question), still neither or her no →
+  handover. The file is read per chat step: renaming it (`instagram.off`) switches the choice off and on;
   every generated text refused (→ handover) on length, digit runs, handles, links not in `chat.md`, contact values.
 - Screening questions are Dev's words (Dev, 2026-11-19: never rephrased): `chat.md` has each as `N. "English"` + an
   indented `DE: "German"` line (+ free note lines for the model). The model only says whether a question comes now

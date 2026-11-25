@@ -16,9 +16,10 @@ from buddy_screener.store import Store
 NUMBER, INSTA = "+41 79 555 66 77", "sentinel.handle"
 TEMPLATES = {
     "disclosure": {"en": "Hi {name}! AI here.", "de": "Hi {name}! KI hier."},
-    "contact_offer": {"en": "{fit_line} Phone or Instagram?", "de": "{fit_line} Telefon oder Instagram?"},
     "contact_ask": {"en": "A match? Should I send his number?", "de": "Ein Match? Soll ich seine Nummer schicken?"},
     "contact_ask_again": {"en": "Should I send his number?", "de": "Soll ich seine Nummer schicken?"},
+    "contact_choice": {"en": "A match? His number or Instagram?", "de": "Ein Match? Seine Nummer oder Instagram?"},
+    "contact_choice_again": {"en": "His number or Instagram?", "de": "Seine Nummer oder Instagram?"},
     "contact_number": {"en": "Number: {number}", "de": "Nummer: {number}"},
     "contact_instagram": {"en": "Instagram: {instagram}", "de": "Instagram: {instagram}"},
     "closing": {"en": "Not a fit.", "de": "Passt nicht."},
@@ -30,7 +31,7 @@ RULES = ChatRules("## Screening questions\n1. **(required)** Looking for?\n2. Pe
 
 
 def answer(**kw):
-    d = {"reply": "Hallo!", "ask": 1, "state": "screening", "opt_out": False, "fit_line": "",
+    d = {"reply": "Hallo!", "ask": 1, "state": "screening", "opt_out": False,
          "answers": {"1": None, "2": None}, "flags": [], "soft_flags": [], "contact": "none", "lang": "de",
          "off_topic": False, "reason": "asking"}
     d.update(kw)
@@ -96,7 +97,7 @@ def test_check_converse_good():
     ({"contact": "fax"}, "reply", CONTACT_CHOICE, lambda c: c.contact == "unclear", "unknown → unclear"),
     ({"contact": "phone"}, "reply", "screening", lambda c: c.contact == "none", "outside the contact choice"),
     ({"answers": {"1": "x", "9": "y"}}, "reply", "screening", lambda c: c.answers == {1: "x"}, "unknown question"),
-    ({"state": "match", "fit_line": "Fit."}, "first", "new", lambda c: c.state == "screening", "first message"),
+    ({"state": "match"}, "first", "new", lambda c: c.state == "screening", "first message"),
     ({"state": "no_match"}, "nudge", "screening", lambda c: c.state == "screening", "on a nudge"),
     ({"ask": 9}, "reply", "screening", lambda c: c.ask == 0, "isn't a question number"),
     ({"ask": True}, "reply", "screening", lambda c: c.ask == 0, "isn't a question number"),
@@ -107,9 +108,9 @@ def test_check_converse_fixes(kw, task, state, check, fix):
     assert check(c) and any(fix in f for f in fixes), fixes
 
 
-def test_fit_line_only_with_a_match_and_opt_out_only_when_true():
-    c, _ = check_converse(answer(fit_line="Great fit", opt_out="yes"), RULES, "reply", "screening")
-    assert c.fit_line == "" and c.opt_out is False
+def test_opt_out_only_when_true():
+    c, _ = check_converse(answer(opt_out="yes"), RULES, "reply", "screening")
+    assert c.opt_out is False
 
 
 def test_check_garbage():
@@ -133,7 +134,7 @@ def talker(tmp_path):
 
 def test_whole_chat_never_puts_a_contact_value_in_a_prompt(talker):
     script = [answer(), answer(answers={"1": "long-term", "2": None}), answer(), answer(),
-              answer(state="match", fit_line="Ihr passt."), {"agree": True, "reason": "all answered"},
+              answer(state="match"), {"agree": True, "reason": "all answered"},
               answer(contact="phone", reply=""), ]
     t, sdk = talker(script)
     flow = ChatFlow(RULES, Contacts(NUMBER, INSTA))

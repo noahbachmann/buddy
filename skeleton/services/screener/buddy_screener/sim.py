@@ -26,7 +26,7 @@ from .config import Config
 from .converse import Talker
 from .decide import BudgetSpent, DecideConfig, DecideError, Decider, UsageLimited, _sdk_runner
 from .library import ChatRules, Contacts, LibraryError, fill
-from .sim_cases import BY_NAME, CASES, FIT_LINE, HISTORY, Case, Her
+from .sim_cases import BY_NAME, CASES, HISTORY, Case, Her
 from .sim_personas import PERSONAS, Persona
 
 SENTINEL = Contacts("+41 79 000 11 22", "sim.sentinel.contact")
@@ -195,7 +195,7 @@ def preset_contact_choice(sim: SimChat, rules: ChatRules, lang: str) -> None:
     chat, now = sim.chat, sim.chat.started
     us = [("disclosure", fill(rules.templates["disclosure"][lang], name=chat.name))]
     msgs = [(US, us[0][1])] + [(US if s == "us" else THEM, t) for s, t in HISTORY[lang]]
-    offer = fill(rules.templates["contact_offer"][lang], name=chat.name, fit_line=FIT_LINE[lang])
+    offer = fill(rules.templates["contact_choice"][lang], name=chat.name)   # the sim's contacts include Instagram
     msgs.append((US, offer))
     kinds = iter(["disclosure"] + ["reply"] * sum(s == "us" for s, _ in HISTORY[lang]) + ["contact_offer"])
     for side, text in msgs:

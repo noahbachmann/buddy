@@ -89,9 +89,6 @@ whether she wants his contact; if not, it goes out as is.
 dealbreaker, a good overall fit), "no_match" (a dealbreaker or clearly not a fit), "handover" (the owner must take \
 over: see the handover rules; also when you are unsure or something isn't covered).
 - `opt_out`: true if she asks to stop, doesn't want to talk to an AI, or wants to be left alone. Always honoured.
-- `fit_line`: with "match", one short sentence **to her**, opening our contact offer: about the two of them, \
-scaled to how good the fit is, e.g. "You two seem like a good fit." / "Ihr zwei passt bestimmt richtig gut \
-zusammen.". Never a summary or an assessment of her, never about her in the third person, no question. Else "".
 - `answers`: every screening question by its number → her answer in a few words, from the whole chat, or null.
 - `flags`: dealbreakers she stated, a few words each. `soft_flags`: soft negatives that apply.
 - `contact`: only when the chat state is contact choice (we asked whether she wants his contact, or offered phone \
@@ -161,7 +158,6 @@ def converse_schema(rules: ChatRules) -> dict[str, Any]:
             "ask": {"type": "integer", "description": "screening question number to append, 0 = none"},
             "state": {"type": "string", "enum": list(STATES)},
             "opt_out": {"type": "boolean"},
-            "fit_line": {"type": "string"},
             "answers": {"type": "object", "properties": qs, "required": list(qs), "additionalProperties": False},
             "flags": {"type": "array", "items": {"type": "string"}},
             "soft_flags": {"type": "array", "items": {"type": "string"}},
@@ -170,7 +166,7 @@ def converse_schema(rules: ChatRules) -> dict[str, Any]:
             "off_topic": {"type": "boolean"},
             "reason": {"type": "string"},
         },
-        "required": ["reply", "ask", "state", "opt_out", "fit_line", "answers", "flags", "soft_flags", "contact", "lang",
+        "required": ["reply", "ask", "state", "opt_out", "answers", "flags", "soft_flags", "contact", "lang",
                      "off_topic", "reason"],
         "additionalProperties": False,
     }
@@ -273,7 +269,7 @@ def check_converse(raw: Any, rules: ChatRules, task: str, state: str) -> tuple[C
     if ask and state == CONTACT_CHOICE:
         fixes.append("a screening question in the contact choice → 0")
         ask = 0
-    c = Converse(text("reply"), st, raw.get("opt_out") is True, text("fit_line") if st == "match" else "", answers,
+    c = Converse(text("reply"), st, raw.get("opt_out") is True, answers,
                  strings("flags"), strings("soft_flags"), contact, lang, text("reason"), ask,
                  raw.get("off_topic") is True)
     return c, fixes

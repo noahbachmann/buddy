@@ -13,7 +13,7 @@ it is free text (format notes) and ignored:
 
 The *Voice* section (free text, #84) describes that voice; it goes into the decision prompt verbatim.
 
-The chat templates (`## disclosure`, `## contact_offer`, …) are `EN:` / `DE:` blocks, hard-wrapped (lines joined
+The chat templates (`## disclosure`, `## contact_ask`, …) are `EN:` / `DE:` blocks, hard-wrapped (lines joined
 with a space); lines before the first block are notes. Code fills their placeholders; `{number}` / `{instagram}`
 come from the files of the same name, which only `Contacts` reads and no prompt ever contains.
 """
@@ -112,8 +112,8 @@ class Library:
 # --- the chat (#77) --------------------------------------------------------------------------------------------------
 
 # template → placeholders it must contain beyond the always-allowed {name}
-CHAT_TEMPLATES = {"disclosure": set(), "contact_offer": {"fit_line"}, "contact_ask": set(), "contact_ask_again": set(),
-                  "contact_number": {"number"},
+CHAT_TEMPLATES = {"disclosure": set(), "contact_ask": set(), "contact_ask_again": set(), "contact_choice": set(),
+                  "contact_choice_again": set(), "contact_number": {"number"},
                   "contact_instagram": {"instagram"}, "closing": set(), "opt_out": set(), "question": {"question"}}
 CHAT_LANGS = ("en", "de")
 # preferences.md sections the chat calls see (heading prefixes); not "Physical": a chat shows no photos

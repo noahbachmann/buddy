@@ -86,11 +86,6 @@ asking a few questions.
 DE: Hi {name}! Ich bin ein
 KI-Assistent.
 
-## contact_offer
-{fit_line} = generated (a note: ignored)
-EN: {fit_line} Phone or Instagram?
-DE: {fit_line} Telefon oder Instagram?
-
 ## contact_ask
 EN: I think you two are a match. Should I send you his number?
 DE: Ich glaube, ihr passt. Soll ich dir seine Nummer schicken?
@@ -98,6 +93,15 @@ DE: Ich glaube, ihr passt. Soll ich dir seine Nummer schicken?
 ## contact_ask_again
 EN: Should I send you his number?
 DE: Soll ich dir seine Nummer schicken?
+
+## contact_choice
+With an Instagram file (a note: ignored).
+EN: I think you two are a match. Should I send you his number or his Instagram?
+DE: Ich glaube, ihr passt. Soll ich dir seine Nummer oder sein Instagram schicken?
+
+## contact_choice_again
+EN: His number or his Instagram?
+DE: Seine Nummer oder sein Instagram?
 
 ## contact_number
 EN: The number: {number}.
@@ -155,8 +159,9 @@ def test_chat_templates_join_wrapped_lines_and_skip_notes():
     t = parse_chat_templates(CHAT_TEMPLATES)
     assert t["disclosure"] == {"en": "Hi {name}! I'm an AI assistant, asking a few questions.",
                                "de": "Hi {name}! Ich bin ein KI-Assistent."}
-    assert t["contact_offer"]["en"] == "{fit_line} Phone or Instagram?"
-    assert set(t) == {"disclosure", "contact_offer", "contact_ask", "contact_ask_again", "contact_number",
+    assert t["contact_choice"]["en"] == "I think you two are a match. Should I send you his number or his Instagram?"
+    assert set(t) == {"disclosure", "contact_ask", "contact_ask_again", "contact_choice", "contact_choice_again",
+                      "contact_number",
                       "contact_instagram", "closing", "opt_out", "question"}
 
 
@@ -165,7 +170,7 @@ def test_chat_templates_join_wrapped_lines_and_skip_notes():
     ("DE: Kein Problem!", "", "no DE: block"),
     ("EN: Not a fit, all the best.", "EN: Not a fit, {number}.", "not allowed here"),
     ("EN: The number: {number}.", "EN: The number.", "needs \\['number'\\]"),
-    ("EN: {fit_line} Phone", "EN: Phone", "needs \\['fit_line'\\]"),
+    ("EN: His number or his Instagram?", "EN: His number or {instagram}?", "not allowed here"),   # values: code only
 ])
 def test_broken_chat_templates_refuse_the_file(old, new, why):
     with pytest.raises(LibraryError, match=why):
@@ -173,7 +178,7 @@ def test_broken_chat_templates_refuse_the_file(old, new, why):
 
 
 def test_fill_is_one_pass():
-    assert fill("Hi {name}, {fit_line}", name="{fit_line}", fit_line="ok") == "Hi {fit_line}, ok"
+    assert fill("Hi {name}, {question}", name="{question}", question="ok") == "Hi {question}, ok"
 
 
 def test_questions():

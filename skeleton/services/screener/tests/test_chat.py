@@ -10,9 +10,10 @@ DAY = 86400.0
 NUMBER, INSTA = "+41 79 123 45 67", "dev.handle"
 TEMPLATES = {
     "disclosure": {"en": "Hi {name}! I'm an AI assistant.", "de": "Hi {name}! Ich bin ein KI-Assistent."},
-    "contact_offer": {"en": "{fit_line} Phone or Instagram?", "de": "{fit_line} Telefon oder Instagram?"},
     "contact_ask": {"en": "A match? Should I send his number?", "de": "Ein Match? Soll ich seine Nummer schicken?"},
     "contact_ask_again": {"en": "Should I send his number?", "de": "Soll ich seine Nummer schicken?"},
+    "contact_choice": {"en": "A match? His number or Instagram?", "de": "Ein Match? Seine Nummer oder Instagram?"},
+    "contact_choice_again": {"en": "His number or Instagram?", "de": "Seine Nummer oder Instagram?"},
     "contact_number": {"en": "Number: {number}", "de": "Nummer: {number}"},
     "contact_instagram": {"en": "Instagram: {instagram}", "de": "Instagram: {instagram}"},
     "closing": {"en": "Not a fit, all the best.", "de": "Passt nicht, alles Gute."},
@@ -216,8 +217,8 @@ def test_language_follows_her_messages():
 def test_match_verified_then_contact_number():
     d = Driver()
     matched(d)
-    d.run(Converse("Noch eine Frage?", "match", fit_line="Ihr passt gut.", lang="de"), verdicts=[Verdict(True)])
-    assert d.ours()[-1] == "Ihr passt gut. Telefon oder Instagram?"
+    d.run(Converse("Er mag Katzen.", "match", lang="de"), verdicts=[Verdict(True)])
+    assert d.ours()[-1] == "Er mag Katzen. Ein Match? Seine Nummer oder Instagram?"   # her last message answered first
     assert d.chat.state == CONTACT_CHOICE and d.chat.verified_at is not None
     assert [c[0] for c in d.calls][-2:] == ["converse", "verify"]
     d.her("Nummer bitte")
@@ -234,7 +235,7 @@ def test_match_verified_then_contact_number():
 def test_contact_choices(choice, last):
     d = Driver()
     matched(d)
-    d.run(Converse("x", "match", fit_line="Passt.", lang="de"), verdicts=[Verdict(True)])
+    d.run(Converse("x", "match", lang="de"), verdicts=[Verdict(True)])
     d.her("…")
     d.run(Converse("", "screening", contact=choice, lang="de"))
     assert d.ours()[-1] == last and d.chat.state == DONE
@@ -246,7 +247,7 @@ def test_one_question_after_the_number_offer_then_only_yes_or_no():
     d = Driver()
     d.flow = ChatFlow(RULES, Contacts(NUMBER), ChatLimits())
     matched(d)
-    d.run(Converse("Weil ihr gut passt.", "match", fit_line="", lang="de"), verdicts=[Verdict(True)])
+    d.run(Converse("Weil ihr gut passt.", "match", lang="de"), verdicts=[Verdict(True)])
     d.her("Was macht er beruflich?")
     d.run(Converse("Er ist Softwareentwickler.", "screening", contact="unclear", lang="de"))
     assert d.ours()[-1] == "Er ist Softwareentwickler. Soll ich seine Nummer schicken?" and d.chat.state == CONTACT_CHOICE
@@ -259,7 +260,7 @@ def test_one_question_after_the_number_offer_then_only_yes_or_no():
 def test_declined_contact_hands_over(contact, state):
     d = Driver()
     matched(d)
-    d.run(Converse("x", "match", fit_line="Passt.", lang="de"), verdicts=[Verdict(True)])
+    d.run(Converse("x", "match", lang="de"), verdicts=[Verdict(True)])
     d.her("lieber nicht")
     d.run(Converse("", state, contact=contact, lang="de"))
     assert d.chat.state == HANDOVER and not any(NUMBER in t for t in d.ours())
@@ -268,7 +269,7 @@ def test_declined_contact_hands_over(contact, state):
 def test_verifier_disagrees_keeps_screening_with_the_calls_reply():
     d = Driver()
     matched(d)
-    d.run(Converse("Und Haustiere?", "match", fit_line="Passt.", lang="de"), verdicts=[Verdict(False, "too early")])
+    d.run(Converse("Und Haustiere?", "match", lang="de"), verdicts=[Verdict(False, "too early")])
     assert d.chat.state == SCREENING and d.ours()[-1] == "Und Haustiere?" and d.chat.verified_at is None
 
 
@@ -284,7 +285,7 @@ def test_code_refuses_a_match_without_asking_the_verifier(setup, why):
         d.her(f"a{i}")
         last = i == turns - 1
         if last:
-            d.run(Converse("Und sonst?", "match", fit_line="Passt.", lang="de",
+            d.run(Converse("Und sonst?", "match", lang="de",
                            answers={} if setup == "unanswered" else {1: "long-term"},
                            flags=["smokes"] if setup == "flag" else []))
         else:
@@ -303,11 +304,30 @@ def test_answers_accumulate_and_null_never_erases():
     assert d.chat.answers == {1: "long-term", 2: "a cat"}
 
 
-def test_bad_fit_line_hands_over():
+def test_a_refused_answer_before_the_contact_ask_is_dropped_the_ask_goes_alone():
     d = Driver()
     matched(d)
-    d.run(Converse("x", "match", fit_line="Call him: 079 123 45 67", lang="de"), verdicts=[Verdict(True)])
-    assert d.chat.state == HANDOVER and "contact_offer" not in d.kinds()
+    d.run(Converse("Call him: 079 123 45 67", "match", lang="de"), verdicts=[Verdict(True)])
+    assert d.ours()[-1] == "Ein Match? Seine Nummer oder Instagram?" and d.chat.state == CONTACT_CHOICE
+
+
+def test_with_instagram_a_question_after_the_ask_gets_the_choice_again():
+    d = Driver()
+    matched(d)
+    d.run(Converse("x", "match", lang="de"), verdicts=[Verdict(True)])
+    d.her("Was macht er beruflich?")
+    d.run(Converse("Er ist Softwareentwickler.", "screening", contact="unclear", lang="de"))
+    assert d.ours()[-1] == "Er ist Softwareentwickler. Seine Nummer oder Instagram?" and d.chat.state == CONTACT_CHOICE
+    d.her("Insta")
+    d.run(Converse("", "screening", contact="instagram", lang="de"))
+    assert d.ours()[-1] == f"Instagram: {INSTA}" and d.chat.state == DONE
+
+
+def test_a_chat_saved_with_a_field_since_dropped_still_loads():
+    d = Driver()
+    matched(d)
+    raw = d.chat.to_dict() | {"pending_fit": "Passt."}   # saved before the fit line went
+    assert Chat.from_dict(raw) == d.chat
 
 
 # --- endings ---------------------------------------------------------------------------------------------------------
@@ -534,7 +554,7 @@ def test_no_decision_after_max_days_hands_over():
 def test_transcript_redacts_sent_contacts_and_media():
     d = Driver()
     matched(d)
-    d.run(Converse("x", "match", fit_line="Passt.", lang="de"), verdicts=[Verdict(True)])
+    d.run(Converse("x", "match", lang="de"), verdicts=[Verdict(True)])
     d.her("Insta!")
     d.run(Converse("", "screening", contact="instagram", lang="de"))
     d.her("", media=True)
@@ -577,7 +597,7 @@ def test_question_needs_a_clean_reaction():
 def test_held_reply_keeps_its_question():
     d = Driver()
     matched(d)
-    d.run(Converse("Schön!", "match", fit_line="Passt.", lang="de", ask=2), verdicts=[Verdict(False)])
+    d.run(Converse("Schön!", "match", lang="de", ask=2), verdicts=[Verdict(False)])
     assert d.ours()[-1] == "Schön! Er fragt: «Haustiere? https://example.org/track/1»"
     assert d.chat.pending_ask == 0
 
@@ -682,7 +702,7 @@ def test_number_only_answers_her_then_asks_and_sends_it_on_her_yes():
     d = Driver()
     d.flow = ChatFlow(RULES, Contacts(NUMBER), ChatLimits())
     matched(d)
-    d.run(Converse("Er mochte deine Antwort zu Musik.", "match", fit_line="Ihr passt gut.", lang="de", ask=2),
+    d.run(Converse("Er mochte deine Antwort zu Musik.", "match", lang="de", ask=2),
           verdicts=[Verdict(True)])
     assert d.ours()[-1] == "Er mochte deine Antwort zu Musik. Ein Match? Soll ich seine Nummer schicken?"
     assert d.chat.state == CONTACT_CHOICE and NUMBER not in " ".join(d.ours())

@@ -23,7 +23,7 @@ order in `chat.md`, Dev 2026-11-25) and appends it verbatim, attributed to him b
 """
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from typing import Any
 
 from .library import ChatRules, Contacts, fill
@@ -79,7 +79,6 @@ class ChatLimits:
     close_days: float = 3        # no reply this long after the nudge → closed silently
     unmatch_h: float = 24        # unmatch this long after closing
     reply_max: int = 400         # chars of a generated message
-    fit_max: int = 100           # chars of the generated fit line ("You two seem like a good fit." ≈ 30)
     # abuse guards (#88): checked by code before a call; over → handover, no call
     burst_msgs: int = 8          # her new messages in one go
     burst_chars: int = 1200      # … their length together
@@ -114,7 +113,6 @@ class Converse:
     reply: str
     state: str                   # screening | match | no_match | handover
     opt_out: bool = False
-    fit_line: str = ""
     answers: dict[int, str | None] = field(default_factory=dict)
     flags: list[str] = field(default_factory=list)
     soft_flags: list[str] = field(default_factory=list)
@@ -148,7 +146,6 @@ class Chat:
     pending_task: str = ""
     pending_reply: str = ""      # the reply to send if the verifier disagrees
     pending_ask: int = 0         # … and the question it asks
-    pending_fit: str = ""
     turns: int = 0               # her turns answered (exchanges)
     unclear: int = 0             # unclear contact answers so far
     verified_at: float | None = None
@@ -187,7 +184,8 @@ class Chat:
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "Chat":
-        d = dict(d)
+        known = {f.name for f in fields(cls)}
+        d = {k: v for k, v in d.items() if k in known}   # a field dropped since the row was saved (`pending_fit`)
         d["sent"] = [Sent(**s) for s in d.get("sent", [])]
         d["answers"] = {int(k): v for k, v in d.get("answers", {}).items()}
         return cls(**d)
@@ -355,31 +353,31 @@ class ChatFlow:
             return self._send(chat, "closing", fill(self._t("closing", chat), name=chat.name))
         if c.state == "match":
             if (why := self._not_ready(chat)) is None:
-                chat.pending_reply, chat.pending_ask, chat.pending_fit = c.reply, c.ask, c.fit_line
+                chat.pending_reply, chat.pending_ask = c.reply, c.ask
                 return Action("verify", transcript=self.transcript(chat, self._screens.pop(chat.key, [])))
             chat.log.append(f"match refused by code: {why}")
         return self._generated(chat, now, "reply", c.reply, c.ask)
 
     def verified(self, chat: Chat, v: Verdict, now: float) -> Action:
-        reply, ask, fit = chat.pending_reply, chat.pending_ask, chat.pending_fit
-        chat.pending_reply = chat.pending_fit = ""
+        reply, ask = chat.pending_reply, chat.pending_ask
+        chat.pending_reply = ""
         chat.pending_ask = 0
         chat.log.append(f"verify: {'agree' if v.agree else 'disagree'} — {v.reason}")
         if not v.agree:
             return self._generated(chat, now, "reply", reply, ask)
-        fit = _norm(fit)
-        if self.contacts.instagram and (why := self._refuse(fit, self.limits.fit_max)) is not None:
-            return self._end(chat, HANDOVER, now, f"fit line refused: {why}")   # only the choice's offer uses it
         chat.verified_at = now
-        if not self.contacts.instagram:
-            # the number only (Dev, 2026-11-25): answer what she said, then ask whether she wants his number
-            # (`contact_ask`, Dev's wording); her yes sends it, a question gets answered and asked again
-            ask_text = fill(self._t("contact_ask", chat), name=chat.name)
-            reply = _norm(reply)
-            if reply and self._refuse(reply, self.limits.reply_max) is None:
-                return self._send(chat, "contact_offer", f"{reply} {ask_text}")
-            return self._send(chat, "contact_offer", ask_text)
-        return self._send(chat, "contact_offer", fill(self._t("contact_offer", chat), name=chat.name, fit_line=fit))
+        # answer what she said, then Dev's ask (Dev, 2026-11-25): his number (`contact_ask`), or with an Instagram
+        # file the choice (`contact_choice`); her yes or pick sends it, a question gets answered and asked again
+        ask_text = fill(self._t(self._ask(again=False), chat), name=chat.name)
+        reply = _norm(reply)
+        if reply and self._refuse(reply, self.limits.reply_max) is None:
+            return self._send(chat, "contact_offer", f"{reply} {ask_text}")
+        return self._send(chat, "contact_offer", ask_text)
+
+    def _ask(self, again: bool) -> str:
+        """The ask template: the number only, or the choice when there's an Instagram to offer."""
+        kind = "contact_choice" if self.contacts.instagram else "contact_ask"
+        return f"{kind}_again" if again else kind
 
     def unmatched(self, chat: Chat, now: float) -> None:
         chat.unmatched = True
@@ -521,8 +519,7 @@ class ChatFlow:
         if chat.unclear > self.limits.contact_questions:
             return self._end(chat, HANDOVER, now, f"no yes or no to the contact after {chat.unclear} answers")
         # her question answered, then only yes or no: no "another question?" this time (Dev, 2026-11-25)
-        again = (fill(self._t("contact_ask_again", chat), name=chat.name) if not self.contacts.instagram
-                 else fill(self._t("contact_offer", chat), name=chat.name, fit_line="").strip())
+        again = fill(self._t(self._ask(again=True), chat), name=chat.name)
         reply = _norm(c.reply)
         if reply and (why := self._refuse(reply, self.limits.reply_max)) is not None:
             return self._end(chat, HANDOVER, now, f"reply refused: {why}")

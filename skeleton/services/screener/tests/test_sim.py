@@ -37,7 +37,7 @@ def fake_model(content, options):
     en = bool(re.search(r"\b(the|you|can|I|Hi|Honestly|This|Phone|Both|Hmm)\b", last)) or (
         "Write `reply` in: English" in text and not last)
     a = {"reply": "And what are you looking for?" if en else "Und was suchst du?", "state": "screening",
-         "opt_out": False, "fit_line": "", "answers": {"1": None, "2": None, "3": None}, "ask": 0, "flags": [],
+         "opt_out": False, "answers": {"1": None, "2": None, "3": None}, "ask": 0, "flags": [],
          "soft_flags": [], "contact": "none", "lang": ("en" if en else "de") if last else "", "reason": "fake"}
     if "Chat state: contact choice" in text:
         a["contact"] = ("phone" if "Phone" in last or "Nummer" in last else "instagram" if "Insta" in last
@@ -52,7 +52,7 @@ def fake_model(content, options):
     elif "Loser" in last:
         a["state"] = "no_match"
     elif "Brettspiel" in last:
-        a.update(state="match", fit_line="Ihr passt gut.", answers={"1": "langfristig", "2": "Katze", "3": "mag ihn"})
+        a.update(state="match", answers={"1": "langfristig", "2": "Katze", "3": "mag ihn"})
     elif "langfristig" in text:
         a["answers"]["1"] = "langfristig"
     return a
