@@ -50,11 +50,12 @@ module cover_top_skeleton() intersection() {
   }
 }
 
-// --- cover-bottom: floor rim and the nut tabs ----------------------------------------------------
+// --- cover-bottom: floor rim, the whole fan floor (sets the fan's height) and the nut tabs ---------
 module cover_bottom_skeleton() intersection() {
   cover_bottom();
   translate([0, 0, -1]) linear_extrude(big) {
     band_2d(skel_band) cover_floor_2d();
+    offset(delta = 1) fan_floor_2d();
     offset(delta = 2) bottom_tabs_2d();
   }
 }

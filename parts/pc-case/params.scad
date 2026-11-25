@@ -22,10 +22,13 @@ plate_x1    = 200;       // ⚠️
 plate_clear = 14;        // ⚠️ plate + its foam pads at the fan edge, with room for the antenna wires
 cooler_x = [188, 350];   // 162 wide; right edge 100 past the tray's right edge
 cooler_y = [122, 250];   // 128 deep at the heatsink; back edge 40 past the tray's back edge
-cooler_h = 38;           // fan and heatsink alike; the fan housing stands on the table
-hs_z0    = 13;           // ⚠️ heatsink's underside above the table (ruler photo 2026-11-24): the floor runs under it
+cooler_h = 38;           // fan and heatsink alike
+fan_floor_t = 0.8;      // cover-bottom's floor under the fan: lies flat on the table, carries no bending (Dev 2026-11-25)
+cooler_z0 = fan_floor_t; // the fan housing stands on it
+hs_dz    = 13;           // ⚠️ heatsink's underside above the fan's base (ruler photo 2026-11-24): the floor runs under it
+hs_z0    = cooler_z0 + hs_dz;
 fan_x1   = 297;          // ⚠️ fan housing ↔ heatsink (fit-check photo): the fan stands on the table left of this
-fan_y0   = 137;          // ⚠️ fan housing's front edge: no floor behind it
+fan_y0   = 137;          // ⚠️ fan housing's front edge: the thin floor behind it
 // Fan housing's front-left corner: an arc through these points, cut out of the cooler's rectangle. Read off the
 // fit-check photo (2026-11-24); the bracket strip left of the housing reaches x 188.
 seam_pts = [[195, 178], [203, 149], [226, 139]];   // ⚠️
@@ -45,10 +48,10 @@ wall_t   = 2.4;          // walls, steps of 0.4 (docs/3d-printing.md)
 z_lid1   = board_h;                    // lid's top, flush with the tray walls
 z_lid    = z_lid1 - skin_t;            // lid's underside
 head_gap   = 0.4;        // over the cooler
-cover_skin = 1.6;        // cover's top: thinner than the lid, the case stays at 40 (Dev)
+cover_skin = 1.2;        // cover's top: thinner than the lid, the case stays at ~40 (Dev: ≤ 40, 40.4 with the fan floor)
 floor_t    = 1.6;        // cover-bottom's floor; the cover-top's walls stand on it
-z_ceil   = cooler_h + head_gap;        // cover's underside
-z_top    = z_ceil + cover_skin;        // cover's top: the highest point (40)
+z_ceil   = cooler_z0 + cooler_h + head_gap;   // cover's underside
+z_top    = z_ceil + cover_skin;        // cover's top: the highest point (40.4)
 
 // --- outline --------------------------------------------------------------------
 tray_gap = 0.5;          // tray to the cover's walls
