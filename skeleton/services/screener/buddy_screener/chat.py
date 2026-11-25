@@ -149,6 +149,11 @@ class Chat:
     prompt_langs: list[str] = field(default_factory=list)   # the decision's, for the first message's language
     held: dict[str, str] = field(default_factory=dict)      # a message typed and held for Dev (or an unmatch), #77
     manual_from: str = ""        # the state before `manual`: where `give_back` returns to (#88)
+    calls: list[dict[str, Any]] = field(default_factory=list)   # each converse/verify: task, tokens, $ (#88)
+
+    @property
+    def cost(self) -> float:
+        return sum(c.get("usd", 0.0) for c in self.calls)
 
     @property
     def bot_msgs(self) -> int:

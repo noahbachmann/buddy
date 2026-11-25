@@ -8,7 +8,7 @@ from buddy_screener import chats
 from buddy_screener.chat import (CLOSED, FOREIGN, HANDOVER, LIKED, MANUAL, NEW, SCREENING, THEM, US, Chat, ChatLimits,
                                  Converse, Sent, Verdict)
 from buddy_screener.chats import ChatConfig, ChatDriver
-from buddy_screener.decide import DecideError, UsageLimited
+from buddy_screener.decide import DecideError, Usage, UsageLimited
 from buddy_screener.navigator import Navigator
 from buddy_screener.store import Store
 from fake_chat_phone import FakeChatPhone
@@ -20,6 +20,8 @@ DISCLOSURE = "Hi Alex! I'm an AI assistant, asking a few questions."
 
 
 class Talker:
+    usage = None
+
     def __init__(self, *answers: Converse):
         self.answers = list(answers)
         self.calls: list[tuple[str, list]] = []
@@ -29,7 +31,7 @@ class Talker:
         self.calls.append((task, transcript, profile))
         if self.fail:
             raise self.fail
-        return (self.answers.pop(0) if self.answers else Converse("Und sonst?", "screening", lang="en")), [], None
+        return (self.answers.pop(0) if self.answers else Converse("Und sonst?", "screening", lang="en")), [], self.usage
 
     def verify(self, rules, profile, transcript):
         return Verdict(True), None
@@ -266,3 +268,57 @@ def test_read_ignore(tmp_path):
     (tmp_path / "x").write_text("Alex\n  # note\nSam # her\n\n")
     assert chats.read_ignore(tmp_path / "x") == {"Alex", "Sam"}
     assert chats.read_ignore(tmp_path / "missing") == set()
+
+
+def test_hold_writes_the_chat_and_the_held_message_for_devs_review(tmp_path):
+    t = Talker(opener())
+    t.usage = Usage("converse", "m", input=2, cache_read=858, cache_write=6017, output=693, cost=0.0313)
+    r = Rig(tmp_path, t, mode=chats.HOLD)
+    r.d.notes_dir = tmp_path / "chats"
+    r.like()
+    r.d.step()
+    c = r.store.chat("Alex")
+    assert c.calls == [{"ts": round(T0), "task": "opener", "in": 2, "cache_read": 858, "cache_write": 6017,
+                        "out": 693, "usd": 0.0313}] and c.cost == 0.0313
+    note = chats.note_path(r.d.notes_dir, "Alex").read_text().splitlines()
+    assert note[0] == "Alex: new, lang en, 1 calls $0.031"
+    assert "us : Text 3" in note and "her: Message 1" in note and note[-1] == f"HELD (opener): {OPENER}"
+    r.resume()
+    note = chats.note_path(r.d.notes_dir, "Alex").read_text().splitlines()
+    assert f"us : {OPENER}" in note and note[-1] == f"HELD (disclosure): {DISCLOSURE}"
+
+
+def test_devs_wording_typed_by_command_goes_out_as_his(tmp_path):
+    r = Rig(tmp_path, Talker(opener()), mode=chats.HOLD)
+    r.like()
+    r.d.step()
+    c = r.store.chat("Alex")
+    c.held |= {"text": "Indie all the way.", "dev": "1"}   # what --cmd chat-edit leaves behind
+    r.store.save_chat(c)
+    r.phone.ime_clear()
+    r.phone.ime_type("Indie all the way.")
+    r.resume()
+    sent = r.store.chat("Alex").sent[-1]
+    assert r.phone.ours == ["Indie all the way."] and (sent.kind, sent.dev) == ("opener", True)
+
+
+def test_chats_command_lists_open_chats_with_their_calls_and_note(tmp_path, monkeypatch):
+    from buddy_screener.chatcmd import chats as list_chats
+    from buddy_screener.config import Config
+
+    monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path / "run"))
+    cfg = Config(package="app.example", config_dir=tmp_path / "c", data_dir=tmp_path / "d")
+    store = Store(":memory:")
+    c = Chat("Alex|ab", "Alex", T0, state=SCREENING, held={"kind": "send", "template": "reply", "text": "Hm?"},
+             calls=[{"ts": T0, "task": "reply", "in": 2, "cache_read": 5776, "cache_write": 848, "out": 356,
+                     "usd": 0.0077}])
+    store.save_chat(c)
+    store.save_chat(Chat("Sam|cd", "Sam", T0, state=FOREIGN))
+    note = chats.note_path(cfg.tmp_dir / "chats", "Alex|ab")
+    note.parent.mkdir(parents=True)
+    note.write_text("Alex: screening\nanswers: none\n\nher: hi\n")
+    out = list_chats(cfg, store)
+    assert out[0] == "=== Alex: screening (held), 1 calls $0.008"
+    assert "in  6626 (cache read 5776, written 848) out  356  $0.0077" in out[1]
+    assert "her: hi" in out and not any("Sam" in x for x in out)
+    assert out[-1] == "chat calls, last 24 h: none"

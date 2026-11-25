@@ -273,7 +273,7 @@ def cmd_shadow(cfg: Config, args: argparse.Namespace) -> int:
 
 
 def offline(cfg: Config, args: argparse.Namespace) -> int:
-    if args.cmd in ("chat-back",):
+    if args.cmd in ("chat-back", "chats", "chat-edit"):
         from .chatcmd import run
         return run(cfg, args)
     if args.cmd in ("templates", "rows", "report", "label", "shadow", "type", "skip", "send"):
@@ -370,7 +370,7 @@ def service(cfg: Config) -> int:
             # the chats on the same phone, between profiles (#77): one worker, one phone
             c = ChatDriver(cfg.chat_config(), wnav, Talker(wdecider), wstore, cfg.config_dir, hold=hub.hold,
                            notify=hub.notify, mode=cfg.mode, limits=cfg.chat_limits(), log=mqtt.log,
-                           ask_back=hub.ask_back, back_file=cfg.back_file)
+                           ask_back=hub.ask_back, back_file=cfg.back_file, notes_dir=cfg.tmp_dir / "chats")
             nonlocal browser
             browser = b
 
@@ -515,7 +515,7 @@ def main() -> int:
     p = argparse.ArgumentParser(prog="buddy-screener")
     p.add_argument("--cmd", help="screen | dump [name] | fixture <out> <xml…> | profile | back-out | walk | templates | shots [dir]"
                                  " | shadow | label <id> like|skip|unjudged [section comment] | type <id> | skip <id>"
-                                 " | send <id> | report | rows | chat-back <name>")
+                                 " | send <id> | report | rows | chats | chat-edit <name> <text> | chat-back <name>")
     p.add_argument("--show", action="store_true", help="profile: print texts (host terminal only)")
     p.add_argument("--since", type=int, help="report: only shadow rows from this id on (one session)")
     p.add_argument("--until", type=int, help="report: only shadow rows up to this id (a part of a session)")

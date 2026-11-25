@@ -17,6 +17,7 @@ Telegram gets fixed texts per kind only: never a name, a message or the model's 
 encrypted, D22).
 """
 
+import hashlib
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -79,12 +80,13 @@ class ChatDriver:
                  hold: Callable[[str, int | None, str], None], notify: Callable[[str], None],
                  mode: Callable[[], str], limits: ChatLimits = ChatLimits(), clock: Callable[[], float] = time.time,
                  log: Callable[[str], None] = print, ask_back: Callable[[str], None] | None = None,
-                 back_file: Path | None = None):
+                 back_file: Path | None = None, notes_dir: Path | None = None):
         self.cfg, self.nav, self.talker, self.store, self.config_dir = cfg, nav, talker, store, config_dir
         self.hold, self.notify, self.mode, self.limits, self.clock, self.log = hold, notify, mode, limits, clock, log
         # a chat turned manual: Dev is asked whether the bot continues (key → his answer lands in back_file)
         self.ask_back = ask_back or (lambda key: notify(NOTICE[MANUAL]))
         self.back_file = back_file
+        self.notes_dir = notes_dir   # tmpfs: each chat as last read + the held message, for Dev's review (#88)
         self.next_pass = 0.0
         self.failures: dict[str, int] = {}
         self.until = 0.0   # usage limit / $ cap: no calls before
@@ -185,7 +187,11 @@ class ChatDriver:
                 if chat is None:
                     self._leave()
                     continue
-            self._run(chat, flow, rules, to_flow(msgs, origin))
+            screen = to_flow(msgs, origin)
+            try:
+                self._run(chat, flow, rules, screen)
+            finally:
+                self._note(chat, screen)
             self._leave()
 
     def _leave(self) -> None:
@@ -293,13 +299,15 @@ class ChatDriver:
         while act.kind in ("converse", "verify"):
             try:
                 if act.kind == "converse":
-                    c, fixes, _ = self.talker.converse(rules, act.task, chat.state, chat.lang, chat.profile,
-                                                       sorted(chat.answers), act.transcript)
+                    c, fixes, usage = self.talker.converse(rules, act.task, chat.state, chat.lang, chat.profile,
+                                                           sorted(chat.answers), act.transcript)
+                    self._count(chat, act.task, usage)
                     if fixes:
                         chat.log.append(f"fixes: {len(fixes)}")
                     act = flow.conversed(chat, c, self.clock())
                 else:
-                    verdict, _ = self.talker.verify(rules, chat.profile, act.transcript)
+                    verdict, usage = self.talker.verify(rules, chat.profile, act.transcript)
+                    self._count(chat, "verify", usage)
                     act = flow.verified(chat, verdict, self.clock())
                 self.failures.pop(chat.key, None)
             except UsageLimited as e:
@@ -319,6 +327,32 @@ class ChatDriver:
                 return Action("wait")
         return act
 
+    def _count(self, chat: Chat, task: str, usage) -> None:
+        """What the call cost, on the chat (`--cmd chats` shows it per call)."""
+        if usage is None:
+            return
+        chat.calls.append({"ts": round(self.clock()), "task": task, "in": usage.input, "cache_read": usage.cache_read,
+                           "cache_write": usage.cache_write, "out": usage.output, "usd": round(usage.cost, 4)})
+
+    def _note(self, chat: Chat, screen: list[Message]) -> None:
+        """The chat as last read (+ the held message) into tmpfs for Dev's review from afar: her texts only here,
+        never in the db or the journal; gone once the chat is over."""
+        if self.notes_dir is None:
+            return
+        path = note_path(self.notes_dir, chat.key)
+        if chat.state not in OPEN and not chat.held:
+            path.unlink(missing_ok=True)
+            return
+        self.notes_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+        lines = [f"{chat.name}: {chat.state}, lang {chat.lang}, {len(chat.calls)} calls ${chat.cost:.3f}",
+                 "answers: " + ("; ".join(f"{n}: {a}" for n, a in sorted(chat.answers.items())) or "none"), ""]
+        lines += [f"{'her' if m.side == THEM else 'us '}: {'[media]' if m.media else m.text}" for m in screen]
+        if chat.held:
+            lines += ["", f"HELD ({chat.held.get('template') or chat.held.get('kind')}"
+                          f"{', Dev' if chat.held.get('dev') == '1' else ''}): {chat.held.get('text', '')}"]
+        path.write_text("\n".join(lines) + "\n")
+        path.chmod(0o600)
+
     # --- Dev's answer to a hold ---
 
     def _resume(self, chat: Chat, flow: ChatFlow) -> bool:
@@ -336,6 +370,7 @@ class ChatDriver:
             self.store.save_chat(chat)
             return True
         act = Action("send", template=held["template"], text=held["text"], dev=held.get("dev") == "1")
+        screen: list[Message] = []
         field = self.nav.field_text()
         if field and field.strip():
             if field != act.text:
@@ -343,8 +378,11 @@ class ChatDriver:
                 chat.log.append("Dev edited the held message")
             self.nav.send_message(act.text)
             flow.delivered(chat, act, now)
+            msgs, origin = self.nav.read_chat()   # for the review note (hold mode only: a few seconds)
+            screen = to_flow(msgs, origin)
         else:
-            msgs, _ = self.nav.read_chat()
+            msgs, origin = self.nav.read_chat()
+            screen = to_flow(msgs, origin)
             logged = {_norm(s.text) for s in chat.sent}
             new = [m for m in msgs if m.side == "right" and (m.media or _norm(m.text) not in logged)]
             if len(new) == 1 and not new[0].media:
@@ -359,7 +397,12 @@ class ChatDriver:
                 chat.log.append(f"{MANUAL}: {why}")
                 self.ask_back(chat.key)
         self.store.save_chat(chat)
+        self._note(chat, screen)
         return True
+
+
+def note_path(notes_dir: Path, key: str) -> Path:
+    return notes_dir / f"{hashlib.sha1(key.encode()).hexdigest()[:12]}.txt"
 
 
 def _norm(text: str) -> str:
