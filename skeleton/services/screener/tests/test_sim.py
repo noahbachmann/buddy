@@ -45,6 +45,8 @@ def fake_model(content, options):
                         else "unclear")
     elif "KI möchte ich" in last:
         a["opt_out"] = True
+    elif "actually ai" in last:
+        a["ai_doubt"] = True
     elif "verbinden" in last or "drink tonight" in last:
         a["state"] = "handover"
     elif "solve x" in last or "essay" in last:

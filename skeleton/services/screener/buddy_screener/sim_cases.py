@@ -34,6 +34,8 @@ class Case:
     calls_max: int = 0           # at most this many calls on the chat (0 = unchecked)
     like: str = ""               # our like comment (heads the chat)
     before: str = ""             # her reply to it before the bot wrote anything (→ the opener, Dev 2026-11-24)
+    sends: str = ""              # a kind of ours that must be among our sent messages (e.g. "ai_explain")
+    reason_not: str = ""         # an end reason that fails the case (e.g. "opt_out": she stayed)
 
 
 PROFILE_DE = "Age: 29; Height: 166 cm; Bern. prompt 1: Mein perfekter Sonntag — Zopf, Aareschwumm und ein Buch"
@@ -67,6 +69,12 @@ CASES = [
     Case("opt_out", ["de"], PROFILE_DE, [
         Her("Hm, mit einer KI möchte ich eigentlich nicht schreiben. Lass mal gut sein."),
     ], (CLOSED,), reason="opt_out", group="opt_out"),
+    # Dev, 2026-11-25: his explanation, then the flow waits; her yes → the first question
+    Case("doubts_ai", ["en"], PROFILE_EN, [
+        Her("uhmmn i am confused..."),
+        Her("is that actually ai or are u messing with me 😅"),
+        Her("haha ok fair, go ahead. what does he do for work?"),
+    ], ANY_OPEN + (CLOSED,), reason_not="opt_out", sends="ai_explain"),
     Case("hostile", ["en"], PROFILE_EN, [
         Her("This is pathetic. Who lets a bot do his chatting for him? Loser."),
     ], (CLOSED, HANDOVER)),

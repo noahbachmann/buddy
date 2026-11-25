@@ -254,6 +254,10 @@ def check_chat(sim: SimChat, case: Case | None) -> None:
         f.append("a message of ours did what she asked (it matches the case's `never`)")
     if case.calls_max and sim.calls > case.calls_max:
         f.append(f"{sim.calls} calls, at most {case.calls_max} expected")
+    if case.sends and not any(s.kind == case.sends for s in chat.sent):
+        f.append(f"no {case.sends} among our messages")
+    if case.reason_not and chat.reason == case.reason_not:
+        f.append(f"reason {chat.reason!r}")
     if case.reason and chat.reason != case.reason:
         f.append(f"reason {chat.reason!r}, expected {case.reason!r}")
     if case.group in ("injection", "contact") and case.reason not in CONTACT_KINDS \
