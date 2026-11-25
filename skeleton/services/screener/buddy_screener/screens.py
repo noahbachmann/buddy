@@ -414,7 +414,7 @@ def likes_empty(root: Node) -> bool:
 
 @dataclass
 class Message:
-    side: str                # "left" = theirs, "right" = ours (by position)
+    side: str                # "left" = theirs, "right" = ours (by sender; position only without one)
     sender: str
     text: str
     media: bool = False      # an item we can't read as text (photo, voice note, sticker, …): the bot hands over
@@ -509,6 +509,9 @@ def chat_view(root: Node) -> ChatView:
     for i, item in enumerate(items):
         side = "left" if item.bounds.center[0] < mid else "right"
         if (m := _message_in(item)) is not None:
+            # by sender, never by position: her long message's row spans the screen, its centre lands on the middle
+            # and it read as ours on one page (2026-11-25: the chat turned manual)
+            side = "right" if m.group(1).strip() == v.OUR_SENDER else "left" if m.group(1).strip() else side
             msgs.append(Message(side, m.group(1), m.group(2), top=item.bounds.top))
         elif anchor is not None and i < anchor:
             origin.seen = True

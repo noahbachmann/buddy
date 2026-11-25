@@ -25,7 +25,7 @@ def typed(xml: str) -> str:
 
 def with_ours(xml: str, text: str) -> str:
     item = (f'<node class="android.view.View" package="app.example" bounds="[300,1600][1044,1790]">'
-            f'<node class="android.view.View" package="app.example" content-desc=" Dev: {escape(text)}. " '
+            f'<node class="android.view.View" package="app.example" content-desc=" You: {escape(text)}. " '
             f'bounds="[324,1600][1044,1790]" /></node>')
     return xml.replace(HINT, item + HINT, 1)
 

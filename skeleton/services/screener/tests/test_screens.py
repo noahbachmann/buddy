@@ -329,3 +329,16 @@ def test_options_after_their_question_scrolled_off_have_no_poll():
     view = screens.profile_view(screen("feed-poll-off-3").root)
     assert [(o.kind, o.poll) for o in view.sections if o.kind == "option"] and \
         all(o.poll == "" for o in view.sections if o.kind == "option")
+
+
+def test_a_message_sides_by_its_sender_not_its_position():
+    # her long message's row spans the screen: its centre sits on the middle, it read as ours once (2026-11-25)
+    root = parse(load("chat-multiline"))
+    lst = screens._chat_list(root)
+    item = next(c for c in lst.children if c.first(lambda n: n.desc.startswith(" Sam: ")) is not None)
+    item.bounds = Rect(0, item.bounds.top, 1080, item.bounds.bottom)
+    msgs = screens.chat_view(root).messages
+    assert [(m.side, m.sender.strip()) for m in msgs if m.sender] == [("left", "Sam")] * len(
+        [m for m in msgs if m.sender])
+    ours = parse(load("chat-multiline").replace('content-desc=" Sam: Message 2. "', 'content-desc=" You: Message 2. "'))
+    assert [m.side for m in screens.chat_view(ours).messages if m.text == "Message 2"] == ["right"]

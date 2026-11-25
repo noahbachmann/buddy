@@ -82,6 +82,7 @@ MENU_HIDE = "Hide"
 MENU_REPORT = "Report"
 MENU_ITEMS = (MENU_WE_MET, MENU_UNMATCH, MENU_HIDE, MENU_REPORT)
 MESSAGE = re.compile(r" (.+?): (.*)\. ", re.S)   # " <name>: <text>. "
+OUR_SENDER = "You"   # our own messages' sender in a chat (2026-11-25, live dump)
 MATCH_ORIGIN = re.compile(r"You liked (.+)'s (photo|prompt)\.", re.S)
 DATE_SEPARATOR = re.compile(
     r"(Today|Yesterday|Mon|Tue|Wed|Thu|Fri|Sat|Sun)\b.*\d{1,2}:\d{2}")
