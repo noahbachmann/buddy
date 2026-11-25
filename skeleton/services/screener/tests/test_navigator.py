@@ -28,11 +28,20 @@ def test_capture_records_where_its_time_goes():
     n = nav(FakePhone("feed-01"))
     n.capture_profile()
     st = n.stats
-    # feed-01 → feed-11 is 10 swipes, then 2 that move nothing; the detail row once; no hasher: no screenshots
-    assert (st.swipes, st.end, st.end_swipes, st.rows, st.shots) == (12, "still", 2, 1, 0)
+    # feed-01 → feed-11 is 10 swipes, feed-11 ends above the list's bottom: no confirming swipes; the detail row
+    # once; no hasher: no screenshots
+    assert (st.swipes, st.end, st.end_swipes, st.rows, st.shots) == (10, "gap", 0, 1, 0)
     assert st.reads > st.swipes and set(st.to_dict()) >= {"swipe_s", "read_s", "shot_s", "rows_s"}
     n.capture_profile()
-    assert n.stats.swipes == 12 + 10   # reset per capture: back to the top first (10 up), then down
+    assert n.stats.swipes == 10 + 10   # reset per capture: back to the top first (10 up), then down
+
+
+def test_without_the_gap_two_swipes_that_move_nothing_end_the_capture(monkeypatch):
+    monkeypatch.setattr(screens, "END_GAP", 10_000)   # like the chat's Profile tab: its end is flush
+    n = nav(FakePhone("feed-01"))
+    cap = n.capture_profile()
+    assert (n.stats.swipes, n.stats.end, n.stats.end_swipes) == (12, "still", 2)
+    assert cap.profile.sections == nav(FakePhone("feed-01")).capture_profile().profile.sections
 
 
 def test_screenshots_from_the_top_to_the_end_tap_nothing():

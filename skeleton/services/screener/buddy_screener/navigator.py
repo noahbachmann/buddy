@@ -405,6 +405,9 @@ class Navigator:
         sig = _signature(s.root)
         still = 0
         for _ in range(MAX_SWIPES):
+            if view.at_bottom:
+                self.stats.end = "gap"
+                break   # the content ends above the list's bottom: no swipe needed to see that nothing follows
             self._swipe_list(view, STEP)
             try:
                 s, nxt, extra = self._profile_past(view, STEP)
@@ -438,6 +441,8 @@ class Navigator:
         shots = [self.dev.screencap(half=True)]
         sig, still = _signature(s.root), 0
         for _ in range(MAX_SWIPES):
+            if view.at_bottom:
+                break
             delta = view.viewport.height - SHOT_OVERLAP
             self._swipe_list(view, delta)
             try:

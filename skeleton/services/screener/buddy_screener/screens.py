@@ -192,6 +192,7 @@ class ProfileView:
     texts: list[SectionView]  # every other text node in the list (details): extra anchors for measuring a scroll
     obstacles: list[Rect]    # clickable things floating over or outside the list (skip, header buttons, tabs)
     at_top: bool = False     # header expanded: the list is scrolled to its start
+    at_bottom: bool = False  # feed: the content ends well above the list's bottom: the profile's end (#89)
     rows: list[Rect] = field(default_factory=list)   # sideways-scrolling detail rows: most details hide off screen
     sideways: list[Rect] = field(default_factory=list)   # everything in the list that scrolls sideways (detail
                                                          # rows, friends' cards): a vertical swipe starting on one
@@ -218,6 +219,8 @@ def _inside(n: Node, ancestor: Node) -> bool:
 
 
 CHAT_TOP_GAP = 40   # px of padding above the first content: the chat's Profile tab at its top (scrolled: flush)
+END_GAP = 150       # px below the last content: the feed's profile end (306 measured; any other dump is flush, or a
+                    # like button sticks out below the list). The chat's Profile tab ends flush: no gap there
 
 
 def profile_view(root: Node, name: str | None = None) -> ProfileView:
@@ -289,11 +292,16 @@ def profile_view(root: Node, name: str | None = None) -> ProfileView:
     if at_top:
         for sv in sections + texts:
             sv.top_cut = False
+    at_bottom = False
+    if skip is not None:
+        bottoms = [n.bounds.bottom for n in box.iter() if n is not box and not n.bounds.empty
+                   and (n.text or n.desc or n.children)]
+        at_bottom = bool(bottoms) and vp.bottom - max(bottoms) >= END_GAP
     obstacles = [n.bounds for n in root.iter() if n.clickable and not _inside(n, box) and n is not box]
     # sideways detail rows; a carousel of sections (friends' cards, 2026-11-20) also scrolls sideways but isn't one
     scrollers = [n for n in box.iter() if n.scrollable and n.cls == "View" and n is not box and not n.bounds.empty]
     rows = [n.bounds for n in scrollers if n.first(_is_section) is None]
-    return ProfileView(name, vp, sections, _details(box), texts, obstacles, at_top, rows,
+    return ProfileView(name, vp, sections, _details(box), texts, obstacles, at_top, at_bottom, rows,
                        [n.bounds for n in scrollers])
 
 

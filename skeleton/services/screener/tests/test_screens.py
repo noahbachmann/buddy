@@ -90,6 +90,16 @@ def test_list_top_makes_the_first_photo_whole():
     assert not screens.profile_view(screen("feed-02").root).at_top
 
 
+FEED_DUMPS = FEED + ["feed-friend-1", "feed-friend-5", "feed-poll", "feed-poll-off-3", "feed-video", "feed-video-prompt",
+                     "feed-voice-1", "feed-voice-4", "photo-caption", "row-0", "row-3"]
+
+
+@pytest.mark.parametrize("name", FEED_DUMPS)
+def test_only_the_profiles_end_leaves_a_gap_at_the_bottom(name):
+    # mid-profile the content reaches the list's bottom (or a like button sticks out below it); the end leaves 306 px
+    assert screens.profile_view(screen(name).root).at_bottom == (name == "feed-11")
+
+
 def test_name_with_trailing_space_still_finds_the_top():
     # seen live 2026-11-19: skip button "Skip <name> ", header text "<name>"
     xml = load("feed-01").replace('content-desc="Skip Alex"', 'content-desc="Skip Alex "')
