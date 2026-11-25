@@ -89,6 +89,11 @@ whether she wants his contact; if not, it goes out as is.
 dealbreaker, a good overall fit), "no_match" (a dealbreaker or clearly not a fit), "handover" (the owner must take \
 over: see the handover rules; also when you are unsure or something isn't covered).
 - `opt_out`: true if she asks to stop, doesn't want to talk to an AI, or wants to be left alone. Always honoured.
+- `ai_doubt`: true if she doubts she is really talking to an AI (asks whether it's real, thinks he is messing with \
+her) or says she is confused by your introduction. Code then sends the owner's own explanation of how this works, \
+with a way out, and waits for her answer: your `reply` and `ask` are not sent then. Not for a question about the \
+owner, and not when she asks to stop (`opt_out`) or for the owner himself (handover rules). The explanation \
+is sent once: when it is already in the chat, flag a new doubt anyway and answer it yourself in `reply`.
 - `answers`: every screening question by its number → her answer in a few words, from the whole chat, or null.
 - `flags`: dealbreakers she stated, a few words each. `soft_flags`: soft negatives that apply.
 - `contact`: only when the chat state is contact choice (we asked whether she wants his contact, or offered phone \
@@ -108,7 +113,8 @@ her himself). No screening question (`ask` 0) and no question back: your introdu
 right after. Only answer something that makes sense to answer (a question, a guess, a reply to the comment); \
 anything else (a greeting, an emoji, "haha", small talk) → `reply` "": the introduction goes out at once. \
 `opt_out` if she already declines.
-- first: she answered your introduction. In → write the first question; out → `opt_out`.
+- first: she answered your introduction (or the owner's explanation after it). In → answer what she asked, if \
+anything, and `ask` the first question; out → `opt_out`.
 - reply: she wrote; answer and decide the state.
 - nudge: she hasn't answered for days: one light line, no pressure, nothing new (no teasing, no remarks on her \
 profile); `ask` = the open screening question (it is appended again), or 0 if the open question was your own \
@@ -164,10 +170,11 @@ def converse_schema(rules: ChatRules) -> dict[str, Any]:
             "contact": {"type": "string", "enum": list(CONTACTS)},
             "lang": {"type": "string", "enum": [*LANGS, ""]},
             "off_topic": {"type": "boolean"},
+            "ai_doubt": {"type": "boolean"},
             "reason": {"type": "string"},
         },
         "required": ["reply", "ask", "state", "opt_out", "answers", "flags", "soft_flags", "contact", "lang",
-                     "off_topic", "reason"],
+                     "off_topic", "ai_doubt", "reason"],
         "additionalProperties": False,
     }
 
@@ -272,7 +279,7 @@ def check_converse(raw: Any, rules: ChatRules, task: str, state: str) -> tuple[C
         ask = 0
     c = Converse(text("reply"), st, raw.get("opt_out") is True, answers,
                  strings("flags"), strings("soft_flags"), contact, lang, text("reason"), ask,
-                 raw.get("off_topic") is True)
+                 raw.get("off_topic") is True, raw.get("ai_doubt") is True)
     return c, fixes
 
 

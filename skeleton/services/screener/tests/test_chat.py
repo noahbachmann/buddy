@@ -19,6 +19,8 @@ TEMPLATES = {
     "closing": {"en": "Not a fit, all the best.", "de": "Passt nicht, alles Gute."},
     "opt_out": {"en": "No problem!", "de": "Kein Problem!"},
     "question": {"en": 'He asks: "{question}"', "de": "Er fragt: «{question}»"},
+    "ai_explain": {"en": "He built this; AI is a small part. Say if you'd rather not.",
+                   "de": "Er hat das gebaut; KI ist ein kleiner Teil. Sag's, wenn du nicht möchtest."},
 }
 RULES = ChatRules("rules", "## About Dev\nx", (Question(1, "Looking for?", True, "Was suchst du?"),
                                                Question(2, "Pets? https://example.org/track/1", False,
@@ -139,6 +141,59 @@ def test_she_declines_the_introduction():
     d.run(Converse("", "screening", opt_out=True, lang="en"))
     assert d.kinds()[-1] == "opt_out" and d.chat.state == CLOSED
 
+
+
+def test_her_doubt_gets_his_explanation_then_the_flow_waits_for_her():
+    # Dev, 2026-11-25: "is that actually ai or are u messing with me" → his fixed explanation with a way out, no
+    # question; she's in → her question answered, then the first question
+    d = Driver(langs=["en"])
+    d.run()
+    d.her("uhmmn i am confused...", "is that actually ai or are u messing with me")
+    d.run(ask("Yes, really an AI.", lang="en", ask=1, ai_doubt=True))
+    assert d.kinds() == ["like_comment", "disclosure", "ai_explain"] and d.chat.state == NEW
+    assert d.ours()[-1] == "He built this; AI is a small part. Say if you'd rather not."
+    assert "ai_doubt" in d.chat.log[-2]
+    d.run()
+    assert len(d.calls) == 1 and d.kinds()[-1] == "ai_explain"   # waits: no second call on the same messages
+    d.her("oh ok, cool. what does he do for work?")
+    d.run(ask("He's a software developer.", lang="en", ask=1))
+    assert d.calls[-1][1] == "first" and d.chat.state == SCREENING
+    assert d.ours()[-1] == 'He\'s a software developer. He asks: "Looking for?"'
+
+
+def test_she_declines_after_the_explanation():
+    d = Driver(langs=["en"])
+    d.run()
+    d.her("wait, is this a bot?")
+    d.run(ask("", lang="en", ai_doubt=True))
+    d.her("nah, not for me")
+    d.run(Converse("", "screening", opt_out=True, lang="en"))
+    assert d.kinds()[-2:] == ["ai_explain", "opt_out"] and d.chat.state == CLOSED
+
+
+def test_the_explanation_goes_out_once_and_mid_screening_too():
+    d = Driver(langs=["en"])
+    d.intro("sure")
+    d.run(ask(lang="en"))
+    d.her("hold on, is this really an AI?")
+    d.run(ask("", lang="en", ai_doubt=True))
+    assert d.kinds()[-1] == "ai_explain" and d.chat.state == SCREENING and d.chat.turns == 0
+    d.her("still not sure this is real")
+    d.run(ask("It really is software he built.", lang="en", ai_doubt=True))
+    assert d.kinds()[-1] == "reply" and d.kinds().count("ai_explain") == 1
+
+
+def test_no_answer_to_the_explanation_closes_silently():
+    d = Driver(limits=ChatLimits(nudge_days=2, close_days=3))
+    d.run()
+    d.her("is that real?")
+    d.run(ask("", ai_doubt=True))
+    d.now += 2.5 * DAY
+    d.run()
+    assert len(d.calls) == 1   # no nudge
+    d.now += 1 * DAY
+    d.run()
+    assert d.chat.state == CLOSED and d.chat.reason == "no_reply"
 
 def test_no_answer_to_the_introduction_closes_silently_without_a_nudge():
     d = Driver(limits=ChatLimits(nudge_days=2, close_days=3))

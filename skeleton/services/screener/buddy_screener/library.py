@@ -114,7 +114,8 @@ class Library:
 # template → placeholders it must contain beyond the always-allowed {name}
 CHAT_TEMPLATES = {"disclosure": set(), "contact_ask": set(), "contact_ask_again": set(), "contact_choice": set(),
                   "contact_choice_again": set(), "contact_number": {"number"},
-                  "contact_instagram": {"instagram"}, "closing": set(), "opt_out": set(), "question": {"question"}}
+                  "contact_instagram": {"instagram"}, "closing": set(), "opt_out": set(), "question": {"question"},
+                  "ai_explain": set()}
 CHAT_LANGS = ("en", "de")
 # preferences.md sections the chat calls see (heading prefixes); not "Physical": a chat shows no photos
 CHAT_PREFS = ("about dev", "looking for", "good fit", "soft negatives", "soft positives", "dealbreakers")

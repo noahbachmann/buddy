@@ -105,13 +105,16 @@ Likes come back 24 h after each like, at most 8 in any 24 h (measured 2026-11-25
 
 Host: `chat.md` (screening questions, match rule, handover, tone, languages), `templates.md` chat blocks
 (`disclosure`, `contact_ask`, `contact_ask_again`, `contact_choice`, `contact_choice_again`, `contact_number`,
-`contact_instagram`, `closing`, `opt_out`, `question`), `number`, `instagram`. The chat calls see `chat.md` + the
+`contact_instagram`, `closing`, `opt_out`, `question`, `ai_explain`), `number`, `instagram`. The chat calls see `chat.md` + the
 preference sections *About Dev*, *Looking for*, *Good fit*, *Soft negatives/positives*, *Dealbreakers*.
 
 - Which chats: a match linked to one of our `liked` chats (name + the head shows the same kind and comment), or an
   old match where we sent only the like; names in `config/screener/chat-ignore` and anything else are never touched.
 - Opening: her reply to our like comment gets an `opener` (About facts, no question), then the disclosure; greetings
   alone skip the opener. Then the flow waits for her answer to the introduction (none → closed after `CLOSE_DAYS`).
+- She doubts it's really an AI or is confused by the introduction (the model's `ai_doubt`): Dev's `ai_explain`
+  (how the software works, a way out), no question; the flow waits, her answer counts as the answer to the
+  introduction (then her question answered + the first question). Once per chat; unanswered → closed silently.
 - Screening questions are Dev's words: code picks the next one in `chat.md`'s order (a required one in its place, not
   first) and appends it verbatim through the `question` template; the model only says whether one comes now.
 - Code, not the model: disclosure first; ours on screen not in the log → `manual`; media → handover; match =

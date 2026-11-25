@@ -25,6 +25,8 @@ TEMPLATES = {
     "closing": {"en": "Not a fit.", "de": "Passt nicht."},
     "opt_out": {"en": "No problem!", "de": "Kein Problem!"},
     "question": {"en": 'He asks: "{question}"', "de": "Er fragt: «{question}»"},
+    "ai_explain": {"en": "He built this; AI is a small part. Say if you'd rather not.",
+                   "de": "Er hat das gebaut; KI ist ein kleiner Teil. Sag's, wenn du nicht möchtest."},
 }
 RULES = ChatRules("## Screening questions\n1. **(required)** Looking for?\n2. Pets?", "## About Dev\nBuilds robots.",
                   (Question(1, "Looking for?", True, "Was suchst du?"), Question(2, "Pets?", False, "Haustiere?")), TEMPLATES)
@@ -33,7 +35,7 @@ RULES = ChatRules("## Screening questions\n1. **(required)** Looking for?\n2. Pe
 def answer(**kw):
     d = {"reply": "Hallo!", "ask": 1, "state": "screening", "opt_out": False,
          "answers": {"1": None, "2": None}, "flags": [], "soft_flags": [], "contact": "none", "lang": "de",
-         "off_topic": False, "reason": "asking"}
+         "off_topic": False, "ai_doubt": False, "reason": "asking"}
     d.update(kw)
     return d
 
@@ -203,3 +205,13 @@ def test_the_bot_shows_no_interest_of_its_own():
 def test_the_prompt_answers_why_he_liked_her_and_has_no_stock_blush():
     system = converse_system(RULES)
     assert "Why he liked her" in system and "blush." not in system.replace('"he might even blush" read terrible', "")
+
+
+def test_ai_doubt_only_when_true_and_the_prompt_says_code_explains():
+    # Dev, 2026-11-25: "is that actually ai or are u messing with me" → his explanation, then wait for her
+    assert check_converse(answer(ai_doubt=True), RULES, "first", "screening")[0].ai_doubt
+    assert not check_converse(answer(ai_doubt="yes"), RULES, "first", "screening")[0].ai_doubt
+    assert not check_converse(answer(), RULES, "first", "screening")[0].ai_doubt
+    assert "ai_doubt" in converse_schema(RULES)["required"]
+    s = converse_system(RULES)
+    assert "`ai_doubt`" in s and "waits for her answer" in s

@@ -123,6 +123,10 @@ DE: Kein Problem!
 EN: He asks: "{question}"
 DE: Er fragt: «{question}»
 
+## ai_explain
+EN: He built this software; AI is a small part of it. Say if you'd rather not.
+DE: Er hat diese Software gebaut; KI ist nur ein kleiner Teil. Sag's, wenn du nicht möchtest.
+
 ## Like comments
 - hot_take | en | bold opinion | Bold. I'm in.
 """
@@ -162,7 +166,7 @@ def test_chat_templates_join_wrapped_lines_and_skip_notes():
     assert t["contact_choice"]["en"] == "I think you two are a match. Should I send you his number or his Instagram?"
     assert set(t) == {"disclosure", "contact_ask", "contact_ask_again", "contact_choice", "contact_choice_again",
                       "contact_number",
-                      "contact_instagram", "closing", "opt_out", "question"}
+                      "contact_instagram", "closing", "opt_out", "question", "ai_explain"}
 
 
 @pytest.mark.parametrize("old, new, why", [

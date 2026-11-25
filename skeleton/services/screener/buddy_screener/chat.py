@@ -102,7 +102,7 @@ class Message:
 @dataclass
 class Sent:
     ts: float
-    kind: str                    # like_comment | opener | disclosure | reply | nudge | contact_offer | contact_* | closing | opt_out | dev
+    kind: str                    # like_comment | opener | disclosure | ai_explain | reply | nudge | contact_offer | contact_* | closing | opt_out | dev
     text: str
     dev: bool = False            # Dev's wording: his edit of a held message, or (kind `dev`) his own message adopted
 
@@ -121,6 +121,7 @@ class Converse:
     reason: str = ""
     ask: int = 0                 # a screening question to append word for word (code), 0 = none
     off_topic: bool = False      # she asked for unrelated work (math, code, homework, essays, translations, …)
+    ai_doubt: bool = False       # she doubts it's really an AI, or is confused by the introduction
 
 
 @dataclass
@@ -297,7 +298,7 @@ class ChatFlow:
             return self._end(chat, HANDOVER, now, f"no decision after {self.limits.max_days:g} days")
         if chat.state == NEW:
             # after the introduction we wait for her: in or out (Dev, 2026-11-24). Only her messages after it count
-            if self._after_disclosure(chat, screen):
+            if new and self._after_disclosure(chat, screen):
                 return self._converse(chat, screen, TASK_FIRST, len(theirs), now)
             return self._tick(chat, screen, now)
         if new:
@@ -332,7 +333,7 @@ class ChatFlow:
                 chat.answers[n] = a
         chat.flags += [f for f in c.flags if f not in chat.flags]
         chat.soft_flags += [f for f in c.soft_flags if f not in chat.soft_flags]
-        chat.log.append(f"converse {task}: {c.state}{' opt_out' if c.opt_out else ''} contact={c.contact} "
+        chat.log.append(f"converse {task}: {c.state}{' opt_out' if c.opt_out else ''}{' ai_doubt' if c.ai_doubt else ''} contact={c.contact} "
                         f"lang={c.lang} — {c.reason}")
         if c.opt_out:
             return self._send(chat, "opt_out", fill(self._t("opt_out", chat), name=chat.name))
@@ -342,6 +343,11 @@ class ChatFlow:
             chat.off_topic += 1
             if chat.off_topic >= self.limits.off_topic:
                 return self._end(chat, HANDOVER, now, f"asked for unrelated work {chat.off_topic} times")
+        if c.ai_doubt and task in (TASK_FIRST, TASK_REPLY) and chat.state in (NEW, SCREENING) \
+                and not any(s.kind == "ai_explain" for s in chat.sent):
+            # "is that actually AI?": Dev's own explanation with a way out, no question; her answer to it is her
+            # answer to the introduction (Dev, 2026-11-25). Once: a second doubt gets an ordinary reply
+            return self._send(chat, "ai_explain", fill(self._t("ai_explain", chat), name=chat.name))
         if task == TASK_OPENER:
             if not c.reply.strip():   # nothing to answer (a greeting): the introduction alone
                 return self._send(chat, "disclosure", fill(self._t("disclosure", chat), name=chat.name))
@@ -488,8 +494,9 @@ class ChatFlow:
 
     def _tick(self, chat: Chat, screen: list[Message], now: float) -> Action:
         lim, day = self.limits, 86400
-        if chat.sent and chat.sent[-1].kind == "disclosure":
-            # no answer to the introduction: no nudge (she hasn't opted in), closed silently after close_days
+        if chat.sent and chat.sent[-1].kind in ("disclosure", "ai_explain"):
+            # no answer to the introduction (or to the explanation and its way out): no nudge (she hasn't opted in),
+            # closed silently after close_days
             if now - chat.last_out >= lim.close_days * day:
                 chat.log.append("no answer to the introduction: closed silently")
                 self._close(chat, now, "no_reply")
