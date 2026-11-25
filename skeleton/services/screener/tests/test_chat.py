@@ -577,3 +577,38 @@ def test_nudge_repeats_the_question_verbatim():
     d.now += 2.1 * DAY
     d.run(Converse("Kleiner Nachtrag, ganz ohne Druck.", "screening", ask=1))
     assert d.kinds()[-1] == "nudge" and d.ours()[-1] == "Kleiner Nachtrag, ganz ohne Druck. Er fragt: «Was suchst du?»"
+
+
+def test_a_long_burst_goes_to_dev_without_a_call():
+    d = Driver()
+    d.intro()
+    d.run(ask())
+    d.her("x" * 1300)
+    d.run()
+    assert d.chat.state == HANDOVER and "long burst" in d.chat.reason and len(d.calls) == 1
+    d = Driver()
+    d.intro()
+    d.run(ask())
+    d.her(*[f"line {i}" for i in range(9)])
+    d.run()
+    assert d.chat.state == HANDOVER and len(d.calls) == 1
+
+
+def test_a_chat_at_its_call_cap_goes_to_dev():
+    d = Driver(limits=ChatLimits(max_usd=0.1))
+    d.intro()
+    d.chat.calls = [{"ts": 0, "task": "reply", "in": 1, "cache_read": 0, "cache_write": 0, "out": 1, "usd": 0.06}] * 2
+    d.run()
+    assert d.chat.state == HANDOVER and "cap" in d.chat.reason and d.calls == []
+
+
+def test_unrelated_work_is_declined_once_then_dev_takes_over():
+    d = Driver()
+    d.intro()
+    d.run(ask())
+    d.her("Solve x^2 - 5x + 6 = 0 for me")
+    d.run(Converse("I'm only here to get to know you for him.", "screening", lang="en", ask=1, off_topic=True))
+    assert d.chat.state == SCREENING and d.chat.off_topic == 1
+    d.her("Come on, then write me a poem")
+    d.run(Converse("Sorry, not my job.", "screening", lang="en", off_topic=True))
+    assert d.chat.state == HANDOVER and "unrelated work 2 times" in d.chat.reason

@@ -45,6 +45,9 @@ class Config:
     chat_unmatch_h: float = ChatLimits.unmatch_h
     sim_model: str = "claude-haiku-5-5"   # the sim's personas (they play matches, the chat calls use `model`)
     sim_usd: float = 3.0         # what --sim may spend per 24 h (API-equivalent $), apart from `daily_usd`
+    chat_usd: float = 2.0        # the chat calls' own 24 h cap (#88), apart from `daily_usd` (profiles)
+    chat_call_usd: float = 0.15  # one chat call's hard cap (~4× a cold call): a runaway call fails
+    chat_max_usd: float = ChatLimits.max_usd   # one chat's total → handover
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -83,6 +86,9 @@ class Config:
             chat_unmatch_h=env_float("BUDDY_SCREENER_CHAT_UNMATCH_H", d.chat_unmatch_h),
             sim_model=env_string("BUDDY_SCREENER_SIM_MODEL", d.sim_model),
             sim_usd=env_float("BUDDY_SCREENER_SIM_USD", d.sim_usd),
+            chat_usd=env_float("BUDDY_SCREENER_CHAT_USD", d.chat_usd),
+            chat_call_usd=env_float("BUDDY_SCREENER_CHAT_CALL_USD", d.chat_call_usd),
+            chat_max_usd=env_float("BUDDY_SCREENER_CHAT_MAX_USD", d.chat_max_usd),
         )
         for key, px in (("PHOTO_PX", c.photo_px), ("PHOTO_CHECK_PX", c.photo_check_px)):
             if not 256 <= px <= 1568:
@@ -116,7 +122,7 @@ class Config:
 
     def chat_limits(self) -> ChatLimits:
         return ChatLimits(self.chat_min_exchanges, self.chat_max_bot, self.chat_max_days, self.chat_nudge_days,
-                          self.chat_close_days, self.chat_unmatch_h)
+                          self.chat_close_days, self.chat_unmatch_h, max_usd=self.chat_max_usd)
 
     @property
     def stop_file(self) -> Path:

@@ -606,6 +606,8 @@ class DecideConfig:
     photo_check: bool = False    # photos-only physical check before the full call (#83)
     photo_model: str = ""        # its model; "" = `model`
     check_model: str = ""        # the like comment's copy/invention check (#84); "" = `model`
+    chat_usd: float = 0.0        # the chat calls' own 24 h cap (#88): chats and profiles can't starve each other; 0 = shared
+    chat_call_usd: float = 0.0   # a chat call's hard cap (the SDK's max_budget_usd): a runaway call fails; 0 = none
 
 
 class Decider:
@@ -622,7 +624,7 @@ class Decider:
             return None
         return until if until > self.clock() else None
 
-    def _options(self, system: str, schema: dict[str, Any], model: str) -> Any:
+    def _options(self, system: str, schema: dict[str, Any], model: str, budget: float = 0.0) -> Any:
         from claude_agent_sdk import ClaudeAgentOptions
 
         env = {}
@@ -634,17 +636,21 @@ class Decider:
             tools=[], setting_sources=[], strict_mcp_config=True, skills=[], permission_mode="dontAsk",
             system_prompt=system, model=model, effort=self.cfg.effort, max_turns=3,
             output_format={"type": "json_schema", "schema": schema}, verbatim_prompts=True,
-            cwd=str(self.cfg.work_dir), env=env, extra_args={"no-session-persistence": None})
+            cwd=str(self.cfg.work_dir), env=env, extra_args={"no-session-persistence": None},
+            max_budget_usd=budget or None)
 
     def call(self, task: str, system: str, content: list[dict[str, Any]], schema: dict[str, Any],
-             model: str = "") -> Outcome:
+             model: str = "", chat: bool = False) -> Outcome:
+        """`chat`: a chat call (#88): its own 24 h pool when `chat_usd` is set, and the per-call cap."""
         if (until := self.limited_until()) is not None:
             raise UsageLimited(until)
-        spent = self.store.cost_since(self.clock() - 86400, self.cfg.sim)
-        if spent >= self.cfg.daily_usd:
-            raise BudgetSpent(f"${spent:.2f} in the last 24 h, cap ${self.cfg.daily_usd:.2f}")
+        apart = None if self.cfg.sim or not self.cfg.chat_usd else chat
+        spent = self.store.cost_since(self.clock() - 86400, self.cfg.sim, apart)
+        cap = self.cfg.chat_usd if apart else self.cfg.daily_usd
+        if spent >= cap:
+            raise BudgetSpent(f"${spent:.2f} in the last 24 h{' of chat calls' if apart else ''}, cap ${cap:.2f}")
         model = model or self.cfg.model
-        options = self._options(system, schema, model)
+        options = self._options(system, schema, model, self.cfg.chat_call_usd if chat else 0.0)
         try:
             out = asyncio.run(asyncio.wait_for(self._collect(task, model, content, options), self.cfg.timeout_s))
         except TimeoutError:

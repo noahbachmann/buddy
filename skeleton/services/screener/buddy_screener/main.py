@@ -70,7 +70,8 @@ def _decider(cfg: Config, store: Store) -> Decider:
     return Decider(DecideConfig(cfg.model, cfg.effort, cfg.decide_timeout_s, cfg.daily_usd, cfg.token_file,
                                 cfg.limit_file, cfg.tmp_dir / "claude", cfg.text_first,
                                 photo_check=cfg.photo_check, photo_model=cfg.photo_model or cfg.model,
-                                check_model=cfg.check_model or cfg.model), store)
+                                check_model=cfg.check_model or cfg.model, chat_usd=cfg.chat_usd,
+                                chat_call_usd=cfg.chat_call_usd), store)
 
 
 def like_status(cfg: Config, store: Store) -> likes.LikeStatus:

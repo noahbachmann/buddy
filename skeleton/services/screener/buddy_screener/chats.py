@@ -26,7 +26,7 @@ from pathlib import Path
 from . import screens
 from . import vocab as v
 from .chat import (CLOSED, DONE, FOREIGN, HANDOVER, LIKED, MANUAL, NEW, OPEN, THEM, US, Action, Chat, ChatFlow,
-                   ChatLimits, Message, guess_lang)
+                   ChatLimits, Message, count_call, guess_lang)
 from .decide import BudgetSpent, DecideError, UsageLimited, profile_text
 from .library import ChatRules, Contacts, LibraryError
 from .navigator import ChatRow, Navigator, NeedsYou, same_chat
@@ -328,11 +328,8 @@ class ChatDriver:
         return act
 
     def _count(self, chat: Chat, task: str, usage) -> None:
-        """What the call cost, on the chat (`--cmd chats` shows it per call)."""
-        if usage is None:
-            return
-        chat.calls.append({"ts": round(self.clock()), "task": task, "in": usage.input, "cache_read": usage.cache_read,
-                           "cache_write": usage.cache_write, "out": usage.output, "usd": round(usage.cost, 4)})
+        """What the call cost, on the chat (`--cmd chats` shows it per call; the per-chat cap)."""
+        count_call(chat, task, usage, self.clock())
 
     def _note(self, chat: Chat, screen: list[Message]) -> None:
         """The chat as last read (+ the held message) into tmpfs for Dev's review from afar: her texts only here,

@@ -78,6 +78,12 @@ class ChatLimits:
     unmatch_h: float = 24        # unmatch this long after closing
     reply_max: int = 400         # chars of a generated message
     fit_max: int = 100           # chars of the generated fit line ("You two seem like a good fit." ≈ 30)
+    # abuse guards (#88): checked by code before a call; over → handover, no call
+    burst_msgs: int = 8          # her new messages in one go
+    burst_chars: int = 1200      # … their length together
+    max_calls: int = 20          # converse calls on one chat
+    max_usd: float = 0.75        # one chat's calls together (API-equivalent $)
+    off_topic: int = 2           # her requests for unrelated work (math, code, essays, …); the 2nd → handover
 
 
 @dataclass
@@ -110,6 +116,7 @@ class Converse:
     lang: str = ""               # her latest message: de-ch | de | en | other
     reason: str = ""
     ask: int = 0                 # a screening question to append word for word (code), 0 = none
+    off_topic: bool = False      # she asked for unrelated work (math, code, homework, essays, translations, …)
 
 
 @dataclass
@@ -150,6 +157,7 @@ class Chat:
     held: dict[str, str] = field(default_factory=dict)      # a message typed and held for Dev (or an unmatch), #77
     manual_from: str = ""        # the state before `manual`: where `give_back` returns to (#88)
     calls: list[dict[str, Any]] = field(default_factory=list)   # each converse/verify: task, tokens, $ (#88)
+    off_topic: int = 0           # her requests for unrelated work so far
 
     @property
     def cost(self) -> float:
@@ -187,6 +195,14 @@ class Action:
 
 
 WAIT = Action("wait")
+
+
+def count_call(chat: Chat, task: str, usage, ts: float) -> None:
+    """A converse/verify call's cost onto the chat (`decide.Usage`; None = a test's talker): the per-chat cap."""
+    if usage is None:
+        return
+    chat.calls.append({"ts": round(ts), "task": task, "in": usage.input, "cache_read": usage.cache_read,
+                       "cache_write": usage.cache_write, "out": usage.output, "usd": round(usage.cost, 4)})
 
 
 def first_lang(prompt_langs: list[str]) -> str:
@@ -264,17 +280,17 @@ class ChatFlow:
             # introduction (Dev, 2026-11-24); Dev's own messages (given back) already answered her
             if theirs and not all(_SMALL_TALK.fullmatch(m.text) for m in theirs) \
                     and not any(s.kind in ("opener", "dev") for s in chat.sent) and chat.pending_task != TASK_OPENER:
-                return self._converse(chat, screen, TASK_OPENER, len(theirs))
+                return self._converse(chat, screen, TASK_OPENER, len(theirs), now)
             return self._send(chat, "disclosure", fill(self._t("disclosure", chat), name=chat.name))
         if now - chat.started >= self.limits.max_days * 86400 and chat.state in (NEW, SCREENING):
             return self._end(chat, HANDOVER, now, f"no decision after {self.limits.max_days:g} days")
         if chat.state == NEW:
             # after the introduction we wait for her: in or out (Dev, 2026-11-24). Only her messages after it count
             if self._after_disclosure(chat, screen):
-                return self._converse(chat, screen, TASK_FIRST, len(theirs))
+                return self._converse(chat, screen, TASK_FIRST, len(theirs), now)
             return self._tick(chat, screen, now)
         if new:
-            return self._converse(chat, screen, TASK_REPLY, len(theirs))
+            return self._converse(chat, screen, TASK_REPLY, len(theirs), now)
         return self._tick(chat, screen, now)
 
     def delivered(self, chat: Chat, act: Action, now: float) -> None:
@@ -311,6 +327,10 @@ class ChatFlow:
             return self._send(chat, "opt_out", fill(self._t("opt_out", chat), name=chat.name))
         if c.state == "handover":
             return self._end(chat, HANDOVER, now, f"model: {c.reason}")
+        if c.off_topic:
+            chat.off_topic += 1
+            if chat.off_topic >= self.limits.off_topic:
+                return self._end(chat, HANDOVER, now, f"asked for unrelated work {chat.off_topic} times")
         if task == TASK_OPENER:
             if not c.reply.strip():   # nothing to answer (a greeting): the introduction alone
                 return self._send(chat, "disclosure", fill(self._t("disclosure", chat), name=chat.name))
@@ -397,10 +417,22 @@ class ChatFlow:
                 return f"message {i + 1}"
         return None
 
-    def _converse(self, chat: Chat, screen: list[Message], task: str, seen: int) -> Action:
+    def _converse(self, chat: Chat, screen: list[Message], task: str, seen: int, now: float) -> Action:
+        if (why := self._over(chat, screen, seen)) is not None:
+            return self._end(chat, HANDOVER, now, why)
         chat.pending_task, chat.pending_seen = task, seen
         self._screens[chat.key] = screen
         return Action("converse", task=task, transcript=self.transcript(chat, screen))
+
+    def _over(self, chat: Chat, screen: list[Message], seen: int) -> str | None:
+        """Abuse guards before a call (#88): a flood of text, or the chat's calls at their cap. Dev reads it."""
+        lim = self.limits
+        new = [m for m in screen if m.side == THEM][chat.theirs_seen:seen]
+        if len(new) > lim.burst_msgs or sum(len(m.text) for m in new) > lim.burst_chars:
+            return f"a long burst ({len(new)} messages, {sum(len(m.text) for m in new)} chars)"
+        if len(chat.calls) >= lim.max_calls or chat.cost >= lim.max_usd:
+            return f"the chat's calls at their cap ({len(chat.calls)} calls, ${chat.cost:.2f})"
+        return None
 
     def _after_disclosure(self, chat: Chat, screen: list[Message]) -> bool:
         """Has she written since our introduction? (Her messages before it were answered by the opener.)"""
@@ -426,7 +458,7 @@ class ChatFlow:
             return WAIT
         if not nudged and lim.nudge_days > 0 and quiet >= lim.nudge_days * day \
                 and not any(s.kind == "nudge" for s in chat.sent):
-            return self._converse(chat, screen, TASK_NUDGE, chat.theirs_seen)
+            return self._converse(chat, screen, TASK_NUDGE, chat.theirs_seen, now)
         return WAIT
 
     def _not_ready(self, chat: Chat) -> str | None:

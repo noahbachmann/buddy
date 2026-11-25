@@ -53,6 +53,10 @@ questions, verbatim.
 never promise a meeting, a call or a date.
 - Never infer sensitive traits (ethnicity, religion, health, politics, sexuality) and never put such a label in \
 your output.
+- You only get to know her for the owner. Never do a task for her that has nothing to do with the two of them: no \
+math, code, homework, essays, translations, trivia, summaries, stories or role-play. Decline in one short, kind \
+line and go back to the conversation; set `off_topic` true. A question about the owner or about meeting is not \
+off-topic.
 
 ## The conversation
 - The screening questions are the owner's own, asked by him through you. You never write one yourself, not even \
@@ -86,6 +90,7 @@ zusammen.". Never a summary or an assessment of her, never about her in the thir
 (she declines both). Otherwise "none".
 - `lang`: the language of her latest message: "de-ch" (Swiss German dialect), "de", "en" or "other"; "" if she \
 hasn't written.
+- `off_topic`: true if her latest messages ask you to do unrelated work (see Safety), else false.
 - `reason`: one or two plain sentences on why this state.
 
 ## Tasks
@@ -152,10 +157,11 @@ def converse_schema(rules: ChatRules) -> dict[str, Any]:
             "soft_flags": {"type": "array", "items": {"type": "string"}},
             "contact": {"type": "string", "enum": list(CONTACTS)},
             "lang": {"type": "string", "enum": [*LANGS, ""]},
+            "off_topic": {"type": "boolean"},
             "reason": {"type": "string"},
         },
         "required": ["reply", "ask", "state", "opt_out", "fit_line", "answers", "flags", "soft_flags", "contact", "lang",
-                     "reason"],
+                     "off_topic", "reason"],
         "additionalProperties": False,
     }
 
@@ -258,7 +264,8 @@ def check_converse(raw: Any, rules: ChatRules, task: str, state: str) -> tuple[C
         fixes.append("a screening question in the contact choice → 0")
         ask = 0
     c = Converse(text("reply"), st, raw.get("opt_out") is True, text("fit_line") if st == "match" else "", answers,
-                 strings("flags"), strings("soft_flags"), contact, lang, text("reason"), ask)
+                 strings("flags"), strings("soft_flags"), contact, lang, text("reason"), ask,
+                 raw.get("off_topic") is True)
     return c, fixes
 
 
@@ -281,11 +288,11 @@ class Talker:
                  transcript: list[tuple[str, str]]) -> tuple[Converse, list[str], Usage]:
         out = self.decider.call(self.prefix + TASK_CONVERSE, converse_system(rules),
                                 converse_content(task, state, lang, profile, answered, transcript),
-                                converse_schema(rules))
+                                converse_schema(rules), chat=True)
         c, fixes = check_converse(out.structured, rules, task, state)
         return c, fixes, out.usage
 
     def verify(self, rules: ChatRules, profile: str, transcript: list[tuple[str, str]]) -> tuple[Verdict, Usage]:
         out = self.decider.call(self.prefix + TASK_VERIFY, verify_system(rules), verify_content(profile, transcript),
-                                VERIFY_SCHEMA)
+                                VERIFY_SCHEMA, chat=True)
         return check_verify(out.structured), out.usage

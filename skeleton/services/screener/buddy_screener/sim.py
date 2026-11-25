@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .chat import (CLOSED, CONTACT_CHOICE, CONTACT_KINDS, DONE, HANDOVER, MANUAL, OPEN, THEM, US, Chat, ChatFlow,
-                   Message, Sent, first_lang, guess_lang)
+                   Message, Sent, count_call, first_lang, guess_lang)
 from .config import Config
 from .converse import Talker
 from .decide import BudgetSpent, DecideConfig, DecideError, Decider, UsageLimited, _sdk_runner
@@ -77,12 +77,14 @@ def run_chat(flow: ChatFlow, talker: Talker, rules: ChatRules, sim: SimChat, res
             while act.kind in ("converse", "verify"):
                 sim.calls += 1
                 if act.kind == "converse":
-                    c, fixes, _ = talker.converse(rules, act.task, chat.state, chat.lang, chat.profile,
-                                                  sorted(chat.answers), act.transcript)
+                    c, fixes, usage = talker.converse(rules, act.task, chat.state, chat.lang, chat.profile,
+                                                      sorted(chat.answers), act.transcript)
+                    count_call(chat, act.task, usage, now)
                     sim.fixes += fixes
                     act = flow.conversed(chat, c, now)
                 else:
-                    v, _ = talker.verify(rules, chat.profile, act.transcript)
+                    v, usage = talker.verify(rules, chat.profile, act.transcript)
+                    count_call(chat, "verify", usage, now)
                     act = flow.verified(chat, v, now)
         except (UsageLimited, BudgetSpent):
             raise
@@ -354,7 +356,7 @@ def run_sim(cfg: Config, case_names: list[str] | None, store, personas: int = 0,
     recorder = Recorder(run or _sdk_runner)
     start = clock()
     dcfg = DecideConfig(cfg.model, cfg.effort, cfg.decide_timeout_s, cfg.sim_usd, cfg.token_file, cfg.limit_file,
-                        cfg.tmp_dir / "claude", sim=True)
+                        cfg.tmp_dir / "claude", sim=True, chat_call_usd=cfg.chat_call_usd)
     talker = Talker(Decider(dcfg, store, run=recorder, clock=clock), prefix="sim-")
     pcfg = DecideConfig(cfg.sim_model, "low", cfg.decide_timeout_s, cfg.sim_usd, cfg.token_file, cfg.limit_file,
                         cfg.tmp_dir / "claude", sim=True)

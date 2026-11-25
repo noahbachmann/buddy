@@ -30,7 +30,7 @@ RULES = ChatRules("## Screening questions\n1. **(required)** Looking for?\n2. Pe
 def answer(**kw):
     d = {"reply": "Hallo!", "ask": 1, "state": "screening", "opt_out": False, "fit_line": "",
          "answers": {"1": None, "2": None}, "flags": [], "soft_flags": [], "contact": "none", "lang": "de",
-         "reason": "asking"}
+         "off_topic": False, "reason": "asking"}
     d.update(kw)
     return d
 
@@ -163,3 +163,26 @@ def test_whole_chat_never_puts_a_contact_value_in_a_prompt(talker):
         assert NUMBER not in seen and INSTA not in seen and "555" not in seen
         assert options.tools == [] and options.setting_sources == []
     assert chat.verified_at is not None
+
+
+def test_chat_calls_have_their_own_pool_and_a_per_call_cap(tmp_path, monkeypatch):
+    from buddy_screener.decide import BudgetSpent, Usage
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    cfg = DecideConfig("claude-sonnet-5-5", "medium", 5.0, 1.0, tmp_path / "token", tmp_path / "limit",
+                       tmp_path / "work", chat_usd=0.5, chat_call_usd=0.15)
+    store = Store(":memory:", clock=lambda: 1e6)
+    store.add_usage(1e6 - 10, Usage("browse", "m", cost=0.9))   # the profiles near their cap: chats unaffected
+    sdk = FakeSdk(script=[(limit(), result(answer()))])
+    Talker(Decider(cfg, store, run=sdk, clock=lambda: 1e6)).converse(RULES, "reply", "screening", "de", "", [],
+                                                                      [(THEM, "hi")])
+    assert sdk.calls[0][1].max_budget_usd == 0.15
+    store.add_usage(1e6 - 5, Usage("converse", "m", cost=0.5))
+    with pytest.raises(BudgetSpent, match="chat calls"):
+        Talker(Decider(cfg, store, run=FakeSdk(), clock=lambda: 1e6)).verify(RULES, "", [(THEM, "hi")])
+
+
+def test_off_topic_only_when_true_and_the_prompt_declines_unrelated_work():
+    assert check_converse(answer(off_topic=True), RULES, "reply", "screening")[0].off_topic
+    assert not check_converse(answer(off_topic="yes"), RULES, "reply", "screening")[0].off_topic
+    assert "off_topic" in converse_schema(RULES)["required"]
+    assert "no math, code, homework" in converse_system(RULES)

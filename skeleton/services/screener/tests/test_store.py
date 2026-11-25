@@ -51,3 +51,13 @@ def test_live_and_sim_spend_apart():
     s.add_usage(10.0, Usage("browse", "m", cost=1.0))
     s.add_usage(11.0, Usage("sim-converse", "m", cost=0.25))
     assert s.cost_since(0) == 1.0 and s.cost_since(0, sim=True) == 0.25
+
+
+def test_chat_calls_spend_apart_from_the_profiles():
+    from buddy_screener.decide import Usage
+    s = Store(":memory:")
+    s.add_usage(10.0, Usage("browse", "m", cost=1.0))
+    s.add_usage(11.0, Usage("converse", "m", cost=0.25))
+    s.add_usage(12.0, Usage("verify", "m", cost=0.5))
+    s.add_usage(13.0, Usage("sim-converse", "m", cost=2.0))
+    assert s.cost_since(0, chat=True) == 0.75 and s.cost_since(0, chat=False) == 1.0 and s.cost_since(0) == 1.75
