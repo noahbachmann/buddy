@@ -96,8 +96,8 @@ zusammen.". Never a summary or an assessment of her, never about her in the thir
 - `flags`: dealbreakers she stated, a few words each. `soft_flags`: soft negatives that apply.
 - `contact`: only when the chat state is contact choice (we asked whether she wants his contact, or offered phone \
 or Instagram): "phone" (yes, or she picked the phone), "instagram", "both" (she wants both, or either is fine to \
-her), "none" (she says no), "unclear" (she asks something else first, or no clear answer): then `reply` answers \
-her and asks once more whether you should send his number (in the chat's language). Otherwise "none".
+her), "none" (she says no), "unclear" (she asks something else first, or no clear answer): then `reply` only \
+answers her, without asking anything (code adds the owner's yes-or-no question). Otherwise "none".
 - `lang`: the language of her latest message: "de-ch" (Swiss German dialect), "de", "en" or "other"; "" if she \
 hasn't written.
 - `off_topic`: true if her latest messages ask you to do unrelated work (see Safety), else false.

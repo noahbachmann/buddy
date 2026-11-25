@@ -18,6 +18,7 @@ TEMPLATES = {
     "disclosure": {"en": "Hi {name}! AI here.", "de": "Hi {name}! KI hier."},
     "contact_offer": {"en": "{fit_line} Phone or Instagram?", "de": "{fit_line} Telefon oder Instagram?"},
     "contact_ask": {"en": "A match? Should I send his number?", "de": "Ein Match? Soll ich seine Nummer schicken?"},
+    "contact_ask_again": {"en": "Should I send his number?", "de": "Soll ich seine Nummer schicken?"},
     "contact_number": {"en": "Number: {number}", "de": "Nummer: {number}"},
     "contact_instagram": {"en": "Instagram: {instagram}", "de": "Instagram: {instagram}"},
     "closing": {"en": "Not a fit.", "de": "Passt nicht."},

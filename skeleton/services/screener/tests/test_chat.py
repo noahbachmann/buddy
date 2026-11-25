@@ -12,6 +12,7 @@ TEMPLATES = {
     "disclosure": {"en": "Hi {name}! I'm an AI assistant.", "de": "Hi {name}! Ich bin ein KI-Assistent."},
     "contact_offer": {"en": "{fit_line} Phone or Instagram?", "de": "{fit_line} Telefon oder Instagram?"},
     "contact_ask": {"en": "A match? Should I send his number?", "de": "Ein Match? Soll ich seine Nummer schicken?"},
+    "contact_ask_again": {"en": "Should I send his number?", "de": "Soll ich seine Nummer schicken?"},
     "contact_number": {"en": "Number: {number}", "de": "Nummer: {number}"},
     "contact_instagram": {"en": "Instagram: {instagram}", "de": "Instagram: {instagram}"},
     "closing": {"en": "Not a fit, all the best.", "de": "Passt nicht, alles Gute."},
@@ -240,17 +241,18 @@ def test_contact_choices(choice, last):
     assert sum(k.startswith("contact_") and k != "contact_offer" for k in d.kinds()) == 1
 
 
-def test_her_questions_after_the_offer_get_answers_then_a_handover():
-    d = Driver(limits=ChatLimits(contact_questions=2))
+def test_one_question_after_the_number_offer_then_only_yes_or_no():
+    # Dev, 2026-11-25: her question is answered once, then only "should I send his number?"; still no answer → Dev
+    d = Driver()
+    d.flow = ChatFlow(RULES, Contacts(NUMBER), ChatLimits())
     matched(d)
-    d.run(Converse("x", "match", fit_line="Passt.", lang="de"), verdicts=[Verdict(True)])
-    for i in range(2):
-        d.her(f"Frage {i}?")
-        d.run(Converse(f"Antwort {i}. Soll ich?", "screening", contact="unclear", lang="de"))
-        assert d.chat.state == CONTACT_CHOICE and d.ours()[-1] == f"Antwort {i}. Soll ich?"
-    d.her("weiss nicht")
-    d.run(Converse("?", "screening", contact="unclear", lang="de"))
-    assert d.chat.state == HANDOVER and d.notices
+    d.run(Converse("Weil ihr gut passt.", "match", fit_line="", lang="de"), verdicts=[Verdict(True)])
+    d.her("Was macht er beruflich?")
+    d.run(Converse("Er ist Softwareentwickler.", "screening", contact="unclear", lang="de"))
+    assert d.ours()[-1] == "Er ist Softwareentwickler. Soll ich seine Nummer schicken?" and d.chat.state == CONTACT_CHOICE
+    d.her("Und wo wohnt er?")
+    d.run(Converse("In Luzern.", "screening", contact="unclear", lang="de"))
+    assert d.chat.state == HANDOVER and d.ours()[-1].endswith("Soll ich seine Nummer schicken?") and d.notices
 
 
 @pytest.mark.parametrize("contact, state", [("none", "screening"), ("phone", "no_match")])

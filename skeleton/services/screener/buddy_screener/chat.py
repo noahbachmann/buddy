@@ -86,7 +86,7 @@ class ChatLimits:
     max_calls: int = 20          # converse calls on one chat
     max_usd: float = 0.75        # one chat's calls together (API-equivalent $)
     off_topic: int = 2           # her requests for unrelated work (math, code, essays, …); the 2nd → handover
-    contact_questions: int = 3   # her questions (or unclear answers) after the contact offer before a handover
+    contact_questions: int = 1   # her questions (or unclear answers) after the contact offer before a handover
     # batching (Dev, 2026-11-25): answer once she's quiet this long (one call per burst), at the latest after settle_max
     settle_s: float = 60
     settle_max: float = 180
@@ -368,8 +368,8 @@ class ChatFlow:
         if not v.agree:
             return self._generated(chat, now, "reply", reply, ask)
         fit = _norm(fit)
-        if (why := self._refuse(fit, self.limits.fit_max)) is not None:
-            return self._end(chat, HANDOVER, now, f"fit line refused: {why}")
+        if self.contacts.instagram and (why := self._refuse(fit, self.limits.fit_max)) is not None:
+            return self._end(chat, HANDOVER, now, f"fit line refused: {why}")   # only the choice's offer uses it
         chat.verified_at = now
         if not self.contacts.instagram:
             # the number only (Dev, 2026-11-25): answer what she said, then ask whether she wants his number
@@ -520,7 +520,15 @@ class ChatFlow:
         chat.unclear += 1
         if chat.unclear > self.limits.contact_questions:
             return self._end(chat, HANDOVER, now, f"no yes or no to the contact after {chat.unclear} answers")
-        return self._generated(chat, now, "reply", c.reply)   # answers her question and asks again (prompt)
+        # her question answered, then only yes or no: no "another question?" this time (Dev, 2026-11-25)
+        again = (fill(self._t("contact_ask_again", chat), name=chat.name) if not self.contacts.instagram
+                 else fill(self._t("contact_offer", chat), name=chat.name, fit_line="").strip())
+        reply = _norm(c.reply)
+        if reply and (why := self._refuse(reply, self.limits.reply_max)) is not None:
+            return self._end(chat, HANDOVER, now, f"reply refused: {why}")
+        if chat.bot_msgs >= self.limits.max_bot:
+            return self._end(chat, HANDOVER, now, f"{self.limits.max_bot} bot messages without a decision")
+        return self._send(chat, "reply", f"{reply} {again}" if reply else again)
 
     def _generated(self, chat: Chat, now: float, kind: str, text: str, ask: int = 0) -> Action:
         """The model's text, checked; with `ask` the owner's question appended verbatim (only the model's part is

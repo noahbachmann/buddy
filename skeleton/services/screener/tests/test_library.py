@@ -95,6 +95,10 @@ DE: {fit_line} Telefon oder Instagram?
 EN: I think you two are a match. Should I send you his number?
 DE: Ich glaube, ihr passt. Soll ich dir seine Nummer schicken?
 
+## contact_ask_again
+EN: Should I send you his number?
+DE: Soll ich dir seine Nummer schicken?
+
 ## contact_number
 EN: The number: {number}.
 DE: Die Nummer: {number}.
@@ -152,8 +156,8 @@ def test_chat_templates_join_wrapped_lines_and_skip_notes():
     assert t["disclosure"] == {"en": "Hi {name}! I'm an AI assistant, asking a few questions.",
                                "de": "Hi {name}! Ich bin ein KI-Assistent."}
     assert t["contact_offer"]["en"] == "{fit_line} Phone or Instagram?"
-    assert set(t) == {"disclosure", "contact_offer", "contact_ask", "contact_number", "contact_instagram", "closing",
-                      "opt_out", "question"}
+    assert set(t) == {"disclosure", "contact_offer", "contact_ask", "contact_ask_again", "contact_number",
+                      "contact_instagram", "closing", "opt_out", "question"}
 
 
 @pytest.mark.parametrize("old, new, why", [

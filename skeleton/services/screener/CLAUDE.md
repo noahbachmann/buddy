@@ -184,7 +184,7 @@ The day mode (since local midnight) had counted 7 and sent the 8th into the payw
 
 Host: `chat.md` (copied from `preferences.md` 2026-11-19: *Screening questions*, *Match rule*, *Handover*, *Tone*,
 *Languages*; Dev removes the duplicates from `preferences.md` after step 4), `templates.md` chat blocks (`disclosure`,
-`contact_offer`, `contact_ask`, `contact_number`, `contact_instagram`, `closing`, `opt_out`, `question`), `number`, `instagram`. The chat calls
+`contact_offer`, `contact_ask`, `contact_ask_again`, `contact_number`, `contact_instagram`, `closing`, `opt_out`, `question`), `number`, `instagram`. The chat calls
 see `chat.md` + *About Dev*, *Looking for*, *Good fit*, *Soft negatives/positives*, *Dealbreakers* (not *Physical*).
 
 - A driver runs `ChatFlow` (`sim.run_chat` offline, `chats.ChatDriver` on the phone): `step` → send / converse /
@@ -203,7 +203,8 @@ see `chat.md` + *About Dev*, *Looking for*, *Good fit*, *Soft negatives/positive
   `manual` for good; media → handover; match = required answers + no flag + ≥ 3 turns + verifier; the held `reply`
   keeps screening when that fails; no host `instagram` file (Dev, 2026-11-25: number only, for now) → the bot's
   answer to her last message + `contact_ask` (Dev's wording: a match? another question? send his number?), her yes →
-  the number, a question → answered and asked again (`contact_questions` 3), her no → handover; with the file the
+  the number, a question → answered once + `contact_ask_again` (yes or no only, Dev 2026-11-25), still neither or her
+  no → handover; with the file the
   choice: phone/both → number (Dev), instagram → handle, unclear → ask again;
   every generated text refused (→ handover) on length, digit runs, handles, links not in `chat.md`, contact values.
 - Screening questions are Dev's words (Dev, 2026-11-19: never rephrased): `chat.md` has each as `N. "English"` + an
