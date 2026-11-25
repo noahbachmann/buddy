@@ -378,6 +378,10 @@ def test_given_back_the_bot_takes_devs_message_as_ours_and_screens_on():
     assert d.chat.state == MANUAL and d.chat.manual_from == SCREENING
     assert d.flow.give_back(d.chat, d.screen, d.now) is None
     assert d.chat.state == SCREENING and d.chat.sent[-1].kind == "dev" and d.chat.sent[-1].dev
+    d.chat.theirs_seen = 9                                  # a counter gone stale: her new message still counts
+    assert d.flow.give_back(d.chat, d.screen, d.now) is not None   # (already given back: refused)
+    d.chat.state = MANUAL
+    d.flow.give_back(d.chat, d.screen, d.now)
     d.run(ask())
     assert len(d.calls) == 2 and d.calls[-1][1] == "reply"   # her "Oh hi!" answered by the bot now
     assert d.chat.bot_msgs == 2                              # Dev's message isn't the bot's
