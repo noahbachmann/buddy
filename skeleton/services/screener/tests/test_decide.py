@@ -491,7 +491,9 @@ def test_a_translation_or_invented_fact_gets_one_second_try(cfg, store, monkeypa
     assert (b.comment, b.comment_text, b.comment_refused) == ("own", "pizza hawaii? we need to talk", [why])
     second = sdk.calls[2]
     assert why in second[0][-1]["text"] and images(second[0]) == 1          # the profile again, photos too
-    assert second[1].system_prompt == sdk.calls[0][1].system_prompt           # the cached prefix
+    assert second[1].system_prompt == sdk.calls[0][1].system_prompt           # the cached prefix:
+    assert second[1].output_format == sdk.calls[0][1].output_format           # same schema (it heads the prompt)
+    assert second[0][:-1] == sdk.calls[0][0]                                  # same profile blocks, one note more
     assert u.task == "browse+comment_check+comment+comment_check"
 
 

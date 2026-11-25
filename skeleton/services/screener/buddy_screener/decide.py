@@ -231,13 +231,6 @@ CHECK_SCHEMA: dict[str, Any] = {
     "additionalProperties": False,
 }
 
-RETRY_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "properties": {k: BROWSE_SCHEMA["properties"][k] for k in ("comment", "comment_text", "comment_lang",
-                                                                "missing_hook")},
-    "required": ["comment", "comment_text", "comment_lang", "missing_hook"],
-    "additionalProperties": False,
-}
 
 TEXT_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -516,10 +509,13 @@ def check_check(raw: Any, lib: Library) -> str | None:
 
 
 def retry_content(p: Profile, b: Browse, why: str) -> list[dict[str, Any]]:
-    """The profile again (same cached system prompt) and why the first comment was refused."""
+    """The decision's message again plus why the first comment was refused. Same system prompt, same schema, same
+    profile blocks: the whole prefix comes from the cache the decision just wrote (2026-11-25: with a schema of its
+    own the retry read 615 tokens and wrote 11k, $0.05). Only the comment fields of the answer count."""
     return profile_content(p) + [{"type": "text", "text": (
         f"Stage: second try at the like comment. You liked this profile and chose {b.comment_on}. Your comment was "
-        f"refused: {why}. Write a new comment for {b.comment_on} that avoids that, or none if you can't.")}]
+        f"refused: {why}. Write a new comment for {b.comment_on} that avoids that, or none if you can't. Answer in the "
+        f"same format; only comment, comment_text, comment_lang and missing_hook are read.")}]
 
 
 def check_photo(raw: Any, p: Profile) -> tuple[str, str]:
@@ -715,7 +711,7 @@ class Decider:
             if not b.comment_refused or attempt == 1:
                 break
             retry = self.call(TASK_COMMENT, system_prompt(lib), retry_content(p, b, b.comment_refused[-1]),
-                              RETRY_SCHEMA)
+                              BROWSE_SCHEMA)
             usage = usage + retry.usage
             r = retry.structured if isinstance(retry.structured, dict) else {}
             b.missing_hook = str(r.get("missing_hook", "")).strip()
