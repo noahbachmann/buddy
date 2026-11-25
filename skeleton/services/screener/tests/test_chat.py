@@ -37,6 +37,7 @@ class Driver:
         self.calls: list[tuple[str, str, list]] = []     # (kind, task, transcript)
         self.notices: list[str] = []
         self.unmatched = False
+        self.settles: list[float] = []
 
     def her(self, *texts, media=False):
         self.screen += [Message(THEM, t, media) for t in texts]
@@ -60,6 +61,9 @@ class Driver:
             elif act.kind == "unmatch":
                 self.unmatched = True
                 self.flow.unmatched(self.chat, self.now)
+            elif act.kind == "settle":
+                self.settles.append(act.wait_s)
+                self.now += act.wait_s
             else:
                 break
         assert not self.answers and not self.verdicts, "unused scripted answers"
@@ -612,3 +616,32 @@ def test_unrelated_work_is_declined_once_then_dev_takes_over():
     d.her("Come on, then write me a poem")
     d.run(Converse("Sorry, not my job.", "screening", lang="en", off_topic=True))
     assert d.chat.state == HANDOVER and "unrelated work 2 times" in d.chat.reason
+
+
+def test_a_burst_gets_one_call_once_she_is_quiet():
+    d = Driver()
+    d.intro()
+    d.run(ask())
+    assert d.settles == [60]                      # her "Klar, frag nur!" waited a minute, then the first question
+    d.her("Long-term")
+    act = d.flow.step(d.chat, d.screen, d.now)
+    assert act.kind == "settle" and act.wait_s == 60
+    d.now += 30
+    d.her("and you?")                             # still typing: the quiet minute starts again
+    assert d.flow.step(d.chat, d.screen, d.now).wait_s == 60
+    d.now += 60
+    act = d.flow.step(d.chat, d.screen, d.now)
+    assert act.kind == "converse" and [m for s, m in act.transcript[-2:]] == ["Long-term", "and you?"]
+
+
+def test_settle_never_waits_longer_than_its_cap():
+    d = Driver(limits=ChatLimits(settle_s=60, settle_max=100))
+    d.intro()
+    d.run(ask())
+    d.her("a")
+    d.flow.step(d.chat, d.screen, d.now)
+    for i in range(3):
+        d.now += 40
+        d.her(f"more {i}")
+        act = d.flow.step(d.chat, d.screen, d.now)
+    assert act.kind == "converse"                 # 120 s since the burst began ≥ 100: answered anyway

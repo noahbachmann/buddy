@@ -151,6 +151,8 @@ def test_whole_chat_never_puts_a_contact_value_in_a_prompt(talker):
         if act.kind == "send":
             screen.append(Message(US, act.text))
             flow.delivered(chat, act, now)
+        elif act.kind == "settle":
+            now += act.wait_s
         elif (msg := next(hers, None)) is not None:
             screen.append(Message(THEM, msg))
         else:

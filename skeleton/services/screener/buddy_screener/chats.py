@@ -41,6 +41,8 @@ HOLD_CHAT_FILES = "chat_files"       # chat.md / templates / contact files refus
 
 FAILURES = 3          # converse/verify failing in a row on one chat → handover
 MAX_ACTS = 12         # actions per chat per pass (a chat can't loop)
+SETTLE_POLL_S = 20.0  # batching: re-read the chat this often while she may still be typing (#88)
+MAX_SETTLES = 12      # … at most this often per pass (the flow caps the wait at settle_max anyway)
 DAY = 86400.0
 
 # what Dev is told when a chat ends up somewhere (fixed: no name, no text, no model reason)
@@ -80,13 +82,15 @@ class ChatDriver:
                  hold: Callable[[str, int | None, str], None], notify: Callable[[str], None],
                  mode: Callable[[], str], limits: ChatLimits = ChatLimits(), clock: Callable[[], float] = time.time,
                  log: Callable[[str], None] = print, ask_back: Callable[[str], None] | None = None,
-                 back_file: Path | None = None, notes_dir: Path | None = None):
+                 back_file: Path | None = None, notes_dir: Path | None = None,
+                 sleep: Callable[[float], None] = time.sleep):
         self.cfg, self.nav, self.talker, self.store, self.config_dir = cfg, nav, talker, store, config_dir
         self.hold, self.notify, self.mode, self.limits, self.clock, self.log = hold, notify, mode, limits, clock, log
         # a chat turned manual: Dev is asked whether the bot continues (key → his answer lands in back_file)
         self.ask_back = ask_back or (lambda key: notify(NOTICE[MANUAL]))
         self.back_file = back_file
         self.notes_dir = notes_dir   # tmpfs: each chat as last read + the held message, for Dev's review (#88)
+        self.sleep = sleep
         self.next_pass = 0.0
         self.failures: dict[str, int] = {}
         self.until = 0.0   # usage limit / $ cap: no calls before
@@ -258,10 +262,20 @@ class ChatDriver:
     def _run(self, chat: Chat, flow: ChatFlow, rules: ChatRules, screen: list[Message]) -> None:
         """The flow on this chat until it waits (or a hold): calls, sends, notices, unmatch."""
         before = chat.state
-        for _ in range(MAX_ACTS):
+        acts = settles = 0
+        while acts < MAX_ACTS:
             now = self.clock()
             act = flow.step(chat, screen, now)
             act = self._calls(chat, flow, rules, act)
+            if act.kind == "settle":
+                if settles >= MAX_SETTLES:
+                    break
+                settles += 1   # she may still be typing: stay in the chat, read it again (one call per burst)
+                self.sleep(min(act.wait_s, SETTLE_POLL_S))
+                msgs, origin = self.nav.read_chat()
+                screen[:] = to_flow(msgs, origin)
+                continue
+            acts += 1
             if act.kind == "send":
                 if self.cfg.mode == HOLD:
                     self.nav.type_message(act.text)

@@ -102,6 +102,9 @@ def run_chat(flow: ChatFlow, talker: Talker, rules: ChatRules, sim: SimChat, res
         if act.kind == "unmatch":
             flow.unmatched(chat, now)
             continue
+        if act.kind == "settle":   # she sends one message per turn here: the wait only moves the clock
+            now += act.wait_s
+            continue
         if chat.state in (DONE, HANDOVER, MANUAL) or (chat.state == CLOSED and chat.unmatched):
             return
         if chat.state == CLOSED:

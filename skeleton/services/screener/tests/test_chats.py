@@ -17,6 +17,7 @@ from fixture_files import PACKAGE
 NUMBER, INSTA = "+41 76 999 88 77", "real.handle"
 T0 = 1_800_000_000.0
 DISCLOSURE = "Hi Alex! I'm an AI assistant, asking a few questions."
+SETTLE = ChatLimits().settle_s
 
 
 class Talker:
@@ -55,7 +56,12 @@ class Rig:
         self.holds, self.notes, self.paused = [], [], False
         self.d = ChatDriver(ChatConfig(mode=mode), self.nav, talker, self.store, d, hold=self.hold,
                             notify=self.notes.append, mode=lambda: "needs_you" if self.paused else "active",
-                            limits=ChatLimits(), clock=lambda: self.t, log=lambda s: None)
+                            limits=ChatLimits(), clock=lambda: self.t, log=lambda s: None, sleep=self.sleep)
+        self.slept: list[float] = []
+
+    def sleep(self, s):
+        self.slept.append(s)
+        self.t += s
 
     def hold(self, kind, row, why):
         self.holds.append(kind)
@@ -251,9 +257,9 @@ def test_usage_limit_waits_without_input(tmp_path):
     t.fail = UsageLimited(T0 + 3600)
     r = Rig(tmp_path, t)
     r.like()
-    assert r.d.step() == pytest.approx(3600)
+    assert r.d.step() == pytest.approx(3600 - SETTLE)   # she was quiet a minute first (batching)
     n = len(r.phone.actions)
-    assert r.d.step() == pytest.approx(3600) and len(r.phone.actions) == n
+    assert r.d.step() == pytest.approx(3600 - SETTLE) and len(r.phone.actions) == n
 
 
 def test_off_and_paused_touch_nothing(tmp_path):
@@ -278,7 +284,7 @@ def test_hold_writes_the_chat_and_the_held_message_for_devs_review(tmp_path):
     r.like()
     r.d.step()
     c = r.store.chat("Alex")
-    assert c.calls == [{"ts": round(T0), "task": "opener", "in": 2, "cache_read": 858, "cache_write": 6017,
+    assert c.calls == [{"ts": round(T0 + SETTLE), "task": "opener", "in": 2, "cache_read": 858, "cache_write": 6017,
                         "out": 693, "usd": 0.0313}] and c.cost == 0.0313
     note = chats.note_path(r.d.notes_dir, "Alex").read_text().splitlines()
     assert note[0] == "Alex: new, lang en, 1 calls $0.031"
@@ -322,3 +328,11 @@ def test_chats_command_lists_open_chats_with_their_calls_and_note(tmp_path, monk
     assert "in  6626 (cache read 5776, written 848) out  356  $0.0077" in out[1]
     assert "her: hi" in out and not any("Sam" in x for x in out)
     assert out[-1] == "chat calls, last 24 h: none"
+
+
+def test_her_burst_is_answered_once_she_is_quiet(tmp_path):
+    r = Rig(tmp_path, Talker(opener()))
+    r.like()
+    r.d.step()
+    # she wrote once (the fixture): one 20 s read after another until a minute of quiet, then one call
+    assert r.slept == [20.0, 20.0, 20.0] and len(r.talker.calls) == 1

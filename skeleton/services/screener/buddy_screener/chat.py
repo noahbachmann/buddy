@@ -10,6 +10,7 @@ A driver (the sim now, the live loop after step 3) runs it:
     converse → the converse call on `act.transcript` (+ `act.task`), then `flow.conversed(chat, answer, now)`
     verify   → the verifier on `act.transcript`, then `flow.verified(chat, verdict, now)`
     unmatch  → unmatch, then `flow.unmatched(chat, now)`
+    settle   → she may still be typing: read the chat again in `act.wait_s`, then step again (#88)
     notify   → tell Dev (handover / manual: paraphrased, no name, no text)
     wait     → nothing to do until the next message or tick
 
@@ -84,6 +85,9 @@ class ChatLimits:
     max_calls: int = 20          # converse calls on one chat
     max_usd: float = 0.75        # one chat's calls together (API-equivalent $)
     off_topic: int = 2           # her requests for unrelated work (math, code, essays, …); the 2nd → handover
+    # batching (Dev, 2026-11-25): answer once she's quiet this long (one call per burst), at the latest after settle_max
+    settle_s: float = 60
+    settle_max: float = 180
 
 
 @dataclass
@@ -158,6 +162,9 @@ class Chat:
     manual_from: str = ""        # the state before `manual`: where `give_back` returns to (#88)
     calls: list[dict[str, Any]] = field(default_factory=list)   # each converse/verify: task, tokens, $ (#88)
     off_topic: int = 0           # her requests for unrelated work so far
+    burst_n: int = 0             # batching: her message count when it last changed, since when, and since when we wait
+    burst_at: float = 0.0
+    burst_since: float = 0.0
 
     @property
     def cost(self) -> float:
@@ -186,10 +193,11 @@ class Chat:
 
 @dataclass
 class Action:
-    kind: str                    # send | converse | verify | unmatch | notify | wait
+    kind: str                    # send | converse | verify | unmatch | notify | settle | wait
     template: str = ""           # send: the Sent kind
     text: str = ""               # send: the message; notify: what happened (no name, no message text)
     dev: bool = False            # send: Dev's wording (his edit of the held message)
+    wait_s: float = 0.0          # settle: read the chat again after this long
     task: str = ""               # converse: first | reply | nudge
     transcript: list[tuple[str, str]] = field(default_factory=list)   # converse/verify: (side, text), contacts redacted
 
@@ -420,9 +428,26 @@ class ChatFlow:
     def _converse(self, chat: Chat, screen: list[Message], task: str, seen: int, now: float) -> Action:
         if (why := self._over(chat, screen, seen)) is not None:
             return self._end(chat, HANDOVER, now, why)
+        if task != TASK_NUDGE and (wait := self._settle(chat, seen, now)) > 0:
+            return Action("settle", wait_s=wait)
+        chat.burst_since = 0.0
         chat.pending_task, chat.pending_seen = task, seen
         self._screens[chat.key] = screen
         return Action("converse", task=task, transcript=self.transcript(chat, screen))
+
+    def _settle(self, chat: Chat, seen: int, now: float) -> float:
+        """Seconds to wait for more of her burst (0 = answer now): quiet for `settle_s` since her count last changed,
+        never longer than `settle_max` in all."""
+        lim = self.limits
+        if lim.settle_s <= 0:
+            return 0.0
+        if seen != chat.burst_n or not chat.burst_since:
+            chat.burst_n, chat.burst_at = seen, now
+            chat.burst_since = chat.burst_since or now
+        quiet, waited = now - chat.burst_at, now - chat.burst_since
+        if quiet >= lim.settle_s or waited >= lim.settle_max:
+            return 0.0
+        return min(lim.settle_s - quiet, lim.settle_max - waited)
 
     def _over(self, chat: Chat, screen: list[Message], seen: int) -> str | None:
         """Abuse guards before a call (#88): a flood of text, or the chat's calls at their cap. Dev reads it."""

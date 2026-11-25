@@ -48,6 +48,7 @@ class Config:
     chat_usd: float = 2.0        # the chat calls' own 24 h cap (#88), apart from `daily_usd` (profiles)
     chat_call_usd: float = 0.15  # one chat call's hard cap (~4× a cold call): a runaway call fails
     chat_max_usd: float = ChatLimits.max_usd   # one chat's total → handover
+    chat_settle_s: float = ChatLimits.settle_s # batching: her quiet seconds before one call answers the burst; 0 = off
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -89,6 +90,7 @@ class Config:
             chat_usd=env_float("BUDDY_SCREENER_CHAT_USD", d.chat_usd),
             chat_call_usd=env_float("BUDDY_SCREENER_CHAT_CALL_USD", d.chat_call_usd),
             chat_max_usd=env_float("BUDDY_SCREENER_CHAT_MAX_USD", d.chat_max_usd),
+            chat_settle_s=env_float("BUDDY_SCREENER_CHAT_SETTLE_S", d.chat_settle_s),
         )
         for key, px in (("PHOTO_PX", c.photo_px), ("PHOTO_CHECK_PX", c.photo_check_px)):
             if not 256 <= px <= 1568:
@@ -122,7 +124,8 @@ class Config:
 
     def chat_limits(self) -> ChatLimits:
         return ChatLimits(self.chat_min_exchanges, self.chat_max_bot, self.chat_max_days, self.chat_nudge_days,
-                          self.chat_close_days, self.chat_unmatch_h, max_usd=self.chat_max_usd)
+                          self.chat_close_days, self.chat_unmatch_h, max_usd=self.chat_max_usd,
+                          settle_s=self.chat_settle_s)
 
     @property
     def stop_file(self) -> Path:
