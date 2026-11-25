@@ -96,6 +96,9 @@ Round holes, PETG at 0.20 mm (fit test, log #3), gap per side:
 | TR8 nut, per flank (standing, 0.12 mm) | ? | 0.10 (thread test, log #7) |
 | D-bore on a 5 mm motor shaft (0.12 mm) | 0.10 | 0.125 ⚠️ (0.15 very slightly loose) |
 
+M3 machine screw straight into PETG (no insert, no nut), vertical pilot hole: **Ø2.5 is too tight by hand** (prints
+~2.4 = the screw's core). Value from the dispenser's pilot test (2.6…3.0, `parts/dispenser/README.md`) ⚠️ pending.
+
 ## Problems
 
 | Problem | Fix |
