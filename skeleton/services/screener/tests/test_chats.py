@@ -195,7 +195,7 @@ def test_dev_writing_more_than_the_held_message_makes_the_chat_his_and_asks_back
     r.phone.field, r.phone.screen = "", "chat-comment"
     r.resume()
     c = r.store.chat("Alex")
-    assert c.state == MANUAL and c.manual_from == NEW and backs == ["Alex"] and r.phone.sent() == []
+    assert c.state == MANUAL and c.back_to == NEW and backs == ["Alex"] and r.phone.sent() == []
 
 
 def test_a_manual_chat_given_back_adopts_devs_messages_and_continues(tmp_path):
@@ -211,7 +211,7 @@ def test_a_manual_chat_given_back_adopts_devs_messages_and_continues(tmp_path):
     r.phone.screen = "matches-turns"
     r.d.step()
     c = r.store.chat("Alex")
-    assert not r.d.back_file.exists() and c.state == NEW and c.manual_from == ""
+    assert not r.d.back_file.exists() and c.state == NEW and c.back_to == ""
     assert [s.kind for s in c.sent if s.dev] == ["dev", "dev"]
     assert c.held["template"] == "disclosure"   # the pass went on: still no introduction → typed and held
 

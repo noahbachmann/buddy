@@ -158,7 +158,7 @@ class Chat:
     liked_kind: str = ""         # the liked section: photo | prompt (the chat's head shows it)
     prompt_langs: list[str] = field(default_factory=list)   # the decision's, for the first message's language
     held: dict[str, str] = field(default_factory=dict)      # a message typed and held for Dev (or an unmatch), #77
-    manual_from: str = ""        # the state before `manual`: where `give_back` returns to (#88)
+    back_to: str = ""            # the state before `manual` or `handover`: where `give_back` returns to (#88)
     calls: list[dict[str, Any]] = field(default_factory=list)   # each converse/verify: task, tokens, $ (#88)
     off_topic: int = 0           # her requests for unrelated work so far
     burst_n: int = 0             # batching: her message count when it last changed, since when, and since when we wait
@@ -184,6 +184,8 @@ class Chat:
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "Chat":
+        if "manual_from" in d:   # its name before handovers could be given back
+            d = {k: v for k, v in d.items() if k != "manual_from"} | {"back_to": d["manual_from"]}
         known = {f.name for f in fields(cls)}
         d = {k: v for k, v in d.items() if k in known}   # a field dropped since the row was saved (`pending_fit`)
         d["sent"] = [Sent(**s) for s in d.get("sent", [])]
@@ -384,11 +386,12 @@ class ChatFlow:
         chat.log.append("unmatched")
 
     def give_back(self, chat: Chat, screen: list[Message], now: float) -> str | None:
-        """Dev hands a `manual` chat back to the bot (#88): his messages on our side join the log as `dev`, the
-        state returns to where it was (an old chat without `manual_from`: screening once she answered the
-        introduction, else new). Returns why it can't (None = done)."""
-        if chat.state != MANUAL:
-            return f"the chat is {chat.state}, not manual"
+        """Dev hands a `manual` or `handover` chat back to the bot (#88): his messages on our side join the log as
+        `dev`, the state returns to where it was (`back_to`; an old chat without it: the contact choice once a match
+        was verified and asked, else screening once she answered the introduction, else new). A handover's unclear
+        contact answers start over. Returns why it can't (None = done)."""
+        if chat.state not in (MANUAL, HANDOVER):
+            return f"the chat is {chat.state}, not manual or handed over"
         if any(m.side == US and m.media for m in screen):
             return "our side has media the bot can't read"
         ours = {_norm(s.text) for s in chat.sent}
@@ -396,15 +399,19 @@ class ChatFlow:
             if m.side == US and _norm(m.text) not in ours:
                 chat.sent.append(Sent(now, "dev", m.text, True))
                 ours.add(_norm(m.text))
-        if chat.manual_from in OPEN:
-            chat.state = chat.manual_from
+        if chat.state == HANDOVER:
+            chat.unclear = 0
+        if chat.back_to in OPEN:
+            chat.state = chat.back_to
+        elif chat.verified_at is not None and any(s.kind == "contact_offer" for s in chat.sent):
+            chat.state = CONTACT_CHOICE
         else:
             chat.state = SCREENING if self._after_disclosure(chat, screen) else NEW
         # her messages up to our last one are handled (by Dev); after it they're new. The old counter can be off
         # (2026-11-25: 7 kept, 5 on screen: her answer to Dev's question never got a reply)
         last = max((i for i, m in enumerate(screen) if m.side == US), default=-1)
         chat.theirs_seen = sum(m.side == THEM for m in screen[:last + 1])
-        chat.manual_from, chat.reason, chat.closed_at = "", "", None
+        chat.back_to, chat.reason, chat.closed_at = "", "", None
         chat.log.append(f"given back by Dev: {chat.state}")
         return None
 
@@ -573,8 +580,8 @@ class ChatFlow:
         chat.unmatch_at = now + self.limits.unmatch_h * 3600
 
     def _end(self, chat: Chat, state: str, now: float, why: str) -> Action:
-        if state == MANUAL:
-            chat.manual_from = chat.state
+        if state in (MANUAL, HANDOVER):
+            chat.back_to = chat.state
         chat.state, chat.reason = state, why
         chat.closed_at = now
         chat.log.append(f"{state}: {why}")

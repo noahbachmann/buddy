@@ -7,7 +7,7 @@ import json
 import sys
 import time
 
-from .chat import CLOSED, MANUAL, OPEN, Chat
+from .chat import CLOSED, HANDOVER, MANUAL, OPEN, Chat
 from .chats import HOLD_CHAT_MESSAGE, note_path
 from .config import Config
 from .store import Store
@@ -33,7 +33,7 @@ def _call_line(c: dict) -> str:
 
 def chats(cfg: Config, store: Store) -> list[str]:
     out = []
-    for c in store.chats(OPEN + (MANUAL, CLOSED)):
+    for c in store.chats(OPEN + (MANUAL, HANDOVER, CLOSED)):
         if c.state == CLOSED and (c.unmatched or c.unmatch_at is None):
             continue
         out.append(f"=== {c.name}: {c.state}{' (held)' if c.held else ''}, {len(c.calls)} calls ${c.cost:.3f}")
@@ -97,7 +97,7 @@ def run(cfg: Config, args: argparse.Namespace) -> int:
         if len(args.args) != 1:
             print("chat-back <name>", file=sys.stderr)
             return 2
-        if (chat := find(store, args.args[0], (MANUAL,))) is None:
+        if (chat := find(store, args.args[0], (MANUAL, HANDOVER))) is None:
             return 2
         queue_give_back(cfg, chat.key)
         print(f"{chat.name}: queued; the loop's next step hands it back (after a Resume if it's held)")

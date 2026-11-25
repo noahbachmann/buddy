@@ -399,7 +399,7 @@ def test_given_back_the_bot_takes_devs_message_as_ours_and_screens_on():
     d.screen.append(Message(US, "Hey, it's me, the real one"))
     d.her("Oh hi!")
     d.run()
-    assert d.chat.state == MANUAL and d.chat.manual_from == SCREENING
+    assert d.chat.state == MANUAL and d.chat.back_to == SCREENING
     assert d.flow.give_back(d.chat, d.screen, d.now) is None
     assert d.chat.state == SCREENING and d.chat.sent[-1].kind == "dev" and d.chat.sent[-1].dev
     d.chat.theirs_seen = 9                                  # a counter gone stale: her new message still counts
@@ -414,14 +414,42 @@ def test_given_back_the_bot_takes_devs_message_as_ours_and_screens_on():
 def test_give_back_without_a_saved_state_reads_it_from_the_chat():
     d = Driver()
     d.run()                                                # the introduction out, no answer yet
-    d.chat.state, d.chat.manual_from = MANUAL, ""          # manual before #88: no saved state
+    d.chat.state, d.chat.back_to = MANUAL, ""          # manual before #88: no saved state
     assert d.flow.give_back(d.chat, d.screen, d.now) is None and d.chat.state == NEW
     d.her("Sure, ask away")
     d.chat.state = MANUAL
     assert d.flow.give_back(d.chat, d.screen, d.now) is None and d.chat.state == SCREENING
-    assert d.flow.give_back(d.chat, d.screen, d.now) == "the chat is screening, not manual"
+    assert d.flow.give_back(d.chat, d.screen, d.now) == "the chat is screening, not manual or handed over"
     d.chat.state = MANUAL
     assert d.flow.give_back(d.chat, d.screen + [Message(US, "", True)], d.now) is not None   # media of ours
+
+
+def test_a_handover_after_the_contact_ask_given_back_offers_the_choice_again():
+    # 2026-11-25: two questions instead of a yes → handover; with Instagram on, Dev gives it back to the bot
+    d = Driver()
+    d.flow = ChatFlow(RULES, Contacts(NUMBER), ChatLimits())
+    matched(d)
+    d.run(Converse("x", "match", lang="de"), verdicts=[Verdict(True)])
+    for q in ("Was macht er beruflich?", "Gibt es noch was ausser der Nummer?"):
+        d.her(q)
+        d.run(Converse("Antwort.", "screening", contact="unclear", lang="de"))
+    assert d.chat.state == HANDOVER and d.chat.back_to == CONTACT_CHOICE
+    d.chat.back_to = ""                                    # handed over before back_to existed
+    d.flow = ChatFlow(RULES, Contacts(NUMBER, INSTA), ChatLimits())
+    assert d.flow.give_back(d.chat, d.screen, d.now) is None
+    assert d.chat.state == CONTACT_CHOICE and d.chat.unclear == 0 and d.chat.closed_at is None
+    d.run(Converse("Ja, Instagram.", "screening", contact="unclear", lang="de"))   # her last question answered now
+    assert d.ours()[-1] == "Ja, Instagram. Seine Nummer oder Instagram?" and d.chat.state == CONTACT_CHOICE
+    d.her("Dann Insta")
+    d.run(Converse("", "screening", contact="instagram", lang="de"))
+    assert d.ours()[-1] == f"Instagram: {INSTA}" and d.chat.state == DONE
+
+
+def test_a_chat_saved_with_manual_from_keeps_where_it_goes_back_to():
+    d = Driver()
+    raw = d.chat.to_dict()
+    raw.pop("back_to")
+    assert Chat.from_dict(raw | {"manual_from": SCREENING}).back_to == SCREENING
 
 
 def test_manual_cancels_a_pending_unmatch():

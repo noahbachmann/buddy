@@ -176,8 +176,8 @@ class ChatDriver:
 
     def _give_back(self, key: str, flow: ChatFlow) -> None:
         chat = self.store.chat(key)
-        if chat is None or chat.state != MANUAL:
-            self.log(f"give back: no manual chat for that key ({chat.state if chat else 'none'})")
+        if chat is None or chat.state not in (MANUAL, HANDOVER):
+            self.log(f"give back: no manual or handed-over chat for that key ({chat.state if chat else 'none'})")
             return
         self.nav.open_chat(chat.key)
         msgs, origin = self.nav.read_chat()
@@ -349,7 +349,8 @@ class ChatDriver:
                 if n < FAILURES:
                     return Action("wait")
                 self.failures.pop(chat.key, None)
-                chat.state, chat.reason, chat.closed_at = HANDOVER, f"{FAILURES} failed calls", self.clock()
+                chat.back_to, chat.state = chat.state, HANDOVER
+                chat.reason, chat.closed_at = f"{FAILURES} failed calls", self.clock()
                 return Action("wait")
         return act
 
@@ -416,7 +417,7 @@ class ChatDriver:
                 flow.delivered(chat, act, now)
             else:
                 why = "Dev cleared the held message" if not new else "Dev wrote more than the held message"
-                chat.manual_from, chat.state, chat.reason, chat.closed_at = chat.state, MANUAL, why, now
+                chat.back_to, chat.state, chat.reason, chat.closed_at = chat.state, MANUAL, why, now
                 chat.log.append(f"{MANUAL}: {why}")
                 self.ask_back(chat.key)
         self.store.save_chat(chat)
