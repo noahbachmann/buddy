@@ -86,6 +86,7 @@ class ChatLimits:
     max_calls: int = 20          # converse calls on one chat
     max_usd: float = 0.75        # one chat's calls together (API-equivalent $)
     off_topic: int = 2           # her requests for unrelated work (math, code, essays, …); the 2nd → handover
+    contact_questions: int = 3   # her questions (or unclear answers) after the contact offer before a handover
     # batching (Dev, 2026-11-25): answer once she's quiet this long (one call per burst), at the latest after settle_max
     settle_s: float = 60
     settle_max: float = 180
@@ -371,9 +372,13 @@ class ChatFlow:
             return self._end(chat, HANDOVER, now, f"fit line refused: {why}")
         chat.verified_at = now
         if not self.contacts.instagram:
-            # the number only (Dev, 2026-11-25): no choice to ask, the fit line opens the number's message
-            number = fill(self._t("contact_number", chat), name=chat.name, number=self.contacts.number)
-            return self._send(chat, "contact_number", f"{fit} {number}" if fit else number)
+            # the number only (Dev, 2026-11-25): answer what she said, then ask whether she wants his number
+            # (`contact_ask`, Dev's wording); her yes sends it, a question gets answered and asked again
+            ask_text = fill(self._t("contact_ask", chat), name=chat.name)
+            reply = _norm(reply)
+            if reply and self._refuse(reply, self.limits.reply_max) is None:
+                return self._send(chat, "contact_offer", f"{reply} {ask_text}")
+            return self._send(chat, "contact_offer", ask_text)
         return self._send(chat, "contact_offer", fill(self._t("contact_offer", chat), name=chat.name, fit_line=fit))
 
     def unmatched(self, chat: Chat, now: float) -> None:
@@ -513,9 +518,9 @@ class ChatFlow:
             return self._send(chat, "contact_instagram", fill(self._t("contact_instagram", chat), name=chat.name,
                                                               instagram=self.contacts.instagram))
         chat.unclear += 1
-        if chat.unclear > 1:
-            return self._end(chat, HANDOVER, now, "contact choice unclear twice")
-        return self._generated(chat, now, "reply", c.reply)
+        if chat.unclear > self.limits.contact_questions:
+            return self._end(chat, HANDOVER, now, f"no yes or no to the contact after {chat.unclear} answers")
+        return self._generated(chat, now, "reply", c.reply)   # answers her question and asks again (prompt)
 
     def _generated(self, chat: Chat, now: float, kind: str, text: str, ask: int = 0) -> Action:
         """The model's text, checked; with `ask` the owner's question appended verbatim (only the model's part is

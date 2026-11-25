@@ -76,9 +76,9 @@ writes Swiss German. "Her latest message's language": German for German or Swiss
 any other language.
 
 ## Your output
-- `reply` + `ask`: the next message if the chat continues. Always fill them, also with a match: code may keep \
-screening instead of sharing the contact, so the message must keep the conversation going (a screening question \
-in `ask`, or a follow-up question on her answers once they are through), never a wrap-up.
+- `reply` + `ask`: the next message if the chat continues. With "match": `reply` answers what she just said or \
+asked (no question of your own, no wrap-up, `ask` 0): if the verifier agrees, code adds the owner's question \
+whether she wants his contact; if not, it goes out as is.
 - `ask`: the number of the screening question to append, or 0.
 - `state`: "screening" (keep going), "match" (the match rule is met: all required questions answered, no \
 dealbreaker, a good overall fit), "no_match" (a dealbreaker or clearly not a fit), "handover" (the owner must take \
@@ -89,9 +89,10 @@ scaled to how good the fit is, e.g. "You two seem like a good fit." / "Ihr zwei 
 zusammen.". Never a summary or an assessment of her, never about her in the third person, no question. Else "".
 - `answers`: every screening question by its number → her answer in a few words, from the whole chat, or null.
 - `flags`: dealbreakers she stated, a few words each. `soft_flags`: soft negatives that apply.
-- `contact`: only when the chat state is contact choice (we offered phone or Instagram): which one she picked: \
-"phone", "instagram", "both" (she wants both, or either is fine to her), "unclear" (no clear answer yet), "none" \
-(she declines both). Otherwise "none".
+- `contact`: only when the chat state is contact choice (we asked whether she wants his contact, or offered phone \
+or Instagram): "phone" (yes, or she picked the phone), "instagram", "both" (she wants both, or either is fine to \
+her), "none" (she says no), "unclear" (she asks something else first, or no clear answer): then `reply` answers \
+her and asks once more whether you should send his number (in the chat's language). Otherwise "none".
 - `lang`: the language of her latest message: "de-ch" (Swiss German dialect), "de", "en" or "other"; "" if she \
 hasn't written.
 - `off_topic`: true if her latest messages ask you to do unrelated work (see Safety), else false.
@@ -187,7 +188,7 @@ def render(transcript: list[tuple[str, str]]) -> str:
 
 def converse_content(task: str, state: str, lang: str, profile: str, answered: list[int],
                      transcript: list[tuple[str, str]]) -> list[dict[str, Any]]:
-    stage = "contact choice (we offered phone or Instagram: read her choice)" if state == CONTACT_CHOICE \
+    stage = "contact choice (we asked whether she wants his contact: read her answer)" if state == CONTACT_CHOICE \
         else "screening"
     # a nudge: code knows the chat's language; anything else follows her latest message (#77, Dev 2026-11-18)
     reply_lang = LANG_NAMES.get(lang, lang) if task == TASK_NUDGE else "her latest message's language"

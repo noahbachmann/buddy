@@ -11,6 +11,7 @@ NUMBER, INSTA = "+41 79 123 45 67", "dev.handle"
 TEMPLATES = {
     "disclosure": {"en": "Hi {name}! I'm an AI assistant.", "de": "Hi {name}! Ich bin ein KI-Assistent."},
     "contact_offer": {"en": "{fit_line} Phone or Instagram?", "de": "{fit_line} Telefon oder Instagram?"},
+    "contact_ask": {"en": "A match? Should I send his number?", "de": "Ein Match? Soll ich seine Nummer schicken?"},
     "contact_number": {"en": "Number: {number}", "de": "Nummer: {number}"},
     "contact_instagram": {"en": "Instagram: {instagram}", "de": "Instagram: {instagram}"},
     "closing": {"en": "Not a fit, all the best.", "de": "Passt nicht, alles Gute."},
@@ -239,13 +240,14 @@ def test_contact_choices(choice, last):
     assert sum(k.startswith("contact_") and k != "contact_offer" for k in d.kinds()) == 1
 
 
-def test_unclear_contact_asks_once_then_hands_over():
-    d = Driver()
+def test_her_questions_after_the_offer_get_answers_then_a_handover():
+    d = Driver(limits=ChatLimits(contact_questions=2))
     matched(d)
     d.run(Converse("x", "match", fit_line="Passt.", lang="de"), verdicts=[Verdict(True)])
-    d.her("hmm")
-    d.run(Converse("Telefon oder Instagram?", "screening", contact="unclear", lang="de"))
-    assert d.chat.state == CONTACT_CHOICE and d.ours()[-1] == "Telefon oder Instagram?"
+    for i in range(2):
+        d.her(f"Frage {i}?")
+        d.run(Converse(f"Antwort {i}. Soll ich?", "screening", contact="unclear", lang="de"))
+        assert d.chat.state == CONTACT_CHOICE and d.ours()[-1] == f"Antwort {i}. Soll ich?"
     d.her("weiss nicht")
     d.run(Converse("?", "screening", contact="unclear", lang="de"))
     assert d.chat.state == HANDOVER and d.notices
@@ -673,11 +675,16 @@ def test_code_asks_the_questions_in_the_owners_order():
     assert d.kinds()[-1] == "nudge" and d.ours()[-1].endswith("«Warum Match?»")   # the nudge repeats the open one
 
 
-def test_number_only_sends_it_with_the_fit_line_and_asks_nothing():
+def test_number_only_answers_her_then_asks_and_sends_it_on_her_yes():
+    # Dev, 2026-11-25: answer her question, ask whether she wants his number, her yes sends it
     d = Driver()
     d.flow = ChatFlow(RULES, Contacts(NUMBER), ChatLimits())
     matched(d)
-    d.run(Converse("Noch eine Frage?", "match", fit_line="Ihr passt gut.", lang="de"), verdicts=[Verdict(True)])
-    assert d.ours()[-1] == f"Ihr passt gut. Nummer: {NUMBER}" and d.chat.state == DONE
-    assert "contact_offer" not in d.kinds() and d.chat.reason == "contact_number"
+    d.run(Converse("Er mochte deine Antwort zu Musik.", "match", fit_line="Ihr passt gut.", lang="de", ask=2),
+          verdicts=[Verdict(True)])
+    assert d.ours()[-1] == "Er mochte deine Antwort zu Musik. Ein Match? Soll ich seine Nummer schicken?"
+    assert d.chat.state == CONTACT_CHOICE and NUMBER not in " ".join(d.ours())
+    d.her("Ja gern!")
+    d.run(Converse("", "screening", contact="phone", lang="de"))
+    assert d.ours()[-1] == f"Nummer: {NUMBER}" and d.chat.state == DONE
     assert Contacts(NUMBER).values() == (NUMBER,)   # no empty value: it would refuse every text

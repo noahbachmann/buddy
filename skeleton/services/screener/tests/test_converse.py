@@ -17,6 +17,7 @@ NUMBER, INSTA = "+41 79 555 66 77", "sentinel.handle"
 TEMPLATES = {
     "disclosure": {"en": "Hi {name}! AI here.", "de": "Hi {name}! KI hier."},
     "contact_offer": {"en": "{fit_line} Phone or Instagram?", "de": "{fit_line} Telefon oder Instagram?"},
+    "contact_ask": {"en": "A match? Should I send his number?", "de": "Ein Match? Soll ich seine Nummer schicken?"},
     "contact_number": {"en": "Number: {number}", "de": "Nummer: {number}"},
     "contact_instagram": {"en": "Instagram: {instagram}", "de": "Instagram: {instagram}"},
     "closing": {"en": "Not a fit.", "de": "Passt nicht."},
@@ -60,7 +61,7 @@ def test_converse_content():
     text = converse_content("reply", CONTACT_CHOICE, "en", "Age: 29; prompt 1: Hiking", [1],
                             [(US, "Hi"), (THEM, "Hey")])[0]["text"]
     lines = text.splitlines()
-    assert lines[:4] == ["Task: reply", "Chat state: contact choice (we offered phone or Instagram: read her choice)",
+    assert lines[:4] == ["Task: reply", "Chat state: contact choice (we asked whether she wants his contact: read her answer)",
                          "Write `reply` in: her latest message's language",
                          "Questions answered so far (code's record): 1"]
     nudge = converse_content("nudge", "screening", "en", "", [], [])[0]["text"]
