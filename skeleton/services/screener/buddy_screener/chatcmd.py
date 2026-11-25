@@ -43,8 +43,8 @@ def chats(cfg: Config, store: Store) -> list[str]:
         out.append("")
     rows = [r for r in store.usage_rows(time.time() - 86400) if r[0] in CHAT_TASKS]
     out.append(f"chat calls, last 24 h: {len(rows)}, ${sum(r[6] for r in rows):.3f} API-equivalent "
-               f"(plan's 5 h window now {rows[-1][8] or 0:.0%}, shared with Claude Code)" if rows else
-               "chat calls, last 24 h: none")
+               f"(the plan's 5 h window was at {rows[-1][8] or 0:.0%} at the last one, shared with Claude Code)"
+               if rows else "chat calls, last 24 h: none")
     return out
 
 

@@ -27,18 +27,19 @@ out Dev's label of a row. No code path taps a paid option. A chat message is sen
 | `navigator.py` | Moves: `go_tab`, `capture_profile` (+ each detail row swiped to its end and flung back), `scroll_to(ref)`, `open_sheet` (+ scroll the panel clear), `type_comment` (read back), `skip_profile`, `send_like` (via `_act`; keeps the upsell's raw dump as tmpfs `upsell-last.xml`), `back_out`, chats (#77): `matches()` (keyed rows: name + thumbnail hash, "Their turn" opened once per pass), `open_chat(key)`/`leave_chat`, `read_chat()` (scroll up to the head, `stitch` pages), `chat_profile()` (the Profile tab through the feed's capture, `where`), `type_message`/`field_holds`/`send_message`/`clear_message`, `unmatch()`; `screenshots` (the profile top to end, a screen per swipe, for `--cmd shots`). `NeedsYou` keeps the raw dump in tmpfs |
 | `sanitize.py` | Real dumps → fixtures: one mapping across a walk, names/prompts/texts → placeholders, package → `app.example`; refuses output with a word from `~/buddy/config/screener/forbidden` (host) |
 | `library.py` | Host input: `preferences.md` (verbatim into the system prompt), `templates.md` section *Like comments* (`- id \| de\|en \| fit hint \| text`; broken line → whole file refused). Loaded per decision. Chat (#77): `parse_chat_templates` (EN/DE blocks, placeholders per template), `ChatRules` (`chat.md` + the chat's preference sections + questions + allowed links), `Contacts` (number/instagram files, hidden from repr) |
-| `chat.py` | The chat as a pure state machine (`ChatFlow.step/conversed/verified/delivered`, one `Action` at a time): disclosure first, manual detection, code's match checks, contact by template only, generated-text refusals, language, nudge/close/unmatch timers, `ChatLimits` |
+| `chat.py` | The chat as a pure state machine (`ChatFlow.step/conversed/verified/delivered/give_back`, one `Action` at a time): disclosure first, manual detection, code's match checks, contact by template only, generated-text refusals, language, nudge/close/unmatch timers, abuse guards and batching (#88), `ChatLimits` |
 | `converse.py` | The chat's calls on `Decider.call`: `converse` (reply + state + answers + flags + contact + lang), `verify` (strict second opinion, profile + transcript), prompts with escaped `<msg>` elements, `check_converse`/`check_verify` |
 | `sim.py`, `sim_cases.py`, `sim_personas.py` | `--sim`: driver loop on a fake clock, 23 scripted cases, 8 persona cards (a model plays her), sentinel contacts, prompt leak check, gate report, transcripts in tmpfs |
 | `decide.py` | Agent SDK wrapper (`Decider.decide` = text check, photo check (#83), then `browse` with photos): locked-down CLI options, text + browse schemas, `check_text`, `check_browse` (code re-checks: unknown section/comment → none, soft flags without a verifiable quote dropped, dealbreaker → skip, a like on a profile it called `generic` → skip (#107), adapted comment refused → the template's text or none, `fixes` kept), usage per call, `limit_until` pause, daily $ cap |
-| `chats.py` | The chats on the phone (#77): `ChatDriver.step()` = a pass over the matches list (badge or every `CHAT_CHECK_MIN`) or a held message's resume; links a match to our `liked` chat or an old match (Profile tab), else `foreign`; runs `ChatFlow` with the `Talker`; `hold` mode types and holds each message (and an unmatch); fixed notices per end state; `chat-ignore` |
+| `chats.py` | The chats on the phone (#77): `ChatDriver.step()` = a pass over the matches list (badge or every `CHAT_CHECK_MIN`), a held message's resume (Dev's edit adopted, #88) or the chats Dev handed back (`give-back` file); links a match to our `liked` chat or an old match (Profile tab), else `foreign`; runs `ChatFlow` with the `Talker`; `hold` mode types and holds each message (and an unmatch); `settle` = stays in the chat, reads again; each call's cost on the chat; tmpfs review note per chat (`chats/<hash>.txt`); fixed notices per end state; `chat-ignore` |
+| `chatcmd.py` | Dev's chat commands (#88): `--cmd chats` (open chats, review notes, each call's tokens and $), `chat-edit <name> "<text>"` (Dev's wording into the held message's field), `chat-back <name>` (a manual chat back to the bot) |
 | `store.py` | SQLite `data/screener/screener.db`: `usage` (kept; live and `sim-` tasks capped apart), `shadow` (bot decision + Dev's label as JSON, profile key only, 30 days; the loop's rows carry `run: dry|live`), `actions` (every act and stop: kind, mode dry/live/shadow, row id, a detail without names; 30 days), `chats` (`chat.Chat` as JSON, never her texts; 30 days after it ended; `liked` = a like waiting for its match, 30 days) |
 | `shadow.py` | Step 2 commands' logic: `liked_chat` (what a sent like keeps for its chat, #77), `run_shadow` (capture → decide → row; capture pickled to tmpfs without crops), `make_label`, `type_label`, `act_label` (skip/send on Dev's label; a relabel keeps `acted`), `report` (done-when numbers; `unjudged` rows left out; comment target = the text Dev sent) |
 | `likes.py` | The like budget from the action log: likes left in the batch, the paywall wait (until the last like + 24 h, Dev's guess), `probe` (the first like after it confirms the guess: `likes_back`), `stuck` (a paywall the guess can't explain → Dev). `BUDDY_SCREENER_DAILY_LIKES`, `_LIKES_24H` |
 | `browse.py` | Step 3's loop (#80): `Browser.step()` = one profile (window, likes, breaks → `shadow.judge` → skip / hold / like) with injected nav, decider, store, clock, rng; `hold(kind, row)` and `notify(text)` callbacks; dry rows' screenshot pages + summary in tmpfs `rows/<id>/`; `today()` counts |
 | `hub.py` | The service's side of a hold: `needs_you` file, the Telegram ask (Resume/Stop; per kind: what happened (the code's reason, never a name) and what Dev does), Dev's answer → resume/stop; a resume elsewhere marks the question "▶ resumed on the panel / by Claude" |
 | `config.py` | `BUDDY_SCREENER_*` (incl. model, effort, decide timeout, daily $), kill switch files (`config/screener/stop`, `data/screener/paused`), token/limit/db paths, tmpfs dir |
-| `main.py` | Service loop (phone check every 30 s, state on change, commands, Dev's Telegram answers; one worker thread: a chat step, then a profile) + `--cmd screen\|dump\|fixture\|profile\|back-out\|walk\|shots\|templates\|shadow\|label\|type\|skip\|send\|report\|rows`, `--sim [--case NAME…\|all] [--personas N]` |
+| `main.py` | Service loop (phone check every 30 s, state on change, commands, Dev's Telegram answers; one worker thread: a chat step, then a profile) + `--cmd screen\|dump\|fixture\|profile\|back-out\|walk\|shots\|templates\|shadow\|label\|type\|skip\|send\|report\|rows\|chats\|chat-edit\|chat-back`, `--sim [--case NAME…\|all] [--personas N]` |
 
 ## Rules the code enforces
 
@@ -219,11 +220,39 @@ see `chat.md` + *About Dev*, *Looking for*, *Good fit*, *Soft negatives/positive
   like (her profile read from the chat's Profile tab, languages by `guess_lang`); names in the host's
   `config/screener/chat-ignore` and everything else (`foreign`, Dev told once) are never touched. The model sees our
   like comment first: her first reply answers it. `hold` (Dev, the first ~5 chats): each message typed into the
-  field, not sent, Telegram asks (no text); Resume = the field still holds it → sent; Dev sending it himself counts as
-  ours, any other change → `manual`. Messages go out as soon as seen (Dev: no delay, no hours). A held message that
-  needs rewriting (Dev changed a rule or a fact): clear the field and the chat's `held` while the loop is held, then
-  resume; never run a script on the phone while the loop can act (a killed reader breaks serve mode until restart). Notices are fixed per
+  field, not sent, Telegram asks (no text); Resume sends what the field holds (Dev's edit included, #88). Messages go
+  out once she's quiet (batching, below; no hours window). A held message that needs rewriting: `--cmd chat-edit`
+  while the loop is held; never run a script on the phone while the loop can act (a killed reader breaks serve mode
+  until restart). Notices are fixed per
   end state, never the flow's text (it carries the model's reason). 3 failed calls on a chat → handover.
+- **What's stored** (Dev asked, 2026-11-25): the `chats` row per chat: state, language, her answers to the screening
+  questions (a few words each), flags, **our** messages verbatim (`sent`, Dev's wording marked `dev`), how many of
+  her messages were handled, timers, a decision log, each call's tokens and $ (`calls`). Her texts are never stored:
+  every open reads the chat off the screen (`read_chat`: up to our like, stitched; a few seconds, no tokens). No
+  incremental reader on purpose: chats are short, a cached transcript risks missed or doubled messages and a wrong
+  `manual`. The tmpfs review note is the only other copy of her texts (gone at reboot and when the chat ends).
+- **When a call happens:** `opener` (she answered the like comment with more than a greeting), `first` (she answered
+  the introduction), `reply` (her new messages, once she's quiet, below), `nudge` (2 days quiet), `verify` before a
+  contact. Templates cost nothing. Measured 2026-11-24 (Sonnet 5.5, medium): ~6–7.5k input tokens (the system
+  prompt: `chat.md` + preference sections), 350–725 out; $0.008 on a warm cache, ~$0.03 cold (> 5 min since the
+  last call, or a host file edited in between: each edit rewrites the cache). About 6–8 calls per chat to a decision.
+- **Batching** (Dev, 2026-11-25): `settle` until her message count has been unchanged `CHAT_SETTLE_S` (60) since it
+  last changed (at most 3 min in all), then one call for the burst; the driver stays in the chat and reads again
+  every 20 s.
+- **Abuse guards** (#88, code before any call → handover without one): a burst of > 8 messages or > 1200 chars; a
+  chat at 20 calls or `CHAT_MAX_USD` (0.75). One call's hard cap `CHAT_CALL_USD` (0.15, the SDK's `max_budget_usd`:
+  a runaway call fails, 3 failures → handover). Chat calls have their own 24 h pool `CHAT_USD` (2), apart from
+  `DAILY_USD` (profiles). Unrelated work (math, code, essays, translations, …): the prompt declines in one line and
+  sets `off_topic`; the second → handover (Dev, 2026-11-25). Sim cases `off_topic`, `flood`.
+- **Dev's edits** (Dev, 2026-11-25, #88): in `hold`, Dev edits the held message in the field (or sends his version
+  himself): sent/adopted as his wording (`Sent.dev`), the bot carries on. Only a message beyond the held one, or a
+  cleared field, makes the chat `manual` (`manual_from` keeps the state). A manual chat asks on Telegram "Bot
+  continues / Keep it mine" (the key in `data/screener/asks`, never on Telegram); yes, or `--cmd chat-back <name>`,
+  queues it in `data/screener/give-back`: `give_back` adopts Dev's messages as kind `dev` and returns the state.
+- **Review from afar** (Dev away from the phone): `--cmd chats` prints each open chat as last read with the held
+  message and the last calls' tokens/$; Claude shows Dev the exact held text, Dev answers in chat: fine → resume
+  (`mosquitto_pub -t buddy/screener/cmd -m '{"action":"resume","from":"claude"}'`), his wording → `--cmd chat-edit
+  <name> "<text>"` (only while the loop holds on that message), then resume.
 - Findings fixed by the sim (2026-11-19): a fit line written about her for Dev and sent to her; dialect replies to a
   Swiss German profile; a nudge in the wrong language; the verifier without the profile (it flagged the bot's
   profile reference as invented); a held reply without a question (the chat stalled).
