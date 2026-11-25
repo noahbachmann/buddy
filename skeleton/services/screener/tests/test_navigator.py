@@ -337,3 +337,14 @@ def test_capture_starts_swipes_off_the_friends_carousel():
     assert phone.screen == "feed-friend-5" and refs[:4] == ["photo 1", "friend 1", "friend 2", "poll 1"]
     assert refs[-1] == "prompt 1"
     assert phone.sent() == []
+
+
+def test_a_next_profile_with_the_same_name_is_told_by_its_photo():
+    # 2026-11-25: the profile after a like had the same name; the like looked stuck until a NeedsYou
+    phone = FakePhone("feed-01")
+    phone.screencap = lambda half=False: "shot"
+    n = Navigator(phone, PACKAGE, pause=lambda s: None, log=lambda s: None, hasher=lambda shot, rect: "f" * 16)
+    name = screens.profile_view(n.stable().root).name
+    assert n._next_profile(name, "the next profile", photo="0" * 16) == name     # another photo 1: moved on
+    assert not n._other_photo(n.stable(), "f" * 16)                              # the same photo: still her
+    assert not n._other_photo(n.stable(), "")                                     # no captured photo: names only

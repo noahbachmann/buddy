@@ -21,7 +21,7 @@ from . import likes, shadow
 from .decide import BudgetSpent, DecideError, UsageLimited
 from .device import AdbError, Stopped
 from .library import Library, LibraryError
-from .navigator import Navigator, NeedsYou, OutOfLikes
+from .navigator import Navigator, NeedsYou, OutOfLikes, photo_key
 from .chat import Chat
 from .store import Store
 
@@ -203,7 +203,7 @@ class Browser:
                 self._keep_pages(r, lib)
                 if b.decision == "like":
                     return self._hold(HOLD_WOULD_LIKE, "a like waits for Dev", r.row_id)
-                self.nav.skip_profile(name)
+                self.nav.skip_profile(name, photo_key(r.capture))
                 self._act(likes.SKIP, r.row_id)
             elif b.decision == "like":
                 text = b.comment_text if b.comment != "none" else ""
@@ -212,9 +212,9 @@ class Browser:
                 if text:
                     self.nav.type_comment(text)
                 liked = shadow.liked_chat(r.capture, b.prompt_langs, b.comment_on, text, self.clock())
-                self._send(r.row_id, name, text, st, liked)
+                self._send(r.row_id, name, text, st, liked, photo_key(r.capture))
             else:
-                self.nav.skip_profile(name)
+                self.nav.skip_profile(name, photo_key(r.capture))
                 self._act(likes.SKIP, r.row_id)
         except OutOfLikes as e:
             return self._paywall(e, r.row_id, name, b.comment_text if b.comment != "none" else "",
@@ -224,8 +224,8 @@ class Browser:
             return self._hold(HOLD_SCREEN, e.reason, r.row_id)
         return self._gap()
 
-    def _send(self, row_id: int, name: str, text: str, st: likes.LikeStatus, liked: Chat) -> None:
-        self.nav.send_like(name, text)
+    def _send(self, row_id: int, name: str, text: str, st: likes.LikeStatus, liked: Chat, photo: str = "") -> None:
+        self.nav.send_like(name, text, photo)
         self._act(likes.LIKE if text else likes.LIKE_PLAIN, row_id)
         self.store.save_chat(liked)   # kept for its chat once she matches (#77)
         if st.probe and st.last_like is not None:

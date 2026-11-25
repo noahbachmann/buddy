@@ -546,22 +546,34 @@ class Navigator:
         if not back.ok or back.text != text:
             raise self.needs_you("read-back differs from the typed text")
 
-    def _next_profile(self, name: str, what: str, s: Screen | None = None) -> str:
-        """Waits for the feed to show another profile than `name` (the app moves on after a skip or a like)."""
+    def _next_profile(self, name: str, what: str, s: Screen | None = None, photo: str = "") -> str:
+        """Waits for the feed to show another profile than `name` (the app moves on after a skip or a like). The
+        next one can have the same name (2026-11-25: a like looked stuck): then its first photo tells (`photo` =
+        the hash of the profile's photo 1 as captured)."""
         def moved(x: Screen) -> bool:
-            return x.kind is Kind.FEED and screens.profile_view(x.root).name != name
+            return x.kind is Kind.FEED and (screens.profile_view(x.root).name != name or self._other_photo(x, photo))
         s = s if s is not None and moved(s) else self.wait_for(moved, what)
         return screens.profile_view(s.root).name
 
-    def skip_profile(self, name: str) -> str:
+    def _other_photo(self, s: Screen, photo: str) -> bool:
+        """Does the profile at the top of the feed show another photo 1 than the captured `photo`?"""
+        if not photo or self.hasher is None:
+            return False
+        view = screens.profile_view(s.root)
+        first = next((sv for sv in view.sections), None)
+        if not view.at_top or first is None or first.kind != "photo" or first.top_cut or first.bottom_cut:
+            return False
+        return hash_distance(self.hasher(self.dev.screencap(), first.rect), photo) > HASH_MAX_DIST
+
+    def skip_profile(self, name: str, photo: str = "") -> str:
         """Skips the profile on screen, which must be `name`. Returns the next profile's name."""
         s, view = self._first_profile()
         if view.name != name:
             raise self.needs_you("another profile is on screen: not skipping it")
         self._act(s, screens.skip_button(s.root), "skip")
-        return self._next_profile(name, "the next profile after skip")
+        return self._next_profile(name, "the next profile after skip", photo=photo)
 
-    def send_like(self, name: str, text: str) -> str:
+    def send_like(self, name: str, text: str, photo: str = "") -> str:
         """Sends the like from the open comment panel of `name`'s profile, whose field must hold exactly `text`
         (typed by `type_comment`). An upsell sheet gets "send like anyway", never the paid option."""
         s = self.expect(Kind.SHEET)
@@ -579,12 +591,14 @@ class Navigator:
             raise self.needs_you("send button not clear of the floating buttons")
         self._act(s, panel.send, "send like")
         s = self.wait_for(lambda x: x.kind in (Kind.UPSELL, Kind.OUT_OF_LIKES) or
-                          (x.kind is Kind.FEED and screens.profile_view(x.root).name != name), "the like to go out")
+                          (x.kind is Kind.FEED and (screens.profile_view(x.root).name != name
+                                                    or self._other_photo(x, photo))), "the like to go out")
         if s.kind is Kind.OUT_OF_LIKES:
             self.tap(s, screens.close_button(s.root), "out-of-likes close")
             # usually the panel comes back; seen 2026-11-19: the app moved on to the next profile instead
             s = self.wait_for(lambda x: x.kind is Kind.SHEET or
-                              (x.kind is Kind.FEED and screens.profile_view(x.root).name != name),
+                              (x.kind is Kind.FEED and (screens.profile_view(x.root).name != name
+                                                        or self._other_photo(x, photo))),
                               "the comment panel or the next profile")
             if s.kind is Kind.FEED:
                 raise OutOfLikes("out of free likes: not sent, and the app moved on to the next profile: this one "
@@ -596,7 +610,7 @@ class Navigator:
                 self.dump_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
                 (self.dump_dir / "upsell-last.xml").write_text(self._xml)
             self._act(s, screens.send_anyway_button(s.root), "send like anyway")
-        return self._next_profile(name, "the next profile after the like", s)
+        return self._next_profile(name, "the next profile after the like", s, photo)
 
     def back_out(self, name: str) -> tuple[Screen, bool]:
         """Leave a comment sheet without sending: clear the field, leave the app (BACK hides the keyboard, the next
@@ -819,3 +833,8 @@ class Navigator:
         s = self.wait_for(lambda x: x.kind is Kind.CHAT_MENU, "the chat's menu")
         self._act(s, screens.unmatch_item(s.root), "unmatch")
         return self.wait_for(lambda x: x.kind is Kind.MATCHES, "the matches list after unmatching")
+
+
+def photo_key(cap) -> str:
+    """The hash of a captured profile's photo 1: tells it from a next profile with the same name."""
+    return next((s.hash for s in cap.profile.sections if s.kind == "photo" and s.hash), "")

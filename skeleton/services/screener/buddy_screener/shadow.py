@@ -27,7 +27,7 @@ from .chat import LIKED, Chat, refusal
 from .decide import (OWN, TASK_BROWSE, TASK_COMMENT, TASK_COMMENT_CHECK, TASK_PHOTO, TASK_TEXT, Browse, Decider,
                      Usage, profile_text)
 from .library import COMMENT_MAX, Library
-from .navigator import Navigator
+from .navigator import Navigator, photo_key
 from .profile import Capture
 from .store import ShadowRow, Store, profile_key
 
@@ -217,11 +217,11 @@ def act_label(nav: Navigator, row: ShadowRow, cap: Capture, lib: Library, action
     if action == "skip":
         if dev["decision"] not in ("skip", UNJUDGED):
             raise LabelError("the label isn't a skip")
-        nxt = nav.skip_profile(cap.profile.name)
+        nxt = nav.skip_profile(cap.profile.name, photo_key(cap))
     elif action == "send":
         if dev["decision"] != "like":
             raise LabelError("the label isn't a like (type it first)")
-        nxt = nav.send_like(cap.profile.name, _label_text(dev, lib))
+        nxt = nav.send_like(cap.profile.name, _label_text(dev, lib), photo_key(cap))
     else:
         raise LabelError("skip or send")
     return dev | {"acted": action}, nxt
