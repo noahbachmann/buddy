@@ -7,9 +7,10 @@ $fn = 64;
 
 // --- hardware -------------------------------------------------------------------
 // Between the tray's side walls' inner faces (x) = the lid. Measured 250; the printed lid skeleton was one tab width
-// short (Dev 2026-11-25): 252. Grown on the right: the cooler stays put (95 from the wall's outer face, fit-check).
-board    = [252, 210];
-board_h  = 28;           // the tray's side walls: the lid's top is flush with them
+// short (Dev 2026-11-25): 252, then 0.6 more (Dev 2026-11-25, second skeleton). Grown on the right: the cooler stays
+// put (95 from the wall's outer face, fit-check).
+board    = [252.6, 210];
+board_h  = 28;           // the tray's side walls
 tray_wall_x = 255;       // outer face of the tray's right wall (95 to the heatsink end)
 // 3 mm slits between the board's edges and the tray's side walls: the lid's tabs drop in and stand on the silver
 // plate the board sits on (board 8 mm above it)
@@ -47,7 +48,8 @@ cable_d     = 6;           // notch depth into the lid
 // --- stack-up -------------------------------------------------------------------
 skin_t   = 2.4;          // lid plate, cover top
 wall_t   = 2.4;          // walls, steps of 0.4 (docs/3d-printing.md)
-z_lid1   = board_h;                    // lid's top, flush with the tray walls
+lid_top  = 34;           // lid's top: nearly the cover's height (Dev 2026-11-25); plate 3.6 above the tray walls
+z_lid1   = lid_top;
 z_lid    = z_lid1 - skin_t;            // lid's underside
 head_gap   = 0.4;        // over the cooler
 cover_skin = 1.2;        // cover's top: thinner than the lid, the case stays at ~40 (Dev: ≤ 40, 40.4 with the fan floor)
@@ -70,6 +72,7 @@ nut_t     = 2.4;
 nut_slot  = [nut_af + 0.2, nut_t + 0.3];   // slip +0.10/side (vertical, Fits), thickness like arm's nut slots
 nut_press = nut_af + 0.1;                 // press fit +0.05/side: top-module nuts stay in from below
 head_room = 3.6;         // M3 head height + play
+seam_screw_l = 8;        // M3 × 8, lid ↔ cover
 
 // --- lid ------------------------------------------------------------------------
 perim  = 10;             // solid band round the lid plate (rests on the tray walls, carries the seam tabs)
@@ -83,7 +86,13 @@ boss_h     = 2;          // below the lid plate
 lid_ext    = 4;          // lid reaches this far past the cover's seam walls, under its screw bosses
 seam_screws_x = [150, 196];   // y positions on the vertical seam
 seam_screws_y = [200, 232];   // x positions on the horizontal seam
-cover_boss = [9, 8];     // screw boss on the cover's seam wall: width, full-section height above the lid
+// Lid ↔ cover screws from the cover's top, down into nuts pressed under the lid (6.4 between lid and cover top: no
+// room for a side-slid nut pocket in the cover). Axis 1.5 outside the seam wall's centre: the lid's nut boss clears
+// its edge.
+seam_off   = -1.5;       // screw axis from the seam wall's centre, + = into the cover
+cover_boss = 9;          // square boss on the seam wall, lid to cover top, head recessed from the top
+seam_boss_d = 11;        // nut boss under the lid
+head_bore = 6.2;         // M3 socket head Ø5.5 + play; 45° cone down to the clearance hole (no bridge in print)
 cable_cover_x = 262;     // cover's front wall open from the tray wall to here, up to z_lid1 + 4: right ribbons
 
 // --- cover ----------------------------------------------------------------------

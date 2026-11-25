@@ -10,8 +10,7 @@ cx1 = cooler_x[1] + side_gap + wall_t;     // cover's outer right
 cy1 = cooler_y[1] + side_gap + wall_t;     // and back
 lid_x1 = seam_x + wall_t + lid_ext;        // lid's edges past the seams (it reaches under the cover's bosses)
 lid_y1 = seam_y + wall_t + lid_ext;
-cb_full = z_lid1 + cover_boss[1];           // cover boss: full section up to here, then 45° into the wall
-cb_nut  = z_lid1 + 4;                       // its nut's underside
+cb_head = z_top - head_room;                // seam screw head recess: floor, then a 45° cone to the clearance hole
 // Circle through three points: the fan-side arc of the cooler outline.
 function circ(p) = let(
   a = p[0], b = p[1], c = p[2],
@@ -21,11 +20,15 @@ function circ(p) = let(
   uy = (s[0] * (c[0] - b[0]) + s[1] * (a[0] - c[0]) + s[2] * (b[0] - a[0])) / d)
   [[ux, uy], norm([ux, uy] - a)];
 seam_c = circ(seam_pts);
-assert(seam_x + wall_t / 2 + cover_boss[0] / 2 < cooler_x[0] - 1 && seam_y + wall_t / 2 + cover_boss[0] / 2 < cooler_y[0] - 1,
+seam_u = wall_t / 2 + seam_off;            // screw axis from the seam's outer face, into the cover
+assert(seam_x + seam_u + cover_boss / 2 < cooler_x[0] - 1 && seam_y + seam_u + cover_boss / 2 < cooler_y[0] - 1,
        "cover bosses hit the cooler");
 assert(lid_x1 < cooler_x[0] && lid_y1 < cooler_y[0], "lid reaches under the cooler");
-assert(cb_nut - nut_slot[0] / 2 > z_lid1, "nut pocket's 45° floor cuts into the lid");
-assert(cb_full + (cover_boss[0] - wall_t) / 2 > z_ceil, "cover boss must reach the cover's top");
+assert(seam_x + seam_u + seam_boss_d / 2 < lid_x1 - 1 && seam_y + seam_u + seam_boss_d / 2 < lid_y1 - 1,
+       "lid's seam nut boss reaches its edge");
+assert(cb_head - (head_bore - m3_clear) / 2 > z_lid1 + 1, "head recess too deep: no cover under the head");
+// screw from the head's seat (Ø5.5 on the cone) down: through the nut under the lid
+assert(cb_head - (head_bore - 5.5) / 2 - seam_screw_l < z_lid - boss_h + 0.1, "seam screw doesn't pass the nut");
 bt_z = floor_t + 4.5;                       // cover-bottom ↔ cover-top screws
 assert(floor_t + bottom_tab_h < hs_z0 - 1, "bottom tabs reach the heatsink");
 assert(bt_z - nut_slot[0] / cos(30) / 2 > floor_t, "bottom tab nut slot cuts into the floor");
@@ -77,9 +80,10 @@ module cover_2d() rect([seam_x, cx1], [seam_y, cy1]);
 // Lid: between the tray walls, reaching under the cover's seam walls and bosses.
 module lid_2d() difference() { rect([lid_gap, board[0] - lid_gap], [0, board[1]]); rect([lid_x1, big], [lid_y1, big]); }
 // Screw positions lid ↔ cover, on the seam walls' centre lines.
-function seam_screws() = concat([for (y = seam_screws_x) [seam_x + wall_t / 2, y]], [for (x = seam_screws_y) [x, seam_y + wall_t / 2]]);
+function seam_screws() = concat([for (y = seam_screws_x) [seam_x + seam_u, y]], [for (x = seam_screws_y) [x, seam_y + seam_u]]);
+module seam_bosses_2d() for (q = seam_screws()) translate(q) square(cover_boss, center = true);
 
-// --- lid: flat lattice plate between the tray walls, top flush with them ------------------
+// --- lid: flat lattice plate between the tray walls, top 6 above them ---------------------
 function lid_nodes() = [for (x = grid_x, y = grid_y)
   if (x - boss_d / 2 >= perim && y - boss_d / 2 >= perim
       && x + boss_d / 2 <= (y + boss_d / 2 < lid_y1 - perim ? board[0] : lid_x1) - perim
@@ -94,6 +98,7 @@ module lid_plate_2d() difference() {
   difference() {
     offset(r = 3) offset(delta = -3) difference() { offset(delta = -perim) lid_2d(); lid_bars_2d(); }
     for (n = lid_nodes()) translate(n) circle(d = boss_d + 4);   // ring of plate round each mount: no shared face
+    for (q = seam_screws()) translate(q) circle(d = seam_boss_d + 4);
   }
   // cable notches: the cables come up past the lid's edges here
   rect([-1, cable_d], cable_left);
@@ -106,20 +111,24 @@ module lid_slit_tabs() let(g = (slit_w - slit_tab_t) / 2) {
   box([board[0] - g - slit_tab_t, board[0] - g], slit_tabs_right, [plate_z, z_lid + 1]);
 }
 // Top-module mounts: bosses under the lattice nodes, nut pressed in from below (open upwards in print: no bridge).
-module lid_mount(n) translate([n[0], n[1], z_lid - boss_h]) cylinder(d = boss_d, h = boss_h + 1);
+module lid_mount(n, d = boss_d) translate([n[0], n[1], z_lid - boss_h]) cylinder(d = d, h = boss_h + 1);
 module lid_mount_cut(n) translate([n[0], n[1], 0]) {
   translate([0, 0, z_lid - boss_h - 1]) cylinder(d = nut_press / cos(30), h = nut_t + 0.1 + 1, $fn = 6);
   translate([0, 0, z_lid - boss_h - 1]) cylinder(d = m3_clear, h = boss_h + skin_t + 2);
 }
-module lid() difference() {
+module lid() intersection() {   // one outline cut makes the plate's and the back wall's outer faces (no coplanar union)
+ translate([0, 0, -1]) linear_extrude(big) lid_2d();
+ difference() {
   union() {
     translate([0, 0, z_lid]) linear_extrude(skin_t) lid_plate_2d();
     lid_slit_tabs();
     for (n = lid_nodes()) lid_mount(n);
+    for (q = seam_screws()) lid_mount(q, seam_boss_d);   // cover screws come down into these
   }
-  for (n = lid_nodes()) lid_mount_cut(n);
-  for (q = seam_screws()) translate([q[0], q[1], z_lid - 1]) cylinder(d = m3_clear, h = skin_t + 2);   // cover screws, from below
+  for (n = concat(lid_nodes(), seam_screws())) lid_mount_cut(n);
+ }
 }
+
 
 // --- cover: over the cooler, standing on the table; seam walls stand on the lid --------------
 module cover_openings_2d() {
@@ -131,41 +140,27 @@ module cover_openings_2d() {
     for (y = cover_grid_y) rect([-big, big], [y - bar / 2, y + bar / 2]);
   }
 }
-// Screw boss on a seam wall, local frame: wall centred on u = 0 along v, cover inside towards +u. The screw comes up
-// through the lid; the nut slides in from inside the cover. Full section, then 45° into the wall (in print the
-// cover is upside down: the taper is what the boss grows out of).
-module cover_boss_local() let(w = cover_boss[0]) hull() {
-  box([-w / 2, w / 2], [-w / 2, w / 2], [z_lid1 - 1, cb_full]);
-  box([-wall_t / 2, wall_t / 2], [-w / 2, w / 2], [cb_full, cb_full + (w - wall_t) / 2]);
+// Seam screw from the cover's top: head recessed (45° cone under the recess: a roof in print, no bridge), clearance
+// hole down to the lid. The bosses are square columns from the lid to the top, part of the cover's outline extrusion.
+module cover_boss_cut() {
+  translate([0, 0, z_lid1 - 1]) cylinder(d = m3_clear, h = z_top - z_lid1 + 2);
+  translate([0, 0, cb_head]) cylinder(d = head_bore, h = head_room + 1);
+  translate([0, 0, cb_head - (head_bore - m3_clear) / 2]) cylinder(d1 = m3_clear, d2 = head_bore + 2 * eps, h = (head_bore - m3_clear) / 2 + eps);
 }
-// Nut pocket, open towards +u; its floor (in use) is a 45° V: in print that's the roof, no bridge.
-module cover_boss_cut_local() {
-  translate([0, 0, z_lid1 - 1]) cylinder(d = m3_clear, h = cb_full - z_lid1);
-  // only through the boss: an endless pocket ran on through the cover's far wall
-  translate([-nut_slot[0] / cos(30) / 2, 0, 0]) rotate([90, 0, 90]) linear_extrude(nut_slot[0] / cos(30) / 2 + cover_boss[0] / 2 + 1)
-    polygon([[-nut_slot[0] / 2, cb_nut + nut_slot[1]], [-nut_slot[0] / 2, cb_nut], [0, cb_nut - nut_slot[0] / 2],
-             [nut_slot[0] / 2, cb_nut], [nut_slot[0] / 2, cb_nut + nut_slot[1]]]);
-}
-module at_seam_screws() {
-  for (y = seam_screws_x) translate([seam_x + wall_t / 2, y, 0]) children();
-  for (x = seam_screws_y) translate([x, seam_y + wall_t / 2, 0]) rotate(90) children();
-}
-// One solid: outline extruded, inside hollowed up to the top; bosses added; then everything over the tray cut away
-// below the lid's top and over the silver plate below its clearance. (Separate walls and top left coplanar faces.)
+module at_seam_screws() for (q = seam_screws()) translate([q[0], q[1], 0]) children();
+// One solid: outline (with the seam bosses) extruded, inside hollowed up to the top round the bosses; then everything
+// over the tray cut away below the lid's top and over the silver plate below its clearance. (Separate walls, top and
+// bosses left coplanar faces.)
 module cover() let(zv = [vent_margin, z_ceil - vent_margin]) difference() {
-  union() {
-    difference() {
-      linear_extrude(z_top) cover_2d();
-      translate([0, 0, -1]) linear_extrude(z_ceil + 1) rect([seam_x + wall_t, cx1 - wall_t], [seam_y + wall_t, cy1 - wall_t]);
-      translate([0, 0, z_ceil - 1]) linear_extrude(cover_skin + 2) cover_openings_2d();
-    }
-    at_seam_screws() cover_boss_local();
-  }
+  linear_extrude(z_top) { cover_2d(); seam_bosses_2d(); }
+  translate([0, 0, -1]) linear_extrude(z_ceil + 1)
+    difference() { rect([seam_x + wall_t, cx1 - wall_t], [seam_y + wall_t, cy1 - wall_t]); seam_bosses_2d(); }
+  translate([0, 0, z_ceil - 1]) linear_extrude(cover_skin + 2) cover_openings_2d();
   box([-big, tray_wall_x + tray_gap], [-big, board[1] + tray_gap], [-1, z_lid1]);
   box([-big, plate_x1 + tray_gap], [board[1] + tray_gap, big], [-1, plate_clear]);
   box([board[0], cable_cover_x], [seam_y - 1, seam_y + wall_t + 1], [-1, z_lid1 + 4]);   // right ribbons
   box([-big, big], [-big, big], [-1, floor_t]);                                           // stands on the floor
-  at_seam_screws() cover_boss_cut_local();
+  at_seam_screws() cover_boss_cut();
   // cover-bottom screws, from outside
   for (x = bottom_tabs_front) hole_y(x, bt_z, seam_y - 1, seam_y + wall_t + 1, -1);
   for (x = bottom_tabs_back) hole_y(x, bt_z, cy1 - wall_t - 1, cy1 + 1, -1);

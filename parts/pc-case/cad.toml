@@ -19,6 +19,6 @@ note = "PETG · 0.20 mm · 3 walls · 15 % · floor down · no supports"
 parts = ["cover-bottom"]
 
 [plates.2-lid]
-note = "PETG · 0.20 mm · 3 walls · 15 % · top down · no supports · 251 mm wide: nothing else on the plate"
+note = "PETG · 0.20 mm · 3 walls · 15 % · top down · no supports · 252 mm wide: nothing else on the plate"
 parts = ["lid"]
 bed = [254, 254]

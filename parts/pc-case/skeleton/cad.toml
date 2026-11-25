@@ -10,7 +10,7 @@ note = "PETG · 0.20 mm (same as the real parts: the fits must match) · 3 walls
 parts = ["cover-top-skeleton"]
 
 [plates.2-lid-skeleton]
-note = "PETG · 0.20 mm · 3 walls · 15 % · top down · no supports · 251 mm wide: alone on the plate"
+note = "PETG · 0.20 mm · 3 walls · 15 % · top down · no supports · 252 mm wide: alone on the plate"
 parts = ["lid-skeleton"]
 bed = [254, 254]
 

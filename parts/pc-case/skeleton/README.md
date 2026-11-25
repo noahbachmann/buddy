@@ -6,23 +6,24 @@ then print the real parts (`../plates`).
 
 | Part | Kept | Plate | PETG (solid, max) |
 |---|---|---|---|
-| `lid-skeleton` | Rim (10.5 mm: the lid's solid band, holds the 4 cover screw holes), the 4 slit tabs, one cross with its 7 top-module nut bosses (the press-fit test) | `plates/2-lid-skeleton`, top down, 251 wide: alone | 40 g |
-| `cover-top-skeleton` | Top rim (top + upper 3 mm of the walls), corner posts, full-height wall strips at all 9 screws (4 seam bosses, 5 floor tabs) | `plates/1-cover-top-skeleton`, top down | 31 g |
+| `lid-skeleton` | Rim (10.5 mm: the lid's solid band), the 4 slit tabs, the 4 cover nut bosses, one cross with its 7 top-module nut bosses (the press-fit test) | `plates/2-lid-skeleton`, top down, 252 wide: alone | 42 g |
+| `cover-top-skeleton` | Top rim (top + upper 3 mm of the walls), corner posts, full-height wall strips at all 9 screws (4 seam bosses, 5 floor tabs) | `plates/1-cover-top-skeleton`, top down | 29 g |
 | `cover-bottom-skeleton` | Floor rim, the whole 0.8 fan floor (it sets the fan's height) and the 5 nut tabs | `plates/3-cover-bottom-skeleton`, floor down | 18 g |
 
 Print at the real parts' settings (PETG, 0.20 mm, 3 walls): the nut pockets and slit tabs must come out the same.
-89 g against 153 g for the real set.
+89 g against 152 g for the real set.
 
 ## What to check
 
-1. Lid: the tabs slide into the slits beside the board and stand on the silver plate; the top sits flush with the tray
-   walls; the edges clear the walls (0.3 mm); the cable notches line up with the ribbons and antenna wires.
-2. Nuts: press one into each kept top-module pocket (press fit), slide the 4 into the cover bosses and the 5 into
+1. Lid: the tabs slide into the slits beside the board and stand on the silver plate; the top sits at 34 (6 over the
+   tray walls); the edges clear the walls (0.3 mm); the cable notches line up with
+   the ribbons and antenna wires.
+2. Nuts: press one into each kept top-module pocket and the 4 cover bosses under the lid (press fit), drop the 5 into
    the floor tabs (slip fit).
 3. Cover-bottom: the fan stands flat on the 0.8 floor without rocking (the cooler hangs on the CPU too: the floor
    mustn't lever it up); the tabs stay clear under the heatsink.
 4. Cover-top: lowers over the cooler onto the floor and onto the lid (0.4 over the cooler), without touching the cooler, the tray wall, the
-   silver plate's pads or the antenna wires; all 9 screws go in (4 × M3 × 10 from under the lid, 5 × M3 × 8 from
+   silver plate's pads or the antenna wires; all 9 screws go in (4 × M3 × 8 from the top into the lid, 5 × M3 × 8 from
    outside).
 
 Note what doesn't fit (where, by how much) in #87; the fix goes into `../params.scad`.

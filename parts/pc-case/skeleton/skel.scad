@@ -22,6 +22,7 @@ module lid_skeleton() intersection() {
     band_2d(skel_lid_band) lid_2d();
     for (x = skel_bars_x) rect([x - boss_d / 2 - 1, x + boss_d / 2 + 1], [-big, big]);   // whole bosses along the bar; no shared faces
     for (y = skel_bars_y) rect([-big, big], [y - boss_d / 2 - 1, y + boss_d / 2 + 1]);
+    for (q = seam_screws()) translate(q) circle(d = seam_boss_d + 3);   // seam nut bosses: whole, with plate round them
     rect([-1, slit_w + 1], slit_tabs_left);                       // slit tabs (inside the rim anyway)
     rect([board[0] - slit_w - 1, board[0] + 1], slit_tabs_right);
   }
