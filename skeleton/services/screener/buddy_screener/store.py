@@ -81,6 +81,10 @@ class Store:
         if isinstance(path, Path):
             path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.db = sqlite3.connect(str(path))
+        # WAL: fewer syncs to the microSD per commit, and a `--cmd` reading while the service writes doesn't block
+        self.db.execute("PRAGMA journal_mode=WAL")
+        self.db.execute("PRAGMA synchronous=NORMAL")
+        self._seen: dict[str, tuple[str, str]] = {}   # chat key → (state, data) as last read or written here
         self.db.executescript(_SCHEMA)
         if "capture" not in {r[1] for r in self.db.execute("PRAGMA table_info(shadow)")}:
             self.db.execute("ALTER TABLE shadow ADD COLUMN capture TEXT")   # a DB from before #89
@@ -145,26 +149,40 @@ class Store:
                                "seven_day FROM usage WHERE ts >= ? AND ts <= ? ORDER BY ts", (since, until)).fetchall()
 
     def save_chat(self, chat: Chat) -> None:
+        """Writes only a change against the row as this store last saw it (read or written): the driver saves at
+        every step, mostly unchanged. `updated` = the last change."""
+        data = json.dumps(chat.to_dict(), ensure_ascii=False)
+        if self._seen.get(chat.key) == (chat.state, data):
+            return
         ended = None if chat.state in OPEN else (chat.closed_at or self.clock())
         self.db.execute("INSERT INTO chats (key, state, started, updated, ended, data) VALUES (?,?,?,?,?,?) "
                         "ON CONFLICT(key) DO UPDATE SET state=excluded.state, updated=excluded.updated, "
                         "ended=excluded.ended, data=excluded.data",
-                        (chat.key, chat.state, chat.started, self.clock(), ended,
-                         json.dumps(chat.to_dict(), ensure_ascii=False)))
+                        (chat.key, chat.state, chat.started, self.clock(), ended, data))
         self.db.commit()
+        self._seen[chat.key] = (chat.state, data)
 
     def chat(self, key: str) -> Chat | None:
-        row = self.db.execute("SELECT data FROM chats WHERE key = ?", (key,)).fetchone()
-        return Chat.from_dict(json.loads(row[0])) if row else None
+        row = self.db.execute("SELECT state, data FROM chats WHERE key = ?", (key,)).fetchone()
+        if row is None:
+            return None
+        self._seen[key] = (row[0], row[1])
+        return Chat.from_dict(json.loads(row[1]))
 
     def drop_chat(self, key: str) -> None:
         self.db.execute("DELETE FROM chats WHERE key = ?", (key,))
         self.db.commit()
+        self._seen.pop(key, None)
 
     def liked(self, name: str) -> list[Chat]:
         """Our likes with this name still waiting for their match (#77)."""
         return [c for c in self.chats((LIKED,)) if c.name == name]
 
     def chats(self, states: tuple[str, ...] | None = None) -> list[Chat]:
-        rows = self.db.execute("SELECT state, data FROM chats ORDER BY started").fetchall()
-        return [Chat.from_dict(json.loads(d)) for st, d in rows if states is None or st in states]
+        rows = self.db.execute("SELECT key, state, data FROM chats ORDER BY started").fetchall()
+        out = []
+        for key, st, d in rows:
+            self._seen[key] = (st, d)
+            if states is None or st in states:
+                out.append(Chat.from_dict(json.loads(d)))
+        return out

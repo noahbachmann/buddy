@@ -79,3 +79,33 @@ def test_shadow_rows_keep_the_capture_timings_and_an_old_db_gains_the_column(tmp
     rows = Store(db, clock=lambda: 2.0).shadow()
     assert [(r.key, r.capture) for r in rows] == [("a", None), ("b", {"swipes": 12, "end": "gap"})]
     assert rows[1].id == rid
+
+
+def test_wal_and_an_unchanged_chat_is_not_written_again(tmp_path):
+    db = tmp_path / "s.db"
+    s = Store(db, clock=lambda: 100.0)
+    assert s.db.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
+    c = Chat("k1", "Alex", 50.0, state=SCREENING)
+    s.save_chat(c)
+    before = s.db.total_changes
+    s.save_chat(c)
+    s.save_chat(s.chat("k1"))
+    assert s.db.total_changes == before
+    c.turns = 1
+    s.save_chat(c)
+    assert s.db.total_changes == before + 1
+
+
+def test_a_chat_another_process_changed_is_written_back_when_this_one_reads_and_changes_it(tmp_path):
+    db = tmp_path / "s.db"
+    service, cmd = Store(db, clock=lambda: 100.0), Store(db, clock=lambda: 100.0)
+    c = Chat("k1", "Alex", 50.0, state=SCREENING)
+    service.save_chat(c)
+    edited = cmd.chat("k1")
+    edited.turns = 3   # e.g. `--cmd chat-edit`
+    cmd.save_chat(edited)
+    back = service.chat("k1")
+    assert back.turns == 3
+    back.turns = 0     # the service's step happens to restore what it wrote first
+    service.save_chat(back)
+    assert Store(db).chat("k1").turns == 0
