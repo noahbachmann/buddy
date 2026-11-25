@@ -114,3 +114,18 @@ def test_state_payload_counts_chats_by_state_only(cfg):
 def test_a_typo_in_the_chat_mode_is_refused():
     with pytest.raises(ValueError, match="BUDDY_SCREENER_CHAT"):
         Config(package="x", chat="sent").chat_config()
+
+
+def test_a_manual_chat_asks_whether_the_bot_continues(cfg):
+    sent = []
+    hub = Hub(cfg, lambda topic, msg: sent.append(msg), clock=lambda: 2.0)
+    hub.ask_back("Alex|abc")
+    ask = sent[-1]
+    assert ask["options"] == ["Bot continues", "Keep it mine"] and "Alex" not in ask["text"] and "To do:" in ask["text"]
+    assert hub.answer({"event": "answered", "id": ask["id"], "option": 0}) == "give_back"
+    assert cfg.back_file.read_text() == "Alex|abc\n"
+    assert hub.answer({"event": "answered", "id": ask["id"], "option": 0}) is None   # answered once
+    hub.ask_back("Sam|def")
+    assert hub.answer({"event": "answered", "id": sent[-1]["id"], "option": 1}) is None
+    assert cfg.back_file.read_text() == "Alex|abc\n"
+    assert handle(cfg, None, "give_back", hub) is None

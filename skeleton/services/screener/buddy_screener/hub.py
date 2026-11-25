@@ -13,10 +13,12 @@ from typing import Any
 from buddy_shared import topics
 
 from .browse import HOLD_DECIDE, HOLD_FILES, HOLD_LIKES, HOLD_SCREEN, HOLD_WOULD_LIKE
-from .chats import HOLD_CHAT_FILES, HOLD_CHAT_MESSAGE, HOLD_CHAT_SCREEN, HOLD_CHAT_UNMATCH
+from .chat import MANUAL
+from .chats import HOLD_CHAT_FILES, HOLD_CHAT_MESSAGE, HOLD_CHAT_SCREEN, HOLD_CHAT_UNMATCH, NOTICE
 from .config import Config
 
 OPTIONS = ["Resume", "Stop"]
+BACK_OPTIONS = ["Bot continues", "Keep it mine"]   # a chat turned manual (#88)
 # What happened and what Dev does about it. {why}: the code's reason (the navigator's carry no names, D22 allows it).
 HOLD_TEXT = {
     HOLD_WOULD_LIKE: "Screener would like a profile (row #{row}). It's on the phone now.\n"
@@ -34,8 +36,8 @@ HOLD_TEXT = {
                 "To do: fix that line (ssh -t buddy micro ~/buddy/config/screener/templates.md), then Resume.",
     # chats (#77): {why} is the message's kind (disclosure, reply, nudge, …) or the navigator's reason, never a text
     HOLD_CHAT_MESSAGE: "Screener typed a chat message ({why}) and didn't send it. It's in the open chat on the phone.\n"
-                       "To do: read it there. Fine → Resume (the bot sends it). Not fine → write your own instead "
-                       "(that chat is yours from then on), then Resume.",
+                       "To do: read it there. Fine → Resume (the bot sends it). Not fine → change it in the field "
+                       "(or send your version yourself), then Resume: the bot carries on from your wording.",
     HOLD_CHAT_UNMATCH: "Screener wants to unmatch a closed chat (no fit, or she opted out, a day ago).\n"
                        "To do: Resume lets it unmatch. To keep the match, tell Claude first.",
     HOLD_CHAT_SCREEN: "Screener stopped in the chats at {time}: {why}.\n"
@@ -60,6 +62,24 @@ class Hub:
         self.publish(topics.messenger_cmd, {"action": "ask", "id": ask, "from": "screener", "ttl_s": 0,
                                             "text": text, "options": OPTIONS})
 
+    def ask_back(self, key: str) -> None:
+        """A chat turned manual: does the bot continue? The chat key stays in a file (never on Telegram); the answer
+        → `answer` queues it in `back_file` for the worker."""
+        ask = f"screener-back-{int(self.clock() * 1000)}"
+        asks = self._asks()
+        asks[ask] = key
+        self.cfg.data_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+        self.cfg.asks_file.write_text(json.dumps(asks))
+        self.publish(topics.messenger_cmd, {"action": "ask", "id": ask, "from": "screener", "ttl_s": 0,
+                                            "text": f"Screener: {NOTICE[MANUAL]}", "options": BACK_OPTIONS})
+
+    def _asks(self) -> dict[str, str]:
+        try:
+            d = json.loads(self.cfg.asks_file.read_text())
+        except (OSError, ValueError):
+            return {}
+        return d if isinstance(d, dict) else {}
+
     def notify(self, text: str) -> None:
         """Info only (no sound): limits, likes used up. `text` is the loop's, built from counts and times."""
         self.publish(topics.messenger_cmd, {"action": "notify", "level": "info", "text": f"Screener: {text}"})
@@ -71,7 +91,16 @@ class Hub:
             return None
 
     def answer(self, payload: dict[str, Any]) -> str | None:
-        """A messenger event → `resume` / `stop` when it answers the open hold, else None."""
+        """A messenger event → `resume` / `stop` when it answers the open hold, `give_back` when Dev lets the bot
+        continue a manual chat (its key queued in `back_file`), else None."""
+        asks = self._asks()
+        if payload.get("event") == "answered" and payload.get("id") in asks and "option" in payload:
+            key = asks.pop(payload["id"])
+            self.cfg.asks_file.write_text(json.dumps(asks))
+            if payload.get("option") != 0:
+                return None
+            queue_give_back(self.cfg, key)
+            return "give_back"
         h = self.held()
         if not h or payload.get("event") != "answered" or payload.get("id") != h.get("ask"):
             return None
@@ -84,3 +113,10 @@ class Hub:
         self.cfg.needs_you_file.unlink(missing_ok=True)
         if h and h.get("ask"):
             self.publish(topics.messenger_cmd, {"action": "cancel", "id": h["ask"], "note": f"▶ resumed {how}"})
+
+
+def queue_give_back(cfg: Config, key: str) -> None:
+    """The worker's next step hands this chat back to the bot (`ChatDriver._give_backs`)."""
+    cfg.data_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with cfg.back_file.open("a") as f:
+        f.write(key + "\n")

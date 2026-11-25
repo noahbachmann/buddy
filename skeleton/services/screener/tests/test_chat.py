@@ -363,6 +363,35 @@ def test_dev_typed_by_hand_is_manual_for_good():
     assert len(d.calls) == 1 and len(d.notices) == 1
 
 
+def test_given_back_the_bot_takes_devs_message_as_ours_and_screens_on():
+    d = Driver()
+    d.intro()
+    d.run(ask())
+    assert d.chat.state == SCREENING
+    d.screen.append(Message(US, "Hey, it's me, the real one"))
+    d.her("Oh hi!")
+    d.run()
+    assert d.chat.state == MANUAL and d.chat.manual_from == SCREENING
+    assert d.flow.give_back(d.chat, d.screen, d.now) is None
+    assert d.chat.state == SCREENING and d.chat.sent[-1].kind == "dev" and d.chat.sent[-1].dev
+    d.run(ask())
+    assert len(d.calls) == 2 and d.calls[-1][1] == "reply"   # her "Oh hi!" answered by the bot now
+    assert d.chat.bot_msgs == 2                              # Dev's message isn't the bot's
+
+
+def test_give_back_without_a_saved_state_reads_it_from_the_chat():
+    d = Driver()
+    d.run()                                                # the introduction out, no answer yet
+    d.chat.state, d.chat.manual_from = MANUAL, ""          # manual before #88: no saved state
+    assert d.flow.give_back(d.chat, d.screen, d.now) is None and d.chat.state == NEW
+    d.her("Sure, ask away")
+    d.chat.state = MANUAL
+    assert d.flow.give_back(d.chat, d.screen, d.now) is None and d.chat.state == SCREENING
+    assert d.flow.give_back(d.chat, d.screen, d.now) == "the chat is screening, not manual"
+    d.chat.state = MANUAL
+    assert d.flow.give_back(d.chat, d.screen + [Message(US, "", True)], d.now) is not None   # media of ours
+
+
 def test_manual_cancels_a_pending_unmatch():
     d = Driver()
     d.intro()

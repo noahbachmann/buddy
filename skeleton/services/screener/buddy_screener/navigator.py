@@ -776,6 +776,21 @@ class Navigator:
         r = self.dev.ime_read()
         return r.ok and r.text == text
 
+    def field_text(self) -> str | None:
+        """What the chat's field holds now (Dev may have edited the held message, #88); None = unreadable. Taps the
+        field first: after Dev's edit the keyboard may be closed."""
+        r = self.dev.ime_read()
+        if r.ok:
+            return r.text
+        s = self.expect(Kind.CHAT)
+        c = screens.chat_view(s.root)
+        if c.field is None:
+            return None
+        self.tap(s, c.field, "message field")
+        self.pause(0.7)
+        r = self.dev.ime_read()
+        return r.text if r.ok else None
+
     def clear_message(self) -> None:
         self.dev.ime_clear()
 

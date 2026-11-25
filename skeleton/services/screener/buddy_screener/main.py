@@ -273,6 +273,9 @@ def cmd_shadow(cfg: Config, args: argparse.Namespace) -> int:
 
 
 def offline(cfg: Config, args: argparse.Namespace) -> int:
+    if args.cmd in ("chat-back",):
+        from .chatcmd import run
+        return run(cfg, args)
     if args.cmd in ("templates", "rows", "report", "label", "shadow", "type", "skip", "send"):
         try:
             return cmd_shadow(cfg, args)
@@ -366,7 +369,8 @@ def service(cfg: Config) -> int:
                         mode=cfg.mode, pages=_shot_pages, log=mqtt.log)
             # the chats on the same phone, between profiles (#77): one worker, one phone
             c = ChatDriver(cfg.chat_config(), wnav, Talker(wdecider), wstore, cfg.config_dir, hold=hub.hold,
-                           notify=hub.notify, mode=cfg.mode, limits=cfg.chat_limits(), log=mqtt.log)
+                           notify=hub.notify, mode=cfg.mode, limits=cfg.chat_limits(), log=mqtt.log,
+                           ask_back=hub.ask_back, back_file=cfg.back_file)
             nonlocal browser
             browser = b
 
@@ -489,6 +493,8 @@ def handle(cfg: Config, dev: Device, action: str, hub=None, how: str = "on the p
             cfg.pause_file.touch()
             if ime := _stock_ime(cfg, dev):
                 dev.ime_set(ime)
+        elif action == "give_back":
+            pass   # queued by the hub: the worker's next step (woken below) takes it
         elif action == "resume":
             cfg.stop_file.unlink(missing_ok=True)
             cfg.pause_file.unlink(missing_ok=True)
@@ -509,7 +515,7 @@ def main() -> int:
     p = argparse.ArgumentParser(prog="buddy-screener")
     p.add_argument("--cmd", help="screen | dump [name] | fixture <out> <xml…> | profile | back-out | walk | templates | shots [dir]"
                                  " | shadow | label <id> like|skip|unjudged [section comment] | type <id> | skip <id>"
-                                 " | send <id> | report | rows")
+                                 " | send <id> | report | rows | chat-back <name>")
     p.add_argument("--show", action="store_true", help="profile: print texts (host terminal only)")
     p.add_argument("--since", type=int, help="report: only shadow rows from this id on (one session)")
     p.add_argument("--until", type=int, help="report: only shadow rows up to this id (a part of a session)")

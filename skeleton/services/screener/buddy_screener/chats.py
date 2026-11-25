@@ -2,8 +2,10 @@
 list, or the resume of a message Dev was asked to read.
 
 Modes (`BUDDY_SCREENER_CHAT`): `off`, `hold` (every message is typed into the chat's field, not sent, and Dev is asked
-on Telegram, without the text: Dev reads it on the phone; Resume = read back + send; Dev changing or sending it
-himself makes the chat `manual`, Dev 2026-11-24) and `live` (sent at once). An unmatch is held the same way in `hold`.
+on Telegram, without the text: Dev reads it on the phone; Resume = read back + send) and `live` (sent at once). An
+unmatch is held the same way in `hold`. Dev's edit of a held message (in the field, or sent by himself) is sent as his
+wording and the bot carries on (Dev, 2026-11-25, #88); only a message of his own beyond it makes the chat `manual`.
+A `manual` chat asks Dev on Telegram whether the bot continues; yes (or `--cmd chat-back`) → `give_back`.
 
 Which chats (Dev, 2026-11-24): a match linked to one of our `liked` chats (the same name, exactly one, its head fits),
 or an old match where we sent nothing but the like (her profile from the chat's Profile tab). Names in the host's
@@ -43,7 +45,8 @@ DAY = 86400.0
 # what Dev is told when a chat ends up somewhere (fixed: no name, no text, no model reason)
 NOTICE = {
     HANDOVER: "a chat needs you: the bot handed it over.\nTo do: open the matches tab and take that chat over.",
-    MANUAL: "a chat is yours now: a message on our side wasn't the bot's.\nTo do: nothing, the bot stays out of it.",
+    MANUAL: "a chat is yours now: a message on our side wasn't the bot's.\nTo do: nothing, the bot stays out of it. "
+            "Bot continues = it takes your messages as part of the chat and carries on screening.",
     DONE: "a chat got your contact after a verified match.\nTo do: expect a message from her.",
     CLOSED: "a chat was closed (no fit or she opted out); the unmatch follows in a day.\nTo do: nothing.",
     FOREIGN: "a match the bot leaves to you (no like of its own to link it to).\nTo do: chat in the app yourself.",
@@ -75,9 +78,13 @@ class ChatDriver:
     def __init__(self, cfg: ChatConfig, nav: Navigator, talker, store: Store, config_dir: Path,
                  hold: Callable[[str, int | None, str], None], notify: Callable[[str], None],
                  mode: Callable[[], str], limits: ChatLimits = ChatLimits(), clock: Callable[[], float] = time.time,
-                 log: Callable[[str], None] = print):
+                 log: Callable[[str], None] = print, ask_back: Callable[[str], None] | None = None,
+                 back_file: Path | None = None):
         self.cfg, self.nav, self.talker, self.store, self.config_dir = cfg, nav, talker, store, config_dir
         self.hold, self.notify, self.mode, self.limits, self.clock, self.log = hold, notify, mode, limits, clock, log
+        # a chat turned manual: Dev is asked whether the bot continues (key → his answer lands in back_file)
+        self.ask_back = ask_back or (lambda key: notify(NOTICE[MANUAL]))
+        self.back_file = back_file
         self.next_pass = 0.0
         self.failures: dict[str, int] = {}
         self.until = 0.0   # usage limit / $ cap: no calls before
@@ -114,6 +121,8 @@ class ChatDriver:
             if (held := self._held()) is not None:
                 if not self._resume(held, flow):
                     return 5.0
+            elif self._give_backs(flow):
+                pass   # then the pass: the chats handed back get their turn at once
             elif not self.due():
                 return max(self.next_pass - now, 1.0)
             self._pass(flow, rules)
@@ -133,6 +142,31 @@ class ChatDriver:
         self.log(f"chat hold ({kind}): {why}")
         self.hold(kind, None, why)
         return 5.0
+
+    # --- Dev hands manual chats back (#88) ---
+
+    def _give_backs(self, flow: ChatFlow) -> bool:
+        """The chat keys Dev handed back (Telegram "Bot continues" or `--cmd chat-back`), one per line in
+        `back_file`. Each: open, read, `give_back`. True if there were any."""
+        if self.back_file is None:
+            return False
+        try:
+            keys = [k.strip() for k in self.back_file.read_text().splitlines() if k.strip()]
+        except OSError:
+            return False
+        self.back_file.unlink(missing_ok=True)
+        for key in dict.fromkeys(keys):
+            chat = self.store.chat(key)
+            if chat is None or chat.state != MANUAL:
+                self.log(f"give back: no manual chat for that key ({chat.state if chat else 'none'})")
+                continue
+            self.nav.open_chat(chat.key)
+            msgs, origin = self.nav.read_chat()
+            why = flow.give_back(chat, to_flow(msgs, origin), self.clock())
+            self.store.save_chat(chat)
+            self._leave()
+            self.log(f"give back: {why or chat.state}")
+        return bool(keys)
 
     # --- a pass ---
 
@@ -249,7 +283,9 @@ class ChatDriver:
                 break
             self.store.save_chat(chat)
         self.store.save_chat(chat)
-        if chat.state != before and chat.state in NOTICE:
+        if chat.state != before and chat.state == MANUAL:
+            self.ask_back(chat.key)
+        elif chat.state != before and chat.state in NOTICE:
             self.notify(NOTICE[chat.state])
 
     def _calls(self, chat: Chat, flow: ChatFlow, rules: ChatRules, act: Action) -> Action:
@@ -286,8 +322,9 @@ class ChatDriver:
     # --- Dev's answer to a hold ---
 
     def _resume(self, chat: Chat, flow: ChatFlow) -> bool:
-        """Dev resumed a held chat: send the message if the field still holds it (Dev may have sent it himself: then
-        it's ours anyway; anything else on our side → manual), or carry out the held unmatch."""
+        """Dev resumed a held chat: send what the field holds (the bot's message, or Dev's edit of it: sent as his
+        wording, the bot carries on, #88). Field empty: Dev sent it himself (as typed or edited: the one new message
+        on our side is it); more than one new message of his, or none → `manual`. Or the held unmatch."""
         held, now = chat.held, self.clock()
         chat.held = {}
         s = self.nav.stable()
@@ -298,21 +335,35 @@ class ChatDriver:
             flow.unmatched(chat, now)
             self.store.save_chat(chat)
             return True
-        act = Action("send", template=held["template"], text=held["text"])
-        if self.nav.field_holds(act.text):
+        act = Action("send", template=held["template"], text=held["text"], dev=held.get("dev") == "1")
+        field = self.nav.field_text()
+        if field and field.strip():
+            if field != act.text:
+                act.text, act.dev = field, True
+                chat.log.append("Dev edited the held message")
             self.nav.send_message(act.text)
             flow.delivered(chat, act, now)
         else:
             msgs, _ = self.nav.read_chat()
-            ours = [m for m in msgs if m.side == "right"]
-            if ours and " ".join(ours[-1].text.split()) == " ".join(act.text.split()):
-                flow.delivered(chat, act, now)   # Dev tapped send himself: the bot's message as typed
+            logged = {_norm(s.text) for s in chat.sent}
+            new = [m for m in msgs if m.side == "right" and (m.media or _norm(m.text) not in logged)]
+            if len(new) == 1 and not new[0].media:
+                # Dev tapped send himself: the bot's message as typed, or his edit of it
+                if _norm(new[0].text) != _norm(act.text):
+                    act.text, act.dev = new[0].text, True
+                    chat.log.append("Dev edited and sent the held message")
+                flow.delivered(chat, act, now)
             else:
-                chat.state, chat.reason, chat.closed_at = MANUAL, "Dev changed the held message", now
-                chat.log.append(f"{MANUAL}: Dev changed the held message")
-                self.notify(NOTICE[MANUAL])
+                why = "Dev cleared the held message" if not new else "Dev wrote more than the held message"
+                chat.manual_from, chat.state, chat.reason, chat.closed_at = chat.state, MANUAL, why, now
+                chat.log.append(f"{MANUAL}: {why}")
+                self.ask_back(chat.key)
         self.store.save_chat(chat)
         return True
+
+
+def _norm(text: str) -> str:
+    return " ".join(text.split())
 
 
 class _Held(Exception):

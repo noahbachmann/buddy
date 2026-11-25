@@ -154,15 +154,58 @@ def test_hold_types_without_sending_then_resume_sends(tmp_path):
     assert [a[2] for a in r.phone.sent()] == ["Send", "Send"]
 
 
-def test_dev_changing_the_held_message_makes_the_chat_his(tmp_path):
+def test_dev_editing_the_held_message_sends_his_wording_and_the_bot_carries_on(tmp_path):
     r = Rig(tmp_path, Talker(opener()), mode=chats.HOLD)
     r.like()
     r.d.step()
-    r.phone.field = "Hey, it's me, the human"
+    r.phone.field = "He loves indie, and old soul too."
     r.resume()
     c = r.store.chat("Alex")
-    assert c.state == MANUAL and r.phone.ours == [] and chats.NOTICE[MANUAL] in r.notes
-    assert r.phone.sent() == []
+    assert r.phone.ours == ["He loves indie, and old soul too."] and c.state == NEW
+    assert [(s.kind, s.dev) for s in c.sent] == [("like_comment", False), ("opener", True)]
+    assert c.held["template"] == "disclosure" and chats.NOTICE[MANUAL] not in r.notes   # the next one held
+
+
+def test_dev_sending_his_own_edit_himself_counts_as_the_held_message(tmp_path):
+    r = Rig(tmp_path, Talker(opener()), mode=chats.HOLD)
+    r.like()
+    r.d.step()
+    r.phone.ours.append("Indie, yes!")   # Dev rewrote it and tapped send on the phone
+    r.phone.field, r.phone.screen = "", "chat-comment"
+    r.resume()
+    c = r.store.chat("Alex")
+    assert c.state == NEW and c.sent[-1].kind == "opener" and c.sent[-1].text == "Indie, yes!" and c.sent[-1].dev
+
+
+def test_dev_writing_more_than_the_held_message_makes_the_chat_his_and_asks_back(tmp_path):
+    backs = []
+    r = Rig(tmp_path, Talker(opener()), mode=chats.HOLD)
+    r.d.ask_back = backs.append
+    r.like()
+    r.d.step()
+    r.phone.ours += ["Hey, it's me", "the human"]
+    r.phone.field, r.phone.screen = "", "chat-comment"
+    r.resume()
+    c = r.store.chat("Alex")
+    assert c.state == MANUAL and c.manual_from == NEW and backs == ["Alex"] and r.phone.sent() == []
+
+
+def test_a_manual_chat_given_back_adopts_devs_messages_and_continues(tmp_path):
+    r = Rig(tmp_path, Talker(opener()), mode=chats.HOLD)
+    r.d.back_file = tmp_path / "give-back"
+    r.like()
+    r.d.step()
+    r.phone.ours += ["Hey, it's me", "the human"]
+    r.phone.field, r.phone.screen = "", "chat-comment"
+    r.resume()
+    assert r.store.chat("Alex").state == MANUAL
+    r.d.back_file.write_text("Alex\n")
+    r.phone.screen = "matches-turns"
+    r.d.step()
+    c = r.store.chat("Alex")
+    assert not r.d.back_file.exists() and c.state == NEW and c.manual_from == ""
+    assert [s.kind for s in c.sent if s.dev] == ["dev", "dev"]
+    assert c.held["template"] == "disclosure"   # the pass went on: still no introduction → typed and held
 
 
 def test_dev_sending_the_held_message_himself_counts_as_ours(tmp_path):

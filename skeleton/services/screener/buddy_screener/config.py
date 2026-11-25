@@ -156,6 +156,16 @@ class Config:
         """The loop holds for Dev (#80): JSON {kind, row, ask}; `resume` removes it."""
         return self.data_dir / "needs_you"
 
+    @property
+    def asks_file(self) -> Path:
+        """Open "Bot continues?" asks (#88): JSON {ask id: chat key}."""
+        return self.data_dir / "asks"
+
+    @property
+    def back_file(self) -> Path:
+        """Chat keys Dev handed back to the bot, one per line; the worker takes them (#88)."""
+        return self.data_dir / "give-back"
+
     def mode(self) -> str:
         if self.stop_file.exists():
             return "stopped"

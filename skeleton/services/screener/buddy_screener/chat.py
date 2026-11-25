@@ -91,8 +91,9 @@ class Message:
 @dataclass
 class Sent:
     ts: float
-    kind: str                    # like_comment | opener | disclosure | reply | nudge | contact_offer | contact_* | closing | opt_out
+    kind: str                    # like_comment | opener | disclosure | reply | nudge | contact_offer | contact_* | closing | opt_out | dev
     text: str
+    dev: bool = False            # Dev's wording: his edit of a held message, or (kind `dev`) his own message adopted
 
 
 @dataclass
@@ -147,6 +148,7 @@ class Chat:
     liked_kind: str = ""         # the liked section: photo | prompt (the chat's head shows it)
     prompt_langs: list[str] = field(default_factory=list)   # the decision's, for the first message's language
     held: dict[str, str] = field(default_factory=dict)      # a message typed and held for Dev (or an unmatch), #77
+    manual_from: str = ""        # the state before `manual`: where `give_back` returns to (#88)
 
     @property
     def bot_msgs(self) -> int:
@@ -174,6 +176,7 @@ class Action:
     kind: str                    # send | converse | verify | unmatch | notify | wait
     template: str = ""           # send: the Sent kind
     text: str = ""               # send: the message; notify: what happened (no name, no message text)
+    dev: bool = False            # send: Dev's wording (his edit of the held message)
     task: str = ""               # converse: first | reply | nudge
     transcript: list[tuple[str, str]] = field(default_factory=list)   # converse/verify: (side, text), contacts redacted
 
@@ -253,9 +256,9 @@ class ChatFlow:
             return self._end(chat, HANDOVER, now, "she sent media or a voice note")
         if not any(s.kind == "disclosure" for s in chat.sent):
             # she answered our like comment before we introduced ourselves: answer her first, then the
-            # introduction (Dev, 2026-11-24)
+            # introduction (Dev, 2026-11-24); Dev's own messages (given back) already answered her
             if theirs and not all(_SMALL_TALK.fullmatch(m.text) for m in theirs) \
-                    and not any(s.kind == "opener" for s in chat.sent) and chat.pending_task != TASK_OPENER:
+                    and not any(s.kind in ("opener", "dev") for s in chat.sent) and chat.pending_task != TASK_OPENER:
                 return self._converse(chat, screen, TASK_OPENER, len(theirs))
             return self._send(chat, "disclosure", fill(self._t("disclosure", chat), name=chat.name))
         if now - chat.started >= self.limits.max_days * 86400 and chat.state in (NEW, SCREENING):
@@ -270,7 +273,7 @@ class ChatFlow:
         return self._tick(chat, screen, now)
 
     def delivered(self, chat: Chat, act: Action, now: float) -> None:
-        chat.sent.append(Sent(now, act.template, act.text))
+        chat.sent.append(Sent(now, act.template, act.text, act.dev))
         k = act.template
         if k == "reply" and chat.state == NEW:
             chat.state = SCREENING
@@ -339,6 +342,28 @@ class ChatFlow:
         chat.unmatched = True
         chat.log.append("unmatched")
 
+    def give_back(self, chat: Chat, screen: list[Message], now: float) -> str | None:
+        """Dev hands a `manual` chat back to the bot (#88): his messages on our side join the log as `dev`, the
+        state returns to where it was (an old chat without `manual_from`: screening once she answered the
+        introduction, else new). Returns why it can't (None = done)."""
+        if chat.state != MANUAL:
+            return f"the chat is {chat.state}, not manual"
+        if any(m.side == US and m.media for m in screen):
+            return "our side has media the bot can't read"
+        ours = {_norm(s.text) for s in chat.sent}
+        for m in screen:
+            if m.side == US and _norm(m.text) not in ours:
+                chat.sent.append(Sent(now, "dev", m.text, True))
+                ours.add(_norm(m.text))
+        if chat.manual_from in OPEN:
+            chat.state = chat.manual_from
+        else:
+            chat.state = SCREENING if self._after_disclosure(chat, screen) else NEW
+        chat.theirs_seen = min(chat.theirs_seen, sum(m.side == THEM for m in screen))
+        chat.manual_from, chat.reason, chat.closed_at = "", "", None
+        chat.log.append(f"given back by Dev: {chat.state}")
+        return None
+
     # --- transcript ----------------------------------------------------------------------------------------------
 
     def transcript(self, chat: Chat, screen: list[Message]) -> list[tuple[str, str]]:
@@ -386,7 +411,7 @@ class ChatFlow:
                 chat.log.append("no answer to the introduction: closed silently")
                 self._close(chat, now, "no_reply")
             return WAIT
-        if not chat.sent or chat.sent[-1].kind not in ("reply", "nudge", "contact_offer"):
+        if not chat.sent or chat.sent[-1].kind not in ("reply", "nudge", "contact_offer", "dev"):
             return WAIT
         quiet = now - chat.last_out
         nudged = chat.sent[-1].kind == "nudge"
@@ -448,6 +473,8 @@ class ChatFlow:
         chat.unmatch_at = now + self.limits.unmatch_h * 3600
 
     def _end(self, chat: Chat, state: str, now: float, why: str) -> Action:
+        if state == MANUAL:
+            chat.manual_from = chat.state
         chat.state, chat.reason = state, why
         chat.closed_at = now
         chat.log.append(f"{state}: {why}")
