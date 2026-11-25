@@ -9,9 +9,10 @@ A `manual` chat asks Dev on Telegram whether the bot continues; yes (or `--cmd c
 
 Which chats (Dev, 2026-11-24): a match linked to one of our `liked` chats (the same name, exactly one, its head fits),
 or an old match where we sent nothing but the like (her profile from the chat's Profile tab). Names in the host's
-`chat-ignore` and everything else (`foreign`) are never touched. A pass runs when the tab bar's matches badge counts
-a new message, or every `check_s` for new matches and timers (nudge, silent close, unmatch); a chat is opened only
-when she wrote, it's new, or a timer is due. Messages go out as soon as seen (Dev: no delay, no hours).
+`chat-ignore` and everything else (`foreign`) are never touched. Within the hours (`BUDDY_SCREENER_HOURS`) a pass runs
+when the tab bar's matches badge counts a new message, or every `check_s` for new matches and timers (nudge, silent
+close, unmatch); outside them every `off_hours_s`, badge ignored (the screen is off, #90). A chat is opened only when
+she wrote, it's new, or a timer is due. Messages go out as soon as seen (Dev: no delay).
 
 Telegram gets fixed texts per kind only: never a name, a message or the model's reason (bot chats aren't end-to-end
 encrypted, D22).
@@ -59,7 +60,8 @@ NOTICE = {
 @dataclass(frozen=True)
 class ChatConfig:
     mode: str = OFF
-    check_s: float = 600.0   # BUDDY_SCREENER_CHAT_CHECK_MIN
+    check_s: float = 600.0       # BUDDY_SCREENER_CHAT_CHECK_MIN: within the hours
+    off_hours_s: float = 1800.0  # BUDDY_SCREENER_CHAT_OFF_HOURS_MIN: outside them (#90)
 
 
 def read_ignore(path: Path) -> set[str]:
@@ -83,7 +85,8 @@ class ChatDriver:
                  mode: Callable[[], str], limits: ChatLimits = ChatLimits(), clock: Callable[[], float] = time.time,
                  log: Callable[[str], None] = print, ask_back: Callable[[str], None] | None = None,
                  back_file: Path | None = None, notes_dir: Path | None = None,
-                 sleep: Callable[[float], None] = time.sleep):
+                 sleep: Callable[[float], None] = time.sleep,
+                 in_window: Callable[[float], bool] = lambda now: True):
         self.cfg, self.nav, self.talker, self.store, self.config_dir = cfg, nav, talker, store, config_dir
         self.hold, self.notify, self.mode, self.limits, self.clock, self.log = hold, notify, mode, limits, clock, log
         # a chat turned manual: Dev is asked whether the bot continues (key → his answer lands in back_file)
@@ -91,7 +94,9 @@ class ChatDriver:
         self.back_file = back_file
         self.notes_dir = notes_dir   # tmpfs: each chat as last read + the held message, for Dev's review (#88)
         self.sleep = sleep
-        self.next_pass = 0.0
+        self.in_window = in_window   # the browse hours (#90): the cadence and the badge depend on them
+        self.last_pass = float("-inf")
+        self.seen_badge = 0   # the badge a pass left (unread chats it doesn't touch): only a higher one is news
         self.failures: dict[str, int] = {}
         self.until = 0.0   # usage limit / $ cap: no calls before
 
@@ -102,9 +107,27 @@ class ChatDriver:
         tab = s.tabs.get(v.TAB_MATCHES) if s is not None else None
         return tab.badge if tab is not None else 0
 
+    def interval(self, now: float) -> float:
+        return self.cfg.check_s if self.in_window(now) else self.cfg.off_hours_s
+
     def due(self) -> bool:
         now = self.clock()
-        return now >= self.until and (now >= self.next_pass or self._badge() > 0 or self._held() is not None)
+        if now < self.until:
+            return False
+        if now >= self.last_pass + self.interval(now):
+            return True
+        # the badge is the last screen's: only trusted while the bot works the phone within the hours
+        if not self.in_window(now):
+            return False
+        badge = self._badge()
+        self.seen_badge = min(self.seen_badge, badge)   # read elsewhere (Dev): a new one counts again
+        return badge > self.seen_badge
+
+    def _backs_waiting(self) -> bool:
+        try:
+            return self.back_file is not None and self.back_file.stat().st_size > 0
+        except OSError:
+            return False
 
     def _held(self) -> Chat | None:
         return next((c for c in self.store.chats(OPEN + (CLOSED,)) if c.held), None)
@@ -123,16 +146,17 @@ class ChatDriver:
         except LibraryError as e:
             return self._hold(HOLD_CHAT_FILES, f"chat files: {e}")
         flow = ChatFlow(rules, contacts, self.limits)
+        held = self._held()
+        if held is None and not self._backs_waiting() and not self.due():
+            return max(self.last_pass + self.interval(now) - now, 1.0)   # nothing to do: the screen stays as it is
         try:
             # the screen sleeps between passes: a dark screenshot keys every match as name#000… (2026-11-25)
             self.nav.wake()
-            if (held := self._held()) is not None:
+            if held is not None:
                 if not self._resume(held, flow):
                     return 5.0
-            elif self._give_backs(flow):
-                pass   # then the pass: the chats handed back get their turn at once
-            elif not self.due():
-                return max(self.next_pass - now, 1.0)
+            else:
+                self._give_backs(flow)   # then the pass: the chats handed back get their turn at once
             self._pass(flow, rules)
             self.nav.go_tab(v.TAB_DISCOVER)
         except NeedsYou as e:
@@ -142,8 +166,9 @@ class ChatDriver:
         except _Limited as e:
             self.until = e.until
             return max(e.until - self.clock(), 1.0)
-        self.next_pass = self.clock() + self.cfg.check_s
-        return self.cfg.check_s
+        self.last_pass = self.clock()
+        self.seen_badge = self._badge()
+        return self.interval(self.last_pass)
 
     def _hold(self, kind: str, why: str) -> float:
         self.store.add_action("needs_you", "chat", None, why[:120])

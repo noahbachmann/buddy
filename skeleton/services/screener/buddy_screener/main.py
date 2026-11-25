@@ -382,7 +382,8 @@ def service(cfg: Config) -> int:
             # the chats on the same phone, between profiles (#77): one worker, one phone
             c = ChatDriver(cfg.chat_config(), wnav, Talker(wdecider), wstore, cfg.config_dir, hold=hub.hold,
                            notify=hub.notify, mode=cfg.mode, limits=cfg.chat_limits(), log=mqtt.log,
-                           ask_back=hub.ask_back, back_file=cfg.back_file, notes_dir=cfg.tmp_dir / "chats")
+                           ask_back=hub.ask_back, back_file=cfg.back_file, notes_dir=cfg.tmp_dir / "chats",
+                           in_window=lambda now: b.window(now).open(now))
             nonlocal browser
             browser = b
 

@@ -93,6 +93,12 @@ skip, like → hold `would_like` (Dev likes or skips, then resumes). Live: skip,
 `type_comment` → `send_like`. A gap of 20–90 s, a 5–20 min break every 6–12 profiles. Holds wait for Dev (no
 automatic retry); usage limit or daily $ cap → `limit` until it ends.
 
+Screen (#90): the phone stays awake while charging (`stay_on_while_plugged_in`), so it never goes dark by itself.
+The worker wakes it only for work (a profile, a due chat pass, a resume) and `Browser.run` turns it off once
+(`Navigator.sleep`, KEYCODE_SLEEP, unguarded) when the next wait is ≥ 2 min or it holds for Dev; never while paused.
+Dev's phone commands (`_dev_navigator`) wake it first. Chat passes: every 10 min + a rising matches badge within the
+hours, every 30 min outside them (`BUDDY_SCREENER_CHAT_OFF_HOURS_MIN`).
+
 Likes come back 24 h after each like, at most 8 in any 24 h (measured 2026-11-25): no reset at midnight.
 
 ## Chat flow (#77)
@@ -162,6 +168,7 @@ texts, copy over.
 - `scroll_to` trusts the capture's offset only if the screen is exactly its last dump; otherwise back to the top first.
 - Chats: "Your turn" and a collapsed "Their turn" header; a chat is a reversed list headed by our like; her messages
   carry " Name: text. "; with text typed the voice button becomes "Send message". Row keys tolerate a few bits of
-  thumbnail-hash drift. The screen sleeps between passes: wake it first (a dark screenshot keys every row the same).
+  thumbnail-hash drift. The screen is off between passes: wake it first (a dark screenshot keys every row the same).
+  The matches badge can stay up (unread chats the bot doesn't touch): only a badge above the one a pass left is news.
 - Not seen yet (each → a sanitized fixture when first seen): an incoming like's card, an app notification's text, a
   new match without messages, the unmatch confirmation, a photo or voice note from her.

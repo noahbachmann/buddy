@@ -345,3 +345,44 @@ def test_a_hold_during_give_back_keeps_the_key_queued(tmp_path):
     r.d.back_file.write_text("Nobody#1\n")
     r.d.step()
     assert r.holds == [chats.HOLD_CHAT_SCREEN] and r.d.back_file.read_text() == "Nobody#1\n"
+
+
+def wakes(r) -> int:
+    return sum(a[0] == "key" and a[2] == 224 for a in r.phone.actions)
+
+
+def test_a_step_with_nothing_due_leaves_the_screen_alone(tmp_path):
+    # #90: the wake used to come before the due check: every worker turn lit the screen
+    r = Rig(tmp_path, Talker(opener()))
+    r.like()
+    assert r.d.step() == 600.0 and wakes(r) == 1
+    r.t += 100
+    assert r.d.step() == 500.0 and wakes(r) == 1
+
+
+def test_outside_the_hours_a_pass_every_30_minutes_and_no_badge(tmp_path):
+    r = Rig(tmp_path, Talker(opener()))
+    r.like()
+    inside = [True]
+    r.d.in_window = lambda now: inside[0]
+    badge = [1]
+    r.d._badge = lambda: badge[0]                        # the last screen's badge
+    inside[0] = False
+    assert r.d.step() == 1800.0 and wakes(r) == 1
+    r.phone.screen = "matches-turns"
+    r.t += 601
+    assert r.d.step() == pytest.approx(1199.0) and wakes(r) == 1   # badge ignored, 10 min not enough
+    r.t += 1200
+    r.d.step()
+    assert wakes(r) == 2
+    badge[0] = 2
+    r.t += 1
+    r.d.step()
+    assert wakes(r) == 2                                 # outside the hours a new message waits for the pass
+    inside[0] = True                                     # within the hours: at once
+    r.phone.screen = "matches-turns"
+    r.d.step()
+    assert wakes(r) == 3
+    r.t += 1
+    r.d.step()
+    assert wakes(r) == 3                                 # the badge the pass left (unread, untouched) isn't news

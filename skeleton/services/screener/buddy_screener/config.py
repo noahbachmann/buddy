@@ -35,7 +35,8 @@ class Config:
     break_min: str = "5-20"      # a break's minutes
     daily_likes: int = 8         # the app's free likes per batch (#80): the budget stops before its paywall
     chat: str = "off"            # the chats (#77): off | hold (typed, Dev resumes to send) | live
-    chat_check_min: float = 10   # minutes between passes over the matches list (a new-message badge: at once)
+    chat_check_min: float = 10   # minutes between passes over the matches list within `hours` (a new-message badge: at once)
+    chat_off_hours_min: float = 30   # … outside `hours` (#90: the screen is off, no badge)
     chat_min_exchanges: int = ChatLimits.min_exchanges   # chat (#77): meanings in chat.ChatLimits
     chat_max_bot: int = ChatLimits.max_bot
     chat_max_days: float = ChatLimits.max_days
@@ -77,6 +78,7 @@ class Config:
             daily_likes=env_int("BUDDY_SCREENER_DAILY_LIKES", d.daily_likes),
             chat=env_string("BUDDY_SCREENER_CHAT", d.chat),
             chat_check_min=env_float("BUDDY_SCREENER_CHAT_CHECK_MIN", d.chat_check_min),
+            chat_off_hours_min=env_float("BUDDY_SCREENER_CHAT_OFF_HOURS_MIN", d.chat_off_hours_min),
             chat_min_exchanges=env_int("BUDDY_SCREENER_CHAT_MIN_EXCHANGES", d.chat_min_exchanges),
             chat_max_bot=env_int("BUDDY_SCREENER_CHAT_MAX_BOT", d.chat_max_bot),
             chat_max_days=env_float("BUDDY_SCREENER_CHAT_MAX_DAYS", d.chat_max_days),
@@ -118,7 +120,7 @@ class Config:
         from .chats import HOLD, LIVE, OFF, ChatConfig
         if self.chat not in (OFF, HOLD, LIVE):
             raise ValueError(f"BUDDY_SCREENER_CHAT={self.chat!r}: off, hold or live")
-        return ChatConfig(self.chat, self.chat_check_min * 60)
+        return ChatConfig(self.chat, self.chat_check_min * 60, self.chat_off_hours_min * 60)
 
     def chat_limits(self) -> ChatLimits:
         return ChatLimits(self.chat_min_exchanges, self.chat_max_bot, self.chat_max_days, self.chat_nudge_days,
