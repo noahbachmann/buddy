@@ -89,9 +89,9 @@ function lid_nodes() = [for (x = grid_x, y = grid_y)
       && x + boss_d / 2 <= (y + boss_d / 2 < lid_y1 - perim ? board[0] : lid_x1) - perim
       && y + boss_d / 2 <= (x + boss_d / 2 < lid_x1 - perim ? board[1] : lid_y1) - perim) [x, y]];
 module lid_bars_2d() {
-  for (x = grid_x) rect([x - bar / 2, x + bar / 2], [shield_y - bar / 2, big]);
+  for (x = concat(grid_x, fine_x)) rect([x - bar / 2, x + bar / 2], [shield_y - bar / 2, big]);
   for (x = shield_xs) rect([x - bar / 2, x + bar / 2], [-big, big]);
-  for (y = grid_y) rect([-big, big], [y - bar / 2, y + bar / 2]);
+  for (y = concat(grid_y, fine_y)) rect([-big, big], [y - bar / 2, y + bar / 2]);
 }
 module lid_plate_2d() difference() {
   lid_2d();
