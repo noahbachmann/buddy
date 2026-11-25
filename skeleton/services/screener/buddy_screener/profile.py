@@ -188,10 +188,19 @@ class Capture:
             s.index = count[s.kind]
         self.add_details(view)
 
+    _promo: frozenset[str] = frozenset()   # class default: a capture pickled before it existed still merges
+
     def add_details(self, view: ProfileView) -> None:
-        """Merges the view's details; a value seen without its label (icon scrolled off) gets it later."""
+        """Merges the view's details; a value seen without its label (icon scrolled off) gets it later. A feature ad's
+        text is never a detail: one dump can cut off its "Try it" (the ad looks like a detail there), another shows it
+        whole; whichever comes first, the ad's text goes (#89)."""
+        if not self._promo >= set(view.promo):
+            self._promo = self._promo | set(view.promo)
+            self.profile.details[:] = [d for d in self.profile.details if d[1] not in self._promo]
         details = self.profile.details
         for label, value in view.details:
+            if value in self._promo:
+                continue
             same = next((i for i, (l, v) in enumerate(details) if v == value and (l == label or not l or not label)), None)
             if same is None:
                 details.append((label, value))

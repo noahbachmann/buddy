@@ -197,6 +197,8 @@ class ProfileView:
     sideways: list[Rect] = field(default_factory=list)   # everything in the list that scrolls sideways (detail
                                                          # rows, friends' cards): a vertical swipe starting on one
                                                          # can be taken sideways and move nothing (#165)
+    promo: list[str] = field(default_factory=list)   # texts of the app's feature ads seen whole in this dump: a
+                                                     # dump that cuts off an ad's "Try it" sees its text as a detail
 
     def safe(self, target: Rect) -> bool:
         """A tap target fully inside the list and clear of every floating button."""
@@ -301,14 +303,15 @@ def profile_view(root: Node, name: str | None = None) -> ProfileView:
     # sideways detail rows; a carousel of sections (friends' cards, 2026-11-20) also scrolls sideways but isn't one
     scrollers = [n for n in box.iter() if n.scrollable and n.cls == "View" and n is not box and not n.bounds.empty]
     rows = [n.bounds for n in scrollers if n.first(_is_section) is None]
-    return ProfileView(name, vp, sections, _details(box), texts, obstacles, at_top, at_bottom, rows,
-                       [n.bounds for n in scrollers])
+    promo = _promo_texts(box)
+    return ProfileView(name, vp, sections, _details(box, promo), texts, obstacles, at_top, at_bottom, rows,
+                       [n.bounds for n in scrollers],
+                       [n.text for n in box.iter() if id(n) in promo and n.text and n.text != v.PROMO_ACTION])
 
 
-def _details(box: Node) -> list[tuple[str, str]]:
+def _details(box: Node, promo: set[int]) -> list[tuple[str, str]]:
     """Icon labels (small Views with a content-desc) paired with the value TextView on their row."""
     labels = [n for n in box.iter() if n.cls == "View" and n.desc and n.bounds.width <= 100 and not n.children]
-    promo = _promo_texts(box)
     out = []
     for t in box.iter():
         if t.cls != "TextView" or not t.text or id(t) in promo or v.FRIENDS_HEADER.fullmatch(t.text):

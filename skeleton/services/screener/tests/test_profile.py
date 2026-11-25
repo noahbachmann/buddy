@@ -126,3 +126,30 @@ def test_options_are_captured_in_order_across_dumps():
     opts = [(s.ref, s.text) for s in cap.profile.sections if s.kind == "option"]
     assert opts == [("option 1", "Option 1"), ("option 2", "Option 2"), ("option 3", "Option 3")]
     assert all(s.complete for s in cap.profile.sections if s.kind == "option")
+
+
+def _ad_cut_off() -> screens.ProfileView:
+    """feed-poll as a dump that cuts off the feature ad's "Try it" (it sits ~24 px inside the ad's text at both ends):
+    the ad's text alone then reads as a detail."""
+    root = screens.classify(parse(load("feed-poll")), PACKAGE).root
+    btn = root.first(lambda n: n.text == "Try it")
+    parent = next(n for n in root.iter() if btn in n.children)
+    parent.children.remove(btn)
+    return screens.profile_view(root)
+
+
+@pytest.mark.parametrize("order", ["cut first", "whole first"])
+def test_a_feature_ad_seen_whole_in_any_dump_is_never_a_detail(order):
+    cut, whole = _ad_cut_off(), view("feed-poll")
+    assert ("", "Text 1") in cut.details and whole.details == [] and whole.promo == ["Text 1"]
+    first, second = (cut, whole) if order == "cut first" else (whole, cut)
+    cap = Capture(first)
+    cap.add_details(second)
+    assert ("", "Text 1") not in cap.profile.details
+
+
+def test_a_capture_pickled_before_the_ad_filter_still_merges():
+    cap = Capture(_ad_cut_off())
+    cap.__dict__.pop("_promo", None)   # as unpickled from before the fix: the class default stands in
+    cap.add_details(view("feed-poll"))
+    assert ("", "Text 1") not in cap.profile.details
