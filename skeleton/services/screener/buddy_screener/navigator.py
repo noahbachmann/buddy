@@ -187,6 +187,7 @@ class Navigator:
     _earlier: list[str] = field(default_factory=list, init=False)   # the last distinct dumps before `_xml`
     stats: CaptureStats = field(default_factory=CaptureStats, init=False)   # the last capture's, reset by it
     _frame: tuple[str, Any] | None = field(default=None, init=False)   # (dump, its full screenshot) in a capture
+    awake: bool = field(default=False, init=False)   # we woke the screen and haven't turned it off since
 
     # --- reading the screen ---
 
@@ -274,7 +275,13 @@ class Navigator:
     def wake(self) -> None:
         """The screen on: asleep it reads as an unknown screen (seen at session 3's start and the loop's first run)."""
         self.dev.key(KEY_WAKEUP)
+        self.awake = True
         self.pause(0.5)
+
+    def sleep(self) -> None:
+        """The screen off again (#90): the phone stays awake while charging, so it never goes dark by itself."""
+        self.dev.screen_off()
+        self.awake = False
 
     def ensure_app(self) -> Screen:
         """The app in front on a known screen; launched if another app is."""

@@ -26,6 +26,7 @@ from .chat import Chat
 from .store import Store
 
 DRY, LIVE, OFF = "dry", "live", "off"
+SCREEN_OFF_S = 120.0  # an idle wait this long turns the screen off (#90; longer than a gap between profiles)
 
 # loop states (buddy/screener/state)
 BROWSING, BREAK, WAITING, DONE_TODAY, LIMIT, NEEDS_YOU, OFFLINE = (
@@ -280,7 +281,19 @@ class Browser:
                 self._set(OFFLINE)
                 delay = 30.0
             on_state()
+            self._screen_off(delay)
             wait(delay)
+
+    def _screen_off(self, delay: float) -> None:
+        """Off once after we woke it, when idle or holding for Dev (#90): the phone stays awake while charging. Not
+        while paused (Dev uses the phone) or stopped (no touching it)."""
+        mode = self.mode()
+        if not self.nav.awake or not (mode == NEEDS_YOU or (mode == "active" and delay >= SCREEN_OFF_S)):
+            return
+        try:
+            self.nav.sleep()
+        except AdbError as e:
+            self.log(f"screen off: {e}")
 
 
 def rows_dir(tmp_dir: Path) -> Path:

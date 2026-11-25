@@ -214,3 +214,28 @@ def test_run_steps_the_chats_first_and_waits_the_shorter(tmp_path):
     r.b.step = lambda: (order.append("browse"), step())[1]
     r.b.run(lambda: next(turns), waits.append, first=chats)
     assert order == ["chats", "browse"] * 2 and waits == [42.0, 42.0]
+
+
+def test_run_turns_the_screen_off_once_it_goes_idle(tmp_path):
+    # #90: the phone stays awake while charging; the worker turns it off after using it
+    r = Rig(tmp_path, SKIP, mode=browse.OFF)
+    offs = lambda: sum(a[0] == "screen_off" for a in r.phone.actions)
+    r.b.run(iter([True, False]).__next__, lambda s: None, first=lambda: 42.0)
+    assert offs() == 0                                   # never woken by us: left as it is
+    r.b.nav.wake()
+    r.b.run(iter([True, False]).__next__, lambda s: None, first=lambda: 42.0)
+    assert offs() == 0                                   # a short wait (a gap between profiles): stays on
+    r.b.run(iter([True, True, False]).__next__, lambda s: None, first=lambda: 600.0)
+    assert offs() == 1 and not r.b.nav.awake             # idle: off once, not again
+
+
+def test_run_turns_the_screen_off_for_a_hold_but_not_while_paused(tmp_path):
+    r = Rig(tmp_path, SKIP, mode=browse.OFF)
+    offs = lambda: sum(a[0] == "screen_off" for a in r.phone.actions)
+    r.b.nav.wake()
+    r.b.mode = lambda: "paused"                          # Dev uses the phone
+    r.b.run(iter([True, False]).__next__, lambda s: None, first=lambda: 600.0)
+    assert offs() == 0
+    r.b.mode = lambda: "needs_you"                       # held: Dev answers on Telegram
+    r.b.run(iter([True, False]).__next__, lambda s: None, first=lambda: 5.0)
+    assert offs() == 1

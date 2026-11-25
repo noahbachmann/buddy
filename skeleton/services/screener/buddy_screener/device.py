@@ -21,6 +21,7 @@ from .uitree import Rect
 
 KEY_BACK = 4
 KEY_WAKEUP = 224   # wakes the screen; no-op when it's on (unlike POWER, which toggles)
+KEY_SLEEP = 223    # screen off; no-op when it's off
 IDLE_ERROR = "could not get idle state"
 IDLE_TRIES = 2   # a blinking cursor passes on the 2nd try; a playing video never does
 OUR_IME = "buddy.screener.ime/.ScreenerIme"
@@ -372,6 +373,11 @@ class Device:
     def key(self, code: int) -> None:
         self.guard()
         self.shell("input", "keyevent", str(code))
+
+    def screen_off(self) -> None:
+        """KEYCODE_SLEEP without the guard: no input to the app, so allowed while the loop holds for Dev (#90). The
+        caller never sends it while Dev uses the phone (paused)."""
+        self.shell("input", "keyevent", str(KEY_SLEEP))
 
     def launch(self, package: str) -> None:
         self.guard()

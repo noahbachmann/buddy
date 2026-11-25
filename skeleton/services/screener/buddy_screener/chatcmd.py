@@ -50,7 +50,7 @@ def chats(cfg: Config, store: Store) -> list[str]:
 
 def chat_edit(cfg: Config, store: Store, name: str, text: str) -> int:
     """Dev's wording for the held message: clear the field, type his text, read it back; Resume sends it."""
-    from .main import _device, _navigator
+    from .main import _dev_navigator, _device
     from .screens import Kind, chat_view
 
     try:
@@ -63,7 +63,7 @@ def chat_edit(cfg: Config, store: Store, name: str, text: str) -> int:
     if (chat := find(store, name, OPEN)) is None or chat.held.get("kind") != "send":
         print(f"no held message in {name!r}", file=sys.stderr)
         return 2
-    nav = _navigator(cfg, _device(cfg))
+    nav = _dev_navigator(cfg, _device(cfg))
     s = nav.expect(Kind.CHAT)
     if chat_view(s.root).name != chat.name:
         print(f"the phone shows another chat ({chat_view(s.root).name!r})", file=sys.stderr)

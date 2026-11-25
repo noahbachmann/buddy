@@ -66,6 +66,17 @@ def _navigator(cfg: Config, dev: Device) -> Navigator:
                      if cfg.photo_check else None)
 
 
+def _dev_navigator(cfg: Config, dev: Device) -> Navigator:
+    """Dev's phone commands: the screen on first (the loop turns it off when idle, #90). Paused or stopped: as it
+    is (paused, Dev has it in hand; read-only commands still work)."""
+    nav = _navigator(cfg, dev)
+    try:
+        nav.wake()
+    except Stopped:
+        pass
+    return nav
+
+
 def _decider(cfg: Config, store: Store) -> Decider:
     return Decider(DecideConfig(cfg.model, cfg.effort, cfg.decide_timeout_s, cfg.daily_usd, cfg.token_file,
                                 cfg.limit_file, cfg.tmp_dir / "claude", cfg.text_first,
@@ -216,7 +227,7 @@ def cmd_shadow(cfg: Config, args: argparse.Namespace) -> int:
         return 0
 
     dev = _device(cfg)
-    nav = _navigator(cfg, dev)
+    nav = _dev_navigator(cfg, dev)
     if args.cmd == "shadow":
         r = shadow.run_shadow(nav, _decider(cfg, store), lib, store, cfg.tmp_dir)
         print("\n".join(shadow.describe(r, lib)))
@@ -306,7 +317,7 @@ def offline(cfg: Config, args: argparse.Namespace) -> int:
         return 0
 
     dev = _device(cfg)
-    nav = _navigator(cfg, dev)
+    nav = _dev_navigator(cfg, dev)
     try:
         if args.cmd == "screen":
             print(screens.summary(nav.stable()))

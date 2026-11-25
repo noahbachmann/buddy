@@ -141,6 +141,9 @@ class FakePhone:
         else:
             self.foreground_pkg = "launcher.example"
 
+    def screen_off(self) -> None:
+        self.actions.append(("screen_off", self.screen))
+
     def launch(self, package: str) -> None:
         self.guard()
         self.actions.append(("launch", self.screen, package))
