@@ -93,6 +93,7 @@ Round holes, PETG at 0.20 mm (fit test, log #3), gap per side:
 |---|---|---|
 | Vertical (axis Z) | +0.05 | +0.10 |
 | Horizontal teardrop | 0 | +0.05 |
+| Horizontal teardrop, pin hanging (pushed up from below) | −0.025 ⚠️ (0 very slightly loose, log #10) | |
 | TR8 nut, per flank (standing, 0.12 mm) | ? | 0.10 (thread test, log #7) |
 | D-bore on a 5 mm motor shaft (0.12 mm) | 0.10 | 0.125 ⚠️ (0.15 very slightly loose) |
 
@@ -123,3 +124,4 @@ M3 machine screw straight into PETG (no insert, no nut), vertical pilot hole, 0.
 | 7 | 2026-11-17 | Thread test (PETG, 0.12) | TR8 nut rings 0.10–0.25 per flank, D-bore rings 0.10–0.20 per side | Nut 0.10: turns by hand, no rocking. Bore 0.10 too tight, 0.15 very slightly loose | `nut_flank` 0.10, `bore_gap` 0.125; gear and nuts → `plates/1c-reprint` |
 | 8 | 2026-11-24 | Dispenser roller frame + front plate (PETG, 0.20) | Ø5 steel pin holes: Ø5.2 horizontal teardrop (frame), Ø4.95 vertical (front plate) | Measured ~5.2 and 4.9: pins don't fit the front plate | `pin_hole` Ø5.05 in both (Dev); both plates now print with horizontal holes (roller split into frame + back plate) |
 | 9 | 2026-11-25 | Pilot test (PETG, 0.20) | M3 machine-screw pilots Ø2.6–3.0, vertical, 10 deep in a 6 mm wall | Ø2.5 (roller plates) too tight by hand; hole 2 (Ø2.7) right | `screw_pilot` 2.7, plate 2b rebuilt |
+| 10 | 2026-11-26 | Dispenser 2c borders (PETG, 0.20) | Border B's 2 pin holes from below: horizontal teardrop, press 0 per side | Very slightly loose: the pins hang, gravity pulls them out | `bpin_up_fit` −0.025 for those two only; reprint `stl/border-b.stl` |

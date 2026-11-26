@@ -273,6 +273,8 @@ fit_slip    = 0.1;           // vertical hole: peg slides in without play (fit t
 fit_press   = 0.05;          // vertical hole: peg pushed in by hand, holds (hole 3)
 fit_slip_h  = 0.05;          // horizontal (teardrop) hole: slip (hole 3)
 fit_press_h = 0;             // horizontal hole: press (hole 2)
+bpin_up_fit = -0.025;        // border B's pins up through the floor: pin hangs, gravity pulls it out. fit_press_h
+                             // very slightly loose there (plate 2c, Dev 2026-11-26) → tighter, between holes 1 and 2
 bore_gap    = 0.125;         // 4023 D-shaft in the motor gear (5, flat at 2.0), per side. Thread test 2026-11-17: 0.10 too
                              // tight, 0.15 very slightly loose → between ⚠️ untested value
 nut_flank_steps = [0.10, 0.15, 0.20, 0.25];   // thread test: nut rings 1..4

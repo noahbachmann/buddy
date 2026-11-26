@@ -299,7 +299,7 @@ the frame being pulled flat onto the floor; the left wall and the gate's legs le
 | Pusher nut → pusher tab | 2 pegs on the flange's tab side (above and below the screw). Pushing presses the flange onto the tab; the pressed pegs carry the light return stroke. No clip: a groove for one would cut into the nut's 1.3 mm wall under the thread | `fit_press_h` (horizontal, flat-topped teardrops) |
 | Frame → back plate | Ribs 0 and 1: 3 mm full-height tongues into pockets open at the back plate's top. They line the frame up; its 2 floor screws hold it | `tongue_fit` 0.1 per side ⚠️ untested |
 | Steel pins | Back ones in the back plate's blind holes, front ones pushed through the front plate into the bearings, flush with its outer face. All 4 holes Ø5.05 (Dev measured 2026-11-24: Ø5.2 printed ~5.2, Ø4.95 vertical printed 4.9) | `pin_hole` |
-| Borders H, B | 7 printed pins (`border-pin`): head outside, through the case's Ø3.4 holes into the border | H, B through the right wall: `fit_press` (vertical); B from below: `fit_press_h` |
+| Borders H, B | 7 printed pins (`border-pin`): head outside, through the case's Ø3.4 holes into the border | H, B through the right wall: `fit_press` (vertical); B from below: `bpin_up_fit` (−0.025, tighter than `fit_press_h`: the pins hang and fall out at 0) |
 | Ties → divider, borders | 2 steel Ø5 × 20 pins pressed through the divider, centred (8.5 out each side); the borders slide over them in slots open to the front | divider `pin_hole` (horizontal teardrop), slots `pin` + 2 × `fit_slip` |
 
 **11 holes, 7 pins:** the case has 11 Ø3.4 holes along the front and under the roller. 7 take border pins (2 through

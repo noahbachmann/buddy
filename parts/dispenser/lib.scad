@@ -442,7 +442,7 @@ module b_insert() {
     }
     // border pins from below (horizontal in print: the border stands on its divider end, +X up)
     for (s = insert_screws_b) translate([s[0], s[1], floor_top - eps]) linear_extrude(bpin_depth + 1)
-      rotate(-90) teardrop2d(peg_d + 2 * fit_press_h, 1, flat = true);
+      rotate(-90) teardrop2d(peg_d + 2 * bpin_up_fit, 1, flat = true);
     // border pins through the right wall (vertical in print)
     for (s = insert_pins_br) hole_x(s[0], s[1], peg_d + 2 * fit_press, right_wall[0] - bpin_depth - 1, right_wall[0]);
     tie_slots(slit_x1 - 1, slit_x1 + tie_depth);
