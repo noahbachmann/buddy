@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from .chat import first_lang, refusal
-from .library import Library
+from .library import COMMENT_MAX, Library
 from .profile import Profile
 
 TASK_BROWSE = "browse"
@@ -110,6 +110,9 @@ write a new comment. Never reuse an example's wording, never translate one, neve
 hobby, a past, something he owns or a shared interest ("a fellow …", "me too" about something not stated there).
 - No numbers, links or handles. At most {comment_max} characters; shorter is better.
 - `comment`: the id of the example you leaned on most, or "none". It is only a note: the comment is your own text.
+- Fixed comments (below the examples) are the owner's exact words for one topic. When the section you comment on \
+is about a fixed comment's topic, set `comment` to its id and `comment_text` to its text exactly; code sends it \
+as written. Only when her section really is about that topic.
 - `comment_lang`: the language `comment_text` is written in. The chat language (see Languages) decides: Swiss \
 German prompts → Swiss German dialect ("de-ch", as most examples are), standard German ("de") or English ("en"); \
 standard German prompts → standard German or English, never dialect (she's likely not from here, or says she \
@@ -135,6 +138,10 @@ dialect, the most common here: e.g. "isch", "ned", "chan", "gsi", "öppis", "mer
 # The owner's comments: examples of the voice (id | language | what it fit | text)
 
 {library}
+
+# The owner's fixed comments: sent exactly as written when their topic comes up (id | language | topic | text)
+
+{fixed}
 """
 
 PHOTO_SYSTEM = """\
@@ -244,12 +251,14 @@ def comment_max(lib: Library) -> int:
     return max((len(c.text) for c in lib.like_comments), default=COMMENT_CAP)
 
 
-def examples(lib: Library) -> str:
-    return "\n".join(f"- {c.id} | {c.lang} | {c.hint} | {c.text}" for c in lib.like_comments) or "(none yet)"
+def examples(lib: Library, fixed: bool = False) -> str:
+    return "\n".join(f"- {c.id} | {c.lang} | {c.hint} | {c.text}"
+                     for c in (lib.fixed if fixed else lib.examples)) or "(none yet)"
 
 
 def system_prompt(lib: Library) -> str:
-    return SYSTEM.format(preferences=lib.preferences, library=examples(lib), comment_max=comment_max(lib),
+    return SYSTEM.format(preferences=lib.preferences, library=examples(lib), fixed=examples(lib, fixed=True),
+                         comment_max=comment_max(lib),
                          voice=lib.voice or "(not described yet: learn it from the examples)")
 
 
@@ -394,7 +403,7 @@ def copy_of(text: str, lib: Library) -> str | None:
     """The id of the example `text` copies (in its own language), else None. A translation is the check call's job."""
     words = _words(text)
     runs = {tuple(words[i:i + COPY_RUN]) for i in range(len(words) - COPY_RUN + 1)}
-    for c in lib.like_comments:
+    for c in lib.examples:
         ex = _words(c.text)
         a, b = set(words), set(ex)
         if any(tuple(ex[i:i + COPY_RUN]) in runs for i in range(len(ex) - COPY_RUN + 1)):
@@ -431,6 +440,17 @@ def comment_problem(text: str, lang: str, chat_lang: str, lib: Library,
 def settle_comment(b: Browse, text: str, leaned: str, lang: str, p: Profile, lib: Library) -> None:
     """Takes a written comment onto a like, or refuses it (`comment_refused`; the comment stays empty). Never an
     example's text instead: that is a copy too (#84)."""
+    if (f := lib.comment(leaned)) is not None and f.fixed:
+        # Dev's exact words: his text, whatever the model wrote; only the chat's language can stop it
+        if (why := refusal(f.text, COMMENT_MAX)) is None and not (b.chat_lang == "de" or speaks_german(p)) \
+                and f.lang != "en":
+            why = f"fixed {f.id} is {f.lang} for a {b.chat_lang} chat"
+        if why is not None:
+            b.comment_refused.append(why)
+            b.comment, b.comment_text = "none", ""
+            return
+        b.comment, b.comment_text, b.missing_hook = f.id, f.text, ""
+        return
     text = " ".join(text.split())
     if not text:
         b.comment, b.comment_text = "none", ""
@@ -703,6 +723,8 @@ class Decider:
         if b.decision != "like":
             return b, usage
         for attempt in range(2):
+            if b.comment_text and (f := lib.comment(b.comment)) is not None and f.fixed:
+                return b, usage        # Dev's own words: nothing to check
             if b.comment_text:
                 chk = self.call(TASK_COMMENT_CHECK, CHECK_SYSTEM.format(about=lib.about_dev or "(nothing)",
                                                                          examples=examples(lib)),

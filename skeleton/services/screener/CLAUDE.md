@@ -70,6 +70,9 @@ paid option. A chat message is sent only by the chat driver, only after its read
   when her German is standard), English chat → English, or German when she lists it. Checked by code (length, a
   copy of an example, language) then a check call (translation of an example, invented facts); one retry, else
   no comment.
+- Fixed comments (`templates.md` *Fixed comments*, same line format, `de-ch` allowed): Dev's exact words for one
+  topic (2026-11-26: LOTR). The model picks one by id when her section is about that topic; code sends its text
+  verbatim: no copy check, no check call; only an English-only chat stops a German one.
 
 ## Sessions (Claude with Dev)
 

@@ -231,3 +231,19 @@ def test_contacts_never_in_repr(tmp_path):
     (tmp_path / "number").write_text("\n")
     with pytest.raises(LibraryError, match="number"):
         Contacts.load(tmp_path)
+
+
+def test_fixed_comments_are_their_own_section():
+    # 2026-11-26: Dev's exact words for a topic (Lord of the Rings), sent verbatim
+    md = ("## Like comments\n- a | de | x | y\n\n## Fixed comments\nNotes are ignored.\n"
+          "- lotr | de-ch | Lord of the Rings | ich han es deck. Schlimm?\n")
+    lib = Library("p", tuple(parse_like_comments(md)))
+    assert [c.id for c in lib.examples] == ["a"] and [c.id for c in lib.fixed] == ["lotr"]
+    assert lib.comment("lotr").fixed and lib.comment("lotr").lang == "de-ch"
+
+
+def test_fixed_ids_are_unique_across_both_sections_and_dialect_only_there():
+    with pytest.raises(LibraryError, match="used twice"):
+        parse_like_comments("## Like comments\n- a | de | x | y\n## Fixed comments\n- a | de | x | z\n")
+    with pytest.raises(LibraryError, match="de or en"):
+        parse_like_comments("## Like comments\n- a | de-ch | x | y\n")

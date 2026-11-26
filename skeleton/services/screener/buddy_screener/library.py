@@ -11,6 +11,10 @@ it is free text (format notes) and ignored:
     ## Like comments
     - <id> | <de|en> | <fit hint: what it suits> | <text as Dev sent it>
 
+The *Fixed comments* section has the same line format (language also `de-ch`): Dev's exact words for a topic
+(2026-11-26: Lord of the Rings). When the model picks one, code sends its text verbatim: no rewording, no copy
+check, no check call (Dev wrote it, its facts are his).
+
 The *Voice* section (free text, #84) describes that voice; it goes into the decision prompt verbatim.
 
 The chat templates (`## disclosure`, `## contact_ask`, …) are `EN:` / `DE:` blocks, hard-wrapped (lines joined
@@ -24,6 +28,7 @@ from pathlib import Path
 
 COMMENT_MAX = 255           # the app's comment limit (step 0): over it, send greys out
 LIKE_SECTION = "like comments"
+FIXED_SECTION = "fixed comments"
 VOICE_SECTION = "voice"
 ABOUT_DEV = "about dev"     # preferences.md: the only facts about Dev a generated text may state
 _ID = re.compile(r"[a-z0-9][a-z0-9_-]{0,39}")
@@ -40,6 +45,7 @@ class LikeComment:
     lang: str               # "de" | "en"
     hint: str               # what it fits: the model chooses by this
     text: str
+    fixed: bool = False     # Dev's exact words, sent verbatim (*Fixed comments*)
 
 
 def sections(md: str) -> dict[str, str]:
@@ -55,32 +61,40 @@ def sections(md: str) -> dict[str, str]:
 
 
 def parse_like_comments(md: str) -> list[LikeComment]:
-    body = sections(md).get(LIKE_SECTION)
-    if body is None:
-        return []
+    """Both sections, examples first; ids unique across them."""
     errors, out, seen = [], [], set()
+    for section, fixed in ((LIKE_SECTION, False), (FIXED_SECTION, True)):
+        body = sections(md).get(section)
+        if body is not None:
+            out += _parse_section(body, fixed, section, seen, errors)
+    if errors:
+        raise LibraryError("templates.md: " + "; ".join(errors))
+    return out
+
+
+def _parse_section(body: str, fixed: bool, section: str, seen: set[str], errors: list[str]) -> list[LikeComment]:
+    out = []
+    langs = ("de", "de-ch", "en") if fixed else ("de", "en")
     for n, line in enumerate(body.splitlines(), 1):
         if not line.startswith("- "):
             continue
         m = _LINE.fullmatch(line.rstrip())
         if m is None:
-            errors.append(f"line {n}: not '- id | lang | hint | text'")
+            errors.append(f"{section} line {n}: not '- id | lang | hint | text'")
             continue
         cid, lang, hint, text = m.groups()
         if not _ID.fullmatch(cid):
-            errors.append(f"line {n}: id {cid!r}: lower-case letters, digits, - and _ only")
-        elif cid in seen or cid == "none":
-            errors.append(f"line {n}: id {cid!r} used twice (or reserved)")
-        if lang not in ("de", "en"):
-            errors.append(f"line {n}: language {lang!r}: de or en")
+            errors.append(f"{section} line {n}: id {cid!r}: lower-case letters, digits, - and _ only")
+        elif cid in seen or cid in ("none", "own"):
+            errors.append(f"{section} line {n}: id {cid!r} used twice (or reserved)")
+        if lang not in langs:
+            errors.append(f"{section} line {n}: language {lang!r}: {' or '.join(langs)}")
         if len(text) > COMMENT_MAX:
-            errors.append(f"line {n}: {len(text)} chars, the app takes {COMMENT_MAX}")
+            errors.append(f"{section} line {n}: {len(text)} chars, the app takes {COMMENT_MAX}")
         if "{" in text or "}" in text:
-            errors.append(f"line {n}: no placeholders in a like comment (pasted verbatim)")
+            errors.append(f"{section} line {n}: no placeholders in a like comment (pasted verbatim)")
         seen.add(cid)
-        out.append(LikeComment(cid, lang, hint, text))
-    if errors:
-        raise LibraryError("templates.md, Like comments: " + "; ".join(errors))
+        out.append(LikeComment(cid, lang, hint, text, fixed))
     return out
 
 
@@ -92,6 +106,15 @@ class Library:
 
     def comment(self, cid: str) -> LikeComment | None:
         return next((c for c in self.like_comments if c.id == cid), None)
+
+    @property
+    def examples(self) -> tuple[LikeComment, ...]:
+        """The voice examples (never sent as they are)."""
+        return tuple(c for c in self.like_comments if not c.fixed)
+
+    @property
+    def fixed(self) -> tuple[LikeComment, ...]:
+        return tuple(c for c in self.like_comments if c.fixed)
 
     @property
     def about_dev(self) -> str:

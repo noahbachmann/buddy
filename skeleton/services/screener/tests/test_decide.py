@@ -499,6 +499,37 @@ def test_a_translation_or_invented_fact_gets_one_second_try(cfg, store, monkeypa
     assert u.task == "browse+comment_check+comment+comment_check"
 
 
+LOTR = "ich han es MtG deck mit de Galadriel, aber Herr der Ringe nie fertig glese. Schlimm?"
+LIB_FIXED = Library(LIB.preferences, LIB.like_comments + (LikeComment("lotr", "de-ch", "Lord of the Rings", LOTR, True),),
+                    LIB.voice)
+
+
+def test_the_prompt_lists_fixed_comments_apart_from_the_examples():
+    s = system_prompt(LIB_FIXED)
+    examples_part, fixed_part = s.split("# The owner's fixed comments")
+    assert LOTR not in examples_part and f"- lotr | de-ch | Lord of the Rings | {LOTR}" in fixed_part
+
+
+def test_a_fixed_comment_goes_out_as_written():
+    # the model's own wording is replaced by Dev's exact words; no copy check on them
+    b = check_browse(raw(comment="lotr", comment_text="ich han es deck mit galadriel", comment_lang="de",
+                         prompt_langs=["de", "de"]), profile(), LIB_FIXED)
+    assert (b.comment, b.comment_text, b.comment_refused) == ("lotr", LOTR, [])
+
+
+def test_a_dialect_fixed_comment_never_goes_to_an_english_only_chat():
+    b = check_browse(raw(comment="lotr", comment_text=LOTR), profile(), LIB_FIXED)   # en prompts, no German listed
+    assert (b.comment, b.comment_text) == ("none", "") and b.comment_refused == ["fixed lotr is de-ch for a en chat"]
+
+
+def test_a_fixed_comment_skips_the_check_call(cfg, store, monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    sdk = FakeSdk(script=[(result(raw(comment="lotr", comment_text=LOTR, comment_lang="de-ch",
+                                      prompt_langs=["de-ch", "de-ch"])),)])
+    b, u = decider(comment_cfg(cfg), store, sdk).browse(profile(), LIB_FIXED)
+    assert (b.comment, b.comment_text) == ("lotr", LOTR) and len(sdk.calls) == 1 and u.task == "browse"
+
+
 def test_refused_twice_is_no_comment(cfg, store, monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     copy = {"comment": "hot_take", "comment_text": "I'm in, as long as you defend it in public", "comment_lang": "en",
