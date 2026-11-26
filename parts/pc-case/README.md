@@ -15,7 +15,7 @@ stays: it continues behind the board, under the cover's left and back walls.
 | `fit-check` | Flat template of the cooler corner: cover outline, cooler outline + 1 mm, tray's right and back edges | `plates/0-fit-check` | 5 g |
 | `cover-top` | Over the cooler, standing on cover-bottom: lattice top (1.2), slotted intake over the fan hub, exhaust slits over the heatsink's outlet face (from 14.8 mm up), windows. Its walls facing the tray stand on the lid and carry 4 screw bosses (lid to top, head recessed); over the tray wall and the silver plate its walls stop above them | `plates/1-cover-top`, top down | 63 g |
 | `cover-bottom` | Lattice floor (1.6) under the raised heatsink and in front of it; solid 0.8 floor under the fan outside the tray (it lies flat on the table: no bending to carry) that the fan stands on; 5 low nut tabs (≤ 11.6, under the heatsink) for cover-top | `plates/3-cover-bottom`, floor down | 24 g |
-| `lid` | Lattice plate between the tray walls (front 60 mm over the metal shield: open; ~14 mm windows behind it), 4 tabs into the slits beside the board that carry it, a 22 mm wall down its back edge, 12 top-module and 4 cover nut bosses underneath, 3 cable notches, thinner over the CPU | `plates/2-lid`, top down, 252 mm wide: alone on the plate | 93 g |
+| `lid` | Lattice plate between the tray walls (front 60 mm over the metal shield: open; ~14 mm windows behind it), 4 tabs into the slits beside the board that carry it, a 22 mm wall down its back edge, 14 top-module and 4 cover nut bosses underneath, 3 cable notches, thinner over the CPU | `plates/2-lid`, top down, 252 mm wide: alone on the plate | 93 g |
 
 All: PETG, 0.20 mm, 3 walls, 15 %, no supports (no overhang > 45°, no bridge, no floating layer). Plates 2.4 mm.
 
@@ -45,7 +45,7 @@ same geometry where it matters): assemble them on the hardware first (`skeleton/
 |---|---|---|
 | cover-top → lid (from the cover's top, head recessed, down into the lid) | 4 × M3 × 8 (socket head) | 4, pressed into the bosses under the lid |
 | cover-top → cover-bottom (through the front, right and back walls, from outside) | 5 × M3 × 8 | 5, dropped into the floor tabs from above |
-| top module → lid | per module | up to 12, pressed into the hex pockets under the lid's nodes |
+| top module → lid | per module | up to 14, pressed into the hex pockets under the lid's nodes |
 
 ## Assembly
 
@@ -61,8 +61,8 @@ top screws to lift it out alone.
 
 ## Top-module mounts
 
-12 M3 holes through the lid's lattice nodes, a nut pressed into a 2 mm boss under each. World frame (x from the tray
-wall's inner face, y from the front edge): x 20/60/100/140 × y 60/100, x 20 × y 140/180, plus (180, 60) and (220, 60).
+14 M3 holes through the lid's lattice nodes, a nut pressed into a 2 mm boss under each. World frame (x from the tray
+wall's inner face, y from the front edge): x 20–220 (step 40) × y 60/100, plus x 20 × y 140/180.
 None over the CPU (x 60–140 × y 140–180: removed for air, 2026-11-26). Lid top
 at z 34, 6.4 under the cover's top. Screw length ≈ module base + 5 (1.9 mm of lid above the nut, nut 2.4, ~1 spare).
 
