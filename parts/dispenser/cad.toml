@@ -49,6 +49,10 @@ parts = ["roller-frame", "back-plate", "border-h", "border-b"]
 note = "PETG · 0.20 mm · 4 walls · 15 % · no supports · brim on (the back plate stands on its 6 mm edge) · roller split 2026-11-24: frame with the front plate, back plate alone, pin holes Ø5.05, M3 pilots Ø2.7 (pilot test)"
 parts = ["roller-frame", "back-plate"]
 
+[plates.2c-borders]
+note = "PETG · 0.20 mm · 4 walls · 15 % · no supports · borders held at both ends (2026-11-26): tie slots, B's right-wall pin holes, 3 more border pins"
+parts = ["border-h", "border-b", "border-pin", "border-pin", "border-pin"]
+
 [plates.3-pla]
 note = "PLA · 0.20 mm · 4 walls · 15 % · supports on (tree auto, build plate only): the lift's tab"
 parts = ["pusher", "lift"]

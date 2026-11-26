@@ -252,6 +252,7 @@ feet_t     = thin;
 insert_fit = 0.2;            // per side, border inserts against walls, divider and gate
 insert_screws_h = [[-146, 78], [-146, 89]];   // border H: (y, z), printed pin through the left wall
 insert_screws_b = [[95 - b_shift, -146], [127 - b_shift, -146]];  // border B: (x, y), printed pin from below through the floor
+insert_pins_br = [[-148, 20], [-148, 50], [-148, 80]];   // border B: (y, z), printed pins through the right wall
 
 // --- Case spares (case-spares.scad): the case minus material nothing needs, still no supports ---------------------
 spare_top   = notch_hi[1][1] + wall_t;     // behind the pusher motor the walls end here: 3 over the notch, above any card
@@ -281,3 +282,10 @@ peg_cham    = 0.4;           // lead-in at every peg tip
 nut_peg_h   = tab_t - 0.3;   // nut pegs: into the tab, not through it
 bpin_head   = [6, 1.2];      // border pin: head d, h
 bpin_depth  = 6;             // shank in the border (beyond the case's wall or floor)
+
+// Ties: steel dowel pins (`pin`, Ø5 x 20) along X through the divider, into both borders: each border held at both ends.
+// Pressed into the divider (pin_hole, as the roller plates), sticking out 8.5 each side; the borders slide in from the
+// front over them (slots open to the front: nothing reaches the pin once a border is in)
+tie_yz    = [[-148, 73], [-148, 87]];   // (y, z): in front of the right gate's front face, in the divider block (z 66..96)
+tie_slot  = pin[0] + 2 * fit_slip;      // slot width in the borders (vertical in their print)
+tie_past  = 0.3;                        // slot end behind the pin: the borders' own stops locate them, not the pin

@@ -269,7 +269,10 @@ module back_plate() {
 }
 
 // --- Bought parts (assembly and the combined STL only) -------------------------------------------
-module pins() for (x = axle_xs, r = [back_pin_y, front_pin_y]) hole_y(x, drum_z, pin[0], r[0], r[1]);
+module pins() {
+  for (x = axle_xs, r = [back_pin_y, front_pin_y]) hole_y(x, drum_z, pin[0], r[0], r[1]);
+  for (t = tie_yz) hole_x(t[0], t[1], pin[0], (divider_x + slit_x1 - pin[1]) / 2, (divider_x + slit_x1 + pin[1]) / 2);   // ties
+}
 module belts() for (y = cord_ys) translate([0, y + cord_s / 2, 0]) rotate([90, 0, 0])
   linear_extrude(cord_s) difference() {
     hull() for (x = axle_xs) translate([x, drum_z]) circle(r = cord_out);
@@ -419,6 +422,7 @@ module h_insert() {
                [divider_x - 0.2 - f, div_top + 1], [divider_x + 1, div_top + 1], [divider_x + 1, h_bord_z[0] - 1]]);
     // border pins through the left wall (vertical in print: the border stands on its left end)
     for (s = insert_screws_h) hole_x(s[0], s[1], peg_d + 2 * fit_press, left_wall[1], left_wall[1] + bpin_depth + 1);
+    tie_slots(divider_x - tie_depth, divider_x + 1);
   }
 }
 // B: divider .. right wall, on the floor; a lip over the floor's front edge is its stop, 2 printed pins from below.
@@ -439,8 +443,17 @@ module b_insert() {
     // border pins from below (horizontal in print: the border stands on its divider end, +X up)
     for (s = insert_screws_b) translate([s[0], s[1], floor_top - eps]) linear_extrude(bpin_depth + 1)
       rotate(-90) teardrop2d(peg_d + 2 * fit_press_h, 1, flat = true);
+    // border pins through the right wall (vertical in print)
+    for (s = insert_pins_br) hole_x(s[0], s[1], peg_d + 2 * fit_press, right_wall[0] - bpin_depth - 1, right_wall[0]);
+    tie_slots(slit_x1 - 1, slit_x1 + tie_depth);
   }
 }
+// Ties through the divider: how far they reach into a border (+ room at the tip), and the borders' slots: from the
+// front face back to just behind the pin, round end
+tie_depth = (pin[1] - divider_t) / 2 - insert_fit + 0.5;
+assert(tie_depth - 0.5 >= 8, "ties: too little of the pin in each border");
+module tie_slots(x0, x1) for (t = tie_yz) translate([x0, 0, t[1]]) rotate([0, 90, 0]) linear_extrude(x1 - x0)
+  hull() for (y = [box_front - 1, t[0] + tie_past]) translate([0, y]) circle(d = tie_slot);
 // Dev's box as drawn, its front and top cut back, walls and floor thinned to wall_t, divider to divider_t
 // Divider: the part right of it moves left by b_shift. The right piece starts 0.5 inside the divider: the two overlap
 // by 0.5 with the same section (floor, back wall, divider), no touching faces.
@@ -497,6 +510,8 @@ module box_cuts() {
   for (p = floor_screws) hole_z(p[0], p[1], screw_clear, -1, floor_top + 1);
   for (s = insert_screws_b) hole_z(s[0], s[1], screw_clear, -1, floor_top + 1);
   for (s = insert_screws_h) hole_x(s[0], s[1], screw_clear, left_wall[0] - 1, left_wall[1] + 1, front = true);
+  for (s = insert_pins_br) hole_x(s[0], s[1], screw_clear, right_wall[0] - 1, right_wall[1] + 1, front = true);
+  for (t = tie_yz) hole_x(t[0], t[1], pin_hole, divider_x - 1, slit_x1 + 1, front = true);   // ties, pressed
 }
 // The printed case: Dev's box with every change, as it sits (case.scad turns it onto its back)
 module case() difference() { union() { box_trimmed(); case_add(); } box_cuts(); }
