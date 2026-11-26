@@ -121,12 +121,13 @@ module lid_mount_cut(n) translate([n[0], n[1], 0]) {
   translate([0, 0, z_lid - boss_h - 1]) cylinder(d = nut_press / cos(30), h = nut_t + 0.1 + 1, $fn = 6);
   translate([0, 0, z_lid - boss_h - 1]) cylinder(d = m3_clear, h = boss_h + skin_t + 2);
 }
-module lid() intersection() {   // one outline cut makes the plate's and the back wall's outer faces (no coplanar union)
- translate([0, 0, -1]) linear_extrude(big) lid_2d();
+module lid() intersection() {   // one outline cut makes the plate's, back wall's and hooks' outer faces (no coplanar union)
+ translate([0, 0, -big]) linear_extrude(big + z_lid1) { lid_2d(); lid_hooks_2d(); }   // also the one top face at z_lid1
  difference() {
   union() {
-    translate([0, 0, z_lid]) linear_extrude(skin_t) lid_plate_2d();
+    translate([0, 0, z_lid]) linear_extrude(skin_t + 1) lid_plate_2d();   // top made by the outline cut
     lid_slit_tabs();
+    lid_hooks();
     lid_back_wall();
     for (n = lid_nodes()) lid_mount(n);
     for (q = seam_screws()) lid_mount(q, seam_boss_d);   // cover screws come down into these
@@ -136,6 +137,15 @@ module lid() intersection() {   // one outline cut makes the plate's and the bac
   box(cpu_zone_x, cpu_zone_y, [z_lid - 1, z_lid1 - cpu_skin_t]);            // thinner over the CPU, from below
  }
 }
+// Front-edge hooks: an arm down past the tray's front edge, a hook under its silver plate. Arm and hook are one
+// extruded profile (y, z); the arm runs into the plate's front band. Hook's underside slopes up to its tip: a lead-in
+// that pushes the arm out when the lid is pressed down. In print (top down) its catching face is a 3 mm overhang.
+hook_z0 = z_lid1 - hook_reach;
+module lid_hooks_2d() for (x = hook_xs) rect([x - hook_w / 2, x + hook_w / 2], [-hook_gap - hook_arm_t, 1]);
+module lid_hooks() for (x = hook_xs) translate([x - hook_w / 2, 0, 0]) rotate([90, 0, 90]) linear_extrude(hook_w)
+  polygon([[-hook_gap - hook_arm_t, hook_z0], [-hook_gap, hook_z0], [-hook_gap + hook_len, hook_z0 + hook_t / 2],
+           [-hook_gap + hook_len, hook_z0 + hook_t], [-hook_gap, hook_z0 + hook_t], [-hook_gap, z_lid + 1],
+           [perim / 2, z_lid + 1], [perim / 2, z_lid1 + 1], [-hook_gap - hook_arm_t, z_lid1 + 1]]);
 // Back edge, left side up to the cover's seam wall: hangs down from the plate (grows up in print).
 module lid_back_wall() box([-1, lid_x1 + 1], [board[1] - wall_t, board[1] + 1], [z_lid1 - back_wall_h, z_lid + 1]);
 

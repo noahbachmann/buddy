@@ -90,6 +90,15 @@ cpu_zone_x  = [38, 165];
 cpu_zone_y  = [106, 197];  // starts past the y 100 bosses (no half-cut boss)
 cpu_skin_t  = 1.2;         // plate there: underside 1.2 higher, nodes 3.2 (no boss)
 back_wall_h = 25;        // wall down from the lid's top along its back edge, left to the cover: z 9 (Dev 2026-11-26: 3 deeper) ⚠️ board below
+// Hooks down the front edge, under the tray's silver plate: the lid holds itself on the tray (Dev 2026-11-26).
+// Dev measured: lid top 32 above the plate's underside at the front.
+hook_xs    = [50, 215];  // centres; clear of the ribbons leaving over the front edge (~x 110–188, photo) ⚠️
+hook_w     = 20;         // along the edge
+hook_reach = 35;         // lid top → hook's bottom: 32 to the plate's underside + 3 of hook
+hook_t     = 3;          // hook height (its top catches the plate)
+hook_len   = 3;          // under the plate, from the arm's inner face
+hook_arm_t = wall_t;     // flexes ~3 mm outward to snap on: ~0.9 % strain over 35 mm, fine for PETG
+hook_gap   = lid_gap;    // arm's inner face to the plate's edge (y 0)
 shield_y   = 60;         // front band over the metal shield: open, only these bars cross it
 shield_xs  = [100, 180];
 boss_d     = 11;         // top-module mounts on the lattice nodes: bosses under the lid, nut pocket from below
