@@ -84,12 +84,13 @@ class Browser:
     def __init__(self, cfg: BrowseConfig, nav: Navigator, decider, load_lib: Callable[[], Library], store: Store,
                  tmp_dir: Path, hold: Callable[[str, int | None, str], None], notify: Callable[[str], None],
                  mode: Callable[[], str], pages: Callable[[list], list[bytes]] | None = None,
-                 clock: Callable[[], float] = time.time, rng: random.Random | None = None,
+                 held: Callable[[], str] | None = None, clock: Callable[[], float] = time.time, rng: random.Random | None = None,
                  day_start: Callable[[float], float] = likes.local_midnight, log: Callable[[str], None] = print):
         self.cfg, self.nav, self.decider, self.load_lib, self.store = cfg, nav, decider, load_lib, store
         self.tmp_dir, self.hold, self.notify, self.mode, self.pages = tmp_dir, hold, notify, mode, pages
         self.clock, self.rng, self.day_start, self.log = clock, rng or random.Random(), day_start, log
         self.state = LoopState()
+        self.held = held or (lambda: self.state.reason)   # the hold's kind (from its file: survives a restart)
         self.break_until = 0.0
         self.next_break = self._break_after()
         self.decide_failures = 0
@@ -286,9 +287,12 @@ class Browser:
 
     def _screen_off(self, delay: float) -> None:
         """Off once after we woke it, when idle or holding for Dev (#90): the phone stays awake while charging. Not
-        while paused (Dev uses the phone) or stopped (no touching it)."""
+        while paused (Dev uses the phone) or stopped (no touching it), nor while a like waits for Dev: off for ~13 min,
+        the app had swapped the held profile for the next one (2026-11-26, the like lost)."""
         mode = self.mode()
         if not self.nav.awake or not (mode == NEEDS_YOU or (mode == "active" and delay >= SCREEN_OFF_S)):
+            return
+        if mode == NEEDS_YOU and self.held() == HOLD_WOULD_LIKE:
             return
         try:
             self.nav.sleep()

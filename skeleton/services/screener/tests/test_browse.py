@@ -239,3 +239,16 @@ def test_run_turns_the_screen_off_for_a_hold_but_not_while_paused(tmp_path):
     r.b.mode = lambda: "needs_you"                       # held: Dev answers on Telegram
     r.b.run(iter([True, False]).__next__, lambda s: None, first=lambda: 5.0)
     assert offs() == 1
+
+
+def test_run_keeps_the_screen_on_while_a_like_waits(tmp_path):
+    # 2026-11-26: off for ~13 min, the app swapped the held profile for the next one
+    r = Rig(tmp_path, SKIP, mode=browse.OFF)
+    offs = lambda: sum(a[0] == "screen_off" for a in r.phone.actions)
+    r.b.nav.wake()
+    r.b.mode, r.b.held = (lambda: "needs_you"), (lambda: browse.HOLD_WOULD_LIKE)
+    r.b.run(iter([True, True, False]).__next__, lambda s: None, first=lambda: 600.0)
+    assert offs() == 0 and r.b.nav.awake
+    r.b.held = lambda: "chat_screen"                     # any other hold: off as before
+    r.b.run(iter([True, False]).__next__, lambda s: None, first=lambda: 5.0)
+    assert offs() == 1

@@ -378,7 +378,8 @@ def service(cfg: Config) -> int:
             wnav, wdecider = _navigator(cfg, wdev), _decider(cfg, wstore)
             b = Browser(cfg.browse_config(), wnav, wdecider,
                         lambda: Library.load(cfg.config_dir), wstore, cfg.tmp_dir, hold=hub.hold, notify=hub.notify,
-                        mode=cfg.mode, pages=_shot_pages, log=mqtt.log)
+                        mode=cfg.mode, pages=_shot_pages, held=lambda: (hub.held() or {}).get("kind", ""),
+                        log=mqtt.log)
             # the chats on the same phone, between profiles (#77): one worker, one phone
             c = ChatDriver(cfg.chat_config(), wnav, Talker(wdecider), wstore, cfg.config_dir, hold=hub.hold,
                            notify=hub.notify, mode=cfg.mode, limits=cfg.chat_limits(), log=mqtt.log,

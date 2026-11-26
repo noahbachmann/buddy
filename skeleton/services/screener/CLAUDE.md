@@ -96,7 +96,8 @@ automatic retry); usage limit or daily $ cap → `limit` until it ends.
 
 Screen (#90): the phone stays awake while charging (`stay_on_while_plugged_in`), so it never goes dark by itself.
 The worker wakes it only for work (a profile, a due chat pass, a resume) and `Browser.run` turns it off once
-(`Navigator.sleep`, KEYCODE_SLEEP, unguarded) when the next wait is ≥ 2 min or it holds for Dev; never while paused.
+(`Navigator.sleep`, KEYCODE_SLEEP, unguarded) when the next wait is ≥ 2 min or it holds for Dev; never while paused, nor while a like waits for Dev (off
+~13 min, the app swapped the held profile for the next one: 2026-11-26).
 Dev's phone commands (`_dev_navigator`) wake it first. Chat passes: every 10 min + a rising matches badge within the
 hours, every 30 min outside them (`BUDDY_SCREENER_CHAT_OFF_HOURS_MIN`).
 
