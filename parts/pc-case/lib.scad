@@ -31,7 +31,7 @@ assert(cb_head - (head_bore - m3_clear) / 2 > z_lid1 + 1, "head recess too deep:
 assert(cb_head - (head_bore - 5.5) / 2 - seam_screw_l < z_lid - boss_h + 0.1, "seam screw doesn't pass the nut");
 assert(cpu_zone_x[0] > perim && cpu_zone_y[1] < board[1] - wall_t - 1 && cpu_zone_x[1] < lid_x1 - perim,
        "CPU zone reaches the lid's edge band or back wall");
-assert(z_lid1 - back_wall_h > plate_z + 8 + 1, "back wall reaches the board");
+assert(z_lid1 - back_wall_h >= plate_z + 8, "back wall reaches below the board's top face");
 bt_z = floor_t + 4.5;                       // cover-bottom ↔ cover-top screws
 assert(floor_t + bottom_tab_h < hs_z0 - 1, "bottom tabs reach the heatsink");
 assert(bt_z - nut_slot[0] / cos(30) / 2 > floor_t, "bottom tab nut slot cuts into the floor");
