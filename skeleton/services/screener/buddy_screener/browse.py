@@ -114,7 +114,7 @@ class Browser:
         if rec is None:
             day = self.day_start(now)
             start, end = day + self.cfg.hours[0] * 3600, day + self.cfg.hours[1] * 3600
-            self._act(WINDOW, detail=f"{start:.0f} {end:.0f}")
+            self.store.add_action(WINDOW, self.cfg.mode, detail=f"{start:.0f} {end:.0f}")   # not the panel's "last"
         else:
             start, end = (float(x) for x in rec.detail.split())
         while now >= end:
@@ -123,7 +123,7 @@ class Browser:
             if now < nxt:
                 return Window(nxt, nxt + self.cfg.window_h * 3600)   # closed until then: nothing recorded yet
             start, end = nxt, nxt + self.cfg.window_h * 3600
-            self._act(WINDOW, detail=f"{start:.0f} {end:.0f}")
+            self.store.add_action(WINDOW, self.cfg.mode, detail=f"{start:.0f} {end:.0f}")   # not the panel's "last"
         return Window(start, end)
 
     def _likes(self, now: float) -> likes.LikeStatus:

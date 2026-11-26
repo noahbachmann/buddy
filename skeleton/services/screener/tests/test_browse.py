@@ -143,6 +143,7 @@ def test_the_window_opens_24_h_after_the_last_like_any_hour(tmp_path):
     assert r.b.window(r.clock()).open(r.clock())
     r.clock.t = T0 + DAY + 27 * H                                     # 03:00: still open through the night
     assert r.b.window(r.clock()).open(r.clock())
+    assert r.b.state.last == {}                                       # a window is no action for the panel
 
 
 def test_a_window_without_a_like_hands_on_24_h_after_its_start(tmp_path):
