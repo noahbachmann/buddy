@@ -165,9 +165,10 @@ def _in_order(sub: list, seq: list) -> bool:
 
 
 def _signature(root: Node) -> tuple:
-    """What a still screen keeps between dumps; a playing video's clock is left out (it ticks every second)."""
+    """What a still screen keeps between dumps; clocks are left out (a playing video's, an offer's countdown: they
+    tick every second, a list would never seem to stop scrolling)."""
     return tuple((n.cls, n.desc, n.text, n.rid, n.bounds, n.selected) for n in root.iter()
-                 if not v.ELAPSED.fullmatch(n.desc))
+                 if not v.ELAPSED.fullmatch(n.desc) and not v.COUNTDOWN.fullmatch(n.text))
 
 
 @dataclass
@@ -273,7 +274,14 @@ class Navigator:
         in_list = node.desc in (*v.LIKE_BUTTONS, v.EDIT_COMMENT)
         if in_list and not screens.profile_view(s.root).safe(node.bounds):
             raise self.needs_you(f"refused tap on {why}: not fully visible or under a floating button")
-        self.dev.tap(node.bounds)
+        at = node.bounds
+        if s.kind is Kind.MATCHES and s.tabs and all(node is not t.node for t in s.tabs.values()):
+            # rows and headers: only their visible part, clear of the tab bar and an offer pill over the list
+            part = screens.clear_part(s.root, node.bounds, min(t.node.bounds.top for t in s.tabs.values()))
+            if part is None:
+                raise self.needs_you(f"refused tap on {why}: under the tab bar or an offer")
+            at = part
+        self.dev.tap(at)
         self.pause(0.8)
 
     def _act(self, s: Screen, node: Node | None, why: str) -> None:

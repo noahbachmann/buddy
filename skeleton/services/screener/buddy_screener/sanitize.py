@@ -85,8 +85,10 @@ class _Mapper:
             return f"Like {self.name(m.group(1))}'s Friend's Take"
         if (m := v.FRIENDS_HEADER.fullmatch(s)) is not None:
             return f"From people close to {self.name(m.group(1))}"
-        if v.ELAPSED.fullmatch(s):
+        if v.ELAPSED.fullmatch(s) or v.COUNTDOWN.fullmatch(s):
             return s
+        if (m := v.OFFER.fullmatch(s)) is not None:
+            return f"{s.split(' ', 1)[0]} off Premium"   # the paid tier's name is the app's
         if (m := v.PROMPT.fullmatch(s)) is not None:
             return f"Prompt: {self.placeholder(m.group(1), 'Question')}. Answer: {self.placeholder(m.group(2), 'Answer')}"
         if (m := v.POLL.fullmatch(s)) is not None:

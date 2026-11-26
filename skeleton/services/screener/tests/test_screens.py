@@ -15,7 +15,7 @@ def screen(name: str) -> screens.Screen:
     *[(f, Kind.FEED) for f in FEED],
     ("sheet", Kind.SHEET), ("sheet-typed", Kind.SHEET), ("sheet-option", Kind.SHEET), ("sheet-option-typed", Kind.SHEET), ("feed-poll-all", Kind.FEED),
     ("likes", Kind.LIKES), ("matches", Kind.MATCHES), ("chat", Kind.CHAT), ("popup", Kind.POPUP),
-    ("matches-turns", Kind.MATCHES), ("matches-expanded", Kind.MATCHES), ("matches-scrolled", Kind.MATCHES), ("chat-comment", Kind.CHAT),
+    ("matches-turns", Kind.MATCHES), ("matches-offer", Kind.MATCHES), ("matches-expanded", Kind.MATCHES), ("matches-scrolled", Kind.MATCHES), ("chat-comment", Kind.CHAT),
     ("chat-comment-top", Kind.CHAT), ("chat-photo-comment", Kind.CHAT), ("chat-multiline", Kind.CHAT),
     *[(f"chat-profile-{i:02d}", Kind.CHAT_PROFILE) for i in range(1, 19)], ("chat-menu", Kind.CHAT_MENU),
 ])
@@ -352,3 +352,32 @@ def test_a_message_sides_by_its_sender_not_its_position():
         [m for m in msgs if m.sender])
     ours = parse(load("chat-multiline").replace('content-desc=" Sam: Message 2. "', 'content-desc=" You: Message 2. "'))
     assert [m.side for m in screens.chat_view(ours).messages if m.text == "Message 2"] == ["right"]
+
+
+def test_an_offer_over_the_matches_list_is_no_row():
+    # seen 2026-11-26: a paid-tier pill with a ticking clock floats over the list's bottom
+    s = screen("matches-offer")
+    [offer] = screens.offers(s.root)
+    rows = screens.match_rows(s.root)
+    assert len(rows) == 5 and not any(v.OFFER.fullmatch(r.name) for r in rows)
+    assert not any(r.node.bounds == offer for r in rows)
+
+
+def test_a_row_under_the_offer_is_tapped_beside_it_above_the_tabs():
+    s = screen("matches-offer")
+    [offer] = screens.offers(s.root)
+    last = screens.match_rows(s.root)[-1]
+    tabs_top = min(t.node.bounds.top for t in s.tabs.values())
+    assert last.node.bounds.intersects(offer) and last.node.bounds.bottom > tabs_top
+    part = screens.clear_part(s.root, last.node.bounds, tabs_top)
+    assert part is not None and not part.intersects(offer) and part.bottom <= tabs_top
+    # a row clear of it keeps its whole visible part
+    first = screens.match_rows(s.root)[0]
+    assert screens.clear_part(s.root, first.node.bounds, tabs_top) == first.node.bounds
+
+
+def test_no_tap_where_the_offer_leaves_too_little():
+    s = screen("matches-offer")
+    [offer] = screens.offers(s.root)
+    narrow = Rect(offer.left - 50, offer.top, offer.right + 50, offer.bottom)
+    assert screens.clear_part(s.root, narrow, 5000) is None

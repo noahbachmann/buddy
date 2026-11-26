@@ -52,6 +52,9 @@ CLOSE_SHEET = "Close sheet"                      # never tapped: unclear whether
 
 # Promo popups over the app (feature ads, upsells): a full-screen layer without tabs, its only safe exit this button
 CLOSE = "Close"
+# Paid-tier offer pinned over the matches list (2026-11-26): a clickable pill, its text and a ticking clock. Never tapped
+OFFER = re.compile(r"\d+% off .+", re.S)
+COUNTDOWN = re.compile(r"\d{1,2}(?::\d{2}){1,2}")   # the offer's clock: changes every second
 
 # Lists
 LIKES_HEADER = "Likes You"

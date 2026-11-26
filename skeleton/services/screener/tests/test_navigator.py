@@ -438,3 +438,10 @@ def test_a_feed_still_loading_is_waited_out_without_input():
     n.loading_s = 5.0
     assert screens.classify(parse(load("feed-loading")), PACKAGE).kind is Kind.UNKNOWN
     assert n.go_tab(v.TAB_DISCOVER).kind is Kind.FEED and phone.actions == []
+
+
+def test_an_offers_ticking_clock_is_no_movement():
+    # the offer's countdown ticks every second: a list that stopped must still read as stopped (2026-11-26)
+    xml = load("matches-offer")
+    assert 'text="50:47"' in xml
+    assert navigator._signature(parse(xml)) == navigator._signature(parse(xml.replace('text="50:47"', 'text="50:46"')))

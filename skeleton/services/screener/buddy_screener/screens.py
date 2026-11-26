@@ -396,16 +396,40 @@ def turn_headers(root: Node) -> list[TurnHeader]:
     return sorted(out, key=lambda h: h.node.bounds.top)
 
 
+def _is_offer(texts: list[str]) -> bool:
+    return len(texts) == 2 and v.OFFER.fullmatch(texts[0]) is not None and v.COUNTDOWN.fullmatch(texts[1]) is not None
+
+
+def offers(root: Node) -> list[Rect]:
+    """The paid-tier offer pills floating over a list: never a row, never tapped (a tap opens the paywall)."""
+    return [n.bounds for n in root.iter()
+            if n.clickable and _is_offer([t.text for t in n.iter() if t.cls == "TextView" and t.text])]
+
+
+def clear_part(root: Node, bounds: Rect, bottom: int) -> Rect | None:
+    """The part of a list item to tap: above `bottom` (the tab bar), right of or above/below an offer pill over it
+    (left of one is the row's thumbnail: never tapped blind). None: no part big enough to tap safely."""
+    r = Rect(bounds.left, bounds.top, bounds.right, min(bounds.bottom, bottom))
+    for o in offers(root):
+        if r.empty or not r.intersects(o):
+            continue
+        parts = [Rect(r.left, r.top, r.right, o.top), Rect(r.left, o.bottom, r.right, r.bottom),
+                 Rect(o.right, r.top, r.right, r.bottom)]
+        parts = [p for p in parts if p.width >= 100 and p.height >= 60]
+        r = max(parts, key=lambda p: p.width * p.height) if parts else Rect(0, 0, 0, 0)
+    return None if r.empty or r.height < 60 else r
+
+
 def match_rows(root: Node) -> list[MatchRow]:
     """Visible rows of the matches list: a clickable row holding the name and the last message, top to bottom, each
-    under the section header above it. The headers themselves are no rows."""
+    under the section header above it. The headers themselves are no rows, nor is an offer pill over the list."""
     headers = turn_headers(root)
     rows = []
     for n in root.iter():
         if not n.clickable or n.parent is None or any(h.node is n for h in headers) or _is_tab_wrapper(n):
             continue
         texts = [t.text for t in n.iter() if t.cls == "TextView" and t.text]
-        if not texts:
+        if not texts or _is_offer(texts):
             continue
         above = [h for h in headers if h.node.bounds.bottom <= n.bounds.top]
         thumb = next((c for c in n.children if c.cls == "View" and c.bounds.width == c.bounds.height
