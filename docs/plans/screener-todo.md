@@ -20,16 +20,20 @@ ssh -t buddy micro ~/buddy/config/screener/preferences.md
 ssh -t buddy micro ~/buddy/config/screener/templates.md
 ```
 
-- [ ] `preferences.md` read and correct
-- [ ] `templates.md` read, German checked
+- [ ] `preferences.md` read and correct (changed 2026-11-26: skiing / snowboarding is now a skip)
+- [ ] `templates.md` read, German checked (new 2026-11-26: *Fixed comments*, your LOTR line sent word for word)
 
 ## 2. Session 5: the dry loop (#80)
 
-Browsing is off until your likes are back (tell Claude to switch it back to `dry`). While it runs, it browses
-10:00–18:00 and stops on Telegram when it would like a profile:
+Browsing runs `dry`. A window opens 24 h after the last like of the window before (any hour, also at night) and lasts
+8 h (#91); the first one was 2026-11-26. It stops on Telegram when it would like a profile; the screen stays on while
+a like waits:
 
 - [ ] A held like: like it on the phone (or tell Claude to send it), or skip it, then tap **Resume**.
-- [ ] Label the skipped profiles in batches when Claude sends their screenshots (≥ 50 profiles for the gate).
+- [ ] Label the skipped profiles in batches when Claude sends their screenshots (≥ 50 profiles for the gate; on
+  2026-11-26: 23/41 = 56 %, the day's 39 skips still unlabelled).
+- [ ] At the session's end: decide the open proposals (Status block at the end of
+  `~/buddy/data/screener/session-5.md`).
 
 The phone keeps the screener's own keyboard (no keys): to type by hand, tap the keyboard icon at the bottom right and
 pick SwiftKey.
