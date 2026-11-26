@@ -20,8 +20,10 @@ ssh -t buddy micro ~/buddy/config/screener/preferences.md
 ssh -t buddy micro ~/buddy/config/screener/templates.md
 ```
 
-- [ ] `preferences.md` read and correct (changed 2026-11-26: skiing / snowboarding is now a skip)
-- [ ] `templates.md` read, German checked (new 2026-11-26: *Fixed comments*, your LOTR line sent word for word)
+- [ ] `preferences.md` read and correct (changed 2026-11-26: skiing / snowboarding is a skip; far spots and the close area by town; outdoor photos a
+  slight minus)
+- [ ] `templates.md` read, German checked (new 2026-11-26: *Fixed comments*, your LOTR line sent word for word; *Voice*: values
+  comments only with a real angle)
 
 ## 2. Session 5: the dry loop (#80)
 
@@ -32,7 +34,7 @@ a like waits:
 - [ ] A held like: like it on the phone (or tell Claude to send it), or skip it, then tap **Resume**.
 - [ ] Label the skipped profiles in batches when Claude sends their screenshots (≥ 50 profiles for the gate; on
   2026-11-26: 23/41 = 56 %, the day's 39 skips still unlabelled).
-- [ ] At the session's end: decide the open proposals (Status block at the end of
+- [x] Decide the open proposals (2026-11-26: applied to `preferences.md` / `templates.md`, log at the end of
   `~/buddy/data/screener/session-5.md`).
 
 The phone keeps the screener's own keyboard (no keys): to type by hand, tap the keyboard icon at the bottom right and
