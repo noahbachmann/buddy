@@ -20,10 +20,10 @@ ssh -t buddy micro ~/buddy/config/screener/preferences.md
 ssh -t buddy micro ~/buddy/config/screener/templates.md
 ```
 
-- [ ] `preferences.md` read and correct (changed 2026-11-26: skiing / snowboarding is a skip; far spots and the close area by town; outdoor photos a
-  slight minus)
-- [ ] `templates.md` read, German checked (new 2026-11-26: *Fixed comments*, your LOTR line sent word for word; *Voice*: values
-  comments only with a real angle)
+- [ ] `preferences.md` read and correct (changed 2026-11-26: skiing / snowboarding is a skip; far spots and the
+  close area by town; outdoor photos a slight minus)
+- [ ] `templates.md` read, German checked (new 2026-11-26: *Fixed comments*, your LOTR line sent word for word;
+  *Voice*: values comments only with a real angle)
 
 ## 2. Session 5: the dry loop (#80)
 
