@@ -37,6 +37,8 @@ class FakeChatPhone(FakePhone):
         self.ours: list[str] = []       # messages we sent in it
         self.unmatched: list[str] = []
         self.field_text: str | None = None
+        self.popup_after_swipe = 0      # promo popups that come up over the matches list after a swipe
+        self.behind = ""                # the screen under the popup
 
     def _xml(self) -> str:
         if self.screen.endswith("+typed"):
@@ -65,7 +67,9 @@ class FakeChatPhone(FakePhone):
         label = next((c.desc or c.text for c in n.iter() if c.desc or c.text), "") if n else ""
         self.actions.append(("tap", self.screen, label))
         base = self.screen.removesuffix("+typed")
-        if label == "Discover":
+        if label == "Close" and base == "popup":
+            self.screen = self.behind
+        elif label == "Discover":
             self.screen = "feed-01"
         elif label.startswith("Matches") and base.startswith("feed-"):
             self.screen = "matches-turns"
@@ -101,6 +105,9 @@ class FakeChatPhone(FakePhone):
             self.screen = PROFILE[max(0, min(len(PROFILE) - 1, i))]
         elif self.screen in ("matches-turns", "matches-scrolled"):
             self.screen = "matches-scrolled" if y2 < y1 else "matches-turns"   # the header collapses: ~200 px
+            if self.popup_after_swipe:
+                self.popup_after_swipe -= 1
+                self.behind, self.screen = self.screen, "popup"
         elif y2 > y1 and self.screen in TOPS:
             self.screen = TOPS[self.screen]
         elif y2 < y1 and self.screen in TOPS.values():

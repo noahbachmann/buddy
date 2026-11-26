@@ -38,7 +38,8 @@ paid option. A chat message is sent only by the chat driver, only after its read
 ## Rules the code enforces
 
 - Act only on a screen stable over two dumps; unknown screen → `NeedsYou`, never a blind tap.
-- Promo popups (no tabs, a "Close" button, nothing else known) closed with that button only; > `MAX_POPUPS` → Dev.
+- Promo popups (no tabs, a "Close" button, nothing else known) closed with that button only, wherever a move
+  waits for or expects a screen (they also come up mid-pass); > `MAX_POPUPS` in a row → Dev.
 - Tap only what `tappable()` allows, fully inside the list and clear of the floating buttons (`ProfileView.safe`).
 - Acting taps (skip, plain send like, the upsell's "Send Like anyway", chat send, Unmatch) only via `actable()`, only
   on the captured profile (name check), send only after the field reads back the text. Never the upsell's paid

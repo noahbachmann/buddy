@@ -220,10 +220,20 @@ class Navigator:
         raise self.needs_you("screen keeps changing")
 
     def expect(self, *kinds: Kind) -> Screen:
-        s = self.stable()
-        if s.kind not in kinds:
-            raise self.needs_you(f"expected {'/'.join(k.value for k in kinds)}, got {screens.summary(s)}")
-        return s
+        """The screen now, of one of `kinds`. A promo popup in the way is closed first: they also come up mid-move,
+        e.g. over the matches list between two swipes (2026-11-26)."""
+        closed = 0
+        while True:
+            s = self.stable()
+            if s.kind in kinds:
+                return s
+            if s.kind is not Kind.POPUP:
+                raise self.needs_you(f"expected {'/'.join(k.value for k in kinds)}, got {screens.summary(s)}")
+            if closed == MAX_POPUPS:
+                raise self.needs_you(f"{closed} popups in a row")
+            self.tap(s, screens.close_button(s.root), "popup close")
+            self.log("closed a popup")
+            closed += 1
 
     def wait_for(self, pred: Callable[[Screen], bool], what: str, timeout: float = 12) -> Screen:
         """Polls until `pred` holds. Promo popups on the way are closed (they show up on launch, at any tab)."""

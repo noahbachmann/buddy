@@ -24,6 +24,16 @@ def test_matches_opens_their_turn_and_keys_every_row():
     assert phone.sent() == []
 
 
+def test_popup_over_the_matches_list_is_closed():
+    # seen 2026-11-26: a promo layer came up between two swipes of a chat pass and held it
+    phone = FakeChatPhone("matches-turns")
+    phone.popup_after_swipe = 1
+    rows = nav(phone).matches()
+    assert len(rows) == 5
+    assert [a for a in phone.actions if a[0] == "tap" and a[1] == "popup"] == [("tap", "popup", "Close")]
+    assert phone.sent() == []
+
+
 def test_open_chat_by_key_and_read_it_whole():
     phone = FakeChatPhone("matches-turns")
     n = nav(phone)
