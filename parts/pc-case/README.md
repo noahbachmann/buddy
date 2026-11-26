@@ -13,7 +13,7 @@ stays: it continues behind the board, under the cover's left and back walls.
 | Part | What | Print | PETG (solid, max) |
 |---|---|---|---|
 | `fit-check` | Flat template of the cooler corner: cover outline, cooler outline + 1 mm, tray's right and back edges | `plates/0-fit-check` | 5 g |
-| `cover-top` | Over the cooler, standing on cover-bottom: lattice top (1.2), slotted intake over the fan hub, exhaust slits over the heatsink's outlet face (from 14.8 mm up), windows. Its walls facing the tray stand on the lid and carry 4 screw bosses (lid to top, head recessed); over the tray wall and the silver plate its walls stop above them | `plates/1-cover-top`, top down | 63 g |
+| `cover-top` | Over the cooler (4 mm off the heatsink on the right: felt), standing on cover-bottom: lattice top (1.2), slotted intake over the fan hub, exhaust slits over the heatsink's outlet face (from 14.8 mm up), windows. Its walls facing the tray stand on the lid and carry 4 screw bosses (lid to top, head recessed); over the tray wall and the silver plate its walls stop above them | `plates/1-cover-top`, top down | 64 g |
 | `cover-bottom` | Lattice floor (1.6) under the raised heatsink and in front of it; solid 0.8 floor under the fan outside the tray (it lies flat on the table: no bending to carry) that the fan stands on; 5 low nut tabs (≤ 11.6, under the heatsink) for cover-top | `plates/3-cover-bottom`, floor down | 24 g |
 | `lid` | Lattice plate between the tray walls (front 60 mm over the metal shield: open; ~14 mm windows behind it), 4 tabs into the slits beside the board that carry it, a 25 mm wall down its back edge, 14 top-module and 4 cover nut bosses underneath, 3 cable notches, thinner over the CPU | `plates/2-lid`, top down, 252 mm wide: alone on the plate | 93 g |
 
@@ -87,6 +87,10 @@ strip).
 
 ## Design notes
 
+- Cover-top's right wall stands 4 mm off the heatsink (back wall 1): the heat pipe's end nearly touched it (Dev
+  2026-11-26). The 3 mm is for self-adhesive felt or 2–3 mm cork on the wall's inside where the pipe is, only on the
+  solid parts (front corner y 113–128, below the slits up to z 14.8): over the exhaust slits it would block the
+  heatsink's outlet.
 - Lid and cover split along two straight seams 9 mm off the cooler. The lid reaches 4 mm past the cover's seam walls,
   under their bosses. Inside, the cover is open towards the board: the heat pipe and fan cable cross freely, and the
   blower also pulls air through the lid's lattice.

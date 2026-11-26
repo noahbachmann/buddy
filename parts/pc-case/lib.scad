@@ -6,7 +6,7 @@ eps = 0.01;
 big = 1000;
 
 // --- derived outline ---------------------------------------------------------------
-cx1 = cooler_x[1] + side_gap + wall_t;     // cover's outer right
+cx1 = cooler_x[1] + right_gap + wall_t;    // cover's outer right
 cy1 = cooler_y[1] + side_gap + wall_t;     // and back
 lid_x1 = seam_x + wall_t + lid_ext;        // lid's edges past the seams (it reaches under the cover's bosses)
 lid_y1 = seam_y + wall_t + lid_ext;

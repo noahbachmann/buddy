@@ -60,7 +60,10 @@ z_top    = z_ceil + cover_skin;        // cover's top: the highest point (40.4)
 // --- outline --------------------------------------------------------------------
 tray_gap = 0.5;          // tray to the cover's walls
 lid_gap  = 0.3;          // lid edge to the tray walls' inner faces
-side_gap = 1;            // cooler to the cover's walls (right, back)
+side_gap = 1;            // cooler to the cover's back wall
+// Right wall: the heat pipe's end nearly touched it (Dev 2026-11-26): room for felt/cork on the wall's inside
+felt_t     = 3;          // self-adhesive felt sheet (or 2–3 mm cork)
+right_gap  = side_gap + felt_t;   // cooler to the cover's right wall
 // Lid ↔ cover split: two straight seams, far enough from the cooler for the seam wall and a screw head.
 seam_x = cooler_x[0] - 9;   // vertical seam (for y ≥ seam_y)
 seam_y = cooler_y[0] - 9;   // horizontal seam (for x ≥ seam_x)
