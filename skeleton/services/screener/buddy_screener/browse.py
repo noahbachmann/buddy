@@ -34,6 +34,7 @@ BROWSING, BREAK, WAITING, DONE_TODAY, LIMIT, NEEDS_YOU, OFFLINE = (
 
 # what a hold tells Dev (Telegram, panel): fixed texts by kind, never a reason string or a name
 HOLD_WOULD_LIKE = "would_like"
+WINDOW = "window"           # action: an active window opened, detail "<start> <end>" (#91)
 HOLD_SCREEN = "screen"
 HOLD_LIKES = "likes"
 HOLD_DECIDE = "decide"
@@ -45,7 +46,8 @@ DECIDE_FAILURES = 3   # decisions failing in a row (timeouts, no answer) before 
 @dataclass
 class BrowseConfig:
     mode: str = OFF
-    hours: tuple[float, float] = (10.0, 18.0)   # local hours
+    hours: tuple[float, float] = (10.0, 18.0)   # local hours: the first window only (#91)
+    window_h: float = 8.0                       # every later window: opens 24 h after the last like before it
     gap_s: tuple[float, float] = (20.0, 90.0)   # between two profiles
     break_every: tuple[int, int] = (6, 12)      # profiles between random breaks
     break_min: tuple[float, float] = (5.0, 20.0)
@@ -104,9 +106,25 @@ class Browser:
         return self.rng.randint(int(lo), int(hi))
 
     def window(self, now: float) -> Window:
-        """Today's active window (likes come back one by one, 24 h after each: no shifted start, #88)."""
-        day = self.day_start(now)
-        return Window(day + self.cfg.hours[0] * 3600, day + self.cfg.hours[1] * 3600)
+        """The current or next active window (#91, Dev 2026-11-26): a window opens 24 h after the last like sent
+        since the previous one opened (its likes are back then; a like sent after it closed counts too), at any
+        hour, and lasts `window_h`. A window without a like: the next one 24 h after its start. The first one (no
+        record yet) is today's `hours`. Each window is recorded when it opens: the chain survives restarts."""
+        rec = next((a for a in reversed(self.store.actions(now - 30 * likes.DAY)) if a.kind == WINDOW), None)
+        if rec is None:
+            day = self.day_start(now)
+            start, end = day + self.cfg.hours[0] * 3600, day + self.cfg.hours[1] * 3600
+            self._act(WINDOW, detail=f"{start:.0f} {end:.0f}")
+        else:
+            start, end = (float(x) for x in rec.detail.split())
+        while now >= end:
+            sent = [a.ts for a in self.store.actions(start) if a.kind in likes.LIKES]
+            nxt = (max(sent) if sent else start) + likes.DAY
+            if now < nxt:
+                return Window(nxt, nxt + self.cfg.window_h * 3600)   # closed until then: nothing recorded yet
+            start, end = nxt, nxt + self.cfg.window_h * 3600
+            self._act(WINDOW, detail=f"{start:.0f} {end:.0f}")
+        return Window(start, end)
 
     def _likes(self, now: float) -> likes.LikeStatus:
         return likes.status(self.store.actions(now - 7 * likes.DAY), now, self.cfg.daily_likes)
@@ -140,14 +158,13 @@ class Browser:
         now = self.clock()
         win = self.window(now)
         if not win.open(now):
-            nxt = win.start if now < win.start else self.window(self.day_start(now) + 86400 + 1).start
-            self._set(WAITING, nxt)
-            return min(nxt - now, 600.0)
+            self._set(WAITING, win.start)
+            return min(win.start - now, 600.0)
         st = self._likes(now)
         if st.stuck:
             return self._hold(HOLD_LIKES, st.stuck)
         if not st.left:
-            back = st.back_at or self.window(self.day_start(now) + 86400 + 1).start
+            back = st.back_at or win.end
             if self.told_done != st.last_like:
                 self.told_done = st.last_like
                 self.notify(f"likes used up ({likes.describe(st, self.cfg.daily_likes)})")

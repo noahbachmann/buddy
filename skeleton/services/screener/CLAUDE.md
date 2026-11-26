@@ -91,8 +91,11 @@ from the phone.
 
 ## The browse loop (#80)
 
-`Browser.step()`: off / stopped / paused / held → nothing; outside `BUDDY_SCREENER_HOURS` (10–18) → waiting; no like
-left in the last 24 h → waits for the next slot; then `judge`. Dry: pages from the capture → `rows/<id>/`, skip →
+`Browser.step()`: off / stopped / paused / held → nothing; outside the active window → waiting; no like left in the
+last 24 h → waits for the next slot; then `judge`. The window (#91): the first is today's `BUDDY_SCREENER_HOURS`; every
+later one opens 24 h after the last like sent since the previous one opened (a held like answered late counts), at
+any hour, for `BUDDY_SCREENER_WINDOW_H` (8); no like → 24 h after its start. Each opening is a `window` action
+(start, end): the chain survives restarts. Dry: pages from the capture → `rows/<id>/`, skip →
 skip, like → hold `would_like` (Dev likes or skips, then resumes). Live: skip, or `scroll_to` → `open_sheet` →
 `type_comment` → `send_like`. A gap of 20–90 s, a 5–20 min break every 6–12 profiles. Holds wait for Dev (no
 automatic retry); usage limit or daily $ cap → `limit` until it ends.
@@ -102,9 +105,10 @@ The worker wakes it only for work (a profile, a due chat pass, a resume) and `Br
 (`Navigator.sleep`, KEYCODE_SLEEP, unguarded) when the next wait is ≥ 2 min or it holds for Dev; never while paused, nor while a like waits for Dev (off
 ~13 min, the app swapped the held profile for the next one: 2026-11-26).
 Dev's phone commands (`_dev_navigator`) wake it first. Chat passes: every 10 min + a rising matches badge within the
-hours, every 30 min outside them (`BUDDY_SCREENER_CHAT_OFF_HOURS_MIN`).
+window, every 30 min outside it (`BUDDY_SCREENER_CHAT_OFF_HOURS_MIN`).
 
-Likes come back 24 h after each like, at most 8 in any 24 h (measured 2026-11-25): no reset at midnight.
+Likes come back 24 h after each like, at most 8 in any 24 h (measured 2026-11-25): no reset at midnight. Hence the
+window follows the likes (#91).
 
 ## Chat flow (#77)
 

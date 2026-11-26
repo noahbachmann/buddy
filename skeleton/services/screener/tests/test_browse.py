@@ -48,7 +48,7 @@ class Rig:
         self.paused = True
 
     def kinds(self):
-        return [a.kind for a in self.store.actions()]
+        return [a.kind for a in self.store.actions() if a.kind != browse.WINDOW]
 
 
 def test_off_does_nothing(tmp_path):
@@ -128,6 +128,40 @@ def test_outside_the_window_waits_untouched(tmp_path):
     r.clock.t = T0 + 18 * H
     r.b.step()
     assert r.b.state.until == T0 + DAY + 10 * H and r.phone.actions == []
+
+
+def test_the_window_opens_24_h_after_the_last_like_any_hour(tmp_path):
+    # #91: today's window is the first (10-18); the next opens 24 h after its last like and runs 8 h, also at night
+    r = Rig(tmp_path, SKIP, now=T0 + 12 * H, hours=(10.0, 18.0), window_h=8.0)
+    assert (r.b.window(r.clock()).start, r.b.window(r.clock()).end) == (T0 + 10 * H, T0 + 18 * H)
+    r.store.add_action(likes.LIKE, "live", ts=T0 + 13 * H)
+    r.store.add_action(likes.LIKE_PLAIN, "shadow", ts=T0 + 20 * H)    # Dev answered a held like after it closed
+    r.clock.t = T0 + 19 * H
+    w = r.b.window(r.clock())
+    assert (w.start, w.end) == (T0 + DAY + 20 * H, T0 + DAY + 28 * H) and not w.open(r.clock())
+    r.clock.t = T0 + DAY + 21 * H
+    assert r.b.window(r.clock()).open(r.clock())
+    r.clock.t = T0 + DAY + 27 * H                                     # 03:00: still open through the night
+    assert r.b.window(r.clock()).open(r.clock())
+
+
+def test_a_window_without_a_like_hands_on_24_h_after_its_start(tmp_path):
+    r = Rig(tmp_path, SKIP, now=T0 + 12 * H, window_h=8.0)
+    r.b.window(r.clock())                                             # the first window: 10-18, recorded
+    r.clock.t = T0 + DAY + 11 * H
+    w = r.b.window(r.clock())
+    assert (w.start, w.end) == (T0 + DAY + 10 * H, T0 + DAY + 18 * H) and w.open(r.clock())
+
+
+def test_the_window_chain_survives_a_restart(tmp_path):
+    r = Rig(tmp_path, SKIP, now=T0 + 12 * H)
+    r.b.window(r.clock())
+    r.store.add_action(likes.LIKE, "live", ts=T0 + 17 * H)
+    r.clock.t = T0 + DAY + 2 * H                                      # after midnight, a fresh Browser
+    b2 = Browser(BrowseConfig(mode=browse.DRY), r.b.nav, r.decider, lambda: LIB, r.store, tmp_path,
+                 hold=r.hold, notify=r.notes.append, mode=lambda: "active", clock=r.clock, day_start=utc_day)
+    w = b2.window(r.clock())
+    assert w.start == T0 + DAY + 17 * H                               # not the new day's 10:00
 
 
 def test_another_profile_after_the_decision_holds_without_a_tap(tmp_path):

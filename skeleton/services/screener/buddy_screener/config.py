@@ -29,7 +29,8 @@ class Config:
     photo_check_px: int = 1024   # its crops' long side: ≥ the screen's 960 px photos = not downscaled
     check_model: str = ""        # the like comment's copy/invention check (#84); empty = `model`
     browse: str = "off"          # the loop (#80): off | dry (decides, skips, holds likes for Dev) | live
-    hours: str = "10-18"         # active window, local hours
+    hours: str = "10-18"         # the first active window, local hours (#91: later ones follow the likes)
+    window_h: float = 8          # an active window's hours: opens 24 h after the last like before it (#91)
     gap_s: str = "20-90"         # seconds between two profiles
     break_every: str = "6-12"    # profiles between random breaks
     break_min: str = "5-20"      # a break's minutes
@@ -72,6 +73,7 @@ class Config:
             check_model=env_string("BUDDY_SCREENER_CHECK_MODEL", d.check_model),
             browse=env_string("BUDDY_SCREENER_BROWSE", d.browse),
             hours=env_string("BUDDY_SCREENER_HOURS", d.hours),
+            window_h=env_float("BUDDY_SCREENER_WINDOW_H", d.window_h),
             gap_s=env_string("BUDDY_SCREENER_GAP_S", d.gap_s),
             break_every=env_string("BUDDY_SCREENER_BREAK_EVERY", d.break_every),
             break_min=env_string("BUDDY_SCREENER_BREAK_MIN", d.break_min),
@@ -111,8 +113,10 @@ class Config:
         hours = parse_range(self.hours, "BUDDY_SCREENER_HOURS")
         if hours[1] > 24:
             raise ValueError(f"BUDDY_SCREENER_HOURS={self.hours!r}: hours of a day")
+        if not 0 < self.window_h < 24:
+            raise ValueError(f"BUDDY_SCREENER_WINDOW_H={self.window_h}: hours, 0 < h < 24")
         every = parse_range(self.break_every, "BUDDY_SCREENER_BREAK_EVERY")
-        return BrowseConfig(self.browse, hours, parse_range(self.gap_s, "BUDDY_SCREENER_GAP_S"),
+        return BrowseConfig(self.browse, hours, self.window_h, parse_range(self.gap_s, "BUDDY_SCREENER_GAP_S"),
                             (int(every[0]), int(every[1])), parse_range(self.break_min, "BUDDY_SCREENER_BREAK_MIN"),
                             self.daily_likes)
 
