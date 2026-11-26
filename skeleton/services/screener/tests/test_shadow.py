@@ -6,7 +6,7 @@ from buddy_screener.library import Library, LikeComment
 from buddy_screener.navigator import Navigator, NeedsYou
 from buddy_screener.store import Store
 from fake_phone import FakePhone
-from fixture_files import PACKAGE
+from fixture_files import PACKAGE, load
 
 LIB = Library("prefs", (LikeComment("photo_place", "de", "photo of a place", "Wo ist das?"),
                         LikeComment("hot_take", "en", "bold opinion", "Bold.")))
@@ -94,6 +94,29 @@ def test_type_and_send_the_labelled_text(store, tmp_path):
     assert shadow.type_label(n, row_, r.capture, LIB) == "Wo ist dieser See?"
     shadow.act_label(n, row_, r.capture, LIB, "send")
     assert phone.sent()
+
+
+def test_a_slow_next_card_after_send_is_waited_out(store, tmp_path, monkeypatch):
+    # 2026-11-26: after the send the next card drew for over 12 s; the send held although the like went out
+    from buddy_screener import navigator
+    phone = FakePhone("feed-01")
+    n = nav(phone)
+    r = shadow.run_shadow(n, FakeDecider(like(text="Wo ist dieser See?")), LIB, store, tmp_path)
+    store.label(r.row_id, shadow.make_label(store.shadow(r.row_id)[0], "like", None, None, LIB))
+    row_ = store.shadow(r.row_id)[0]
+    shadow.type_label(n, row_, r.capture, LIB)
+    clock, dump, slow = [0.0], phone.dump, [0]
+
+    def drawing():
+        if phone.sent() and slow[0] < 12:      # tab bar only, ~1 s per read
+            slow[0] += 1
+            clock[0] += 1.0
+            return load("feed-loading")
+        return dump()
+    phone.dump = drawing
+    monkeypatch.setattr(navigator.time, "monotonic", lambda: clock[0])
+    shadow.act_label(n, row_, r.capture, LIB, "send")
+    assert phone.sent() and slow[0] == 12
 
 
 def test_label_rules(store):

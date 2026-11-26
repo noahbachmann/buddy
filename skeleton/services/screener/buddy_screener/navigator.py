@@ -713,7 +713,8 @@ class Navigator:
         self._act(s, panel.send, "send like")
         s = self.wait_for(lambda x: x.kind in (Kind.UPSELL, Kind.OUT_OF_LIKES) or
                           (x.kind is Kind.FEED and (screens.profile_view(x.root).name != name
-                                                    or self._other_photo(x, photo))), "the like to go out")
+                                                    or self._other_photo(x, photo))), "the like to go out",
+                          self.loading_s)   # the next card can draw slowly ("Most Compatible", 2026-11-26: > 12 s)
         if s.kind is Kind.OUT_OF_LIKES:
             self.tap(s, screens.close_button(s.root), "out-of-likes close")
             # usually the panel comes back; seen 2026-11-19: the app moved on to the next profile instead
