@@ -29,6 +29,8 @@ assert(seam_x + seam_u + seam_boss_d / 2 < lid_x1 - 1 && seam_y + seam_u + seam_
 assert(cb_head - (head_bore - m3_clear) / 2 > z_lid1 + 1, "head recess too deep: no cover under the head");
 // screw from the head's seat (Ø5.5 on the cone) down: through the nut under the lid
 assert(cb_head - (head_bore - 5.5) / 2 - seam_screw_l < z_lid - boss_h + 0.1, "seam screw doesn't pass the nut");
+assert(cpu_zone_x[0] > perim && cpu_zone_y[1] < board[1] - wall_t - 1 && cpu_zone_x[1] < lid_x1 - perim,
+       "CPU zone reaches the lid's edge band or back wall");
 assert(z_lid1 - back_wall_h > plate_z + 8 + 1, "back wall reaches the board");
 bt_z = floor_t + 4.5;                       // cover-bottom ↔ cover-top screws
 assert(floor_t + bottom_tab_h < hs_z0 - 1, "bottom tabs reach the heatsink");
@@ -88,7 +90,9 @@ module seam_bosses_2d() for (q = seam_screws()) translate(q) square(cover_boss, 
 function lid_nodes() = [for (x = grid_x, y = grid_y)
   if (x - boss_d / 2 >= perim && y - boss_d / 2 >= perim
       && x + boss_d / 2 <= (y + boss_d / 2 < lid_y1 - perim ? board[0] : lid_x1) - perim
-      && y + boss_d / 2 <= (x + boss_d / 2 < lid_x1 - perim ? board[1] : lid_y1) - perim) [x, y]];
+      && y + boss_d / 2 <= (x + boss_d / 2 < lid_x1 - perim ? board[1] : lid_y1) - perim
+      && !in_cpu_zone([x, y])) [x, y]];
+function in_cpu_zone(q) = q[0] > cpu_zone_x[0] && q[0] < cpu_zone_x[1] && q[1] > cpu_zone_y[0] && q[1] < cpu_zone_y[1];
 module lid_bars_2d() {
   for (x = concat(grid_x, fine_x)) rect([x - bar / 2, x + bar / 2], [shield_y - bar / 2, big]);
   for (x = shield_xs) rect([x - bar / 2, x + bar / 2], [-big, big]);
@@ -129,6 +133,7 @@ module lid() intersection() {   // one outline cut makes the plate's and the bac
   }
   for (n = concat(lid_nodes(), seam_screws())) lid_mount_cut(n);
   box(cable_back, [board[1] - cable_d, board[1] + 1], [-1, z_lid + 1]);   // antenna notch through the back wall
+  box(cpu_zone_x, cpu_zone_y, [z_lid - 1, z_lid1 - cpu_skin_t]);            // thinner over the CPU, from below
  }
 }
 // Back edge, left side up to the cover's seam wall: hangs down from the plate (grows up in print).

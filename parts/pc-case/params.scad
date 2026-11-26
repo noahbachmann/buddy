@@ -17,7 +17,7 @@ tray_wall_x = 255;       // outer face of the tray's right wall (95 to the heats
 slit_w    = 3;
 slit_tab_t = 2.0;        // 0.5 play each side
 slit_tabs_left  = [68, 103];   // ⚠️ y spans (slits seen 58–107; the left ribbon leaves at ~60)
-slit_tabs_right = [62, 100];   // ⚠️
+slit_tabs_right = [55.5, 92];  // ⚠️ was 62–100: 8 towards the front, 1.5 shorter (Dev 2026-11-26)
 plate_z   = 1;           // ⚠️ top of the silver plate under the board: the tabs stand on it
 // The silver plate continues behind the board (y > 210) to x ≈ 200, under the cover's left and back walls:
 // they stop above it (and above the antenna wires running along the fan's edge).
@@ -81,6 +81,11 @@ grid_x = [20, 60, 100, 140, 180, 220];   // lattice lines
 grid_y = [60, 100, 140, 180];
 fine_x = [40, 80, 120, 160, 200];   // bars between them, no mounts: ~14 mm windows over the board (Dev 2026-11-25)
 fine_y = [80, 120, 160];
+// Over the CPU block (Dev's photo 2026-11-26): more air between lid and heat. The top stays flat (prints top down:
+// a raised patch would leave the rest of the plate floating), so the plate thins from below and the mounts go.
+cpu_zone_x  = [38, 165];
+cpu_zone_y  = [106, 197];  // starts past the y 100 bosses (no half-cut boss)
+cpu_skin_t  = 1.2;         // plate there: underside 1.2 higher, nodes 3.2 (no boss)
 back_wall_h = 22;        // wall down from the lid's top along its back edge, left to the cover (Dev 2026-11-25): z 12 ⚠️ board below
 shield_y   = 60;         // front band over the metal shield: open, only these bars cross it
 shield_xs  = [100, 180];
