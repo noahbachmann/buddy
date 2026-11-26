@@ -1,8 +1,9 @@
 # Card dispenser – shopping list
 
 Everything to buy for `parts/dispenser` (roller, lift, pusher). Screw counts are in the dispenser README → Parts.
-**Ordered 2026-11-09**: every part the dispenser needs (Dev). Not arrived yet. Status: ordered · not needed ·
-later (another step).
+**Archived 2026-11-26: everything bought and arrived** (ordered 2026-11-09). Kept for the links and reorders; what the
+dispenser uses now is in the dispenser README → Parts (e.g. the flexible couplings were replaced by printed ones).
+Status: ordered (= bought) · not needed · later (another step).
 
 ## Motors and motion
 
