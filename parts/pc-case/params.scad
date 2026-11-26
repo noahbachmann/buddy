@@ -98,6 +98,7 @@ hook_reach = 35;         // lid top → hook's bottom: 32 to the plate's undersi
 hook_t     = 3;          // hook height (its top catches the plate)
 hook_len   = 3;          // under the plate, from the arm's inner face
 hook_arm_t = wall_t;     // straight down from the lid's front edge; flexes ~3 mm outward to snap on (~0.9 % strain)
+hook_gap   = lid_gap;    // play: arm's inner face to the tray plate's edge (y 0); the lid's front edge is out there too
 shield_y   = 60;         // front band over the metal shield: open, only these bars cross it
 shield_xs  = [100, 180];
 boss_d     = 11;         // top-module mounts on the lattice nodes: bosses under the lid, nut pocket from below

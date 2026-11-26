@@ -5,10 +5,15 @@ assembly = "assembly.scad"
 [parts.lid]
 [parts.cover-top]
 [parts.cover-bottom]
+[parts.hook-test]
 
 [plates.0-fit-check]
 note = "PETG · 0.28 mm · 2 walls · flat · no supports: lay it over the cooler corner before the big prints"
 parts = ["fit-check"]
+
+[plates.0-hook-test]
+note = "PETG · 0.20 mm · 3 walls · 15 % · top down · no supports: one lid hook, snap it over the tray's front edge first"
+parts = ["hook-test"]
 
 [plates.1-cover-top]
 note = "PETG · 0.20 mm · 3 walls · 15 % · top down · no supports"
