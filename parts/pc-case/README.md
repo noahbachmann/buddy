@@ -31,11 +31,12 @@ hook overhangs print without). Plates 2.4 mm.
 - Back edge (y 210), left side up to the cover: a 2.4 wall down to z 9 (25 from the top; Dev 2026-11-26: 3 deeper),
   notched for the antenna wires. ⚠️ Its bottom edge is level with the board's top face (plate 1 + 8, from the params):
   nothing on the board may stand under it there.
-- Front edge (y 0, over the metal shield): 2 hooks, 20 wide at x 50 and 215: a straight 2.4 arm down 35 from the lid's top,
-  its inner face flush with the lid's front edge (which sits 0.3 out past the tray plate's edge: play), a 3 × 3 hook pointing in under the silver plate (its top 32 under the
-  lid's top: Dev measured the plate's underside there). The lid snaps on: the arm bends out over the plate's edge. So the
-  lid stays on the tray by itself, cover or not. ⚠️ The tray must not stand flat on the table at its front edge (the
-  hooks reach 1 below the plate). In print, each hook's catching face is a 3 × 20 overhang (Bambu prints that).
+- Front edge (y 0, over the metal shield): 2 hooks, 20 wide at x 50 and 215: a straight 2.4 arm down 33.6 from the
+  lid's top, its inner face flush with the lid's front edge (0.3 out past the tray plate's edge: play), a hook 1.6
+  high and 3 long pointing in under the silver plate (its top 32 under the lid's top: Dev measured the plate's
+  underside there). The lid snaps on: the arm bends out over the plate's edge, so the lid stays on the tray by itself,
+  cover or not. ⚠️ The tray must not stand flat on the table at its front edge (the hooks reach 1.6 below the plate).
+  In print, each hook's catching face is a 3 × 20 overhang (Bambu prints that).
 - In the ~3 mm slits between the board's edges and the tray walls: 2.0 mm tabs (0.5 play each side), standing on the
   silver plate 8 mm under the board. They carry the lid. Left y 68–103, right y 55.5–92 (y from the front edge; Dev 2026-11-26: 8 towards the front, 1.5
   shorter).

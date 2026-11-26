@@ -94,8 +94,8 @@ back_wall_h = 25;        // wall down from the lid's top along its back edge, le
 // Dev measured: lid top 32 above the plate's underside at the front.
 hook_xs    = [50, 215];  // centres; clear of the ribbons leaving over the front edge (~x 110–188, photo) ⚠️
 hook_w     = 20;         // along the edge
-hook_reach = 35;         // lid top → hook's bottom: 32 to the plate's underside + 3 of hook
-hook_t     = 3;          // hook height (its top catches the plate)
+hook_reach = 33.6;       // lid top → hook's bottom: 32 to the plate's underside + the hook
+hook_t     = 1.6;        // hook height (its top catches the plate; Dev 2026-11-26)
 hook_len   = 3;          // under the plate, from the arm's inner face
 hook_arm_t = wall_t;     // straight down from the lid's front edge; flexes ~3 mm outward to snap on (~0.9 % strain)
 hook_gap   = lid_gap;    // play: arm's inner face to the tray plate's edge (y 0); the lid's front edge is out there too
