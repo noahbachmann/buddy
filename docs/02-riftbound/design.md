@@ -832,6 +832,17 @@ Riftbound). What building it changed against the design above:
 - **Buddy speaks only when asked** (Dev, 2026-11-16): a "Buddy speaks" checkbox at new game and a switch during
   it, off by default; replaces `BUDDY_GAME_VOICE`. Off, game publishes nothing on `buddy/voice/say`: checked on the
   Pi (a silent game had no line, not even the opening one; switched on mid-game, the lines came).
+- **After Dev's live game (2026-11-27, #97):**
+  - **Bugs:** the Chosen Champion was never playable (420.1.a: hand *or* champion zone; `playable()` took only the
+    hand), for both seats; card text showed Riftcodex's HTML entities (`&gt;`); an optional cost read "optional cost
+    0" (its index: Dev took Upstage Comedy's paid Repeat for a free one).
+  - **Rulings:** a 0-Might unit needs 1 damage to be lethal (142.4.b), so Vi's legend and Trapping Grounds rightly
+    stayed off at excess 2 (10 damage vs Zed 5 + Shadow Fiend 2 + Shadow Clone 1). A unit that joins a running combat
+    attacks or defends (466.2.c.3.a, Dev: Vi, Peacekeeper played by Ambush into the combat stuns). A rune recycled
+    alone goes to the bottom in view: known when it comes back, not asked (the prompt now says so).
+  - **Panel:** log as a left column from 1024 px with linked card names, passes that say what they pass ("let Vault
+    Breaker resolve", "pass focus at …"), effects on tiles, in-play vs legend/champion split, undo of Dev's own steps
+    while Buddy hasn't moved since (~200 ms on the Pi at turn 5: the host replays the game's journal).
 - **Not built:** voice input ("pass"), thinking during Dev's turn (2.6 design → Later), card images (the catalogue
   has text only; Riftcodex images would need the internet on the panel).
 
