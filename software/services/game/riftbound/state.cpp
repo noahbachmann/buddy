@@ -143,6 +143,24 @@ std::string_view to_string(EventKind kind) {
     return "?";
 }
 
+std::string cost_text(const Cost& c) {
+    std::vector<std::string> parts;
+    if (c.energy) parts.push_back(std::to_string(c.energy) + " energy");
+    if (c.power) parts.push_back(std::to_string(c.power) + " " + (c.domains ? domains_string(c.domains) : "Power"));
+    if (c.any_power) parts.push_back(std::to_string(c.any_power) + " Power of any domain");
+    if (c.discard) parts.push_back("discard " + std::to_string(c.discard) + (c.discard_spell ? " spell" : ""));
+    if (c.recycle_trash) parts.push_back("recycle " + std::to_string(c.recycle_trash) + " from your trash");
+    if (c.burn) parts.push_back("burn " + std::to_string(c.burn));
+    if (c.exhaust_self) parts.push_back("exhaust it");
+    if (c.kill_self) parts.push_back("kill it");
+    if (c.disempower_self) parts.push_back("disempower it");
+    if (c.banish_self) parts.push_back("banish it");
+    if (parts.empty()) return "nothing";
+    std::string out = parts.front();
+    for (std::size_t i = 1; i < parts.size(); ++i) out += ", " + parts[i];
+    return out;
+}
+
 Cost operator+(Cost a, const Cost& b) {
     if (a.power == 0 && b.power > 0) a.domains = b.domains;
     a.energy += b.energy;

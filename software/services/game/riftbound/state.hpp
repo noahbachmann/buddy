@@ -157,6 +157,8 @@ struct Cost {
     bool operator==(const Cost&) const = default;
 };
 Cost operator+(Cost a, const Cost& b);  // additional costs (356.2); Power domains: a's unless a owes none
+// For people: "2 energy, 1 Fury, discard 1"; "nothing" for an empty cost.
+std::string cost_text(const Cost& c);
 
 // Where a game object is: zone, battlefield index, controller. Events note it before a card leaves (383.2.c.3.b).
 struct Place {

@@ -1335,6 +1335,41 @@ bool playable(const GameState& s, PlayerId p, ObjId id) {
     return completable(s, item);
 }
 
+namespace {
+
+// The chain item's name: "Vault Breaker", "Zed, Master of Shadows's ability"
+std::string item_name(const GameState& s, const ChainItem& item) {
+    if (item.source.id >= s.objects.size()) return "?";
+    const std::string& name = s.obj(item.source.id).card->name;
+    return item.kind == ItemKind::Card ? name : name + "'s ability";
+}
+
+// 355.1.a: which optional cost of the pending item, by kind ("pay Repeat (2 energy)")
+std::string optional_cost_text(const GameState& s, std::uint8_t n) {
+    const std::size_t i = pending_index(s);
+    if (i >= s.chain.size()) return "pay the optional cost";
+    const auto costs = optional_costs(s, s.chain[i]);
+    if (n >= costs.size()) return "pay the optional cost";
+    const OptionalCost& c = costs[n];
+    const std::string what = c.kind == OptionalCost::Repeat       ? "Repeat"
+                             : c.kind == OptionalCost::Accelerate ? "Accelerate"
+                                                                  : "the extra cost";
+    return "pay " + what + " (" + cost_text(c.cost) + ")";
+}
+
+// Pass means: let the newest chain item resolve, pass focus in a showdown, or end a showdown both passed
+std::string pass_text(const GameState& s) {
+    if (!s.chain.empty()) return "pass: let " + item_name(s, s.chain.back()) + " resolve";
+    if (s.showdown) {
+        const std::string where = s.obj(s.battlefields[s.showdown->where].card).card->name;
+        if (s.showdown->passes == 0) return "pass focus at " + where;
+        return s.showdown->combat ? "pass: combat damage at " + where : "pass: end the showdown at " + where;
+    }
+    return "pass";
+}
+
+} // namespace
+
 std::string describe(const GameState& s, const Action& action) {
     const std::string name = action.obj < s.objects.size() ? s.obj(action.obj).card->name : "?";
     switch (action.kind) {
@@ -1347,7 +1382,7 @@ std::string describe(const GameState& s, const Action& action) {
             }
             switch (s.decision.purpose) {
                 case Purpose::May: return "use " + name + "'s ability";
-                case Purpose::OptionalCost: return "pay " + name + "'s optional cost " + std::to_string(action.n);
+                case Purpose::OptionalCost: return optional_cost_text(s, action.n);
                 case Purpose::Discard: return "discard " + name;
                 case Purpose::RecycleTrash: return "recycle " + name;
                 case Purpose::TriggerOrder: return "next on the chain: " + name + "'s ability";
@@ -1361,7 +1396,7 @@ std::string describe(const GameState& s, const Action& action) {
         case ActionKind::Activate: return "use " + name + "'s ability " + std::to_string(action.n);
         case ActionKind::Move: return "move to " + (action.n == to_base ? std::string("base") : name);
         case ActionKind::EndTurn: return "end turn";
-        case ActionKind::Pass: return "pass";
+        case ActionKind::Pass: return pass_text(s);
         case ActionKind::Done:
             if (s.decision.kind == DecisionKind::Mulligan && s.decision.picked.empty()) return "keep";
             if (s.decision.kind == DecisionKind::Choose && s.decision.chosen.empty() &&

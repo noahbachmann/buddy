@@ -260,12 +260,14 @@ TEST(RiftboundKeywords, RepeatRunsAgainWithItsOwnTarget) {  // 820.1.d, 820.2, 8
     const ObjId c = put(s, p, kComedy, Zone::Hand);
     play(s, c);
     ASSERT_EQ(s.decision.purpose, Purpose::OptionalCost);  // before targets (355.1.a)
+    EXPECT_EQ(describe(s, {ActionKind::Pick, c, 0}), "pay Repeat (2 energy)");  // not the index (#97)
     pick(s, c);  // pays [2]: both runes
     ASSERT_EQ(s.decision.purpose, Purpose::Target);
     pick(s, a);
     ASSERT_EQ(s.decision.purpose, Purpose::Target);  // the repeat's own choice
     pick(s, b);
     ASSERT_EQ(s.chain[0].targets.size(), 2u);
+    EXPECT_EQ(describe(s, {ActionKind::Pass}), "pass: let " + kComedy->name + " resolve");
     both_pass(s);
     EXPECT_FALSE(s.obj(a).exhausted);
     EXPECT_FALSE(s.obj(b).exhausted);

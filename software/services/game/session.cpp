@@ -895,7 +895,11 @@ void Session::narrate(const GameState& before, const Action& a) {
     GameState pv = riftbound::public_view(s_);
     {
         const Decision now = std::exchange(pv.decision, before.decision);  // describe() reads the decision answered
-        std::string text = riftbound::describe(pv, a);
+        // names from after (a card Dev just played is public by then); what a pass or optional cost refers to is
+        // the chain and showdown before
+        const bool context = a.kind == ActionKind::Pass ||
+                             (before.decision.kind == DecisionKind::Choose && before.decision.purpose == riftbound::Purpose::OptionalCost);
+        std::string text = context ? riftbound::describe(riftbound::public_view(before), a) : riftbound::describe(pv, a);
         for (std::size_t at; (at = text.find("hidden card")) != std::string::npos;) text.replace(at, 11, "a card");
         log_.push_back({before.turn, who, std::move(text)});
         if (log_.size() > log_lines) log_.pop_front();
