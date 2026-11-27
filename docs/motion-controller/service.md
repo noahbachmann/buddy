@@ -88,7 +88,7 @@ and dropped (a gesture says why). No error topic: nobody would consume it yet.
 
 ### Inside the service
 
-Pattern from `skeleton/CLAUDE.md`. New files in `services/motion/`:
+Pattern from `software/CLAUDE.md`. New files in `services/motion/`:
 
 | File | What |
 |---|---|

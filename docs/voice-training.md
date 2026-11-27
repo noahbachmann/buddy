@@ -39,9 +39,9 @@ whisper.cpp build. Phase 1 history and numbers: `docs/01-voice.md` → 1.7.
 | Dataset folder | `~/buddy-voice` (`BUDDY_VOICE_DIR` to override). **Back it up** after every recording or `history` run: labelled live clips exist nowhere else (the Pi deletes them). In WSL: `rsync -a ~/buddy-voice/ /mnt/c/Users/Noah/buddy-voice-backup/`, where the Windows backup sees it |
 
 The first `deploy/train.sh` installs the Python packages (PyTorch ~2.5 GB) with uv. Check the GPU:
-`uv run --project skeleton --package buddy-voice --extra cuda python -c "import torch; print(torch.cuda.get_device_name())"`.
+`uv run --project software --package buddy-voice --extra cuda python -c "import torch; print(torch.cuda.get_device_name())"`.
 
-## The corpus: `skeleton/tools/voice/commands.tsv`
+## The corpus: `software/tools/voice/commands.tsv`
 
 One list for everything: recording prompts, brain's regression test (`deploy/test.sh -R Corpus`), and the intent score. Columns:
 `set` (`train` / `test` / `wake` / `extra` = brain test only), `sentence` (written as it should be transcribed, digits

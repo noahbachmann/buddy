@@ -18,12 +18,12 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 | `docs/motion-controller/` | Side project: Pico 2 + servos (`pico.md`, wiring sheet `pico-setup.html`), motion service (`service.md`) |
 | `docs/voice-training.md` | Recurring workflow: record, train, score and install speech-to-text on Dev's voice |
 | `docs/3d-printing.md` | Living printing reference: materials, slicer baseline, design rules, measured tolerances, troubleshooting, print log |
-| `skeleton/CLAUDE.md` | Code quick reference: service pattern (C++ and Python), shared helpers, deploy scripts, tests |
-| `skeleton/services/web/CLAUDE.md` | Web panel internals: server, state stream, `www/` page structure |
-| `skeleton/services/game/CLAUDE.md` | Riftbound engine as it is now: the loop, hidden information, hook points for cards, invariants, test helpers, gotchas |
-| `skeleton/services/table/CLAUDE.md` | Buddy's physical cards (2.5): tracker procedures, sim faults, soak, gotchas |
-| `skeleton/services/screener/CLAUDE.md` | The screener service (#66): screen model, navigator, fixtures, measured gotchas |
-| `skeleton/android/screener-ime/CLAUDE.md` | The screener phone's keyboard (#66): adb commands, build and install, gotchas |
+| `software/CLAUDE.md` | Code quick reference: service pattern (C++ and Python), shared helpers, deploy scripts, tests |
+| `software/services/web/CLAUDE.md` | Web panel internals: server, state stream, `www/` page structure |
+| `software/services/game/CLAUDE.md` | Riftbound engine as it is now: the loop, hidden information, hook points for cards, invariants, test helpers, gotchas |
+| `software/services/table/CLAUDE.md` | Buddy's physical cards (2.5): tracker procedures, sim faults, soak, gotchas |
+| `software/services/screener/CLAUDE.md` | The screener service (#66): screen model, navigator, fixtures, measured gotchas |
+| `software/android/screener-ime/CLAUDE.md` | The screener phone's keyboard (#66): adb commands, build and install, gotchas |
 | `parts/CLAUDE.md` | CAD toolchain (pinned OpenSCAD nightly, BOSL2, NopSCADlib, Python checks), conventions for printable parts |
 
 - Read this file and `buddy-hardware.md` before answering about setup, parts or next steps.
@@ -91,19 +91,19 @@ Phase 1 → Deferred lists what waits for a reason (wake word CPU, next voice se
 | D2 | Message bus | Mosquitto on the Pi. Services talk only over MQTT. | ✅ |
 | D3 | Compute placement | ears and brain run on the Pi *or* a LAN host. Only the broker address changes. | ✅ |
 | D4 | Storage | microSD only, no NVMe | ✅ |
-| D5 | Languages | C++ (CMake) by default, for services and the Pico firmware. Python where its ecosystem matters: PC tooling and training (`skeleton/tools/`), and Pi services that need Python libraries (LLM, vision later), with the same conventions as C++ services (D15). No Kotlin or Java, except Android code on the screener phone (`skeleton/android/`, Kotlin): Android requires it (2026-11-16, #66). | ✅ |
+| D5 | Languages | C++ (CMake) by default, for services and the Pico firmware. Python where its ecosystem matters: PC tooling and training (`software/tools/`), and Pi services that need Python libraries (LLM, vision later), with the same conventions as C++ services (D15). No Kotlin or Java, except Android code on the screener phone (`software/android/`, Kotlin): Android requires it (2026-11-16, #66). | ✅ |
 | D6 | Dev workflow | CLion on the PC, Full Remote Mode over SSH: sources stay local (and on GitHub), CLion syncs them to the Pi, builds with the Pi's CMake/GCC, runs and debugs with the Pi's GDB. | ✅ |
 | D7 | Runtime packaging | systemd user units on the Pi (`buddy@<service>`, lingering on), Mosquitto from apt. Docker only for services offloaded to a LAN host later. | ✅ |
 | D8 | Audio capture | ears reads the raw Jabra mic via ALSA `default` (PipeWire's default source, no echo cancellation: D13), 16 kHz mono s16. Wake word, VAD and STT live in one service (`ears`) sharing that stream. | ✅ |
 | D9 | ML libraries | ONNX Runtime: Microsoft's prebuilt aarch64 release in `/opt/onnxruntime` (Debian's package spams the log). whisper.cpp: pinned tag built via CMake FetchContent. Models in `~/buddy/models` via `deploy/pi/fetch-models.sh` (what `buddy.env` names), not in Git; own models (fine-tuned whisper `ggml-buddy-*`) come from the PC. | ✅ |
 | D10 | Spotify | Music never through the Jabra. Default speaker `BUDDY_SPOTIFY_DEVICE` = the Main speaker Nest (D20). Speakers by name ("… on the bathroom speaker"; brain splits off the name, spotify matches it against the device list): the Nests plus whatever Spotify sees (DESKTOP-1, Pixel 8); pause/next/volume follow the device that is playing. The web panel shows and controls whatever plays on any device and moves it between speakers (by device id; polled every 3 s only while a panel is open). spotify controls them via the Web API (libcurl, OAuth PKCE, refresh token in `~/buddy/config/spotify-token.json`). Spotify Soloist on the Pi plays for the Nests (back 2026-10-30, D20). | ✅ |
-| D11 | Intents & replies | brain: regex rules behind `IntentParser` (LLM-replaceable), routes to `buddy/<skill>/cmd`. `skeleton/tools/voice/commands.tsv` is the phrasing it must understand (ctest). The service that knows the outcome publishes `buddy/voice/say`. | ✅ |
+| D11 | Intents & replies | brain: regex rules behind `IntentParser` (LLM-replaceable), routes to `buddy/<skill>/cmd`. `software/tools/voice/commands.tsv` is the phrasing it must understand (ctest). The service that knows the outcome publishes `buddy/voice/say`. | ✅ |
 | D12 | TTS | libpiper v1.8.0 built from source by `setup.sh` into `/opt/libpiper` (against `/opt/onnxruntime`), patched to read its ONNX thread count from `PIPER_INTRA_OP_THREADS` (stock: 1; voice sets 3 via `BUDDY_VOICE_THREADS`, first audio ~830 → ~450 ms); voice `en_GB-alan-medium`. | ✅ |
 | D13 | Background music, no echo cancellation | The box's music is room noise to Buddy. While ears listens or voice speaks the music is ducked: on a Nest by speakers on the Pi (`buddy_music`, D20), on any other device in the room by spotify via the Web API. **No echo cancellation** (removed 2026-10-28): on the same test session the model trained on the raw mic beat the echo-cancelled one (intent 50 vs 47 of 59, WER 7.4 vs 9.5 %), and its only job, removing Buddy's own voice, is covered by ears ignoring the wake word while voice speaks. Stock PipeWire, training on the raw track. | ✅ |
 | D14 | Recovery | `buddy@.service` is `Type=notify` with `WatchdogSec=60` (READY from `Mqtt::start`, pings from each main loop, `shared/systemd.*` / `buddy_shared.systemd`, no libsystemd). Crashes restart with backoff 1 → 30 s and never give up. No core files. | ✅ |
-| D15 | Python services | uv workspace in `skeleton/` (`pyproject.toml` + `uv.lock`, members listed explicitly). `shared/python/buddy_shared` mirrors the C++ shared helpers; `shared/topics.json` is the single topic list (CMake generates `topics.hpp`). On the Pi: uv in `~/.local/bin` (pinned), Debian's Python, one venv `~/buddy/venv`, console script linked into `~/buddy/bin`, same unit template. | ✅ |
+| D15 | Python services | uv workspace in `software/` (`pyproject.toml` + `uv.lock`, members listed explicitly). `shared/python/buddy_shared` mirrors the C++ shared helpers; `shared/topics.json` is the single topic list (CMake generates `topics.hpp`). On the Pi: uv in `~/.local/bin` (pinned), Debian's Python, one venv `~/buddy/venv`, console script linked into `~/buddy/bin`, same unit template. | ✅ |
 | D16 | Voice data | Recordings are personal data and the repo is public: never in Git. Master copy on Dev's PC in `~/buddy-voice` (backed up); the Pi keeps the recorded sessions too (pull copies, never deletes), not the labelled live clips. Training runs on Dev's PC (NVIDIA GPU, CUDA 12.8 PyTorch). | ✅ |
-| D17 | Motion controller (side project) | Raspberry Pi Pico 2 H on the Pi's USB, servos on its GPIO hardware PWM (50 Hz, 16 outputs), no PCA9685. Firmware C++ with Pico SDK 2.3.1 (FetchContent) in `skeleton/firmware/pico-motion` (one folder per Pico role: `pico-<job>`; this one drives every servo), built and flashed on the Pi (`deploy.sh --firmware`, picotool 2.3.1 in `/opt/picotool`). Text protocol v1 over USB CDC (`/dev/buddy-pico`), header shared with motion. The Pico enforces per-channel pulse limits and relaxes all servos 2 s after the last command. Servo power: separate 5 V supply, shared ground, never via the Pi or the Pico's VBUS/VSYS. | ✅ |
+| D17 | Motion controller (side project) | Raspberry Pi Pico 2 H on the Pi's USB, servos on its GPIO hardware PWM (50 Hz, 16 outputs), no PCA9685. Firmware C++ with Pico SDK 2.3.1 (FetchContent) in `software/firmware/pico-motion` (one folder per Pico role: `pico-<job>`; this one drives every servo), built and flashed on the Pi (`deploy.sh --firmware`, picotool 2.3.1 in `/opt/picotool`). Text protocol v1 over USB CDC (`/dev/buddy-pico`), header shared with motion. The Pico enforces per-channel pulse limits and relaxes all servos 2 s after the last command. Servo power: separate 5 V supply, shared ground, never via the Pi or the Pico's VBUS/VSYS. | ✅ |
 
 | D18 | Lights | Philips Hue via the Hue Bridge's local CLIP v2 API (no cloud, no Hue account): service `hue`. TLS verified against Hue's `root-bridge` CA (compiled in) with the bridge id as host name (`CURLOPT_RESOLVE` → bridge IP). Application key from `buddy-hue --pair` (link button) in `~/buddy/config/hue.json`. Live state from the bridge's eventstream → retained `buddy/hue/state`. Hue Bridge Pro would need its newer CA ⚠️. | ✅ |
 | D20 | Nest speakers | The two Nests play over **Bluetooth A2DP** (SBC) from the Pi: Spotify Soloist ("Buddy", hidden; sandboxed, weekly build update) → PipeWire sink `buddy_music` → the selected Nest; Buddy's voice → `buddy_voice` → that Nest while music plays there (60 %), else the Jabra. Service `speakers` (C++, `pactl`/`pw-link`/`bluetoothctl`, event-driven): connects on demand, one Nest at a time (the Pi refuses a second A2DP link), disconnects after 10 min without music, ducks `buddy_music` locally. spotify lists the Nests (`bt:<mac>`) in Soloist's place. Not Cast: Buddy can't start Spotify on an idle Nest (403 without Spotify's own desktop login), Soloist can't cast, Cast streaming lags ≥ 3.9 s (#16). | ✅ |
@@ -177,7 +177,7 @@ Speech-to-text training: `docs/voice-training.md`.
 ## Phase 2 – Riftbound
 
 Buddy plays Riftbound against Dev with real cards (D21). Software first, against a simulated table (#18). Design and
-as built: `docs/02-riftbound/design.md`; how the code runs: `skeleton/services/{game,table}/CLAUDE.md`.
+as built: `docs/02-riftbound/design.md`; how the code runs: `software/services/{game,table}/CLAUDE.md`.
 
 | Step | Summary |
 |---|---|
@@ -225,7 +225,7 @@ buddy/
 │   ├── motion-controller/   ← side project: Pico 2 + servos, motion service
 │   ├── voice-training.md    ← speech-to-text training workflow
 │   └── 3d-printing.md       ← printing reference + print log (grows with every print)
-├── skeleton/                ← project root (CMake + uv workspace); paths below and in "Dev workflow" are relative to it
+├── software/                ← project root (CMake + uv workspace); paths below and in "Dev workflow" are relative to it
 │   ├── shared/              ← topics.json (all MQTT topics), C++ helpers, python/buddy_shared
 │   ├── third_party/         ← ONNX Runtime, libpiper (prebuilt in /opt), whisper.cpp, cpp-httplib (FetchContent)
 │   ├── services/

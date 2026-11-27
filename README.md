@@ -26,11 +26,11 @@ Jabra mic → [ears] wake word, speech-to-text → [brain] intent → [spotify] 
 | Train speech-to-text on your voice | `docs/voice-training.md` |
 | Print a part: settings, design rules, tolerances, print log | `docs/3d-printing.md` |
 | Parts in use | `buddy-hardware.md` |
-| Code map: services, shared helpers, tests, gotchas | `skeleton/CLAUDE.md` (web panel: `skeleton/services/web/CLAUDE.md`) |
+| Code map: services, shared helpers, tests, gotchas | `software/CLAUDE.md` (web panel: `software/services/web/CLAUDE.md`) |
 
 ## Everyday commands
 
-From the repo's `skeleton/` folder on the PC (or the dev VM). `buddy` is the SSH alias for the Pi.
+From the repo's `software/` folder on the PC (or the dev VM). `buddy` is the SSH alias for the Pi.
 
 | Do | Command |
 |---|---|
@@ -66,7 +66,7 @@ the hardware is real: lights switch, music plays, servos move.
 | ears | `--transcribe a.wav b.wav`, `--wav a.wav` (whole pipeline on a file on the Pi) |
 | motion | `--cmd move demo=30 --ms 400`, `--cmd gesture shake`, `--cmd relax`, `--raw "1 PING"`. Stop `buddy@motion` first: it owns the Pico's port |
 | game | `--check` (every Riftbound deck, card by card), `--deck zed-vendetta --check`, `--code "OGN • 007a/298"` (what a printed code is), `--random --games 1000` (random-vs-random games on the rules engine, vanilla cards; `--rules` with every card's rules; a failing one writes `replay-<seed>.txt`), `--replay <file>` (play a replay action by action), `--match greedy random` (AI against AI), `--table-workload --games 1000` (Buddy's card moves as JSON lines for the table soak), `--sim` (play Buddy in the terminal with your real cards, Buddy's side on the sim table; `--faults stress` for scan errors), `--sim --games 1000 --faults stress` (the session soak, 2.6's gate: SimDev against Buddy, checks after every step). Card data: `ssh buddy bash ~/buddy/src/deploy/pi/setup.sh cards`. Live (`buddy@game`): a bot game `ssh buddy "mosquitto_pub -t buddy/game/cmd -m '{\"action\":\"new\",\"buddy\":\"vi\",\"dev\":\"greedy\"}'"` (`\"voice\":true`: Buddy speaks, off by default; `dev: human` = you: play on the panel's Riftbound page, `http://buddy.local:8080/#riftbound`, which also starts games), the board on `buddy/game/state`; each game's journal and replay in `~/buddy/data/riftbound/games` (`--replay <file>.txt`); a restart of `buddy@game` resumes the game |
-| screener | `--cmd screen` (what the phone shows), `--cmd shadow` (judge the profile on screen) → `--cmd label <id> like\|skip`, `--cmd type <id>` / `send <id>` / `skip <id>` (carry out your label; likes stop before the day's free likes run out), `--cmd rows` (the dry loop's profiles you haven't labelled, with their screenshots), `--cmd report --since <id>` (agreement numbers). The loop: `BUDDY_SCREENER_BROWSE=dry\|live` in `buddy.env` + `deploy.sh screener`; it asks on Telegram when it needs you, Resume there or on the panel. The chats: `BUDDY_SCREENER_CHAT=hold` (each message waits typed in the chat for your Resume) or `live`; names in `~/buddy/config/screener/chat-ignore` stay yours. Details: `skeleton/services/screener/CLAUDE.md` |
+| screener | `--cmd screen` (what the phone shows), `--cmd shadow` (judge the profile on screen) → `--cmd label <id> like\|skip`, `--cmd type <id>` / `send <id>` / `skip <id>` (carry out your label; likes stop before the day's free likes run out), `--cmd rows` (the dry loop's profiles you haven't labelled, with their screenshots), `--cmd report --since <id>` (agreement numbers). The loop: `BUDDY_SCREENER_BROWSE=dry\|live` in `buddy.env` + `deploy.sh screener`; it asks on Telegram when it needs you, Resume there or on the panel. The chats: `BUDDY_SCREENER_CHAT=hold` (each message waits typed in the chat for your Resume) or `live`; names in `~/buddy/config/screener/chat-ignore` stay yours. Details: `software/services/screener/CLAUDE.md` |
 | system | `--once` (one host-metrics snapshot as JSON: CPU, RAM, disk, temperature, fan, network, throttle flags) |
 | table | `--cmd '{"action":"setup","legend":"L","champion":"C","deck":40,"runes":12}' '{"action":"deal","from":"deck","to":"hand","n":4}'` (commands on a fresh sim, prints events and the belief). Soak (2.5's gate, ~2.5 min): `ssh buddy '~/buddy/bin/buddy-game --table-workload --games 10000 --seed 0 --jobs 3 \| ~/buddy/bin/buddy-table --soak - --faults stress'`. Live: `mosquitto_pub -t buddy/table/cmd -m '{"action":"rescan_hand","seq":1}'`, events on `buddy/table/event`, the belief on `buddy/table/debug` |
 

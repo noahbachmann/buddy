@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Mirror the skeleton to the Pi's ~/buddy/src (deploy.sh and test.sh --pi build from there).
+# Mirror software/ to the Pi's ~/buddy/src (deploy.sh and test.sh --pi build from there).
 #
 # Env: BUDDY_HOST (default "buddy", the alias from ~/.ssh/config)
 set -euo pipefail

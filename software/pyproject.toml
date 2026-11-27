@@ -1,4 +1,4 @@
-# uv workspace for every Python package in the skeleton (D15). C++ builds with CMake; this file is Python only.
+# uv workspace for every Python package in software/ (D15). C++ builds with CMake; this file is Python only.
 #   uv sync --all-packages --extra cpu    VM: everything, CPU PyTorch (`--extra cuda` on the PC with the GPU)
 #   uv run pytest           all Python tests
 # On the Pi, deploy.sh installs only the deployed Python services (`uv sync --package …`) into ~/buddy/venv.

@@ -197,24 +197,24 @@ mode.
 `dev` is already in the `dialout` group on Raspberry Pi OS (check: `id dev`), which owns `/dev/ttyACM*`, and in `plugdev`.
 The step warns if either is missing.
 
-### 5. Firmware: `skeleton/firmware/pico-motion/`
+### 5. Firmware: `software/firmware/pico-motion/`
 
 One folder per Pico role, named `pico-<what it does>`. This Pico drives every servo (16 outputs). A second Pico would get its own folder, and only then would
 shared code move into `firmware/common`.
 
-The firmware lives inside `skeleton/` so `deploy.sh` syncs it and it can share the protocol header with the motion
+The firmware lives inside `software/` so `deploy.sh` syncs it and it can share the protocol header with the motion
 service. It's a **separate CMake project**: the Pico SDK sets its own toolchain before `project()`, so it can't be an
 `add_subdirectory` of the main build.
 
 ```
-skeleton/firmware/pico-motion/
+software/firmware/pico-motion/
 ├── CMakeLists.txt     ← PICO_BOARD=pico2, PICO_PLATFORM=rp2350-arm-s; pico-sdk 2.3.1 and its TinyUSB commit as
 │                        hashed tarballs (FetchContent), picotool from /opt/picotool, USBD_PRODUCT="Buddy motion",
 │                        stdio over USB only (no UART)
 ├── main.cpp           ← main loop: read lines, run ramps at 50 Hz, link watchdog, hardware watchdog
 ├── servo.hpp/.cpp     ← PWM setup, limits, ramp state
 └── board.hpp          ← pin map from step 3 (channel → GPIO)
-skeleton/shared/include/buddy/motion_protocol.hpp  ← parse/format, shared with services/motion (`service.md`)
+software/shared/include/buddy/motion_protocol.hpp  ← parse/format, shared with services/motion (`service.md`)
 ```
 
 Behaviour:

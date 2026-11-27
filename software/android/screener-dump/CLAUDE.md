@@ -22,7 +22,7 @@ not get idle state") whenever one is on screen. Measured on the phone: byte-iden
 ANDROID_HOME=$HOME/android-sdk ./gradlew assembleRelease     # JDK 17; R8 on: ~26 KB, debug-signed
 scp build/outputs/apk/release/screener-dump-release.apk buddy:/tmp/ && ssh buddy 'adb install -r /tmp/screener-dump-release.apk'
 ssh buddy 'adb shell am instrument -w buddy.screener.dump/.Dump | head -c 120'    # INSTRUMENTATION_RESULT: xml=H4sI…
-deploy/run.sh screener --cmd screen      # from skeleton/: reads through serve mode
+deploy/run.sh screener --cmd screen      # from software/: reads through serve mode
 ```
 
 ## Gotchas

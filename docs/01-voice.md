@@ -20,7 +20,7 @@ Nest. While Buddy listens or speaks, the music is turned down. Starts on power-o
 |---|---|---|
 | 1 | Hardware | 1.2 below |
 | 2 | Flash + first boot | 1.3 below; PC `~/.ssh/config` alias `buddy` |
-| 3 | `deploy/deploy.sh --setup` (PC, repo root `skeleton/`) | apt packages, ONNX Runtime, libpiper, uv, PipeWire sinks + Bluetooth, Mosquitto, lingering, `buddy.env`, Soloist, models; then builds and starts all services |
+| 3 | `deploy/deploy.sh --setup` (PC, repo root `software/`) | apt packages, ONNX Runtime, libpiper, uv, PipeWire sinks + Bluetooth, Mosquitto, lingering, `buddy.env`, Soloist, models; then builds and starts all services |
 | 4 | `~/buddy/config/buddy.env` | `BUDDY_SPOTIFY_CLIENT_ID`, `BUDDY_SPOTIFY_DEVICE` (box name), `BUDDY_SPOTIFY_DEFAULT_URI`, your voice/STT settings |
 | 5 | Own models (PC → Pi) | `scp ggml-buddy-*.bin buddy:buddy/models/` (and a custom wake word if any); `fetch-models.sh` names what's missing |
 | 6 | Spotify login | `buddy-spotify --login` (1.8/1.9) |
@@ -88,9 +88,9 @@ Health: `vcgencmd get_throttled` must be `0x0` (never undervolted/throttled sinc
 
 ## 1.5 Skeleton, MQTT & workflow
 
-Decisions live in CLAUDE.md (Code conventions, D2, D5–D7, D15). Repo root for all commands: `skeleton/`.
+Decisions live in CLAUDE.md (Code conventions, D2, D5–D7, D15). Repo root for all commands: `software/`.
 Services are C++ (CMake) or Python (uv workspace); both run as `buddy@<name>` and follow the same pattern
-(`skeleton/CLAUDE.md`).
+(`software/CLAUDE.md`).
 
 | Pi path | Content |
 |---|---|
@@ -109,7 +109,7 @@ Services are C++ (CMake) or Python (uv workspace); both run as `buddy@<name>` an
 3. Deployment → SFTP entry → Mappings → deployment path **`/home/dev/buddy/dev`** (default is under `/tmp` = RAM disk, wiped on reboot).
 4. Before Run/Debug: `ssh buddy systemctl --user stop buddy@<name>` (same MQTT client id; otherwise both flip connected/lost).
 
-Tests: `deploy/test.sh` (C++ GoogleTest under sanitizers, pytest, shellcheck; layout in `skeleton/CLAUDE.md`),
+Tests: `deploy/test.sh` (C++ GoogleTest under sanitizers, pytest, shellcheck; layout in `software/CLAUDE.md`),
 `deploy/test.sh --pi` for the C++ tests on the Pi. Bus: `mosquitto_sub -v -t 'buddy/#'`.
 
 | Symptom | Fix |
@@ -445,7 +445,7 @@ what Spotify plays on **any** device (cover, title, artist, "on <device>"), a pr
 previous and volume on that device, and the speaker list (tap one = move the music there): the Nests (1.15) plus
 whatever Spotify sees (DESKTOP-1, Pixel 8 while its app is open), never Soloist's "Buddy". Tab **Hue** (`#hue`): pick a room or zone, set its lights (live), name, Save →
 scene; scene list per room/zone: tap = recall and load for editing, ✕ = delete (asks first). Tab **Riftbound**
-(`#riftbound`, Phase 2.6): play Riftbound against Buddy with real cards (`skeleton/services/web/CLAUDE.md` →
+(`#riftbound`, Phase 2.6): play Riftbound against Buddy with real cards (`software/services/web/CLAUDE.md` →
 Riftbound page). Fixed chips
 `voice` (green = ears, brain and voice all online; shows listening/speaking), `hue`, `spotify`, `speakers`. The list lives in
 `SERVICE_CHIPS` in `app.js`: add new services there.

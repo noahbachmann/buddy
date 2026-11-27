@@ -1,8 +1,8 @@
 # Riftbound: design
 
 > How Buddy's Riftbound software is built and why: decisions, pile model, architecture, each step's design and what
-> was built. Open work lives in the issues (#18; the hardware: #93–#95). How the code runs: `skeleton/services/game/CLAUDE.md`,
-> `skeleton/services/table/CLAUDE.md`. ⚠️ = untested assumption.
+> was built. Open work lives in the issues (#18; the hardware: #93–#95). How the code runs: `software/services/game/CLAUDE.md`,
+> `software/services/table/CLAUDE.md`. ⚠️ = untested assumption.
 
 ## Goal
 
@@ -262,7 +262,7 @@ struct CardRules {
 - `tests/test_cards.hpp`: cards defined in code with exactly the stats a test needs, no `cards.json`;
   `simple_deck("A")` is a legal 56-card deck.
 
-**As built (#21–#23).** How the engine works now: `skeleton/services/game/CLAUDE.md`. Decisions made on the way:
+**As built (#21–#23).** How the engine works now: `software/services/game/CLAUDE.md`. Decisions made on the way:
 
 - Mulligan 117: one decision per player in turn order; set-aside cards are `Removed` for a moment, then recycled in
   random order. `concede(s, p)` works any time and is not an `Action`.

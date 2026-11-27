@@ -1,7 +1,7 @@
 [project]
 name = "buddy-shared"
 version = "0.1.0"
-description = "Python side of skeleton/shared: topics, MQTT wrapper, config, systemd notify"
+description = "Python side of software/shared: topics, MQTT wrapper, config, systemd notify"
 requires-python = ">=3.12"  # VM/PC 3.12 (Ubuntu 24.04), Pi 3.13 (Debian 13)
 dependencies = ["paho-mqtt>=2.1,<3"]
 

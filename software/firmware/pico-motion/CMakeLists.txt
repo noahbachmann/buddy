@@ -1,5 +1,5 @@
 # Firmware for the Pico 2 that drives every Buddy servo (D17): head, later hand and arm. Own CMake project: the Pico
-# SDK picks the ARM toolchain before project(), so this can't be an add_subdirectory of skeleton/.
+# SDK picks the ARM toolchain before project(), so this can't be an add_subdirectory of software/.
 # Built and flashed on the Pi: deploy/deploy.sh --firmware.
 cmake_minimum_required(VERSION 3.28)
 

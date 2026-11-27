@@ -1,4 +1,4 @@
-# skeleton/ – code quick reference
+# software/ – code quick reference
 
 Project root for CMake (C++) and the uv workspace (Python). One executable per service, `buddy@<name>` on the Pi.
 Roadmap, decisions and conventions: `../CLAUDE.md`. Everyday commands for Dev: `../README.md`. Deeper per-directory
@@ -84,7 +84,7 @@ Details, build and install: `android/screener-ime/CLAUDE.md`.
 
 | Script | What |
 |---|---|
-| `sync.sh` | rsync `skeleton/` → Pi `~/buddy/src` (warns about uncommitted changes); every script below that builds on the Pi calls it |
+| `sync.sh` | rsync `software/` → Pi `~/buddy/src` (warns about uncommitted changes); every script below that builds on the Pi calls it |
 | `deploy.sh [--setup] [--firmware] [svc…]` | sync, Release build + install to `~/buddy/bin` (C++) / uv sync (Python), restart `buddy@<svc>`; `SERVICES` = default list |
 | `test.sh [--pi] [ctest args]` | see Tests |
 | `run.sh <svc> [flags]` | `~/buddy/bin/buddy-<svc> <flags>` on the Pi with `buddy.env` exported (CRLF-safe), tty if interactive |
@@ -118,7 +118,7 @@ gates and 100 session soak games: ~160 s under ASan), skipped by default; only t
 
 - `buddy_add_tests(<name> <files…> LIBS … [LABELS …])` (root CMakeLists): every TEST is its own ctest entry (and in
   CLion), with the ctest labels.
-  `BUDDY_SOURCE_DIR` points at the skeleton for data files. deploy.sh builds with `BUDDY_TESTS=OFF`.
+  `BUDDY_SOURCE_DIR` points at `software/` for data files. deploy.sh builds with `BUDDY_TESTS=OFF`.
 - Test logic that broke before or is invisible on the hardware: parsing, matching, state machines, file formats,
   protocols. Not: `main.cpp` glue, ALSA/Paho/libpiper/whisper wrappers, model quality (`train.sh eval`).
 - A fact both languages need gets one source (topics.json, whisper.json, a cases file), never two copies plus a test.
