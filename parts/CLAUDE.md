@@ -1,6 +1,6 @@
 # parts/ – printable parts
 
-Parametric OpenSCAD, one folder per module (`arm/`, `dispenser/`, `pc-case/` (#87, Dev asked for it here), later `neck/`, `body/`, `head/`). A module is a folder with a
+Parametric OpenSCAD, one folder per module (`dispenser/`, `pc-case/` (#87), `hex-driver/`). A module is a folder with a
 `cad.toml`. The CAD environment is built in #54: toolchain, `cad build` and `cad render` exist; `cad check/sweep/slice`
 come next.
 
@@ -15,7 +15,7 @@ come next.
 | NopSCADlib | `lib/NopSCADlib` (submodule) | tag in the submodule commit |
 | `cad` CLI + Python deps (trimesh, manifold3d, pyvista, shapely, matplotlib) | `tools/` (uv project), run via `parts/cad` | `tools/uv.lock` |
 
-- Always `--backend=manifold`: ~135× faster than CGAL on the arm (upper-arm-top 17.5 s → 0.13 s), same geometry.
+- Always `--backend=manifold`: ~135× faster than CGAL on a servo arm part (17.5 s → 0.13 s), same geometry.
 - `OPENSCADPATH=parts/lib` so parts write `include <BOSL2/std.scad>`, `include <NopSCADlib/vitamins/…>`.
 - Rendering is headless: VTK on EGL (the RTX 2060 here; CI without GPU: `VTK_DEFAULT_OPENGL_WINDOW=vtkOSOpenGLRenderWindow`).
   OpenSCAD's PNG export also runs without a display.
@@ -24,11 +24,11 @@ come next.
 ## `parts/cad`
 
 ```bash
-parts/cad build arm [part…]                        # STLs into arm/stl (binary), stats per part; any WARNING fails
+parts/cad build dispenser [part…]                  # STLs into dispenser/stl (binary), stats per part; any WARNING fails
 parts/cad plate dispenser [plate…]                 # print jobs from cad.toml [plates] → dispenser/plates/*.stl
-parts/cad render arm [part…]                       # PNG sheets into arm/renders/ (gitignored), paths printed
-parts/cad render arm upper-arm-top --section y=0 --section z=10   # + 2D cuts
-parts/cad render arm -D shoulder=45 -D elbow=90    # -D goes to every file rendered (poses for the assembly)
+parts/cad render dispenser [part…]                 # PNG sheets into dispenser/renders/ (gitignored), paths printed
+parts/cad render dispenser lift --section y=0 --section z=10       # + 2D cuts
+parts/cad render dispenser -D push=0.5             # -D goes to every file rendered (poses for the assembly)
 parts/cad render some.scad | some.stl [-o dir]     # loose files; a module's assembly file renders as assembly
 cd parts/tools && uv run pytest -q                 # tool tests (fixtures in tests/fixtures)
 ```

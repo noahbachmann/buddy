@@ -15,10 +15,6 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 | `docs/plans/XX-YY-name.md` | Plan for a step before its guide exists: decisions, parts, order of work; replaced by the guide |
 | `docs/plans/05-riftbound.md` | Phase 5 plan: Riftbound against Dev (engine, AI, hand pile model, `game`/`table` services, steps) |
 | `docs/guides/05-live-game.md` | Temporary: Dev's live Riftbound game with real cards (#53), notes into the issue |
-| `docs/plans/05-dispenser-status.md` | Card dispenser (`parts/dispenser`) now: plates printed / to print, next steps, latest changes |
-| `docs/archive/` | Finished lists kept for reference (e.g. the dispenser shopping list, all bought 2026-11-26) |
-| `docs/plans/screener-todo.md` | Temporary: Dev's screener to-dos (#66): contact files, review config, app profile, phone setup, Claude token |
-| `docs/plans/02-06-cad-prompt.md` | Prompt Dev fills in to get the neck, head and body CAD (2.5 stage 1, 2.6 stage 2) |
 | `docs/guides/0N-setup-summary.md` | A finished phase condensed into one file (rebuild, config, tests, troubleshooting); replaces its step guides |
 | `docs/voice-training.md` | Recurring workflow: record, train, score and install speech-to-text on Dev's voice |
 | `docs/3d-printing.md` | Living printing reference: materials, slicer baseline, design rules, measured tolerances, troubleshooting, print log |
