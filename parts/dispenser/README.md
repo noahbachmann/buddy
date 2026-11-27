@@ -180,11 +180,13 @@ the lift in place and the 4023 turned. It also holds bought parts as stand-ins (
   front strip in front of its pile, flush with the box front, and has a stop: border H's step against the right gate's
   front face (y −141.4), border B's lip over the floor's front edge. 0.2 mm play per side. They carry the pusher's
   guide ridge, so each is held at **both ends** (Dev, 2026-11-26): at the outer end by printed pins through the case
-  (H: 2 through the left wall; B: 3 through the right wall + 2 up through the floor), at the divider end by **2 ties**:
-  Ø5 × 20 steel dowel pins pressed through the divider (Ø5.05, as the roller's pin holes) at (y, z) = (−148, 73) and
-  (−148, 87), 8.5 mm out on each side. A border can't be pushed onto a pin along X once it's in, so each has a slot
-  per tie open to its front face: it slides in from the front over the ties (slot Ø5.2, 0.3 past the pin, so the
-  borders' own stops still locate them). The ties hold them in Z and against the ridge's push to the back.
+  (H: 2 through the left wall; B: 3 through the right wall + 2 up through the floor), and border H at the divider end by
+  **2 more border pins through the divider** (Dev, 2026-11-27) at (y, z) = (−148, 73) and (−148, 87): pushed in from
+  pile B's side, the head sunk in a Ø6.4 × 1.4 counterbore (the divider's face stays flat, the head 0.2 under it),
+  the shank through Ø3.4 and 6.7 mm into a blind hole in H's end. A push away from the divider pulls the head against
+  the counterbore's step; a push to the front shears the shank. Border B goes in after H and covers the heads, so they
+  can't back out. Border B needs nothing at the divider (lip, floor and right-wall pins hold it). Replaced 2 steel ties
+  in slots open to the front (2026-11-26): the slots held nothing against a push to the front.
 - **Walls 3 mm** (Dev's are 5), thinned from the outside so every inner face stays where it was; the floor too (its
   underside at z 2). The divider is 3 (Dev, x 72…75), cut back at its right face: the slot a card runs through is 2 mm
   shorter, and the left face (gates, lip, roller) stays put; everything right of it (right wall, lift, both motors, pusher, border B) moves 2 mm
@@ -248,7 +250,7 @@ STLs and `parts/cad render dispenser` for the sheets (`parts/CLAUDE.md`).
 | `plug-coupling.scad` | Rigid coupling without bolts: D-bore pressed onto the 5 mm shaft, TR8x8 thread the screw turns into (used) | motor end down |
 | `coupling.scad` | Older clamp coupling (round bores, 2× M3×12 across a slot): kept as the fallback | motor end down |
 | `lift-nut.scad` | TR8x8 nut of the lift: body Ø11, 45° cone up to the flange, 4 pegs into the tab | body down |
-| `border-pin.scad` | Pin with a head, 4×: holds the borders through the case's screw holes | head down |
+| `border-pin.scad` | Pin with a head, 9×: holds the borders through the case's screw holes | head down |
 | `fit-test.scad` | Fit test for the printed joints: peg holes (vertical, horizontal), steel pin holes | as in the file |
 | `pilot-test.scad` | Pilot test: M3 pilot holes 2.6…3.0 in a 6 mm wall, as in the roller plates' feet | as in the file |
 | `plates/` | Print jobs: `cad.toml` → `[plates]`, built by `parts/cad plate dispenser` ("Print") | as in the file |
@@ -266,7 +268,7 @@ cd parts/tools && uv run python ../dispenser/check_pusher.py # after a pusher, l
 |---|---|---|
 | 3 | NBR O-ring 80 × 3 mm (ID × cord), 70 Shore A | The belts. ⚠️ Different size: change `oring_id`, the drum distance follows |
 | 4 | 685ZZ bearing, 5 × 11 × 5 | Pressed into the drum ends (#59; MR105 5 × 10 × 4 fits too with `bearing` changed back) |
-| 6 | Dowel pin Ø5 × 20 mm, ISO 8734 (hardened, m6), RS PRO | One per bearing, bought ready-made: nothing to cut (#57). Fixed: the drums turn on their bearings. 2 more: the ties through the divider that hold both front borders |
+| 6 | Dowel pin Ø5 × 20 mm, ISO 8734 (hardened, m6), RS PRO | One per bearing, bought ready-made: nothing to cut (#57). Fixed: the drums turn on their bearings. 2 spare |
 | 3 | M3×6 socket head | 4023 to the back plate (the 4th hole would cut into the drive pin's hole) |
 | 1 | M3×5 set screw + M3 nut | Motor gear onto the shaft's flat (5 mm from the flat to the hub surface: flush) |
 | 4 | M3×12 | Back plate and frame to the box floor, from below (2 each): they set the belt height, so screws, not pegs. Plain machine screws, threaded into pilot holes sized by the pilot test |
@@ -299,11 +301,10 @@ the frame being pulled flat onto the floor; the left wall and the gate's legs le
 | Pusher nut → pusher tab | 2 pegs on the flange's tab side (above and below the screw). Pushing presses the flange onto the tab; the pressed pegs carry the light return stroke. No clip: a groove for one would cut into the nut's 1.3 mm wall under the thread | `fit_press_h` (horizontal, flat-topped teardrops) |
 | Frame → back plate | Ribs 0 and 1: 3 mm full-height tongues into pockets open at the back plate's top. They line the frame up; its 2 floor screws hold it | `tongue_fit` 0.1 per side ⚠️ untested |
 | Steel pins | Back ones in the back plate's blind holes, front ones pushed through the front plate into the bearings, flush with its outer face. All 4 holes Ø5.05 (Dev measured 2026-11-24: Ø5.2 printed ~5.2, Ø4.95 vertical printed 4.9) | `pin_hole` |
-| Borders H, B | 7 printed pins (`border-pin`): head outside, through the case's Ø3.4 holes into the border | H, B through the right wall: `fit_press` (vertical); B from below: `bpin_up_fit` (−0.025, tighter than `fit_press_h`: the pins hang and fall out at 0) |
-| Ties → divider, borders | 2 steel Ø5 × 20 pins pressed through the divider, centred (8.5 out each side); the borders slide over them in slots open to the front | divider `pin_hole` (horizontal teardrop), slots `pin` + 2 × `fit_slip` |
+| Borders H, B | 9 printed pins (`border-pin`): head outside (in the divider: sunk in a counterbore), through the case's Ø3.4 holes into the border | H (left wall, divider), B through the right wall: `fit_press` (vertical); B from below: `bpin_up_fit` (−0.025, tighter than `fit_press_h`: the pins hang and fall out at 0) |
 
-**11 holes, 7 pins:** the case has 11 Ø3.4 holes along the front and under the roller. 7 take border pins (2 through
-the left wall into border H, 3 through the right wall and 2 up through the floor into border B). The other 4 (floor, under the roller) take the frame's
+**13 holes, 9 pins:** the case has 13 Ø3.4 holes along the front and under the roller. 9 take border pins (2 through
+the left wall and 2 through the divider into border H, 3 through the right wall and 2 up through the floor into border B). The other 4 (floor, under the roller) take the frame's
 4× M3×12: they press their own thread into the pilot holes in the back plate's and the frame's feet, so a pin doesn't
 fit there by design. Border B's pins hold against gravity: a pin that slides out of B means its hole is
 too big, not a pin that's too short.
@@ -402,6 +403,7 @@ parts (for reprints, e.g. only the left gate). `parts/cad plate dispenser` rebui
 | `2-petg.stl` | roller frame, back plate, border H, border B: **after the fit test** | PETG | 0.20 mm, 4 walls, 15 %, no supports, **brim** (the back plate stands on its 6 mm edge) |
 | `2b-roller-reprint.stl` | roller frame, back plate: the split roller (2026-11-24) with Ø5.05 pin holes, Ø2.7 M3 pilots | PETG | as plate 2 |
 | `2c-borders.stl` | border H, border B with the tie slots and B's right-wall holes, 3 more border pins (2026-11-26) | PETG | as plate 2 (no brim needed) |
+| `2d-borders.stl` | border H held at the divider by 2 border pins (no tie slots), border B without tie slots, 2 more border pins (2026-11-27) | PETG | as plate 2 (no brim needed) |
 | `3-pla.stl` | pusher, lift: **after the fit test** | PLA | 0.20 mm, 4 walls, 15 %, **supports on: tree (auto), on build plate only** |
 | `stl/case.stl` | case (a plate of its own) | PETG | 0.20 mm, 4 walls, 15 %, no supports, textured PEI |
 | `stl/case-spares.stl` | or this one instead: the case with ~112 g less PETG | PETG | as the case |
@@ -453,12 +455,6 @@ Why these settings:
 The 4023 sits in the back wall and the right gate (case) is above the plates' right ends, so the back plate goes in
 first, from the left, and everything else follows from behind and from the front.
 
-0. **Ties, then border B** (any time): press the 2 steel pins into the divider's Ø5 holes (front strip, z 73 and 87)
-   until 8.5 mm stick out on each side (measure; a clamp or a vise with soft jaws, never a hammer on the case). Border
-   B over the floor from the front, its slots over the ties, until its lip stops at the floor's front edge; 2 border
-   pins from below through the floor's holes and 3 through the right wall, pressed in by thumb. To take a border out, pull its pins by the heads
-   (pliers).
-
 1. **Bearings:** press 2 685ZZ into each drum, pushing only on the outer race.
 2. **Back plate into the box:** left gate pressed into the back plate's socket first. Slide the plate in from the open
    left side, under the left wall and the right gate's legs, until its step sits against the left edge of the box
@@ -474,10 +470,14 @@ first, from the left, and everything else follows from behind and from the front
    gate's front peg in the bed's slot, until the rib tongues sit in the back plate's pockets and the gate's peg in the
    front plate's socket. 2× M3×12 from below through the floor. Then push the 2 front pins through the plate into the
    front bearings until flush with its outer face (firm hand pressure; never hammer through a bearing). For new
-   O-rings: border H out (step 8), front pins and floor screws out, pull the frame off to the front.
+   O-rings: border B and border H out (steps 9, 8), front pins and floor screws out, pull the frame off to the front.
 8. **Border H**, last: it reaches down to under the belt top, so the drum gear and the O-rings can't pass under it.
-   From the front between the left wall and the right gate, its slots over the ties, until its step stops at the
-   gate's front face, 2 border pins through the left wall from outside.
+   From the front between the left wall and the right gate, until its step stops at the gate's front face. 2 border
+   pins through the left wall from outside, then 2 through the divider from pile B's side (lift down, finger in
+   through pile B; the heads drop into the counterbores, push until flush).
+9. **Border B** (after H: it covers H's divider pins): over the floor from the front until its lip stops at the
+   floor's front edge; 2 border pins from below through the floor's holes and 3 through the right wall, pressed in by
+   thumb. To take a border out, pull its pins by the heads (pliers); border B first.
 
 **Coupling** (`plug-coupling.scad`, both screws): D-bore half onto the motor shaft, flat to flat, pressed on until
 the shaft's tip reaches the step in the middle (shaft end on a hard surface, push the coupling by hand or with a
@@ -542,11 +542,11 @@ them, `case_add()` / `box_cuts()` have to stop adding them, or they're added twi
 - **Front borders: separate parts** (`border-h`, `border-b`), each filling the front strip to the box front:
   - H: x 0.2…71.8, z 65.09…96.04, inner face from y −131.9 at the bottom leaning forward to y −137.17 at the top;
     beside the right gate (y > −141.6) it stops 0.2 short of the gate's bar and wedge. 2 pin holes from the left
-    face at (y, z) = (−146, 78), (−146, 89); 2 tie slots from its divider end (8.8 deep, open to the front).
+    face at (y, z) = (−146, 78), (−146, 89); 2 blind pin holes from its divider end at (−148, 73), (−148, 87), 7.7 deep.
   - B: x 75.2…142.8, z 5…96.04, inner face at y −135.9 up to z 29.29, then leaning forward to y −142.0 at z 65,
     vertical above; a lip
     2 mm thick down the floor's front edge (z 2.5…10). 2 pin holes from below at (x, y) = (93, −146), (125, −146),
-    3 from the right face at (y, z) = (−148, 20), (−148, 50), (−148, 80); 2 tie slots from its divider end.
+    3 from the right face at (y, z) = (−148, 20), (−148, 50), (−148, 80). Nothing at its divider end.
 - **4023 in the back wall:** window through the wall at x 28.55…71.45, z 22.39…64.99 (the motor + 0.3, its floor
   flush with the motor's underside). Hold under the motor: a block x 28.85…71.15, y −20.2…−2 (from 0.3 behind the
   frame's back plate to the wall's outer face; the motor's last 5 mm stick out behind it), z 2…22.39. Cable channel
@@ -554,7 +554,7 @@ them, `case_add()` / `box_cuts()` have to stop adding them, or they're added twi
 - **Holes Ø3.4 in the box floor:** frame at (x, y) = (20, −23.5), (60, −23.5), (20, −138.4), (60, −138.4); border B at
   (93, −146), (125, −146). **Through the left wall:** 2× Ø3.4 at (y, z) = (−146, 78), (−146, 89) for border H.
   **Through the right wall:** 3× Ø3.4 at (y, z) = (−148, 20), (−148, 50), (−148, 80) for border B. **Through the
-  divider:** 2× Ø5.05 at (y, z) = (−148, 73), (−148, 87) for the ties.
+  divider:** 2× Ø3.4 at (y, z) = (−148, 73), (−148, 87) for border H, counterbored Ø6.4 × 1.4 from its right face.
 - Keep free for the camera: the bed has a window at x 10…46, y −61.9…−43.9 (between the back edge of the card and the first belt).
 - **Divider 3 mm** (x 72…75): Dev's 5 cut back at the right face; the box right of it (floor, back wall, right
   wall) moved 2 mm left to meet it, the box 2 mm narrower.

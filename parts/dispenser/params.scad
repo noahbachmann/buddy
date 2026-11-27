@@ -285,9 +285,8 @@ nut_peg_h   = tab_t - 0.3;   // nut pegs: into the tab, not through it
 bpin_head   = [6, 1.2];      // border pin: head d, h
 bpin_depth  = 6;             // shank in the border (beyond the case's wall or floor)
 
-// Ties: steel dowel pins (`pin`, Ø5 x 20) along X through the divider, into both borders: each border held at both ends.
-// Pressed into the divider (pin_hole, as the roller plates), sticking out 8.5 each side; the borders slide in from the
-// front over them (slots open to the front: nothing reaches the pin once a border is in)
-tie_yz    = [[-148, 73], [-148, 87]];   // (y, z): in front of the right gate's front face, in the divider block (z 66..96)
-tie_slot  = pin[0] + 2 * fit_slip;      // slot width in the borders (vertical in their print)
-tie_past  = 0.3;                        // slot end behind the pin: the borders' own stops locate them, not the pin
+// Border H at the divider end (Dev, 2026-11-27): 2 border pins from pile B's side through the divider into H's end. Head
+// sunk in a counterbore (divider face stays flat; border B, in after H, covers the heads), shank through. A push away
+// from the divider pulls the head against the counterbore's step. Border B: nothing at the divider.
+hplug_yz = [[-148, 73], [-148, 87]];    // (y, z): in front of the right gate's front face, in the divider block (z 66..96)
+hplug_cb = [bpin_head[0] + 2 * 0.2, bpin_head[1] + 0.2];   // counterbore: d, depth (head 0.2 under the face)

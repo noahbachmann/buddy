@@ -60,3 +60,7 @@ parts = ["pusher", "lift"]
 [plates.1d-plug-couplings]
 note = "PETG · 0.12 mm · 4 walls · 100 % infill · no supports · the 2 plug couplings (replace the clamp couplings)"
 parts = ["plug-coupling", "plug-coupling"]
+
+[plates.2d-borders]
+note = "PETG · 0.20 mm · 4 walls · 15 % · no supports · 2026-11-27: border H held at the divider by 2 border pins (blind holes, no tie slots), border B without tie slots and its floor holes −0.025, 2 more border pins"
+parts = ["border-h", "border-b", "border-pin", "border-pin"]
