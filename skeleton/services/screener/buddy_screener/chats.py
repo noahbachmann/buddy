@@ -10,7 +10,7 @@ A `manual` chat asks Dev on Telegram whether the bot continues; yes (or `--cmd c
 Which chats (Dev, 2026-11-24): a match linked to one of our `liked` chats (the same name, exactly one, its head fits),
 or an old match where we sent nothing but the like (her profile from the chat's Profile tab). Names in the host's
 `chat-ignore` and everything else (`foreign`) are never touched. Within the hours (`BUDDY_SCREENER_HOURS`) a pass runs
-when the tab bar's matches badge counts a new message, or every `check_s` for new matches and timers (nudge, silent
+when the tab bar's matches badge counts a new message, or every `check_s` for new matches and timers (silent
 close, unmatch); outside them every `off_hours_s`, badge ignored (the screen is off, #90). A chat is opened only when
 she wrote, it's new, or a timer is due. Messages go out as soon as seen (Dev: no delay).
 
@@ -257,11 +257,7 @@ class ChatDriver:
             return False
         if row.section == screens.YOUR_TURN or chat.state == NEW:
             return True
-        quiet = now - chat.last_out
-        nudged = bool(chat.sent) and chat.sent[-1].kind == "nudge"
-        return (now - chat.started >= lim.max_days * DAY
-                or (nudged and quiet >= lim.close_days * DAY)
-                or (not nudged and lim.nudge_days > 0 and quiet >= lim.nudge_days * DAY))
+        return now - chat.started >= lim.max_days * DAY or now - chat.last_out >= lim.close_days * DAY
 
     def _link(self, row: ChatRow, msgs: list[screens.Message], origin: screens.Origin, flow: ChatFlow) -> Chat | None:
         """A match seen for the first time: one of our likes, an old match we only liked, or not ours."""
@@ -350,7 +346,7 @@ class ChatDriver:
         while act.kind in ("converse", "verify"):
             try:
                 if act.kind == "converse":
-                    c, fixes, usage = self.talker.converse(rules, act.task, chat.state, chat.lang, chat.profile,
+                    c, fixes, usage = self.talker.converse(rules, act.task, chat.state, chat.profile,
                                                            sorted(chat.answers), act.transcript, act.offers)
                     self._count(chat, act.task, usage)
                     if fixes:

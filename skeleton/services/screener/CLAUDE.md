@@ -139,8 +139,8 @@ preference sections *About Dev*, *Looking for*, *Good fit*, *Soft negatives/posi
   mine"). `chat-back` returns a manual or handed-over chat to the state it left (`back_to`), her messages after our
   last one answered. Review from afar: `--cmd chats` → Dev approves or rewords (`chat-edit`) → Resume.
 - Calls: `opener`, `first`, `reply` (once she's quiet: batched until her message count holds 60 s, at most 3 min),
-  `nudge` (2 days quiet), `verify`. ~6–9k input tokens. Guards: a burst > 8 messages or > 1200 chars, 20 calls or
-  $0.75 per chat, $0.15 per call, a $2 / 24 h chat pool; unrelated work declined once, the second → handover.
+  `verify`. No nudge: no reply for `CLOSE_DAYS` after our last message → closed silently. ~6–9k input tokens.
+  Guards: a burst > 8 messages or > 1200 chars, 20 calls or $0.75 per chat, $0.15 per call, a $2 / 24 h chat pool; unrelated work declined once, the second → handover.
 - Stored: the chat's state, her answers in a few words, flags, our messages, timers, a decision log, each call's cost.
   Her texts never: every open reads the chat off the screen; the tmpfs review note is the only copy.
 - `--sim` on the Pi (cases, `--personas N`): own $ cap; persona fit outcomes reported, never asserted.

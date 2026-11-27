@@ -1,7 +1,7 @@
 """Scripted matches for `--sim` (#77): synthetic, deterministic on her side; our side is the real chat calls.
 
 Her messages come one per message of ours, in order; after our contact offer she answers from `on_offer`; when
-her script is used up she goes silent (the nudge and the silent close run on the sim's clock). A case that starts at
+her script is used up she goes silent (the silent close runs on the sim's clock). A case that starts at
 the contact choice gets a screened chat as history and a preset verification: it tests reading her choice, not the
 match decision (the fit case and the personas do that).
 """

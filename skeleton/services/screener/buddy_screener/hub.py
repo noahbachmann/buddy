@@ -34,7 +34,7 @@ HOLD_TEXT = {
                  "To do: usually the plan's usage or the network. Resume tries again; if it keeps failing, tell Claude.",
     HOLD_FILES: "Screener stopped: preferences.md or templates.md was refused ({why}).\n"
                 "To do: fix that line (ssh -t buddy micro ~/buddy/config/screener/templates.md), then Resume.",
-    # chats (#77): {why} is the message's kind (disclosure, reply, nudge, …) or the navigator's reason, never a text
+    # chats (#77): {why} is the message's kind (disclosure, reply, closing, …) or the navigator's reason, never a text
     HOLD_CHAT_MESSAGE: "Screener typed a chat message ({why}) and didn't send it. It's in the open chat on the phone.\n"
                        "To do: read it there. Fine → Resume (the bot sends it). Not fine → change it in the field "
                        "(or send your version yourself), then Resume: the bot carries on from your wording.",

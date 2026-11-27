@@ -36,7 +36,7 @@ FOREIGN = "foreign"  # a match the bot doesn't take (Dev's own chat, or no uniqu
 
 THEM, US = "them", "us"
 CONTACT_KINDS = ("contact_number", "contact_instagram")
-TASK_FIRST, TASK_REPLY, TASK_NUDGE, TASK_OPENER = "first", "reply", "nudge", "opener"
+TASK_FIRST, TASK_REPLY, TASK_OPENER = "first", "reply", "opener"
 
 _DIGITS = re.compile(r"\d(?:[\s\-./()]*\d){5,}")      # a phone number, however spaced
 _HANDLE = re.compile(r"(?<![\w.])@\w")
@@ -75,8 +75,7 @@ class ChatLimits:
     min_exchanges: int = 3       # her answered turns before a match can be verified
     max_bot: int = 12            # our generated messages; at the cap → handover
     max_days: float = 7          # open this long without a decision → handover
-    nudge_days: float = 2        # one nudge after this long without a reply (0 = off)
-    close_days: float = 3        # no reply this long after the nudge → closed silently
+    close_days: float = 3        # no reply this long after our last message → closed silently (no nudge: Dev, 2026-11-27)
     unmatch_h: float = 24        # unmatch this long after closing
     reply_max: int = 400         # chars of a generated message
     # abuse guards (#88): checked by code before a call; over → handover, no call
@@ -102,7 +101,7 @@ class Message:
 @dataclass
 class Sent:
     ts: float
-    kind: str                    # like_comment | opener | disclosure | ai_explain | reply | nudge | contact_offer | contact_* | closing | opt_out | dev
+    kind: str                    # like_comment | opener | disclosure | ai_explain | reply | contact_offer | contact_* | closing | opt_out | dev
     text: str
     dev: bool = False            # Dev's wording: his edit of a held message, or (kind `dev`) his own message adopted
 
@@ -172,7 +171,7 @@ class Chat:
 
     @property
     def bot_msgs(self) -> int:
-        return sum(s.kind in ("opener", "reply", "nudge") for s in self.sent)
+        return sum(s.kind in ("opener", "reply") for s in self.sent)
 
     @property
     def last_out(self) -> float:
@@ -201,7 +200,7 @@ class Action:
     text: str = ""               # send: the message; notify: what happened (no name, no message text)
     dev: bool = False            # send: Dev's wording (his edit of the held message)
     wait_s: float = 0.0          # settle: read the chat again after this long
-    task: str = ""               # converse: first | reply | nudge
+    task: str = ""               # converse: opener | first | reply
     transcript: list[tuple[str, str]] = field(default_factory=list)   # converse/verify: (side, text), contacts redacted
     offers: str = ""             # converse in the contact choice: what code offers her ("his phone number or …")
 
@@ -352,8 +351,6 @@ class ChatFlow:
             if not c.reply.strip():   # nothing to answer (a greeting): the introduction alone
                 return self._send(chat, "disclosure", fill(self._t("disclosure", chat), name=chat.name))
             return self._generated(chat, now, "opener", c.reply)
-        if task == TASK_NUDGE:
-            return self._generated(chat, now, "nudge", c.reply, c.ask)
         if task == TASK_REPLY:
             chat.turns += 1
         if chat.state == CONTACT_CHOICE:
@@ -453,7 +450,7 @@ class ChatFlow:
     def _converse(self, chat: Chat, screen: list[Message], task: str, seen: int, now: float) -> Action:
         if (why := self._over(chat, screen, seen)) is not None:
             return self._end(chat, HANDOVER, now, why)
-        if task != TASK_NUDGE and (wait := self._settle(chat, seen, now)) > 0:
+        if (wait := self._settle(chat, seen, now)) > 0:
             return Action("settle", wait_s=wait)
         chat.burst_since = 0.0
         chat.pending_task, chat.pending_seen = task, seen
@@ -495,23 +492,17 @@ class ChatFlow:
     def _tick(self, chat: Chat, screen: list[Message], now: float) -> Action:
         lim, day = self.limits, 86400
         if chat.sent and chat.sent[-1].kind in ("disclosure", "ai_explain"):
-            # no answer to the introduction (or to the explanation and its way out): no nudge (she hasn't opted in),
-            # closed silently after close_days
+            # no answer to the introduction (or to the explanation and its way out)
             if now - chat.last_out >= lim.close_days * day:
                 chat.log.append("no answer to the introduction: closed silently")
                 self._close(chat, now, "no_reply")
             return WAIT
-        if not chat.sent or chat.sent[-1].kind not in ("reply", "nudge", "contact_offer", "dev"):
+        if not chat.sent or chat.sent[-1].kind not in ("reply", "contact_offer", "dev"):
             return WAIT
-        quiet = now - chat.last_out
-        nudged = chat.sent[-1].kind == "nudge"
-        if nudged and quiet >= lim.close_days * day:
-            chat.log.append("no reply after the nudge: closed silently")
+        # no nudge (Dev, 2026-11-27): her silence is her answer
+        if now - chat.last_out >= lim.close_days * day:
+            chat.log.append("no reply: closed silently")
             self._close(chat, now, "no_reply")
-            return WAIT
-        if not nudged and lim.nudge_days > 0 and quiet >= lim.nudge_days * day \
-                and not any(s.kind == "nudge" for s in chat.sent):
-            return self._converse(chat, screen, TASK_NUDGE, chat.theirs_seen, now)
         return WAIT
 
     def _not_ready(self, chat: Chat) -> str | None:
@@ -570,12 +561,10 @@ class ChatFlow:
 
     def _pick(self, chat: Chat, kind: str, ask: int) -> int:
         """Which question the model's `ask` means: the next one in the owner's order (chat.md) not asked and not
-        answered yet (Dev, 2026-11-25: the model put the required 3rd question first); a nudge repeats the open one.
+        answered yet (Dev, 2026-11-25: the model put the required 3rd question first).
         Nothing left → the model's own pick if it's asked but unanswered (a re-ask), else none."""
         asked = self.asked(chat)
         open_ = [n for n in asked if not chat.answers.get(n)]
-        if kind == "nudge":
-            return open_[-1] if open_ else 0
         nxt = [q.n for q in self.rules.questions if q.n not in asked and not chat.answers.get(q.n)]
         return nxt[0] if nxt else (ask if ask in open_ else 0)
 

@@ -184,23 +184,23 @@ def test_the_explanation_goes_out_once_and_mid_screening_too():
 
 
 def test_no_answer_to_the_explanation_closes_silently():
-    d = Driver(limits=ChatLimits(nudge_days=2, close_days=3))
+    d = Driver(limits=ChatLimits(close_days=3))
     d.run()
     d.her("is that real?")
     d.run(ask("", ai_doubt=True))
     d.now += 2.5 * DAY
     d.run()
-    assert len(d.calls) == 1   # no nudge
+    assert len(d.calls) == 1 and d.chat.state != CLOSED
     d.now += 1 * DAY
     d.run()
     assert d.chat.state == CLOSED and d.chat.reason == "no_reply"
 
-def test_no_answer_to_the_introduction_closes_silently_without_a_nudge():
-    d = Driver(limits=ChatLimits(nudge_days=2, close_days=3))
+def test_no_answer_to_the_introduction_closes_silently():
+    d = Driver(limits=ChatLimits(close_days=3))
     d.run()
     d.now += 2.5 * DAY
     d.run()
-    assert d.calls == [] and d.kinds()[-1] == "disclosure"   # no nudge: she never opted in
+    assert d.calls == [] and d.kinds()[-1] == "disclosure"
     d.now += 1 * DAY
     d.run()
     assert d.chat.state == CLOSED and d.chat.reason == "no_reply" and d.kinds()[-1] == "disclosure"
@@ -579,51 +579,24 @@ def test_bot_message_cap_hands_over():
 
 # --- time ------------------------------------------------------------------------------------------------------------
 
-def test_nudge_once_then_silent_close_and_unmatch():
-    d = Driver()
+def test_no_reply_closes_silently_without_a_nudge_then_unmatches():
+    # no nudge (Dev, 2026-11-27): her silence after our question closes the chat
+    d = Driver(limits=ChatLimits(close_days=3))
     d.intro()
     d.run(ask())
-    d.now += 1.9 * DAY
-    d.run()
-    assert len(d.calls) == 1
-    d.now += 0.2 * DAY
-    d.run(Converse("Noch da? 🙂", "screening", lang="de"))
-    assert d.calls[-1][1] == "nudge" and d.kinds()[-1] == "nudge" and d.chat.turns == 0
     d.now += 2.9 * DAY
     d.run()
-    assert d.chat.state == SCREENING
+    assert len(d.calls) == 1 and d.chat.state == SCREENING
     d.now += 0.2 * DAY
     d.run()
-    assert d.chat.state == CLOSED and d.chat.reason == "no_reply" and d.kinds()[-1] == "nudge"
+    assert len(d.calls) == 1 and d.chat.state == CLOSED and d.chat.reason == "no_reply" and d.kinds()[-1] == "reply"
     d.now += DAY
     d.run()
     assert d.unmatched
 
 
-def test_a_reply_after_the_nudge_continues():
-    d = Driver()
-    d.intro()
-    d.run(ask())
-    d.now += 2.1 * DAY
-    d.run(Converse("Noch da?", "screening", lang="de"))
-    d.her("Ja sorry!")
-    d.run(ask())
-    d.now += 2.1 * DAY
-    d.run()
-    assert d.chat.state == SCREENING and d.kinds().count("nudge") == 1
-
-
-def test_nudge_off():
-    d = Driver(limits=ChatLimits(nudge_days=0))
-    d.intro()
-    d.run(ask())
-    d.now += 5 * DAY
-    d.run()
-    assert d.kinds()[-1] == "reply" and len(d.calls) == 1
-
-
 def test_no_decision_after_max_days_hands_over():
-    d = Driver(limits=ChatLimits(max_days=7, nudge_days=0))
+    d = Driver(limits=ChatLimits(max_days=7))
     d.intro()
     d.run(ask())
     for i in range(6):
@@ -687,15 +660,6 @@ def test_held_reply_keeps_its_question():
     d.run(Converse("Schön!", "match", lang="de", ask=2), verdicts=[Verdict(False)])
     assert d.ours()[-1] == "Schön! Er fragt: «Haustiere? https://example.org/track/1»"
     assert d.chat.pending_ask == 0
-
-
-def test_nudge_repeats_the_question_verbatim():
-    d = Driver()
-    d.intro()
-    d.run(ask("", ask=1))
-    d.now += 2.1 * DAY
-    d.run(Converse("Kleiner Nachtrag, ganz ohne Druck.", "screening", ask=1))
-    assert d.kinds()[-1] == "nudge" and d.ours()[-1] == "Kleiner Nachtrag, ganz ohne Druck. Er fragt: «Was suchst du?»"
 
 
 def test_a_long_burst_goes_to_dev_without_a_call():
@@ -779,9 +743,6 @@ def test_code_asks_the_questions_in_the_owners_order():
     d.her("Mag ich")
     d.run(ask("Cool.", ask=2, answers={2: "mag ihn"}))
     assert d.ours()[-1].endswith("«Warum Match?»") and d.flow.asked(d.chat) == [1, 2, 3]
-    d.now += 2 * DAY + 1
-    d.run(Converse("Noch da?", "screening", lang="de", ask=1))
-    assert d.kinds()[-1] == "nudge" and d.ours()[-1].endswith("«Warum Match?»")   # the nudge repeats the open one
 
 
 def test_number_only_answers_her_then_asks_and_sends_it_on_her_yes():

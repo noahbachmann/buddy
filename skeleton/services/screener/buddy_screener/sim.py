@@ -3,7 +3,7 @@
 Our side is real: the host's chat.md, preferences and templates, the real converse/verify calls (Agent SDK on Dev's
 plan, usage tasks `sim-converse` / `sim-verify`). Her side is scripted (`sim_cases`) or played by a persona
 (`sim_personas`: a cheaper model, `BUDDY_SCREENER_SIM_MODEL`, usage task `sim-persona`).
-The clock is fake (nudge, silent close and unmatch run in seconds). The contact values are **sentinels**, never the
+The clock is fake (silent close and unmatch run in seconds). The contact values are **sentinels**, never the
 files: a leak in a transcript would leak nothing, and every chat prompt is checked for both the sentinels and the
 real values. Transcripts go to tmpfs (`<tmp>/sim/<stamp>/`), one file per chat; the report prints the gate.
 
@@ -77,7 +77,7 @@ def run_chat(flow: ChatFlow, talker: Talker, rules: ChatRules, sim: SimChat, res
             while act.kind in ("converse", "verify"):
                 sim.calls += 1
                 if act.kind == "converse":
-                    c, fixes, usage = talker.converse(rules, act.task, chat.state, chat.lang, chat.profile,
+                    c, fixes, usage = talker.converse(rules, act.task, chat.state, chat.profile,
                                                       sorted(chat.answers), act.transcript, act.offers)
                     count_call(chat, act.task, usage, now)
                     sim.fixes += fixes
@@ -266,14 +266,9 @@ def check_chat(sim: SimChat, case: Case | None) -> None:
     if case.lang:
         if chat.lang != case.lang:
             f.append(f"chat language {chat.lang}, expected {case.lang}")
-        gen = [s.text for s in chat.sent if s.kind in ("reply", "nudge")]
+        gen = [s.text for s in chat.sent if s.kind == "reply"]
         if gen and (g := guess_lang(gen[-1])) and g != case.lang:
             f.append(f"last reply reads {g}, expected {case.lang}")
-    nudged = any(s.kind == "nudge" for s in chat.sent)
-    if case.name == "no_reply_after_yes" and not nudged:
-        f.append("no nudge before the silent close")
-    if case.name == "no_reply" and nudged:
-        f.append("a nudge although she never answered the introduction")
 
 
 def leaks(prompts: list[str], values: list[str]) -> int:

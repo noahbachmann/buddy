@@ -1,7 +1,7 @@
 """The chat's two calls (#66 Flows 3–4, #77), through `Decider.call`: the same locked-down CLI, usage log, limit pause
 and daily cap as the profile decisions.
 
-- `converse`: one call per batch of her new messages (and for the first question and the nudge). Fresh context
+- `converse`: one call per batch of her new messages (and for the first question). Fresh context
   every time; the history is what the screen shows plus our own sent log, each message delimited and escaped: her
   text is data, never instructions. Returns the next message (`reply`, always: if code refuses a match, it's sent
   instead of a second call) plus the state, answers, flags, contact choice and her language.
@@ -16,7 +16,7 @@ contact messages and nothing else reads the contact files.
 from html import escape
 from typing import Any
 
-from .chat import CONTACT_CHOICE, TASK_FIRST, TASK_NUDGE, TASK_OPENER, Converse, Verdict
+from .chat import CONTACT_CHOICE, TASK_FIRST, TASK_OPENER, Converse, Verdict
 from .decide import DecideError, Decider, Usage
 from .library import ChatRules
 
@@ -24,7 +24,6 @@ TASK_CONVERSE, TASK_VERIFY = "converse", "verify"
 STATES = ("screening", "match", "no_match", "handover")
 CONTACTS = ("phone", "instagram", "both", "unclear", "none")
 LANGS = ("de-ch", "de", "en", "other")
-LANG_NAMES = {"de": "German (standard German, no dialect)", "en": "English"}
 
 CONVERSE_SYSTEM = """\
 You are an AI assistant that chats in a social app on behalf of one person, the owner. Matches get a fixed \
@@ -116,9 +115,6 @@ anything else (a greeting, an emoji, "haha", small talk) → `reply` "": the int
 - first: she answered your introduction (or the owner's explanation after it). In → answer what she asked, if \
 anything, and `ask` the first question; out → `opt_out`.
 - reply: she wrote; answer and decide the state.
-- nudge: she hasn't answered for days: one light line, no pressure, nothing new (no teasing, no remarks on her \
-profile); `ask` = the open screening question (it is appended again), or 0 if the open question was your own \
-follow-up (then restate that one in `reply`).
 
 # The owner's chat rules
 
@@ -194,17 +190,15 @@ def render(transcript: list[tuple[str, str]]) -> str:
         or "(no messages yet)"
 
 
-def converse_content(task: str, state: str, lang: str, profile: str, answered: list[int],
+def converse_content(task: str, state: str, profile: str, answered: list[int],
                      transcript: list[tuple[str, str]], offers: str = "") -> list[dict[str, Any]]:
     # the options, so a question about them gets a real answer (#89: "only his number? no Instagram?" got "comes next")
     stage = (f"contact choice (we asked whether she wants his contact: read her answer). Code offers her {offers}, "
              "and code itself asks for her choice after your `reply`") if state == CONTACT_CHOICE else "screening"
-    # a nudge: code knows the chat's language; anything else follows her latest message (#77, Dev 2026-11-18)
-    reply_lang = LANG_NAMES.get(lang, lang) if task == TASK_NUDGE else "her latest message's language"
     text = "\n".join([
         f"Task: {task}",
         f"Chat state: {stage}",
-        f"Write `reply` in: {reply_lang}",
+        "Write `reply` in: her latest message's language",
         f"Questions answered so far (code's record): {', '.join(map(str, answered)) or 'none'}",
         "",
         "Her profile:",
@@ -264,9 +258,6 @@ def check_converse(raw: Any, rules: ChatRules, task: str, state: str) -> tuple[C
     if task in (TASK_FIRST, TASK_OPENER) and st in ("match", "no_match"):
         fixes.append(f"{st} on the {task} message → screening")
         st = "screening"
-    if task == TASK_NUDGE and st not in ("screening", "handover"):
-        fixes.append(f"{st} on a nudge → screening")
-        st = "screening"
     ask = raw.get("ask", 0)
     if not isinstance(ask, int) or isinstance(ask, bool) or (ask != 0 and ask not in known):
         fixes.append(f"ask {str(ask)[:10]!r} isn't a question number → 0")
@@ -298,10 +289,10 @@ class Talker:
     def __init__(self, decider: Decider, prefix: str = ""):
         self.decider, self.prefix = decider, prefix      # prefix "sim-": the sim's usage rows apart from live ones
 
-    def converse(self, rules: ChatRules, task: str, state: str, lang: str, profile: str, answered: list[int],
+    def converse(self, rules: ChatRules, task: str, state: str, profile: str, answered: list[int],
                  transcript: list[tuple[str, str]], offers: str = "") -> tuple[Converse, list[str], Usage]:
         out = self.decider.call(self.prefix + TASK_CONVERSE, converse_system(rules),
-                                converse_content(task, state, lang, profile, answered, transcript, offers),
+                                converse_content(task, state, profile, answered, transcript, offers),
                                 converse_schema(rules), chat=True)
         c, fixes = check_converse(out.structured, rules, task, state)
         return c, fixes, out.usage

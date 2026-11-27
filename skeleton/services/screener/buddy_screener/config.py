@@ -41,7 +41,6 @@ class Config:
     chat_min_exchanges: int = ChatLimits.min_exchanges   # chat (#77): meanings in chat.ChatLimits
     chat_max_bot: int = ChatLimits.max_bot
     chat_max_days: float = ChatLimits.max_days
-    chat_nudge_days: float = ChatLimits.nudge_days
     chat_close_days: float = ChatLimits.close_days
     chat_unmatch_h: float = ChatLimits.unmatch_h
     sim_model: str = "claude-haiku-5-5"   # the sim's personas (they play matches, the chat calls use `model`)
@@ -84,7 +83,6 @@ class Config:
             chat_min_exchanges=env_int("BUDDY_SCREENER_CHAT_MIN_EXCHANGES", d.chat_min_exchanges),
             chat_max_bot=env_int("BUDDY_SCREENER_CHAT_MAX_BOT", d.chat_max_bot),
             chat_max_days=env_float("BUDDY_SCREENER_CHAT_MAX_DAYS", d.chat_max_days),
-            chat_nudge_days=env_float("BUDDY_SCREENER_CHAT_NUDGE_DAYS", d.chat_nudge_days),
             chat_close_days=env_float("BUDDY_SCREENER_CHAT_CLOSE_DAYS", d.chat_close_days),
             chat_unmatch_h=env_float("BUDDY_SCREENER_CHAT_UNMATCH_H", d.chat_unmatch_h),
             sim_model=env_string("BUDDY_SCREENER_SIM_MODEL", d.sim_model),
@@ -127,7 +125,7 @@ class Config:
         return ChatConfig(self.chat, self.chat_check_min * 60, self.chat_off_hours_min * 60)
 
     def chat_limits(self) -> ChatLimits:
-        return ChatLimits(self.chat_min_exchanges, self.chat_max_bot, self.chat_max_days, self.chat_nudge_days,
+        return ChatLimits(self.chat_min_exchanges, self.chat_max_bot, self.chat_max_days,
                           self.chat_close_days, self.chat_unmatch_h, max_usd=self.chat_max_usd,
                           settle_s=self.chat_settle_s)
 

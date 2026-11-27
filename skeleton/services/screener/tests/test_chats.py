@@ -28,7 +28,7 @@ class Talker:
         self.calls: list[tuple[str, list]] = []
         self.fail: Exception | None = None
 
-    def converse(self, rules, task, state, lang, profile, answered, transcript, offers=""):
+    def converse(self, rules, task, state, profile, answered, transcript, offers=""):
         self.calls.append((task, transcript, profile))
         if self.fail:
             raise self.fail

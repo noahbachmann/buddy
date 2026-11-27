@@ -62,7 +62,7 @@ def test_render_escapes_so_a_message_cant_pose_as_ours():
 
 
 def test_converse_content():
-    text = converse_content("reply", CONTACT_CHOICE, "en", "Age: 29; prompt 1: Hiking", [1],
+    text = converse_content("reply", CONTACT_CHOICE, "Age: 29; prompt 1: Hiking", [1],
                             [(US, "Hi"), (THEM, "Hey")], "his phone number or his Instagram")[0]["text"]
     lines = text.splitlines()
     assert lines[:4] == ["Task: reply", "Chat state: contact choice (we asked whether she wants his contact: read her "
@@ -70,8 +70,6 @@ def test_converse_content():
                          "choice after your `reply`",
                          "Write `reply` in: her latest message's language",
                          "Questions answered so far (code's record): 1"]
-    nudge = converse_content("nudge", "screening", "en", "", [], [])[0]["text"]
-    assert "Write `reply` in: English" in nudge
     assert "<profile>Age: 29; prompt 1: Hiking</profile>" in text and text.endswith('<msg from="match">Hey</msg>')
 
 
@@ -102,7 +100,6 @@ def test_check_converse_good():
     ({"contact": "phone"}, "reply", "screening", lambda c: c.contact == "none", "outside the contact choice"),
     ({"answers": {"1": "x", "9": "y"}}, "reply", "screening", lambda c: c.answers == {1: "x"}, "unknown question"),
     ({"state": "match"}, "first", "new", lambda c: c.state == "screening", "first message"),
-    ({"state": "no_match"}, "nudge", "screening", lambda c: c.state == "screening", "on a nudge"),
     ({"ask": 9}, "reply", "screening", lambda c: c.ask == 0, "isn't a question number"),
     ({"ask": True}, "reply", "screening", lambda c: c.ask == 0, "isn't a question number"),
     ({"ask": 1}, "reply", CONTACT_CHOICE, lambda c: c.ask == 0, "in the contact choice"),
@@ -149,7 +146,7 @@ def test_whole_chat_never_puts_a_contact_value_in_a_prompt(talker):
         act = flow.step(chat, screen, now)
         while act.kind in ("converse", "verify"):
             if act.kind == "converse":
-                c, _, _ = t.converse(RULES, act.task, chat.state, chat.lang, chat.profile, sorted(chat.answers),
+                c, _, _ = t.converse(RULES, act.task, chat.state, chat.profile, sorted(chat.answers),
                                      act.transcript)
                 act = flow.conversed(chat, c, now)
             else:
@@ -182,7 +179,7 @@ def test_chat_calls_have_their_own_pool_and_a_per_call_cap(tmp_path, monkeypatch
     store = Store(":memory:", clock=lambda: 1e6)
     store.add_usage(1e6 - 10, Usage("browse", "m", cost=0.9))   # the profiles near their cap: chats unaffected
     sdk = FakeSdk(script=[(limit(), result(answer()))])
-    Talker(Decider(cfg, store, run=sdk, clock=lambda: 1e6)).converse(RULES, "reply", "screening", "de", "", [],
+    Talker(Decider(cfg, store, run=sdk, clock=lambda: 1e6)).converse(RULES, "reply", "screening", "", [],
                                                                       [(THEM, "hi")])
     assert sdk.calls[0][1].max_budget_usd == 0.15
     store.add_usage(1e6 - 5, Usage("converse", "m", cost=0.5))
