@@ -43,6 +43,9 @@ cd parts/tools && uv run pytest -q                 # tool tests (fixtures in tes
   one group kept in its common frame, e.g. parts that print in one frame) and a `note` (filament, settings). Parts
   turn only about Z, pack into rows on 230 × 230 (`bed = [w, d]` per plate for parts wider than that, ≤ 256) with 8 mm gaps, centred. One STL per plate = one object in Bambu
   Studio: settings apply to the whole plate, auto brim judges the whole plate. Dev prints from `plates/`.
+  Shelves can't nest one part into another's corner: `place = [[x, y, turn°], …]` (one per item, bbox min corner
+  after the turn) fixes the layout instead, `gap` sets the minimum distance; `cad plate` checks the real footprints
+  against it and the bed (the PC case's covers: an L round a box, as Dev laid them out in Bambu Studio).
 - **Assembly sheet**: OpenSCAD's own preview from 4 directions (gimbal camera), keeps `color()` and `%` ghosts.
 - Print classes (`tools/src/cad/mesh.py`): +Z = build direction, lowest Z = bed, 45° counts as fine (teardrops,
   chamfers). Numbers are surface areas, not yet judged: `cad check` (next) adds the rules.

@@ -66,3 +66,35 @@ def test_pack_wide_part_needs_wide_bed():
     with pytest.raises(ValueError, match="plate full"):
         plate.pack([_box(250, 220)])
     assert plate.pack([_box(250, 220)], bed=(254, 254)).extents[0] == pytest.approx(250)
+
+
+def _ell():   # 100 × 100 L: the 60 × 60 corner at min x, min y cut away
+    a = trimesh.creation.box((100, 40, 5)); a.apply_translation([50, 80, 2.5])
+    b = trimesh.creation.box((40, 60, 5)); b.apply_translation([80, 30, 2.5])
+    return trimesh.util.concatenate([a, b])
+
+
+def test_place_nests_into_an_l():
+    # 50 × 50 box in the L's cut corner, 5 apart: shelves couldn't, bbox overlap is fine
+    out = plate.place([_box(50, 50), _ell()], [(0, 0, 0), (-5, -5, 0)], bed=(230, 230), gap=5)
+    assert out.extents[:2] == pytest.approx([100, 100])
+    assert out.bounds[0][2] == pytest.approx(0)
+
+
+def test_place_turns_and_checks_gap_and_bed():
+    out = plate.place([_box(60, 20)], [(0, 0, 90)])
+    assert out.extents[:2] == pytest.approx([20, 60])
+    with pytest.raises(ValueError, match="apart"):
+        plate.place([_box(50, 50), _ell()], [(0, 0, 0), (-6, -6, 0)], gap=5)
+    with pytest.raises(ValueError, match="plate full"):
+        plate.place([_box(100, 10), _box(100, 10)], [(0, 0, 0), (140, 0, 0)])
+
+
+def test_config_plate_place(tmp_path):
+    (tmp_path / "a.scad").write_text("cube(1);")
+    (tmp_path / config.CONFIG).write_text('[parts.a]\n[plates.p1]\nparts = ["a", "a"]\nplace = [[0, 0, 90], [5, 6, 0]]\ngap = 4\n')
+    p = config.load(tmp_path).plates["p1"]
+    assert p.place == [(0, 0, 90), (5, 6, 0)] and p.gap == 4
+    (tmp_path / config.CONFIG).write_text('[parts.a]\n[plates.p1]\nparts = ["a", "a"]\nplace = [[0, 0, 90]]\n')
+    with pytest.raises(SystemExit, match="place"):
+        config.load(tmp_path)

@@ -73,7 +73,8 @@ def cmd_plate(a: argparse.Namespace) -> int:
         for p in plates:
             items = [trimesh.util.concatenate([meshes[n] for n in i]) for i in p.items]
             try:
-                m = plate.pack(items, p.bed or plate.BED)
+                bed, gap = p.bed or plate.BED, plate.GAP if p.gap is None else p.gap
+                m = plate.place(items, p.place, bed, gap) if p.place else plate.pack(items, bed, gap)
             except ValueError as e:
                 print(f"FAIL {p.name}: {e}", file=sys.stderr)
                 return 1
