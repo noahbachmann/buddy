@@ -179,7 +179,7 @@ int run_service(const riftbound::CardDb& db, const fs::path& decks_dir) {
             std::cout << "[game] new game, seed " << s.config().seed << ", " << store.journal_path().filename().string()
                       << std::endl;
         }
-        store.append(o.journal, o.replay);
+        store.append(o.journal, o.replay, o.replay_text);
         for (const auto& c : o.table) mqtt.publish(topic::table_cmd, table::to_json(c).dump(), 1);
         if (o.ai) ai.ask(game, std::move(*o.ai));
         for (const auto& line : o.voice) mqtt.publish(topic::voice_say, json{{"text", line}}.dump(), 1);  // empty: voice off

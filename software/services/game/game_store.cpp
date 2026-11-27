@@ -49,15 +49,22 @@ void GameStore::begin(std::string_view stamp, std::uint64_t seed) {
     }
     journal_path_ = dir_ / (name + ".journal");
     journal_.open(journal_path_, std::ios::binary);
-    replay_.open(dir_ / (name + ".txt"), std::ios::binary);
+    replay_path_ = dir_ / (name + ".txt");
+    replay_.open(replay_path_, std::ios::binary);
     if (!journal_ || !replay_) throw std::runtime_error("can't write " + journal_path_.string());
 }
 
-void GameStore::append(const std::vector<std::string>& journal, const std::vector<std::string>& replay) {
+void GameStore::append(const std::vector<std::string>& journal, const std::vector<std::string>& replay,
+                       const std::optional<std::string>& replay_text) {
     if (!journal_.is_open()) return;
     if (!journal.empty()) {
         write_lines(journal_, journal);
         journal_.flush();
+    }
+    if (replay_text) {  // journal first: a crash in between restores the undo and rewrites the replay at start
+        replay_.close();
+        std::ofstream(replay_path_, std::ios::binary | std::ios::trunc) << *replay_text;
+        replay_.open(replay_path_, std::ios::binary | std::ios::app);
     }
     if (!replay.empty()) {
         write_lines(replay_, replay);
@@ -89,6 +96,7 @@ void GameStore::resume(const SavedGame& g, const std::string& replay_text) {
     journal_.close();
     replay_.close();
     journal_path_ = g.journal;
+    replay_path_ = g.replay;
     {  // drop a cut-off last line before appending after it
         std::string text;
         for (const auto& l : g.lines) text += l + '\n';

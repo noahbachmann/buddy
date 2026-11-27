@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <cstdlib>
+#include <sstream>
 
 #include "game_host.hpp"
 #include "session_game.hpp"
@@ -29,7 +30,7 @@ struct HostGame {
     game::GameHost host{db(), host_config()};
     ai::GreedyPlayer buddy_ai{5};
     std::vector<json> states;
-    std::vector<std::string> voice, replay, problems;
+    std::vector<std::string> voice, replay, journal, problems;
     int new_games = 0;
     std::function<bool()> dev;  // DevToAct / DevToReveal: send a command; false = stop
 
@@ -47,6 +48,12 @@ struct HostGame {
             states.push_back(*o.state);
         }
         voice.insert(voice.end(), o.voice.begin(), o.voice.end());
+        journal.insert(journal.end(), o.journal.begin(), o.journal.end());
+        if (o.replay_text) {  // an undo: the whole replay again
+            replay.clear();
+            std::istringstream in(*o.replay_text);
+            for (std::string l; std::getline(in, l);) replay.push_back(l);
+        }
         replay.insert(replay.end(), o.replay.begin(), o.replay.end());
         pending_table.insert(pending_table.end(), o.table.begin(), o.table.end());
         if (o.ai) pending_ai = std::move(o.ai);
@@ -160,6 +167,108 @@ TEST(RiftboundGameHost, HumanDevPlaysByCommands) {
     EXPECT_EQ(g.host.session()->status(), Status::Over);
     EXPECT_GT(acts, 30);
     EXPECT_GT(reveals, 3);
+}
+
+// The payload without what an undo must change (#97)
+json comparable(json st) {
+    st.erase("v");
+    st.erase("undo");
+    return st;
+}
+
+// Dev takes back steps that sent Buddy nothing (#97): the payload is the one before that step again, `v` moves on, a
+// late AI answer to a dropped question is ignored, and the journal with its undos restores the same game.
+TEST(RiftboundGameHost, DevUndoesOwnSteps) {
+    HostGame g;
+    ASSERT_TRUE(g.host.command({{"action", "new"}, {"buddy", "vi"}, {"dev", "human"}, {"seed", 11}}).ok);
+    const auto& cfg = g.host.session()->config();
+    game::SimDev dev(1, std::make_unique<ai::GreedyPlayer>(3), 4);
+    dev.begin(g.host.session()->state(), cfg.decks[0], cfg.decks[1]);
+    json before;          // the payload before Dev's last step
+    bool fresh = false;   // that step isn't undone yet
+    int undos = 0, chances = 0;
+    g.dev = [&] {
+        const Session& s = *g.host.session();
+        if (g.host.state()["undo"] != g.host.can_undo()) g.problems.push_back("payload undo != can_undo");
+        if (fresh && undos < 8 && g.host.can_undo() && ++chances % 2 == 0) {  // each undo replays the game: a few
+            const auto v = g.host.v();
+            const auto r = g.host.command({{"action", "undo"}, {"v", v}});
+            if (!r.ok) g.problems.push_back("undo refused: " + r.message);
+            g.take();
+            if (g.host.v() != v + 1) g.problems.push_back("v didn't move on");
+            if (comparable(g.host.state()) != comparable(before)) g.problems.push_back("undo didn't restore the payload");
+            ++undos;
+            fresh = false;
+            return true;
+        }
+        before = g.host.state();
+        fresh = true;
+        if (s.status() == Status::DevToAct) {
+            const auto o = dev.choose(s.state(), s.dev_options());
+            const auto& list = s.dev_options();
+            const auto i = static_cast<std::size_t>(std::find(list.begin(), list.end(), o) - list.begin());
+            return g.host.command({{"action", "act"}, {"v", g.host.v()}, {"i", i}}).ok;
+        }
+        json codes = json::array();
+        for (const Card* c : dev.reveal(*s.prompt())) codes.push_back(c->home().code.str());
+        return g.host.command({{"action", "reveal"}, {"v", g.host.v()}, {"cards", codes}}).ok;
+    };
+    g.run();
+    EXPECT_TRUE(g.problems.empty()) << g.problems.front();
+    EXPECT_EQ(g.host.session()->status(), Status::Over);
+    EXPECT_GT(undos, 5);
+
+    std::string replay;
+    for (const auto& l : g.replay) replay += l + "\n";
+    EXPECT_EQ(replay, g.host.session()->replay_text());  // the file as the service would have it after the undos
+
+    game::GameHost again{db(), host_config()};
+    again.restore(g.journal);
+    EXPECT_EQ(again.state(), g.host.state());
+}
+
+TEST(RiftboundGameHost, UndoWhileBuddyThinksDropsTheQuestion) {
+    HostGame g;
+    ASSERT_TRUE(g.host.command({{"action", "new"}, {"buddy", "zed"}, {"dev", "human"}, {"seed", 4}}).ok);
+    const auto& cfg = g.host.session()->config();
+    game::SimDev dev(1, std::make_unique<ai::GreedyPlayer>(8), 9);
+    dev.begin(g.host.session()->state(), cfg.decks[0], cfg.decks[1]);
+    bool checked = false, refused = false;
+    g.dev = [&] {
+        const Session& s = *g.host.session();
+        if (!g.host.can_undo() && !refused) {  // nothing of Dev's to take back (start, or Buddy moved since)
+            refused = !g.host.command({{"action", "undo"}, {"v", g.host.v()}}).ok;
+            if (!refused) g.problems.push_back("undo taken without a step to undo");
+            g.take();
+        }
+        if (s.status() == Status::DevToReveal) {
+            json codes = json::array();
+            for (const Card* c : dev.reveal(*s.prompt())) codes.push_back(c->home().code.str());
+            return g.host.command({{"action", "reveal"}, {"v", g.host.v()}, {"cards", codes}}).ok;
+        }
+        const auto o = dev.choose(s.state(), s.dev_options());
+        const auto& list = s.dev_options();
+        const auto i = static_cast<std::size_t>(std::find(list.begin(), list.end(), o) - list.begin());
+        const json before = g.host.state();
+        if (!g.host.command({{"action", "act"}, {"v", g.host.v()}, {"i", i}}).ok) return false;
+        g.take();
+        if (checked || !g.pending_ai || !g.host.can_undo()) return true;
+        // Buddy thinks about Dev's step: take it back, the question goes with it
+        const auto stale = *g.pending_ai;
+        g.pending_ai.reset();
+        if (!g.host.command({{"action", "undo"}, {"v", g.host.v()}}).ok) g.problems.push_back("undo refused");
+        g.take();
+        if (comparable(g.host.state()) != comparable(before)) g.problems.push_back("undo didn't restore the payload");
+        g.host.on_ai(stale.id, stale.actions.front());  // its late answer: ignored
+        if (g.host.take().state) g.problems.push_back("a dropped question's answer changed the game");
+        checked = true;
+        return true;
+    };
+    g.run();
+    EXPECT_TRUE(g.problems.empty()) << g.problems.front();
+    EXPECT_TRUE(checked);
+    EXPECT_TRUE(refused);
+    EXPECT_EQ(g.host.session()->status(), Status::Over);
 }
 
 // Refused: nothing changes (no payload, same v, same state, no outputs).

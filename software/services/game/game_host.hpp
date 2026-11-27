@@ -7,6 +7,7 @@
 //   {"action":"new", "buddy":"vi"|"zed", "seed"?: n, "dev":"human"|"greedy"|"random"}   refused while a game runs
 //   {"action":"act", "v": n, "i": n}                one of the payload's options, at that version
 //   {"action":"reveal", "v": n, "cards":[code…]}    the payload's prompt, Dev's cards by printed code
+//   {"action":"undo", "v": n}                     takes back Dev's last act/reveal while Buddy hasn't moved since (#97)
 //   {"action":"resume"}  {"action":"concede"}
 // A bot Dev (greedy, random) is a SimDev with a true shuffled deck, answered inside the host at once.
 //
@@ -56,6 +57,7 @@ struct HostOutputs {
     std::optional<AiRequest> ai;
     std::vector<std::string> voice;   // Buddy's lines for buddy/voice/say; none while the game's voice is off
     std::vector<std::string> replay;  // lines of the current game's replay
+    std::optional<std::string> replay_text;  // after an undo: the whole replay, replacing the file (then `replay`)
     bool new_game = false;            // the replay lines start a new file
     std::optional<nlohmann::json> state;  // the payload, when it changed since the last take() (`v` + 1)
     std::vector<std::string> journal;     // the inputs, one JSON line each (a new game: the first line of a new file)
@@ -92,13 +94,17 @@ public:
     // the first payload of a game is v 1.
     const nlohmann::json& state() const { return state_; }
     std::int64_t v() const { return v_; }
+    // `undo` would be taken now: the last input of this game is Dev's act/reveal that sent no table command, and
+    // Buddy hasn't answered since (a human Dev only).
+    bool can_undo() const;
     const Session* session() const { return session_.get(); }
 
 private:
     Reply start(const nlohmann::json& cmd);
     void absorb();  // the session's outputs into out_
     void drive();   // a bot Dev answers until it's someone else's turn
-    void record(nlohmann::json line);
+    void record(nlohmann::json line, bool undoable = false);
+    void undo();  // rebuilds the game from its lines without the last (#97)
 
     const riftbound::CardDb& db_;
     HostConfig cfg_;
@@ -108,8 +114,13 @@ private:
     nlohmann::json game_;   // the payload's game part as last published
     nlohmann::json state_;  // the full payload as last published
     std::int64_t v_ = 0;
+    bool rebuilding_ = false;  // undo's rebuild: the lines' `v` were right when they came, later undos moved it on
     bool voice_ = false;  // Buddy speaks this game (`new {voice}`, `voice {on}`); off: no lines leave the host
     HostOutputs out_;
+    // This game's journal lines as they still count (an undone line and its undo are gone), and per line whether
+    // undo may take it back.
+    std::vector<std::string> lines_;
+    std::vector<bool> undoable_;
 };
 
 } // namespace buddy::game

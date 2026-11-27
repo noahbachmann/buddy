@@ -213,6 +213,10 @@ public:
     const std::set<ObjId>& named() const { return named_; }
     const SessionConfig& config() const { return cfg_; }
     std::string replay_text() const;  // every replay line so far
+    // After an undo (#97) the rebuilt session goes on numbering AI questions after `last`: a late answer to a
+    // dropped question must not match a new one.
+    void continue_ai_ids(std::uint64_t last) { ai_id_ = std::max(ai_id_, last); }
+    std::uint64_t last_ai_id() const { return ai_id_; }
     const SessionStats& stats() const { return stats_; }
 
     // Tests only: sees every computed command list of a step (forced divergence).

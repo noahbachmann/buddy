@@ -2,6 +2,8 @@
 // dropped, a journal that doesn't fit set aside.
 #include <gtest/gtest.h>
 
+#include <sstream>
+
 #include <random>
 
 #include "game_store.hpp"
@@ -46,7 +48,7 @@ struct StoredGame {
     void absorb() {
         auto o = host.take();
         if (o.new_game) store.begin("2026-11-16-120000", host.session()->config().seed);
-        store.append(o.journal, o.replay);
+        store.append(o.journal, o.replay, o.replay_text);
         pending.insert(pending.end(), o.table.begin(), o.table.end());
         if (o.ai) ai = std::move(o.ai);
     }
@@ -88,6 +90,23 @@ TEST(RiftboundGameStore, NoGameNothingToResume) {
     const auto r = game::resume_latest(store, db(), host_config());
     EXPECT_EQ(r.host, nullptr);
     EXPECT_EQ(r.note, "");
+}
+
+TEST(RiftboundGameStore, AnUndoRewritesTheReplay) {  // #97
+    TempDir d;
+    game::GameStore store(d.path);
+    store.begin("2026-11-27-120000", 7);
+    store.append({"j1"}, {"a", "b", "c"});
+    store.append({"j2"}, {"d"}, std::string("a\nb\n"));  // the undo: the whole replay, then the new lines
+    store.append({"j3"}, {"e"});
+    const auto read = [](const fs::path& f) {
+        std::ifstream in(f);
+        std::stringstream t;
+        t << in.rdbuf();
+        return t.str();
+    };
+    EXPECT_EQ(read(d.path / "2026-11-27-120000-7.txt"), "a\nb\nd\ne\n");
+    EXPECT_EQ(read(d.path / "2026-11-27-120000-7.journal"), "j1\nj2\nj3\n");  // the journal only grows
 }
 
 TEST(RiftboundGameStore, AnUnfinishedGameResumes) {

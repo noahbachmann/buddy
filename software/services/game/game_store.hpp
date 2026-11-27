@@ -31,8 +31,10 @@ public:
 
     // A new game's files; `stamp` = its start time (yyyy-mm-dd-hhmmss), a name taken gets "-2", "-3", ….
     void begin(std::string_view stamp, std::uint64_t seed);
-    // After every take(): the journal's lines, then the replay's. Nothing open: dropped (no game).
-    void append(const std::vector<std::string>& journal, const std::vector<std::string>& replay);
+    // After every take(): the journal's lines, then the replay's. Nothing open: dropped (no game). `replay_text`
+    // (after an undo, #97) replaces the replay file first.
+    void append(const std::vector<std::string>& journal, const std::vector<std::string>& replay,
+                const std::optional<std::string>& replay_text = std::nullopt);
 
     // The newest game's files, if any.
     std::optional<SavedGame> latest() const;
@@ -45,7 +47,7 @@ public:
     const std::filesystem::path& journal_path() const { return journal_path_; }
 
 private:
-    std::filesystem::path dir_, journal_path_;
+    std::filesystem::path dir_, journal_path_, replay_path_;
     std::ofstream journal_, replay_;
 };
 

@@ -60,15 +60,29 @@ GameHost::GameHost(const riftbound::CardDb& db, HostConfig cfg) : db_(db), cfg_(
 }
 
 Reply GameHost::command(const json& cmd) {
+    std::string action;
     try {
         if (!cmd.is_object()) throw Bad{"a command is a JSON object"};
-        const std::string action = text(cmd, "action");
+        action = text(cmd, "action");
         if (action == "new") return start(cmd);  // records itself: the seed filled in
-        if (action != "act" && action != "reveal" && action != "resume" && action != "concede" && action != "voice") {
+        if (action != "act" && action != "reveal" && action != "resume" && action != "concede" && action != "voice" &&
+            action != "undo") {
             throw Bad{"unknown action " + action};
         }
         if (!session_) throw Bad{"no game: start one with new"};
         Session& s = *session_;
+        if (action == "undo") {
+            only(cmd, {"v"});
+            if (static_cast<std::int64_t>(number(cmd, "v")) != v_) {
+                throw Bad{"the game moved on: v " + std::to_string(v_) + ", not " + std::to_string(number(cmd, "v"))};
+            }
+            if (!can_undo()) throw Bad{"nothing to take back: Buddy has moved since"};
+            record({{"cmd", cmd}});  // the journal only: record() keeps undo lines out of lines_
+            lines_.pop_back();
+            undoable_.pop_back();
+            undo();
+            return {};
+        }
         if (action == "voice") {
             only(cmd, {"on"});
             if (!cmd.contains("on")) throw Bad{"missing on"};
@@ -85,7 +99,7 @@ Reply GameHost::command(const json& cmd) {
             s.resume();
         } else {
             only(cmd, {"v", action == "act" ? "i" : "cards"});
-            if (static_cast<std::int64_t>(number(cmd, "v")) != v_) {
+            if (!rebuilding_ && static_cast<std::int64_t>(number(cmd, "v")) != v_) {
                 throw Bad{"the game moved on: v " + std::to_string(v_) + ", not " + std::to_string(number(cmd, "v"))};
             }
             if (action == "act") {
@@ -112,9 +126,11 @@ Reply GameHost::command(const json& cmd) {
     } catch (const Refused& r) {
         return {false, r.what()};
     }
-    record({{"cmd", cmd}});
+    const std::size_t sent = out_.table.size();
     absorb();
     drive();
+    const bool dev_step = action == "act" || action == "reveal";
+    record({{"cmd", cmd}}, dev_step && out_.table.size() == sent);
     return {};
 }
 
@@ -201,7 +217,41 @@ std::optional<table::Command> GameHost::table_reconnected() const {
     return *c;
 }
 
-void GameHost::record(json line) { out_.journal.push_back(line.dump()); }
+void GameHost::record(json line, bool undoable) {
+    out_.journal.push_back(line.dump());
+    const auto cmd = line.find("cmd");
+    if (cmd != line.end() && cmd->value("action", "") == "undo") return;
+    if (cmd != line.end() && cmd->value("action", "") == "new") {
+        lines_.clear();
+        undoable_.clear();
+    }
+    lines_.push_back(out_.journal.back());
+    undoable_.push_back(undoable);
+}
+
+bool GameHost::can_undo() const {
+    if (!session_ || bot_ || undoable_.empty() || !undoable_.back()) return false;
+    const Status st = session_->status();
+    return st == Status::DevToAct || st == Status::DevToReveal || st == Status::BuddyThinking;
+}
+
+void GameHost::undo() {
+    GameHost fresh(db_, cfg_);
+    fresh.rebuilding_ = true;
+    fresh.restore(lines_);  // the same inputs minus the last: deterministic, so this can't fail
+    const std::uint64_t asked = session_->last_ai_id();
+    session_ = std::move(fresh.session_);
+    session_->continue_ai_ids(asked);
+    voice_ = fresh.voice_;
+    lines_ = std::move(fresh.lines_);
+    undoable_ = std::move(fresh.undoable_);
+    out_.table.clear();
+    out_.ai.reset();
+    out_.voice.clear();
+    out_.replay.clear();
+    out_.replay_text = session_->replay_text();
+    game_ = json();  // a new payload even if it equals an older one: `v` moves on
+}
 
 HostOutputs GameHost::restore(const std::vector<std::string>& journal) {
     if (session_) throw std::logic_error("restore: the host already runs a game");
@@ -276,6 +326,7 @@ HostOutputs GameHost::take() {
     if (session_) {
         json game = public_state(*session_);
         game["voice"] = voice_;
+        game["undo"] = can_undo();
         if (game != game_ || out_.new_game) {
             game_ = std::move(game);
             state_ = game_;

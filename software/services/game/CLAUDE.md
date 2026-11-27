@@ -143,7 +143,7 @@ input that can't be: `Refused` (the reason), nothing changes.
   three tokens by `code_of` key. The overload with `(s, options)` is for the leak test.
 - **`GameHost`**: one `Session` (+ `SimDev` for `dev: greedy|random`, answered inside at once). `command(json)` →
   `Reply {ok, message}`: `new {buddy: vi|zed, seed?, dev}` (refused while a game runs; Buddy = seat 0, the first
-  player is the engine's coin flip; `voice` default false), `act {v, i}`, `reveal {v, cards: [code…]}`, `resume`,
+  player is the engine's coin flip; `voice` default false), `act {v, i}`, `reveal {v, cards: [code…]}`, `undo {v}` (#97), `resume`,
   `concede`, `voice {on}`; an unknown
   field or value, a stale `v`, the wrong status → refused, nothing changes (numbers: unsigned too, seeds use 64
   bits, #53). `on_table`, `on_ai` pass through. `table_reconnected()`: the command in flight to resend when the
@@ -153,6 +153,14 @@ input that can't be: `Refused` (the reason), nothing changes.
   `take()`: table commands, AI request, voice, replay lines (`new_game` = a new file), the journal lines, and the
   payload when its game part changed (`v` + 1, from 1 per game; catalogue in every payload: web's patches carry only
   changes).
+- **Undo (#97, Dev's choice: only Dev's own steps):** `lines_` = this game's journal lines that still count, with an
+  undoable bit per line: an `act`/`reveal` whose processing sent no table command. `can_undo()` (payload `undo`): a
+  human Dev, the last line undoable, status DevToAct / DevToReveal / BuddyThinking (Buddy's answer not in yet).
+  `undo` = a fresh host restores `lines_` minus the last (`rebuilding_`: the old lines' `v` no longer match), its
+  session takes over; `v` goes on (+1), AI question ids go on after the old counter (`continue_ai_ids`: the worker's
+  late answer is dropped), `HostOutputs::replay_text` makes `GameStore::append` rewrite the replay file. The journal
+  keeps the undone line and gets `{"cmd":{"action":"undo"}}`; `restore` replays the undo the same way. Cost: a
+  restore of the game so far per undo (~2 s for a full game under ASan on the VM).
 - **Journal (#52):** every input that changed something is a JSON line (`{"cmd"}` accepted, `new` with its seed;
   `{"table"}` the in-flight seq's events; `{"ai": {id, action}}`; `{"table_lost": "timeout"|"restart"}`).
   `restore(lines)` feeds them into a fresh host with `take()` after each (the service does the same, so `v`
