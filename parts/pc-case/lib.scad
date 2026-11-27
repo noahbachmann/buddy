@@ -139,8 +139,8 @@ module lid() intersection() {   // one outline cut makes the plate's, back wall'
  }
 }
 // Front-edge hooks: a straight arm down from the lid's front edge (inner face flush with it, hook_gap outside the
-// tray plate's edge), a 3 × 3 hook under the plate. One extruded profile (y, z); a 45° wedge from the arm's inner edge
-// into the plate joins them (no coplanar faces). In print (top down) the hook's catching face is a 3 mm overhang.
+// tray plate's edge), a hook_len × hook_t hook under the plate. One extruded profile (y, z); a 45° wedge from the arm's inner edge
+// into the plate joins them (no coplanar faces). In print (top down) the hook's catching face is a hook_len overhang.
 hook_z0 = z_lid1 - hook_reach;
 hook_y1 = -hook_gap;                    // arm's inner face = lid's front edge
 module lid_hooks_2d() for (x = hook_xs) rect([x - hook_w / 2, x + hook_w / 2], [hook_y1 - hook_arm_t, 2]);
