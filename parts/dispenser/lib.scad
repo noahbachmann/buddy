@@ -314,6 +314,8 @@ module pusher(push = 0) translate([-push * push_stroke, 0, 0]) difference() {
   union() {
     for (r = [[push_y[0], push_y[1], pu_profile()], [bar_y[0], bar_y[1], front]])
       translate([0, r[0], 0]) mirror([0, 1, 0]) rotate([90, 0, 0]) linear_extrude(r[1] - r[0]) polygon(r[2]);
+    // round tab like the flange: the bar's width leaves no room for the nut's side pegs
+    hole_x(pu_y, pu_screw_z, nut_flange[0], tab_x[0], tab_x[1]);
     box([right_wall[0] + 1, right_wall[0] + (push_t - 1)], [push_y[0] - 1, push_y[0] + 1], [b + 2, b + (bar_h - 1)]);  // joint
   }
   // hollow between `thin` legs (front leg = the groove's contact face), from the tab to a `thin` end wall at the plate:
@@ -323,12 +325,14 @@ module pusher(push = 0) translate([-push * push_stroke, 0, 0]) difference() {
   box([tab_x[1], right_wall[0]], hy, [b - 1, b + (bar_h - thin)]);
   box([bar_x[0] - 1, bar_x[1] + 1], [hy[0], guide_yb() + groove_play[1]], [b - 1, b + groove_d]);   // groove under tab, end
   box([tab_x[1], tab_x[1] + 16], hy, [b + bar_h, b + (bar_h + 16)]);
-  // nut through the tab, flange on its right face (pushing presses the flange onto the tab), its 2 pegs pressed into
-  // the tab (they also carry the light return stroke)
+  // nut through the tab, flange on its right face (pushing presses the flange onto the tab), its 4 pegs pressed into
+  // the tab like the lift's (they also carry the light return stroke and hold the nut square)
   hole_x(pu_y, pu_screw_z, nut_d + 0.4, tab_x[0] - eps, tab_x[1] + eps, 1, flat = true);   // full tip would cut into the upper peg hole
   ph = peg_d + 2 * fit_press_h;
   assert(nut_pcd / 2 - ph / 2 - (nut_d + 0.4) / 2 >= 0.7, "pusher tab: too little between the nut hole and a peg hole");
-  for (s = [-1, 1]) hole_x(pu_y, pu_screw_z + s * nut_pcd / 2, ph, tab_x[0] - eps, tab_x[1] + eps, 1, flat = true);
+  assert(nut_flange[0] / 2 - nut_pcd / 2 - ph / 2 >= 1.2, "pusher tab: too little outside a peg hole");
+  for (o = [[-1, 0], [1, 0], [0, -1], [0, 1]] * nut_pcd / 2)
+    hole_x(pu_y + o[0], pu_screw_z + o[1], ph, tab_x[0] - eps, tab_x[1] + eps, 1, flat = true);
 }
 
 // Dev's change to the box: the right wall extended forward around the motor face (45° underneath, prints upright),
@@ -667,7 +671,7 @@ module lift_part(top) {
 module lift_nut(top) translate([lift_axis[0], lift_axis[1], top + stop_h - tab_t - nut_len]) lift_nut_outside();
 
 // --- TR8x8 nuts, printed (#63: pegs instead of screws, a pair per nut type) -----------------------------------
-// Pusher nut: flange at z 0..nut_flange[1] on the bed, body up; 2 pegs on the flange's top face go into the tab.
+// Pusher nut: flange at z 0..nut_flange[1] on the bed, body up; 4 pegs on the flange's top face go into the tab.
 // Lift nut: body on the bed, 45° cone up to the flange at the top, 4 pegs up into the tab. Axis = Z for both.
 // Outside only (stand-ins for the checks: no thread, no pegs)
 module nut_outside() {
@@ -694,7 +698,7 @@ module d_bore(h, gap = bore_gap) {
 module pusher_nut() difference() {
   union() {
     nut_outside();
-    for (s = [-1, 1]) translate([s * nut_pcd / 2, 0, nut_flange[1] - eps]) peg_z(nut_peg_h + eps);
+    for (a = [0 : 90 : 270]) rotate(a) translate([nut_pcd / 2, 0, nut_flange[1] - eps]) peg_z(nut_peg_h + eps);
   }
   tr8_thread();
 }
