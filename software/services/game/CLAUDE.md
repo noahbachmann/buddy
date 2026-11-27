@@ -132,13 +132,14 @@ input that can't be: `Refused` (the reason), nothing changes.
 - **`public_state(session)`** = `buddy/game/state` without `v` and catalogue, built from `public_view(s)` only:
   `status`, `pause {reason, message, resumable}`, `winner`, `turn`, `phase`, `turn_player`, `victory`, `decision {player, kind,
   purpose}`, `players.{buddy,dev}` (`points`, `legend`, `champion`, `base` (objects: `id`, `card` code, `exhausted`,
-  units `might` (layers), `damage`, `buffs`, `stunned`; `attached_to`, `empowered`, `keywords` ("Assault 2")),
+  units `might` (layers), `damage`, `buffs`, `stunned`; `attached_to`, `empowered`, `keywords` ("Assault 2"),
+  `effects` (#97: per source of a resolved spell/ability on it: `text` "Assault 2 · Ganking", `source` code, `until` turn|combat)),
   `runes` per domain ready/exhausted, `pool`, counts of `hand`/`deck`/`rune_deck`, `trash`/`banishment` codes),
   `battlefields` (`id` = the battlefield's object, `card`, `owner`, `controller`, `contested`, `units.{buddy,dev}`,
   `facedown` count), `chain` (`kind`, `card`, `controller`, `finalized`, `targets`), `showdown`, `options` (DevToAct:
   `i`, `text` = `option_text` on the public view, `group`, `card` only when named, `obj` = the object it acts on only
   when public: the panel puts the option on that card, #53), `prompt` (`kind`, `n`, `candidates`: code +
-  `left`, runes with `domain`), `log`. Players are `buddy`/`dev`, never seats. `catalogue(decks)`: every card + the
+  `left`, runes with `domain`), `log` (`turn`, `player`, `text`, `cards`: codes of the public cards the line names, #97). Players are `buddy`/`dev`, never seats. `catalogue(decks)`: every card + the
   three tokens by `code_of` key. The overload with `(s, options)` is for the leak test.
 - **`GameHost`**: one `Session` (+ `SimDev` for `dev: greedy|random`, answered inside at once). `command(json)` →
   `Reply {ok, message}`: `new {buddy: vi|zed, seed?, dev}` (refused while a game runs; Buddy = seat 0, the first

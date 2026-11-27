@@ -12,7 +12,8 @@ namespace {
 void card_codes(const nlohmann::json& j, std::vector<std::string>& out) {
     if (j.is_object()) {
         for (const auto& [k, v] : j.items()) {
-            if (k == "card" && v.is_string()) out.push_back(v.get<std::string>());
+            if ((k == "card" || k == "source") && v.is_string()) out.push_back(v.get<std::string>());
+            else if (k == "cards" && v.is_array()) for (const auto& c : v) out.push_back(c.get<std::string>());
             else card_codes(v, out);
         }
     } else if (j.is_array()) {
@@ -23,7 +24,7 @@ void card_codes(const nlohmann::json& j, std::vector<std::string>& out) {
 } // namespace
 
 TEST(RiftboundPublicState, SameForEveryArrangementOfHiddenCards) {
-    long compared = 0;
+    long compared = 0, effects = 0, linked = 0;
     std::set<std::string> statuses;
     for (int i = 0; i < 4; ++i) {
         const auto& [d0, d1] = kDecks[static_cast<std::size_t>(i % 2)];
@@ -34,6 +35,8 @@ TEST(RiftboundPublicState, SameForEveryArrangementOfHiddenCards) {
             const Session& s = *g.session;
             const auto want = game::public_state(s);
             statuses.insert(want["status"].get<std::string>());
+            effects += want.dump().find("\"effects\"") != std::string::npos;
+            for (const auto& l : want["log"]) linked += l.contains("cards");
             std::vector<std::string> codes;
             card_codes(want, codes);
             for (const auto& c : codes) {
@@ -52,6 +55,8 @@ TEST(RiftboundPublicState, SameForEveryArrangementOfHiddenCards) {
         EXPECT_TRUE(g.problems.empty()) << g.problems.front();
     }
     EXPECT_GT(compared, 1000);
+    EXPECT_GT(effects, 0);  // some payload showed a spell's effect on a unit (#97)
+    EXPECT_GT(linked, 0);
     for (const char* s : {"setup", "dev_to_act", "dev_to_reveal", "thinking", "acting", "over"}) {
         EXPECT_TRUE(statuses.contains(s)) << s;
     }

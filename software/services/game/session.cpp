@@ -899,9 +899,19 @@ void Session::narrate(const GameState& before, const Action& a) {
         // the chain and showdown before
         const bool context = a.kind == ActionKind::Pass ||
                              (before.decision.kind == DecisionKind::Choose && before.decision.purpose == riftbound::Purpose::OptionalCost);
-        std::string text = context ? riftbound::describe(riftbound::public_view(before), a) : riftbound::describe(pv, a);
+        const GameState pv_before = riftbound::public_view(before);
+        std::string text = context ? riftbound::describe(pv_before, a) : riftbound::describe(pv, a);
         for (std::size_t at; (at = text.find("hidden card")) != std::string::npos;) text.replace(at, 11, "a card");
-        log_.push_back({before.turn, who, std::move(text)});
+        std::vector<std::string> cards;
+        const auto named = [&](const GameState& v, ObjId id) {
+            if (id >= v.objects.size() || v.obj(id).card == riftbound::hidden_card()) return;
+            cards.push_back(code_of(v, id));
+        };
+        if (a.kind == ActionKind::Pass && !pv_before.chain.empty()) named(pv_before, pv_before.chain.back().source.id);
+        else if (a.kind == ActionKind::Pass && pv_before.showdown)
+            named(pv_before, pv_before.battlefields[pv_before.showdown->where].card);
+        else if (a.kind != ActionKind::Pass) named(pv, a.obj);
+        log_.push_back({before.turn, who, std::move(text), std::move(cards)});
         if (log_.size() > log_lines) log_.pop_front();
         pv.decision = now;
     }

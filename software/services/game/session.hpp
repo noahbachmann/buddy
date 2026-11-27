@@ -151,6 +151,7 @@ struct LogLine {
     int turn = 0;
     PlayerId player = 0;
     std::string text;
+    std::vector<std::string> cards;  // codes of the public cards the text names (the panel links them)
     bool operator==(const LogLine&) const = default;
 };
 inline constexpr std::size_t log_lines = 30;

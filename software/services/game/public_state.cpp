@@ -1,6 +1,7 @@
 #include "public_state.hpp"
 
 #include <algorithm>
+#include <cstdlib>
 #include <map>
 
 #include "riftbound/actions.hpp"
@@ -46,6 +47,7 @@ struct Builder {
             if (o.stunned) j["stunned"] = true;
         }
         if (o.attached != no_obj) j["attached_to"] = o.attached;
+        if (json fx = effects(id); !fx.empty()) j["effects"] = std::move(fx);
         if (o.empowered) j["empowered"] = true;
         if (riftbound::on_board(o.zone) || o.zone == riftbound::Zone::LegendZone) {
             json kw = json::array();
@@ -62,6 +64,45 @@ struct Builder {
             if (!kw.empty()) j["keywords"] = kw;
         }
         return j;
+    }
+
+    // Resolved spells' and abilities' effects on `id`, one entry per source in timestamp order: "Assault 2 · Ganking"
+    json effects(ObjId id) const {
+        json out = json::array();
+        std::vector<std::pair<ObjId, std::vector<std::string>>> by_source;
+        std::vector<riftbound::Duration> until;
+        for (const auto& e : pv.effects) {
+            if (e.subject.id != id || e.subject.gen != pv.obj(id).gen) continue;
+            std::string what;
+            const std::string kw(riftbound::to_string(e.keyword));
+            switch (e.kind) {
+                case riftbound::ModKind::Might:
+                case riftbound::ModKind::RaiseMight:
+                    what = (e.value >= 0 ? "+" : "−") + std::to_string(std::abs(e.value)) + " Might";
+                    break;
+                case riftbound::ModKind::BaseMight: what = "Might " + std::to_string(e.value); break;
+                case riftbound::ModKind::Grant: what = e.value > 1 ? kw + " " + std::to_string(e.value) : kw; break;
+                case riftbound::ModKind::Lose: what = "loses " + kw; break;
+            }
+            auto it = std::find_if(by_source.begin(), by_source.end(), [&](const auto& x) { return x.first == e.source.id; });
+            if (it == by_source.end()) {
+                by_source.push_back({e.source.id, {}});
+                until.push_back(e.duration);
+                it = by_source.end() - 1;
+            }
+            it->second.push_back(std::move(what));
+        }
+        for (std::size_t i = 0; i < by_source.size(); ++i) {
+            const auto& [src, parts] = by_source[i];
+            std::string text = parts.front();
+            for (std::size_t k = 1; k < parts.size(); ++k) text += " · " + parts[k];
+            json e = {{"text", text}};
+            if (src < pv.objects.size() && !hidden(src)) e["source"] = code_of(pv, src);
+            if (until[i] == riftbound::Duration::Turn) e["until"] = "turn";
+            if (until[i] == riftbound::Duration::Combat) e["until"] = "combat";
+            out.push_back(std::move(e));
+        }
+        return out;
     }
 
     json objects(const std::vector<ObjId>& ids) const {
@@ -235,7 +276,11 @@ json public_state(const Session& session, const GameState& s, const std::vector<
         j["prompt"] = {{"kind", to_string(p->kind)}, {"n", p->objs.size()}, {"candidates", candidates(session, s, *p)}};
     }
     json log = json::array();
-    for (const auto& l : session.log()) log.push_back({{"turn", l.turn}, {"player", b.who(l.player)}, {"text", l.text}});
+    for (const auto& l : session.log()) {
+        json e = {{"turn", l.turn}, {"player", b.who(l.player)}, {"text", l.text}};
+        if (!l.cards.empty()) e["cards"] = l.cards;
+        log.push_back(std::move(e));
+    }
     j["log"] = log;
     return j;
 }
