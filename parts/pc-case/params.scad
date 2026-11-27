@@ -17,7 +17,7 @@ tray_wall_x = 255;       // outer face of the tray's right wall (95 to the heats
 slit_w    = 3;
 slit_tab_t = 2.0;        // 0.5 play each side
 slit_tabs_left  = [68, 103];   // ⚠️ y spans (slits seen 58–107; the left ribbon leaves at ~60)
-slit_tabs_right = [55.5, 92];  // ⚠️ was 62–100: 8 towards the front, 1.5 shorter (Dev 2026-11-26)
+slit_tabs_right = [55.5, 89];  // ⚠️ was 62–100: 8 towards the front, 1.5 shorter (Dev 2026-11-26); back end 3 off the cooler (Dev 2026-11-27)
 plate_z   = 1;           // ⚠️ top of the silver plate under the board: the tabs stand on it
 // The silver plate continues behind the board (y > 210) to x ≈ 200, under the cover's left and back walls:
 // they stop above it (and above the antenna wires running along the fan's edge).

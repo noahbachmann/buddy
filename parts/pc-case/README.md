@@ -38,8 +38,8 @@ hook overhangs print without). Plates 2.4 mm.
   cover or not. ⚠️ The tray must not stand flat on the table at its front edge (the hooks reach 1.6 below the plate).
   In print, each hook's catching face is a 3 × 20 overhang (Bambu prints that).
 - In the ~3 mm slits between the board's edges and the tray walls: 2.0 mm tabs (0.5 play each side), standing on the
-  silver plate 8 mm under the board. They carry the lid. Left y 68–103, right y 55.5–92 (y from the front edge; Dev 2026-11-26: 8 towards the front, 1.5
-  shorter).
+  silver plate 8 mm under the board. They carry the lid. Left y 68–103, right y 55.5–89 (y from the front edge; Dev 2026-11-26: 8 towards the front, 1.5
+  shorter; 2026-11-27: back end 3 off the cooler).
 - Over the CPU block (x 38–165, y 106–197): plate 1.2 instead of 2.4, thinned from below, and no mount bosses: 1.2 more
   air under the bars, 3.2 under the nodes (Dev 2026-11-26). The top stays flat: it's the print bed face.
 - Cable notches: left edge y 54–66 (ribbon out through the left slit), right edge y 104–128 (ribbons out over the
