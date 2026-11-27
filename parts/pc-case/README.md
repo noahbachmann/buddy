@@ -16,7 +16,7 @@ stays: it continues behind the board, under the cover's left and back walls.
 | `hook-test` | One lid front-edge hook with 10 mm of the lid's front band each side, cut from the real lid: snap it over the tray's front edge to check reach, hook and play | `plates/0-hook-test`, top down | 4 g |
 | `cover-top` | Over the cooler (4 mm off the heatsink on the right: felt), standing on cover-bottom: lattice top (1.2), slotted intake over the fan hub, exhaust slits over the heatsink's outlet face (from 14.8 mm up), windows. Its walls facing the tray stand on the lid and carry 4 screw bosses (lid to top, head recessed); over the tray wall and the silver plate its walls stop above them | `plates/1-cover-top`, top down | 64 g |
 | `cover-bottom` | Lattice floor (1.6) under the raised heatsink and in front of it; solid 0.8 floor under the fan outside the tray (it lies flat on the table: no bending to carry) that the fan stands on; 5 low nut tabs (≤ 11.6, under the heatsink) for cover-top | `plates/3-cover-bottom`, floor down | 24 g |
-| `lid` | Lattice plate between the tray walls (front 60 mm over the metal shield: open; ~14 mm windows behind it), 4 tabs into the slits beside the board that carry it, a 25 mm wall down its back edge, 14 top-module and 4 cover nut bosses underneath, 3 cable notches, thinner over the CPU | `plates/2-lid`, top down, 252 mm wide: alone on the plate | 93 g |
+| `lid` | Lattice plate between the tray walls (front 60 mm over the metal shield: open; ~14 mm windows behind it), 4 tabs into the slits beside the board that carry it, a 25 mm wall down its back edge with 3 hooks, 14 top-module and 4 cover nut bosses underneath, 3 cable notches, thinner over the CPU | `plates/2-lid`, top down, 252 mm wide: alone on the plate | 93 g |
 
 All: PETG, 0.20 mm, 3 walls, 15 %, no supports (no overhang > 45°, no bridge, no floating layer; the lid's two 3 mm
 hook overhangs print without). Plates 2.4 mm.
@@ -31,6 +31,8 @@ hook overhangs print without). Plates 2.4 mm.
 - Back edge (y 210), left side up to the cover: a 2.4 wall down to z 9 (25 from the top; Dev 2026-11-26: 3 deeper),
   notched for the antenna wires. ⚠️ Its bottom edge is level with the board's top face (plate 1 + 8, from the params):
   nothing on the board may stand under it there.
+  3 hooks at its bottom (20 wide at x 15, 80, 145; Dev 2026-11-27): 4 long towards the front, 2 thick, inside the
+  wall's height (z 9–11, the wall gets no deeper). ⚠️ They reach over the board's back edge: nothing tall there.
 - Front edge (y 0, over the metal shield): 2 hooks, 20 wide at x 50 and 215: a straight 2.0 arm down 33.6 from the
   lid's top, its inner face flush with the lid's front edge (0.3 out past the tray plate's edge: play), a hook 1.6
   high and 4 long pointing in under the silver plate (its top 32 under the lid's top: Dev measured the plate's

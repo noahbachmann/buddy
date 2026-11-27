@@ -32,6 +32,7 @@ assert(cb_head - (head_bore - 5.5) / 2 - seam_screw_l < z_lid - boss_h + 0.1, "s
 assert(cpu_zone_x[0] > perim && cpu_zone_y[1] < board[1] - wall_t - 1 && cpu_zone_x[1] < lid_x1 - perim,
        "CPU zone reaches the lid's edge band or back wall");
 assert(z_lid1 - back_wall_h >= plate_z + 8, "back wall reaches below the board's top face");
+assert(max(back_hook_xs) + hook_w / 2 < cable_back[0] && min(back_hook_xs) - hook_w / 2 > lid_gap, "back hooks off the wall or in the antenna notch");
 bt_z = floor_t + 4.5;                       // cover-bottom ↔ cover-top screws
 assert(floor_t + bottom_tab_h < hs_z0 - 1, "bottom tabs reach the heatsink");
 assert(bt_z - nut_slot[0] / cos(30) / 2 > floor_t, "bottom tab nut slot cuts into the floor");
@@ -130,6 +131,7 @@ module lid() intersection() {   // one outline cut makes the plate's, back wall'
     lid_slit_tabs();
     lid_hooks();
     lid_back_wall();
+    lid_back_hooks();
     for (n = lid_nodes()) lid_mount(n);
     for (q = seam_screws()) lid_mount(q, seam_boss_d);   // cover screws come down into these
   }
@@ -150,6 +152,9 @@ module lid_hooks() for (x = hook_xs) translate([x - hook_w / 2, 0, 0]) rotate([9
            [hook_y1 - hook_arm_t, z_lid1 + 1]]);
 // Back edge, left side up to the cover's seam wall: hangs down from the plate (grows up in print).
 module lid_back_wall() box([-1, lid_x1 + 1], [board[1] - wall_t, board[1] + 1], [z_lid1 - back_wall_h, z_lid + 1]);
+// Its 3 hooks: at the wall's bottom pointing to the front, inside the wall's height (the wall gets no deeper).
+module lid_back_hooks() let(y0 = board[1] - wall_t, z0 = z_lid1 - back_wall_h) for (x = back_hook_xs)
+  box([x - hook_w / 2, x + hook_w / 2], [y0 - back_hook_len, y0 + 1], [z0, z0 + back_hook_t]);
 
 // --- cover: over the cooler, standing on the table; seam walls stand on the lid --------------
 module cover_openings_2d() {
