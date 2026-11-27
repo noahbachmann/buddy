@@ -1,6 +1,7 @@
 # Buddy – Desk Robot
 
-Stationary desk robot: a voice assistant first ("Hey buddy, play Spotify"), then an expressive head, a robotic hand, and finally an arm with vision.
+Stationary desk robot: a voice assistant first ("Hey buddy, play Spotify"), now a Riftbound opponent that handles its own
+real cards: card dispensers next to the play mat and a "hand" that moves over the mat and docks onto them.
 
 This file is the single source of truth for roadmap, architecture, decisions, progress and working rules.
 
@@ -20,7 +21,7 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 | `skeleton/CLAUDE.md` | Code quick reference: service pattern (C++ and Python), shared helpers, deploy scripts, tests |
 | `skeleton/services/web/CLAUDE.md` | Web panel internals: server, state stream, `www/` page structure |
 | `skeleton/services/game/CLAUDE.md` | Riftbound engine as it is now: the loop, hidden information, hook points for cards, invariants, test helpers, gotchas |
-| `skeleton/services/table/CLAUDE.md` | Buddy's physical cards (5.5): tracker procedures, sim faults, soak, gotchas |
+| `skeleton/services/table/CLAUDE.md` | Buddy's physical cards (2.5): tracker procedures, sim faults, soak, gotchas |
 | `skeleton/services/screener/CLAUDE.md` | The screener service (#66): screen model, navigator, fixtures, measured gotchas |
 | `skeleton/android/screener-ime/CLAUDE.md` | The screener phone's keyboard (#66): adb commands, build and install, gotchas |
 | `parts/CLAUDE.md` | CAD toolchain (pinned OpenSCAD nightly, BOSL2, NopSCADlib, Python checks), conventions for printable parts |
@@ -52,10 +53,11 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 | 1 – Voice (extra) | 1.13 Hue lights, 1.14 web panel (#6), 1.15 Nest speakers over Bluetooth (D20, #17): done 2026-10-30 (side issue: Deferred → Bathroom Bluetooth) | ✅ |
 | 1 – Voice (extra) | 1.16 messenger: Buddy's notices and questions in Dev's Telegram chat (D22, #68): done 2026-11-15: paired, verified on the Pi (notice, button answer across a restart, offline → back online alert) | ✅ |
 | 1 – Voice (extra) | 1.17 system monitor: host metrics (CPU, RAM, disk, temp, fan, net, throttle flags) as per-host cards on the panel (D23, #70): done 2026-11-16 | ✅ |
-| 2 – Head | 2.1 printer: guide not written yet. 2.2 motion controller: Pi setup, firmware and flash done; wiring and servo test (guide steps 1–3, 9) open. 2.3 motion service + demo gesture ("cut off Andi's balls"): code and tests done, deployed 2026-10-29 (waits with `connected:false` while the Pico is unplugged); Verify open. 2.4 eyes: postponed (Dev, 2026-10-30). 2.5 head pan/tilt and 2.6 head & body: plans in `docs/plans/` | 🟨 |
-| 3 – Hand | 3.1 – 3.4 | ⬜ |
-| 4 – Arm & vision | 4.1 – 4.3 | ⬜ |
-| 5 – Riftbound | plan in `docs/02-riftbound/design.md` (#18); 5.1 – 5.6 software against a simulated table now, 5.7+ hardware after Phase 4. 5.1 card data & decks: done 2026-11-01 (#19, both lists checked against the boxes). 5.2 rules engine (#20): design, state, setup and mulligan done 2026-10-31 (#21); turns, runes, costs, Burn Out and random games done 2026-10-31 (#22); playing cards, chain, priority and cleanups done 2026-10-31 (#23); abilities, targeting, costs and layers done 2026-10-31 (#24); movement, showdowns, combat and scoring done 2026-10-31 (#25); game actions and the decks' keywords done 2026-11-01 (#26); hidden information, replay and the 1000-game gate done 2026-11-01 (#27): **5.2 done**. 5.3 cards: every card of both decks with rules, one test each, the 1000-game gate with rules done 2026-11-01 (#33): **5.3 done**, rulings in the plan ("5.3 as built"), all confirmed by Dev 2026-11-01. 5.4 AI: design and sub-issues 2026-11-01 (#39); arena (#34) and v1 greedy (#35, 190/200 vs random) done 2026-11-01; engine speed (#36: 2.6× with checks, 3.8× engine only on the Pi, same games) done 2026-11-01; v2 ISMCTS (#37, 160/200 vs greedy at 1000 iterations) and Pi budget + tuning (#38: 2 s, 3 threads, ~78k iterations, p95 2.003 s) done 2026-11-01: **5.4 done**. 5.5 `table` + sim (#45): protocol, tracker, sim faults, engine moves → table commands, soak (10k greedy games under stress: 0 unrecovered at `confirm_reads` 3) and the `table` service done 2026-11-04: **5.5 done**. 5.6 `game` + panel: design and sub-issues 2026-11-04 (#46: #47–#53; Dev plays real cards); engine: binding revealed cards, public view, replay reveals, Vision peek timing done 2026-11-16 (#47); session: step protocol and Buddy's side done 2026-11-16 (#48); Dev's real cards (options by card, reveal prompts, SimDev, 50 SimDev games clean) done 2026-11-16 (#49); public state, commands, voice lines (payload + leak test, command host, voice per action group) done 2026-11-16 (#50); session soak and terminal play: **the gate passed** (1000 stress games SimDev greedy vs Buddy greedy: 0 unrecovered, 0 desyncs, 0 leaks; 50 vs ISMCTS clean; real cards cost Dev ~65 taps per game) and `buddy-game --sim` in the terminal done 2026-11-16 (#51); Dev declares, the referee records (no picks from Dev's placeholders, the gate again clean) done 2026-11-16 (#73); service and deploy: `buddy@game` on the Pi (journal: a restart resumes the game, table timeout and restart pauses, AI on its own thread; a stress bot game and a mid-game restart played to the end on the Pi, ears unaffected while Buddy thinks) done 2026-11-16 (#52); Riftbound page on the panel (`#riftbound`: board, Dev's moves on their cards, prompts, resume/concede, new game; two #52 bugs fixed: big seeds didn't restore, a table back on the broker ended the game) done 2026-11-16, Dev's live game open (#53) | 🟨 |
+| 2 – Riftbound | Software against a simulated table (#18, design: `docs/02-riftbound/design.md`): 2.1 card data & decks, 2.2 rules engine, 2.3 cards of both decks, 2.4 AI (greedy + ISMCTS, 2 s on 3 threads on the Pi), 2.5 `table` + sim (soak: 0 unrecovered), 2.6 `game` service + panel page (#46: built and deployed 2026-11-16, the gate passed). Open: Dev's live game (#53) | 🟨 |
+| 3 – Hand dispenser | Hand pile + graveyard on one dispenser, a hold on top swaps the stacks (#93). `parts/dispenser`: roller, lift, pusher designed; plates being printed | 🟨 |
+| 4 – Deck dispenser | Draw pile, inserts on top and bottom for recycled cards (#94) | ⬜ |
+| 5 – Playfield & hand | A machine that moves over the mat and docks onto the dispensers; runes in it or in a small dispenser (#95) | ⬜ |
+| Side projects | Motion controller (Pico 2 + servos, motion service: code deployed, wiring and servo test open, `docs/motion-controller/`, D17) · screener (#66) · PC case (#87) | 🟨 |
 
 Legend: ⬜ not started · 🟨 in progress · ✅ done
 
@@ -65,24 +67,17 @@ What's left right now, in order. Update it with the progress table; GitHub issue
 
 **Dev** (needs the hardware, the voice or the room):
 
-1. **Motion live** (2.2 → 2.3): wire supply, Pico and a servo on ch0 (2.2 steps 1–3), plug the Pico into the Pi,
-   picocom test (2.2 step 9), then 2.3 Verify (incl. the demo gesture). Then tick 2.2 and 2.3 in the progress table.
-2. **Live check** for #12: "Hey Jarvis, play Spotify" ducks, plays, and Buddy answers without delay (idle loops changed).
-3. **Decisions** in `docs/plans/02-05-head-pan-tilt.md` and `02-06-head-body.md` (end of each), then fill in
-   `docs/plans/02-06-cad-prompt.md` (measurements after 2.1 and the parts order).
-4. **Riftbound live game** (#53): `docs/02-riftbound/live-game.md`: a full game against Buddy with real cards on the
-   page, notes into #53. Then tick 5.6 and close #53 and #46.
+1. **Riftbound live game** (#53): `docs/02-riftbound/live-game.md`, notes into #53. Then tick 2.6, close #53 and #46.
+2. **Dispenser prints and assembly**: the checkboxes in #93.
+3. **Live check** for #12: "Hey Jarvis, play Spotify" ducks, plays, and Buddy answers without delay (idle loops changed).
+4. Side projects when wanted: screener to-dos in #66; motion controller wiring (`docs/motion-controller/pico.md` steps
+   1–3, 9, then `service.md` Verify).
 
 **Claude** (code and guides):
 
-1. #13 voice seek ("fast-forward 30 seconds", "go back 2 minutes").
-2. 2.1 printer guide (tolerance tests for CAD offsets): the 2.5 neck module is the first print that needs them.
-3. 2.5 / 2.6 per `docs/plans/` once Dev has made their decisions: neck module CAD (prompt stage 1), joint table,
-   `behaviour` service; then body CAD (stage 2). 2.4 eyes later (decide: Pico or Pi drives the display, 2.2 → Notes
-   for later phases).
-4. Phase 5 (#18) per `docs/02-riftbound/design.md`, runs in parallel with the hardware steps: 5.6 `game` service +
-   panel (#46) built (#47–#53, #73: "5.6 as built"); after Dev's live game, Dev's notes (pacing, prompts, layout).
-   5.7+ hardware after Phase 4.
+1. Phase 3 (#93): dispenser changes from Dev's prints; then the electronics and the `table` hardware backend.
+2. After Dev's live game: Dev's notes (pacing, prompts, layout) for 2.6.
+3. #13 voice seek ("fast-forward 30 seconds", "go back 2 minutes").
 
 Phase 1 → Deferred lists what waits for a reason (wake word CPU, next voice session, custom "Hey buddy", LLM brain).
 
@@ -108,12 +103,12 @@ Phase 1 → Deferred lists what waits for a reason (wake word CPU, next voice se
 | D14 | Recovery | `buddy@.service` is `Type=notify` with `WatchdogSec=60` (READY from `Mqtt::start`, pings from each main loop, `shared/systemd.*` / `buddy_shared.systemd`, no libsystemd). Crashes restart with backoff 1 → 30 s and never give up. No core files. | ✅ |
 | D15 | Python services | uv workspace in `skeleton/` (`pyproject.toml` + `uv.lock`, members listed explicitly). `shared/python/buddy_shared` mirrors the C++ shared helpers; `shared/topics.json` is the single topic list (CMake generates `topics.hpp`). On the Pi: uv in `~/.local/bin` (pinned), Debian's Python, one venv `~/buddy/venv`, console script linked into `~/buddy/bin`, same unit template. | ✅ |
 | D16 | Voice data | Recordings are personal data and the repo is public: never in Git. Master copy on Dev's PC in `~/buddy-voice` (backed up); the Pi keeps the recorded sessions too (pull copies, never deletes), not the labelled live clips. Training runs on Dev's PC (NVIDIA GPU, CUDA 12.8 PyTorch). | ✅ |
-| D17 | Motion controller | Raspberry Pi Pico 2 H on the Pi's USB, servos on its GPIO hardware PWM (50 Hz, 16 outputs), no PCA9685. Firmware C++ with Pico SDK 2.3.1 (FetchContent) in `skeleton/firmware/pico-motion` (one folder per Pico role: `pico-<job>`; this one drives every servo: head, hand, arm), built and flashed on the Pi (`deploy.sh --firmware`, picotool 2.3.1 in `/opt/picotool`). Text protocol v1 over USB CDC (`/dev/buddy-pico`), header shared with motion. The Pico enforces per-channel pulse limits and relaxes all servos 2 s after the last command. Servo power: separate 5 V supply, shared ground, never via the Pi or the Pico's VBUS/VSYS. | ✅ |
+| D17 | Motion controller (side project) | Raspberry Pi Pico 2 H on the Pi's USB, servos on its GPIO hardware PWM (50 Hz, 16 outputs), no PCA9685. Firmware C++ with Pico SDK 2.3.1 (FetchContent) in `skeleton/firmware/pico-motion` (one folder per Pico role: `pico-<job>`; this one drives every servo), built and flashed on the Pi (`deploy.sh --firmware`, picotool 2.3.1 in `/opt/picotool`). Text protocol v1 over USB CDC (`/dev/buddy-pico`), header shared with motion. The Pico enforces per-channel pulse limits and relaxes all servos 2 s after the last command. Servo power: separate 5 V supply, shared ground, never via the Pi or the Pico's VBUS/VSYS. | ✅ |
 
 | D18 | Lights | Philips Hue via the Hue Bridge's local CLIP v2 API (no cloud, no Hue account): service `hue`. TLS verified against Hue's `root-bridge` CA (compiled in) with the bridge id as host name (`CURLOPT_RESOLVE` → bridge IP). Application key from `buddy-hue --pair` (link button) in `~/buddy/config/hue.json`. Live state from the bridge's eventstream → retained `buddy/hue/state`. Hue Bridge Pro would need its newer CA ⚠️. | ✅ |
 | D20 | Nest speakers | The two Nests play over **Bluetooth A2DP** (SBC) from the Pi: Spotify Soloist ("Buddy", hidden; sandboxed, weekly build update) → PipeWire sink `buddy_music` → the selected Nest; Buddy's voice → `buddy_voice` → that Nest while music plays there (60 %), else the Jabra. Service `speakers` (C++, `pactl`/`pw-link`/`bluetoothctl`, event-driven): connects on demand, one Nest at a time (the Pi refuses a second A2DP link), disconnects after 10 min without music, ducks `buddy_music` locally. spotify lists the Nests (`bt:<mac>`) in Soloist's place. Not Cast: Buddy can't start Spotify on an idle Nest (403 without Spotify's own desktop login), Soloist can't cast, Cast streaming lags ≥ 3.9 s (#16). | ✅ |
-| D19 | Web panel | Service `web` (C++, cpp-httplib pinned via FetchContent): static page + HTTP⇄MQTT bridge, no skill logic. Retained `buddy/+/state` and `/status` → browser (server-sent events); `POST /api/cmd/<svc>` → `buddy/<svc>/cmd` (non-planned command topics only). `http://buddy.local:8080`, LAN only, **no login**: Host allowlist (IP, `*.local`, `BUDDY_WEB_HOSTS`) against DNS rebinding, JSON-only same-origin POSTs against other sites in the same browser. Add auth before anything that moves (motion) goes on the page: `"web": false` in topics.json keeps `buddy/motion/cmd` off it. Riftbound (`#riftbound`, 5.6): `buddy/game/cmd` is on the page without a login while the table is a sim; a login comes before the table drives motion (5.7). | ✅ |
-| D21 | Card game | Riftbound (Phase 5): **own C++ rules engine, no LLM**: code is the referee, search (heuristic, then ISMCTS over Dev's hidden cards) picks the plays. alpharune is reading material only (no license). Cards scoped to two precons (Vi, Unleashed; Zed, Vendetta); an unimplemented card is a hard error. Rules: Core Rules 2026-10-09 (the Rules Hub serves only the current document). Card data from the Riftcodex API, fetched on the Pi. Services `game` (rules, AI, which cards are in hand) and `table` (physical piles, hand order, scan/recover; sim backend now, hardware later). | ✅ |
+| D19 | Web panel | Service `web` (C++, cpp-httplib pinned via FetchContent): static page + HTTP⇄MQTT bridge, no skill logic. Retained `buddy/+/state` and `/status` → browser (server-sent events); `POST /api/cmd/<svc>` → `buddy/<svc>/cmd` (non-planned command topics only). `http://buddy.local:8080`, LAN only, **no login**: Host allowlist (IP, `*.local`, `BUDDY_WEB_HOSTS`) against DNS rebinding, JSON-only same-origin POSTs against other sites in the same browser. Add auth before anything that moves (motion) goes on the page: `"web": false` in topics.json keeps `buddy/motion/cmd` off it. Riftbound (`#riftbound`, 2.6): `buddy/game/cmd` is on the page without a login while the table is a sim; a login comes before the table drives hardware (Phase 3). | ✅ |
+| D21 | Card game | Riftbound (Phase 2): **own C++ rules engine, no LLM**: code is the referee, search (heuristic, then ISMCTS over Dev's hidden cards) picks the plays. alpharune is reading material only (no license). Cards scoped to two precons (Vi, Unleashed; Zed, Vendetta); an unimplemented card is a hard error. Rules: Core Rules 2026-10-09 (the Rules Hub serves only the current document). Card data from the Riftcodex API, fetched on the Pi. Services `game` (rules, AI, which cards are in hand) and `table` (physical piles, hand order, scan/recover; sim backend now, the dispensers and the playfield machine from Phase 3). | ✅ |
 | D22 | Reaching Dev | Service `messenger` (C++, Telegram Bot API over libcurl): notices and questions from any service go to Dev's private **Telegram** chat with Buddy's own bot, answers come back on the bus (`buddy/messenger/cmd` → `buddy/messenger/event`). Named after the job: askers never see the vendor. Outbound HTTPS only (long poll; no open port, no webhook). Only the paired account's private chat is heard, everyone else gets no answer. Bot chats are **not end-to-end encrypted**: a service sends only what may sit on Telegram's servers. `cmd` is `"web": false` and `state` carries counts only (the panel has no login, D19); message texts never reach the journal. Bot token + chat from `buddy-messenger --pair` in `~/buddy/config/messenger.json`. A built-in watcher reports services that stay offline or keep restarting. Email dropped: replies need IMAP + quote parsing, Proton has IMAP only through its Bridge and SMTP tokens only for custom domains. "What's the status" / `/status` in the chat answers with one line per host (from `buddy/system*/state`, D23) plus the service watcher summary; other commands to Buddy from the chat ("lights off"): later. | ✅ |
 
 | D23 | Host monitoring | Own service `system` (C++, /proc + /sys + `vcgencmd get_throttled`), no node_exporter/Prometheus/Grafana: retained `buddy/system/state` every 5 s (published only on change), card per host on the panel, live values only. Extra hosts set `BUDDY_SYSTEM_NAME` → service `system-<name>` with its own client id and `buddy/system-<name>/{state,status}`, so everything (web's `buddy/+/state`, status, last will, messenger watcher) works unchanged. Dashboard-only; metric alerting (temp, disk) deliberately left to a later watcher. | ✅ |
@@ -131,7 +126,7 @@ Update this table when a decision is made or changed.
                                                                         │
         ┌────────────────┬──────────────────────────┬───────────────────┼────────────────┐
         ▼                ▼                          ▼                   ▼                ▼
-   [voice] TTS     [spotify] skill ──Web API──►  [hue] skill ──LAN──►  [motion] ──USB──► Pico (servos, eyes)
+   [voice] TTS     [spotify] skill ──Web API──►  [hue] skill ──LAN──►  [motion] ──USB──► Pico (servos, side project)
         │           Spotify devices; "Buddy" =     Hue Bridge
         │           Soloist on the Pi              (eventstream back)
         ▼                │ music
@@ -139,6 +134,8 @@ Update this table when a decision is made or changed.
         └──────────────────────────► [speakers] ──► that Nest while music plays there, else the Jabra speaker
                                         phone / PC browser ◄──HTTP──► [web] panel ◄──► MQTT (state in, commands out)
         any service ──MQTT──► [messenger] ──HTTPS──► Telegram ──► Dev's phone (notices; questions, answers back on MQTT)
+
+ Riftbound:  panel (Dev's moves) ──► [game] rules + AI ──► [table] piles, hand order ──► sim now; dispensers + hand (Phases 3–5)
 ```
 
 - Every component is a small, independent service with one job.
@@ -166,58 +163,52 @@ Speech-to-text training: `docs/voice-training.md`.
 - **Next voice session**: #67 (done 2026-11-17) grew the corpus (every `test` word 5× in `train`, Dev's short forms
   from live use) and retrained: intent 67 → 87 / 89, WER 12.5 → 1.2 % (summary 1.7). Open: whisper heard "switch
   all" as "switch on" before the last test session was re-recorded; if it comes back, a brain guard ("switch on/one
-  lights off" = all) was weighed and left out (it would be tuned on test clips). Until 2.6: `train.sh history` every
-  ~100 live commands, retrain at a few hundred. After 2.6 (new mic position): a fresh test session first.
+  lights off" = all) was weighed and left out (it would be tuned on test clips). Ongoing: `train.sh history` every
+  ~100 live commands, retrain at a few hundred. After the Jabra moves: a fresh test session first.
 - **Custom "Hey buddy"** (summary guide 1.6): train with box music in the negatives; the training could move into
   `tools/` like speech-to-text.
 - **LLM brain:** implement `IntentParser`; keep the rules as the fast path.
 - **Bathroom Bluetooth crackles** (seen 2026-10-30): with a phone between the Pi and the Nest Mini (−69 dBm through
   walls) the music crackles at times. PipeWire already lowers SBC's bitrate on a struggling link; the levers are
   hardware: a USB Bluetooth adapter with an external antenna placed higher (would also allow two Nests at once ⚠️), or
-  the Pi's antenna unshielded in the 2.6 body. Quick check first: the phone on 5 GHz Wi-Fi.
+  the Pi's antenna unshielded in a future housing. Quick check first: the phone on 5 GHz Wi-Fi.
 - **Persistent journald** (`Storage=persistent`, `SystemMaxUse=50M`) for boot post-mortems.
 
-## Phase 2 – Head & personality
+## Phase 2 – Riftbound
 
-| Step | Summary | Guide |
-|---|---|---|
-| 2.1 3D printer | Set up the Bambu Lab X2D + AMS. Print tolerance tests (holes, clearances, PETG with PLA support interface) to find CAD offsets. | `docs/guides/02-01-printer.md` |
-| 2.2 Motion controller | Pico 2 H, servos on its hardware PWM, separate 5 V servo supply. USB serial link to the Pi, firmware flashed from the Pi (D17). | `docs/motion-controller/pico.md` |
-| 2.3 Motion service | `[motion]`: MQTT commands → Pico serial protocol. | `docs/motion-controller/service.md` |
-| 2.4 Eyes | Round display (e.g. GC9A01) with states: idle, listening, thinking, playing. | `docs/guides/02-04-eyes.md` |
-| 2.5 Head pan/tilt | Two servos. Head turns toward the user on wake word. | `docs/guides/02-05-head.md` |
-| 2.6 Head & body design | Onshape CAD, print head and body housing the Pi (PETG; PLA only away from heat). Retrain speech-to-text afterwards (the mic sounds different). | `docs/guides/02-06-body-design.md` |
-
-## Phase 3 – Hand
-
-| Step | Summary | Guide |
-|---|---|---|
-| 3.1 Hand design | Start from the InMoov hand (tendon-driven), remix as needed. | `docs/guides/03-01-hand-design.md` |
-| 3.2 Print & assemble | Fingers and palm, tendons, 5 servos. | `docs/guides/03-02-hand-build.md` |
-| 3.3 Hand control | Finger positions and gestures in the motion service. | `docs/guides/03-03-hand-control.md` |
-| 3.4 Voice gestures | "Hey buddy, wave / high five". | `docs/guides/03-04-gestures.md` |
-
-## Phase 4 – Arm & vision
-
-| Step | Summary | Guide |
-|---|---|---|
-| 4.1 Arm | 2–3 joints, stronger servos, mounted to the body. | `docs/guides/04-01-arm.md` |
-| 4.2 Camera | Pi Camera Module 3, face detection. | `docs/guides/04-02-camera.md` |
-| 4.3 Face tracking | Head follows the user. | `docs/guides/04-03-face-tracking.md` |
-
-## Phase 5 – Riftbound
-
-Buddy plays Riftbound against Dev with real cards. Plan, decisions and architecture: `docs/02-riftbound/design.md` (D21).
+Buddy plays Riftbound against Dev with real cards (D21). Software first, against a simulated table (#18). Design and
+as built: `docs/02-riftbound/design.md`; how the code runs: `skeleton/services/{game,table}/CLAUDE.md`.
 
 | Step | Summary |
 |---|---|
-| 5.1 Card data & decks | Riftcodex → `~/buddy/data/riftbound/cards.json`, printing code parser, the two decklists |
-| 5.2 Rules engine | Core Rules 2026-10-09: turns, runes, units, battlefields, showdowns, combat, chain, scoring; partial information |
-| 5.3 Cards | Every card of both decks, one test each |
-| 5.4 AI | Heuristic, then ISMCTS with a time budget on the Pi |
-| 5.5 `table` + sim | Hand pile model (draw on top, play from the bottom), scan/verify/recover, simulated table with faults |
-| 5.6 `game` + panel | MQTT, Riftbound page on the web panel for Dev's moves, voice lines |
-| 5.7+ Hardware | After Phase 4: card scanner, hand tray, card placement |
+| 2.1 Card data & decks | Riftcodex → `~/buddy/data/riftbound/cards.json`, printing code parser, the two decklists |
+| 2.2 Rules engine | Core Rules 2026-10-09: turns, runes, units, battlefields, showdowns, combat, chain, scoring; partial information |
+| 2.3 Cards | Every card of both decks, one test each |
+| 2.4 AI | Heuristic, then ISMCTS with a time budget on the Pi |
+| 2.5 `table` + sim | Hand pile model (draw on top, play from the bottom), scan/verify/recover, simulated table with faults |
+| 2.6 `game` + panel | MQTT, Riftbound page on the web panel for Dev's moves, voice lines |
+
+## Phases 3–5 – The table hardware
+
+Dispensers beside the mat hold Buddy's piles; one "hand" moves over the mat and docks onto them. Each phase's plan
+and status live in its issue.
+
+```
+┌─────────────┬─────────────┐
+│  mat        │  mat        │
+│        [hand]             │┌───────────────┐
+├─────────────┼─────────────┤│ hand/graveyard│  Phase 3 (#93)
+│  mat        │  mat        │├───────────────┤
+│             │             ││ deck          │  Phase 4 (#94)
+└─────────────┴─────────────┘└───────────────┘
+   hand: moves anywhere on the mat, docks onto the dispensers (Phase 5, #95)
+```
+
+| Phase | What |
+|---|---|
+| 3 Hand dispenser | `parts/dispenser`: hand pile on a belt roller over the camera, a lift and a pusher; the graveyard on the same dispenser, a hold on top swaps the two stacks |
+| 4 Deck dispenser | Draw pile; cards also go back in (recycling), so inserts on top and bottom |
+| 5 Playfield & hand | Moves over the mat, takes cards from the dispensers, places / exhausts them; runes in a compartment or a small dispenser |
 
 ---
 
@@ -229,8 +220,9 @@ buddy/
 ├── README.md                ← front page: doc map, everyday commands
 ├── buddy-hardware.md        ← current hardware & software
 ├── docs/
-│   ├── guides/              ← step guides of the current phase, one summary per finished phase
-│   ├── plans/               ← step plans before their guide exists, CAD prompt, Phase 5 plan
+│   ├── 01-voice.md          ← Phase 1 condensed: rebuild, config, troubleshooting
+│   ├── 02-riftbound/        ← Riftbound design + as built, the live-game guide
+│   ├── motion-controller/   ← side project: Pico 2 + servos, motion service
 │   ├── voice-training.md    ← speech-to-text training workflow
 │   └── 3d-printing.md       ← printing reference + print log (grows with every print)
 ├── skeleton/                ← project root (CMake + uv workspace); paths below and in "Dev workflow" are relative to it
@@ -247,14 +239,14 @@ buddy/
 │   │   ├── messenger/       ← Dev's Telegram chat: notices, questions and answers, service watcher (D22)
 │   │   ├── system/          ← host metrics for the panel: CPU, RAM, disk, temp, fan, net, throttling (D23)
 │   │   ├── screener/        ← Python: a social app on a dedicated phone over adb (#66, side service)
-│   │   ├── motion/          ← joints → Pico serial protocol, gestures
-│   │   ├── table/           ← Riftbound: Buddy's physical cards: piles, hand tracker, sim backend, soak (5.5)
-│   │   └── game/            ← Riftbound: riftbound/ lib (cards, decks, rules, AI), table moves, decks/ (Phase 5)
+│   │   ├── motion/          ← joints → Pico serial protocol, gestures (side project)
+│   │   ├── table/           ← Riftbound: Buddy's physical cards: piles, hand tracker, sim backend, soak (2.5)
+│   │   └── game/            ← Riftbound: riftbound/ lib (cards, decks, rules, AI), table moves, decks/ (Phase 2)
 │   ├── tools/voice/         ← commands.tsv (corpus) + buddy_voice (record/train/eval, runs on the PC)
 │   ├── firmware/pico-motion/ ← Pico 2 firmware: all servos (separate CMake project, D17)
 │   ├── android/screener-ime/ ← keyboard on the screener phone: types and reads back text (Gradle project, Kotlin, #66)
 │   └── deploy/              ← PC scripts; pi/ = scripts that run on the Pi; config/ = units, env example, PipeWire
-└── parts/                   ← printable parts: one folder per module (arm/, dispenser/ card roller, pc-case/: parametric OpenSCAD), lib/ (BOSL2,
+└── parts/                   ← printable parts: one folder per module (dispenser/, pc-case/, hex-driver/: parametric OpenSCAD), lib/ (BOSL2,
                                 NopSCADlib submodules), tools/ (setup.sh, CAD checks, #54)
 ```
 
@@ -292,6 +284,15 @@ Pi paths: `~/buddy/{dev,src,build-release,build-pico,bin,venv,models,config,voic
   `logs.sh`; watchdog ping in the main loop (D14); env keys in `buddy.env.example`; on the panel: `SERVICE_CHIPS` in
   `services/web/www/app.js`.
 
+## Docs
+
+- `docs/` explains what exists. Plans, to-dos and status live in GitHub issues (checkboxes; open/closed = where we
+  are), never in docs. Phase work: one epic issue per phase, sub-issues per piece.
+- One folder per phase (`02-riftbound/`, numbered as the progress table) or side project (`motion-controller/`,
+  unnumbered). A topic with a single doc is one file in `docs/` (`voice-training.md`, `01-voice.md`).
+- A module's how-it-works doc sits next to its code (`parts/<module>/README.md`, service `CLAUDE.md`).
+- Obsolete docs are deleted, never archived (Git keeps them). Temporary guides for Dev go when done.
+
 ## Golden rules
 
 1. **Never power servos from the Pi.** Always a separate supply with a shared ground.
@@ -303,7 +304,7 @@ Pi paths: `~/buddy/{dev,src,build-release,build-pico,bin,venv,models,config,voic
 
 ## How to work
 
-1. Anchor every answer to the current step in the progress table. Don't jump ahead unless asked, but flag decisions that affect later phases (e.g. MQTT topic names that motion will reuse).
+1. Anchor every answer to the current step in the progress table. Don't jump ahead unless asked, but flag decisions that affect later phases (e.g. table commands the dispensers will execute).
 2. Search before giving install commands, versions or API details. These change fast: Raspberry Pi OS, PipeWire, openWakeWord, ONNX Runtime, whisper.cpp, Piper / libpiper, CLion, uv, PyTorch, transformers, Spotify Web API (Development Mode limits).
 3. Enforce the golden rules. Warn clearly about anything risky: power, wiring, heat, servo current.
 4. Small runnable increments. Every step ends with a concrete test matching its "Done when".
@@ -322,10 +323,10 @@ Pi paths: `~/buddy/{dev,src,build-release,build-pico,bin,venv,models,config,voic
 
 ## Output formats
 
-- **Step guides** (`docs/guides/XX-YY-name.md`): Goal → Prerequisites → Parts/Tools → Steps (copy-pasteable commands with expected output) → Verify → Troubleshooting → Notes for later phases. Mark untested assumptions with ⚠️.
+- **Guides** (in the phase's or side project's `docs/` folder): Goal → Prerequisites → Parts/Tools → Steps (copy-pasteable commands with expected output) → Verify → Troubleshooting → Notes for later phases. Mark untested assumptions with ⚠️.
 - **Code:** C++ with CMake, or Python with uv (D5). MQTT topics live in `shared/topics.json`. Broker address and other host-specific values come from config/env.
 - **CAD/printing** (Onshape or parametric OpenSCAD, Bambu X2D + AMS): dimensions with clearance offsets, print orientation, supports.
-  Filament: PETG for structure, real load (brackets, servo mounts, arm links) and anything near heat (motors, Pi, drivers); PLA for low-load functional parts away from heat, where its stiffness and accuracy help (fits, sliding edges, e.g. the dispenser's lift and pusher), plus support interfaces under PETG (second nozzle), jigs, mock-ups and cosmetic parts. PLA softens from ~55 °C: never touching a motor body; within a few mm of one only if the motor runs at moderate current with a low hold current (e.g. the pusher at home). No TPU.
+  Filament: PETG for structure, real load (brackets, motor mounts, carriages) and anything near heat (motors, Pi, drivers); PLA for low-load functional parts away from heat, where its stiffness and accuracy help (fits, sliding edges, e.g. the dispenser's lift and pusher), plus support interfaces under PETG (second nozzle), jigs, mock-ups and cosmetic parts. PLA softens from ~55 °C: never touching a motor body; within a few mm of one only if the motor runs at moderate current with a low hold current (e.g. the pusher at home). No TPU.
 - **Style:** concise, no filler. Tables for BOMs and pinouts, code blocks for commands.
 
 ## Maintenance
@@ -333,4 +334,4 @@ Pi paths: `~/buddy/{dev,src,build-release,build-pico,bin,venv,models,config,voic
 - When a step is done: output the updated progress-table row(s) for this file.
 - When hardware changes: output the updated lines for `buddy-hardware.md`.
 - When a decision changes: output the updated row of the Decisions table.
-- When a phase is done: condense its guides into `docs/guides/0N-setup-summary.md`.
+- When a phase is done: condense its docs into one `docs/0N-<name>.md` (like `01-voice.md`) if that's easier to use.

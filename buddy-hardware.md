@@ -8,8 +8,8 @@ Current hardware and software used for the Buddy desk robot. Roadmap, architectu
 
 | Item | Details |
 |---|---|
-| Printer | Bambu Lab X2D + AMS (arriving): dual nozzle, enclosed. Build volume 256 × 256 × 260 mm with one nozzle, 235.5 × 256 × 256 mm with both |
-| Filament | PETG for structure and every part that carries load, sits near heat or has a fit; PLA only for support interfaces under PETG (second nozzle), jigs, mock-ups and cosmetic parts away from heat. No TPU |
+| Printer | Bambu Lab X2D + AMS: dual nozzle, enclosed. Build volume 256 × 256 × 260 mm with one nozzle, 235.5 × 256 × 256 mm with both |
+| Filament | PETG for structure, load and anything near heat; PLA for low-load fits away from heat, support interfaces, jigs (rules: `CLAUDE.md` → Output formats, `docs/3d-printing.md`). No TPU |
 | CAD | Onshape |
 
 ## Compute & power
@@ -37,16 +37,29 @@ Current hardware and software used for the Buddy desk robot. Roadmap, architectu
 | Hue Bridge | Philips Hue Bridge v2 (square, model BSB002), fixed LAN IP 192.168.1.219 (router). Buddy talks to it locally (D18) |
 | Hue lights | 5 (`deploy/run.sh hue --cmd list`, 2026-10-30): colour "Bedroom Ceiling"; white "Kitchen Ceiling", "Living Room Corner"; colour "Hue color lamp 2" and "3" (in no room). Room "Home" (the three ceiling/corner lights), zones "Bedroom" and "Living Room", each with scenes |
 
-## Motion (Phase 2, guide 2.2)
+## Card dispenser (Phase 3, `parts/dispenser`, #93)
+
+All bought 2026-11-26 (parts per module: `parts/dispenser/README.md` → Parts).
+
+| Item | Details |
+|---|---|
+| Controller | BTT SKR Pico V1.0: 4 × TMC2209 on board (3 used), endstop inputs, 12–24 V |
+| Motors | 2 × NEMA 17 17HS4401 (lift, pusher), 1 × NEMA 17 pancake 17HS4023 (roller); cables 6p PH2.0 → 4p XH2.54 |
+| Motion | 2 × TR8 lead screw 200 mm, pitch 8 (printed nuts); 2 × mechanical limit switch (lift home + spare; the pusher homes by stall detection) |
+| Roller | 3 × NBR O-ring 80 × 3 mm (belts), 4 × 685ZZ bearing, Ø5 × 20 dowel pins (drum axles), M3 grub screw |
+| Power | 12 V 4 A plug-in supply (5.5/2.1) + DC socket with screw terminals |
+| Screws | M3 stainless assortment (340 pcs) |
+
+## Motion controller (side project, `docs/motion-controller/`)
 
 State 2026-10-30: one Pico with one servo (ch0) on the breadboard; Pico not on the Pi's USB yet.
 
 | Item | Details |
 |---|---|
 | Motion controller | 2 × Raspberry Pi Pico 2 H (RP2350). One in use: firmware `pico-motion` flashed 2026-10-29, on the Pi's USB as `/dev/buddy-pico` (D17). The second is a spare |
-| Servos | 2 × MG90S metal-gear micro servo, 180°. Servo 1 on ch0 (GP2) = head pan (left-right); runs as the `demo` joint until 2.5 renames it. Servo 2: head tilt (ch1, GP3) |
-| Servo supply | Purecrea 5 V / 5 A plug-in supply (5.5 × 2.1 mm) + Purecrea DC socket with screw terminals, as in the 2.2 parts list |
-| Breadboard | Half size: 400 holes, 30 columns, with pre-cut solid copper jumper wires. 2.2 step 3 is laid out for it (Pico in columns 1–20, two servos in 21–30). No room for a third servo: the hand (Phase 3) needs a second board or the 2.6 perfboard |
+| Servos | 2 × MG90S metal-gear micro servo, 180°. Servo 1 on ch0 (GP2) = the `demo` joint; servo 2 for ch1 (GP3) |
+| Servo supply | Purecrea 5 V / 5 A plug-in supply (5.5 × 2.1 mm) + Purecrea DC socket with screw terminals, as in the `pico.md` parts list |
+| Breadboard | Half size: 400 holes, 30 columns, with pre-cut solid copper jumper wires. `pico.md` step 3 is laid out for it (Pico in columns 1–20, two servos in 21–30). No room for a third servo |
 | Wiring | Assorted jumper wires (Dupont) |
 | Capacitors | Electrolytic 1000 µF, several (one on the servo rail) |
 | Resistors | Assortment (330 Ω used: one per servo signal line) |

@@ -1,8 +1,9 @@
 # Buddy – desk robot
 
 A stationary desk robot on a Raspberry Pi 5. It started as a local voice assistant ("Hey Jarvis, play Spotify", "…
-lights off in the bedroom"), and is gaining an expressive head (Phase 2), a robotic hand (3), and an arm with a
-camera (4). Every part is a small C++ or Python service; they talk only over MQTT.
+lights off in the bedroom"), and now plays Riftbound against you (Phase 2, software done). Next it handles its own
+real cards: a hand/graveyard dispenser (3), a deck dispenser (4) and a "hand" that moves over the play mat and docks
+onto them (5). Every part is a small C++ or Python service; they talk only over MQTT.
 
 ```
 Jabra mic → [ears] wake word, speech-to-text → [brain] intent → [spotify] [hue] [motion] … → [voice] reply
@@ -17,6 +18,7 @@ Jabra mic → [ears] wake word, speech-to-text → [brain] intent → [spotify] 
 | You want | Read |
 |---|---|
 | Status, open work, decisions, architecture | `CLAUDE.md` |
+| What's planned, what's left per phase | GitHub issues (#93 hand dispenser, #94 deck dispenser, #95 playfield) |
 | Rebuild the Pi, config, every Phase 1 feature, troubleshooting | `docs/01-voice.md` |
 | Motion controller side project (Pico 2 + servos, motion service) | `docs/motion-controller/` |
 | How the Riftbound software is built and why | `docs/02-riftbound/design.md` |
