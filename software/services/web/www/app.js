@@ -751,7 +751,7 @@ function rbSend(cmd) {
     queueRender();
   }, 4000) };
   if (rbSheet && $("rb-sheet").open) $("rb-sheet").close();
-  const withV = cmd.action === "act" || cmd.action === "reveal";  // resume/concede take no fields: v would be refused
+  const withV = cmd.action === "act" || cmd.action === "reveal" || cmd.action === "undo";  // resume/concede take no fields: v would be refused
   send("game", { ...cmd, ...(withV && v !== undefined && { v }) }).then((ok) => {
     if (!ok && rbPending?.v === v) { clearTimeout(rbPending.timer); rbPending = null; queueRender(); }
   });
@@ -818,7 +818,13 @@ function rbObj(o, opts, where) {
   rest.length ? el("small", {}, rest.join(", ")) : where && el("small", {}, where),
   stats.length ? el("span", { class: "rb-stats" }, stats) : null,
   o.keywords ? el("small", { class: "rb-kw" }, o.keywords.join(" · ")) : null,
+  ...rbEffects(o).map((t) => el("small", { class: "rb-fx" }, t)),
   n ? el("span", { class: "rb-badge" }, String(n)) : null);
+}
+
+// What resolved spells and abilities gave this object: "Vault Breaker: Assault 2 · Ganking"
+function rbEffects(o) {
+  return (o.effects ?? []).map((e) => `${e.source ? `${rbShort(e.source)}: ` : ""}${e.text}${e.until === "combat" ? " (this combat)" : ""}`);
 }
 
 function rbRunes(p) {
@@ -843,12 +849,17 @@ function rbSide(g, who, place) {
     el("span", { class: "rb-points", title: `${p.points} of ${g.victory} points` }, `${p.points}`, el("small", {}, `/${g.victory}`)),
     el("span", { class: "muted" }, `hand ${p.hand} · deck ${p.deck} · runes ${p.rune_deck}`),
     pile("trash", p.trash), p.banishment.length ? pile("banished", p.banishment) : null);
-  const objs = [p.legend, ...p.champion, ...p.base].filter(Boolean)
+  // left: what's in play (base units and gear); right: legend over the champion while it waits in its zone
+  const played = p.base.map((o) => rbObj(o, place.byObj.get(o.id)));
+  const zones = [p.legend, ...p.champion].filter(Boolean)
     .map((o) => rbObj(o, place.byObj.get(o.id), p.champion.includes(o) ? "champion zone" : null));
   return el("div", { class: `rb-side ${who}${g.turn_player === who ? " turn" : ""}` },
     me ? null : head,
     el("div", { class: "rb-runes" }, rbRunes(p)),
-    el("div", { class: "rb-row" }, objs),
+    el("div", { class: "rb-side-body" },
+      el("div", { class: "rb-row rb-play", "aria-label": me ? "Your base" : "Buddy's base" },
+        played.length ? played : el("span", { class: "rb-none" }, "–")),
+      el("div", { class: "rb-zones" }, zones)),
     me ? head : null);
 }
 
@@ -930,9 +941,24 @@ function renderRiftbound() {
 
   keyed($("rb-act"), [["act", JSON.stringify([g.status, g.pause, g.options, g.prompt, g.decision, g.voice, rbPick, rbAll, !!rbPending]),
     () => rbActions(g, place)]]);
-  keyed($("rb-log"), (g.log ?? []).map((l, i) => [`${i}:${l.turn}:${l.text}`, "", () => el("li", { class: l.player },
-    el("span", { class: "muted" }, `T${l.turn}`), " ", el("b", {}, l.player === "dev" ? "You" : "Buddy"), " ", l.text)]).reverse());
+  keyed($("rb-log"), (g.log ?? []).map((l, i) => [`${i}:${l.turn}:${l.text}`, JSON.stringify(l.cards ?? []), () => el("li", { class: l.player },
+    el("span", { class: "muted" }, `T${l.turn}`), " ", el("b", {}, l.player === "dev" ? "You" : "Buddy"), " ",
+    rbLinked(l.text, l.cards ?? []))]).reverse());
   rbRenderSheet();
+}
+
+// A log line with the cards it names as links to their sheet (each card's first mention)
+function rbLinked(text, codes) {
+  let parts = [text];
+  for (const code of codes) {
+    const name = rbName(code);
+    const at = parts.findIndex((x) => typeof x === "string" && x.includes(name));
+    if (at < 0) continue;
+    const [before, ...after] = parts[at].split(name);
+    const link = el("button", { class: "rb-link", onclick: () => rbOpen({ code }) }, name);
+    parts.splice(at, 1, before, link, after.join(name));
+  }
+  return parts.filter((x) => x !== "");
 }
 
 function rbActions(g, place) {
@@ -970,6 +996,10 @@ function rbActions(g, place) {
   if (!["idle", "over"].includes(g.status)) {
     // off by default: game then sends no lines to the voice service at all (no speech synthesized)
     nodes.push(el("div", { class: "controls rb-concede" },
+      g.undo ? el("button", {
+        class: "chip-btn rb-undo", disabled: busy, onclick: () => rbSend({ action: "undo" }),
+        title: "Takes back your last step, as long as Buddy hasn't moved since",
+      }, "↶ Undo my last step") : null,
       el("span", { class: "muted" }, "Buddy speaks"),
       toggle(!!g.voice, "Buddy speaks", (on) => send("game", { action: "voice", on })),
       el("button", {
@@ -1011,6 +1041,10 @@ function rbPrompt(g) {
   const busy = !!rbPending;
   const nodes = [el("div", { class: "rb-prompt-q" }, RB_PROMPT[p.kind] ?? "Name the card",
     p.n > 1 ? el("small", {}, ` ${p.n} cards`) : null)];
+  if (p.known?.length) {
+    nodes.push(el("p", { class: "muted rb-hint" }, `Also channelled, not asked: ${p.known.map(rbShort).join(", ")}. `
+      + "Buddy saw you recycle it to the bottom, so it knows it."));
+  }
   const combos = p.kind === "runes" ? rbCombos(p.candidates, p.n) : null;
   if (combos && combos.length > 1 && combos.length <= 6) {
     nodes.push(el("div", { class: "controls" }, combos.map((codes) => el("button", {
@@ -1098,6 +1132,7 @@ function rbRenderSheet() {
       o.buffs && `+${o.buffs} buff`, o.stunned && "stunned", o.empowered && "empowered",
       o.attached_to !== undefined && `on ${rbName(objs.get(o.attached_to)?.card)}`,
       o.keywords?.join(", "),
+      ...rbEffects(o),
     ].filter(Boolean).join(" · ") : o?.battlefield ? [
       o.owner === "dev" ? "your battlefield" : "Buddy's battlefield",
       o.battlefield.controller && `held by ${o.battlefield.controller === "dev" ? "you" : "Buddy"}`,

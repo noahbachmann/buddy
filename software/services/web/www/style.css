@@ -347,6 +347,11 @@ input.warmth { accent-color: var(--muted); }
 .rb-runes { display: flex; flex-wrap: wrap; gap: 4px; }
 .rb-runes:empty { display: none; }
 .rb-row { display: flex; flex-wrap: wrap; gap: 6px; }
+/* a side: in play on the left, legend over the waiting champion on the right */
+.rb-side-body { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: start; }
+.rb-play { align-content: flex-start; min-height: 58px; }
+.rb-zones { display: grid; gap: 6px; padding-left: 8px; border-left: 1px dashed var(--line); }
+.rb-fx { white-space: normal !important; color: var(--accent) !important; }
 .rb-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
 .rb-field {
   display: grid; gap: 6px; align-content: space-between; padding: 8px; min-height: 150px;
@@ -365,7 +370,7 @@ input.warmth { accent-color: var(--muted); }
 .rb-units .rb-obj { width: 100%; min-height: 0; flex-direction: row; flex-wrap: wrap; align-items: baseline; column-gap: 6px; padding: 4px 8px; }
 .rb-units .rb-obj-name { flex: 0 1 auto; min-width: 0; }
 .rb-units .rb-obj small:not(.rb-kw) { flex: 1 1 0; min-width: 0; }
-.rb-units .rb-kw { flex-basis: 100%; }
+.rb-units .rb-kw, .rb-units .rb-fx { flex-basis: 100%; }
 .rb-units .rb-obj.exhausted { transform: none; }
 .rb-none { color: var(--muted); font-size: 0.8rem; padding: 4px; }
 
@@ -430,6 +435,16 @@ input.warmth { accent-color: var(--muted); }
 .rb-log { margin: 0; padding: 10px 14px 10px 14px; list-style: none; max-height: 18rem; overflow-y: auto; font-size: 0.85rem; }
 .rb-log li + li { margin-top: 4px; }
 .rb-log b { font-weight: 600; }
+.rb-log .rb-link { font-weight: 500; }
+/* lg+: the log as a left column beside the board */
+@media (min-width: 1024px) {
+  main:has(#page-riftbound:not([hidden])) { max-width: 1180px; }
+  #page-riftbound:not([hidden]) { display: grid; grid-template-columns: minmax(260px, 320px) minmax(0, 1fr); column-gap: 20px; align-items: start; }
+  #page-riftbound > * { grid-column: 2; }
+  #page-riftbound > .rb-log-sec { grid-column: 1; grid-row: 1 / span 6; position: sticky; top: 8px; margin-top: 12px; }
+  .rb-log-sec .rb-log { max-height: calc(100vh - 90px); }
+  .rb-log:empty { display: block; min-height: 4rem; }
+}
 .rb-new { display: grid; gap: 12px; }
 .rb-new label { display: grid; gap: 4px; font-size: 0.85rem; color: var(--muted); }
 

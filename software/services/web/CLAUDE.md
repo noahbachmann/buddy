@@ -35,6 +35,13 @@ with their retained state. User-facing behaviour and troubleshooting: `docs/01-v
 
 Everything from `buddy/game/state` (public cards only, `services/game/CLAUDE.md` → Public state); commands to
 `buddy/game/cmd`. Buddy's side on top, battlefields in the middle (units one compact line each), Dev's side below.
+- A side (`rbSide`): runes, then base objects on the left (`rb-play`), legend over the champion (while in its zone)
+  on the right (`rb-zones`). Tiles show `effects` per source ("Vault Breaker: Assault 2 · Ganking", `rbEffects`).
+- ≥ 1024 px: `main` widens to 1180 px on this page and the log section (`rb-log-sec`) becomes a sticky left column
+  (CSS grid on `#page-riftbound`); narrower, it stays below. Log names from `l.cards` are links to the sheet
+  (`rbLinked`).
+- "↶ Undo my last step" beside Concede while the payload's `undo` is true (`undo {v}`, #97). The runes prompt names
+  the runes it doesn't ask for (`prompt.known`).
 - `rbPlace(g)`: each option goes on a board object (`obj` shown on the board: badge with the count), else on a hand
   tile by `card` (every card Dev could hold, sorted by name: Buddy doesn't know Dev's hand), else the bar (pass,
   keep, done, optional costs). `rbAll`: every option as a list (fallback).
