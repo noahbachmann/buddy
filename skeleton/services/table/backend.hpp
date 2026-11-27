@@ -1,6 +1,6 @@
 #pragma once
 // The physical table as the tracker drives it (5.5): primitive ops on Buddy's cards, the same for the sim now and the
-// hardware later (5.7+). Design: docs/plans/05-riftbound.md → "5.5 design".
+// hardware later (5.7+). Design: docs/02-riftbound/design.md → "5.5 design".
 //
 // Piles are hidden and ordered bottom → top: the decks, two hand trays (the hand and its buffer; which is which is
 // the tracker's business) and the scan spot, where dealt and taken cards land and from where the arm places them.

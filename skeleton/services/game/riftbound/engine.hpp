@@ -1,6 +1,6 @@
 #pragma once
 // The rules engine's one loop, the same for the AI, the panel and the tests: the engine runs until a player has to
-// choose, stops at GameState::decision, and legal_actions() / apply() answer it. Design: docs/plans/05-riftbound.md
+// choose, stops at GameState::decision, and legal_actions() / apply() answer it. Design: docs/02-riftbound/design.md
 // → "5.2 design".
 
 #include <cstdint>

@@ -2,7 +2,7 @@
 // What the table believes about Buddy's cards, and the procedures that keep that belief true: deal with a confirmed
 // scan, play from the hand pile (feed, confirm, take, post-check, merge; after a mismatch: recover, then search card by
 // card on the spot), recover by full scan passes. Design:
-// docs/plans/05-riftbound.md → "5.5 design".
+// docs/02-riftbound/design.md → "5.5 design".
 
 #include <array>
 #include <optional>

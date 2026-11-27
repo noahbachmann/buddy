@@ -1,5 +1,5 @@
 #pragma once
-// game ⇄ table (Riftbound 5.5, docs/plans/05-riftbound.md → "5.5 design"): commands on buddy/table/cmd, events on
+// game ⇄ table (Riftbound 5.5, docs/02-riftbound/design.md → "5.5 design"): commands on buddy/table/cmd, events on
 // buddy/table/event. Every command carries a `seq` and ends with exactly one `done` or `failed` event for that seq;
 // a `hand_corrected` may come before it. Cards are `{id, code}`: ids are the table's, codes printed codes.
 

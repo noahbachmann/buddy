@@ -2,7 +2,7 @@
 // The panel's view of a game (5.6, #50): the payload of buddy/game/state. Built from public_view() of the referee's
 // state only, so it can't carry Buddy's hand or Dev's placeholders: everything here is either known to both players
 // or Dev's own decision (options, prompt) computed so that it doesn't depend on the placeholders either. Players are
-// "buddy" and "dev", never seats. Layout: docs/plans/05-riftbound.md → "5.6 as built" (#50).
+// "buddy" and "dev", never seats. Layout: docs/02-riftbound/design.md → "5.6 as built" (#50).
 
 #include <nlohmann/json.hpp>
 

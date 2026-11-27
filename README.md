@@ -17,10 +17,10 @@ Jabra mic → [ears] wake word, speech-to-text → [brain] intent → [spotify] 
 | You want | Read |
 |---|---|
 | Status, open work, decisions, architecture | `CLAUDE.md` |
-| Rebuild the Pi, config, every Phase 1 feature, troubleshooting | `docs/guides/01-setup-summary.md` |
-| Current step guides (motion controller, motion service) | `docs/guides/02-*.md` |
-| Play Riftbound against Buddy (the first live game) | `docs/guides/05-live-game.md` (temporary) |
-| Plans for the next steps (head pan/tilt, head & body), CAD prompt | `docs/plans/` |
+| Rebuild the Pi, config, every Phase 1 feature, troubleshooting | `docs/01-voice.md` |
+| Motion controller side project (Pico 2 + servos, motion service) | `docs/motion-controller/` |
+| How the Riftbound software is built and why | `docs/02-riftbound/design.md` |
+| Play Riftbound against Buddy (the first live game) | `docs/02-riftbound/live-game.md` (temporary) |
 | Train speech-to-text on your voice | `docs/voice-training.md` |
 | Print a part: settings, design rules, tolerances, print log | `docs/3d-printing.md` |
 | Parts in use | `buddy-hardware.md` |

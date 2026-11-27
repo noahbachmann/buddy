@@ -1,7 +1,7 @@
 # services/table – Buddy's physical Riftbound cards (5.5)
 
 What table does **now** (after #45: sim backend, soak gate passed). Why it's built this way and the soak numbers:
-`docs/plans/05-riftbound.md` → "5.5 design", "5.5 as built". Protocol: `shared/include/buddy/table_protocol.hpp`.
+`docs/02-riftbound/design.md` → "5.5 design", "5.5 as built". Protocol: `shared/include/buddy/table_protocol.hpp`.
 The engine side (which commands a game step needs): `services/game/table_moves.*`.
 
 ## Files (`table_core`: no MQTT)

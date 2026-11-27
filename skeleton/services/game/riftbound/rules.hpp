@@ -2,7 +2,7 @@
 // Card rules: what a card does beyond its stats (360–406). One CardRules object per card (5.3 registers them by name;
 // tests define their own), reached through Card::rules. It holds no game state: the engine asks it, and everything it
 // creates (chain items, effects, delayed abilities) is plain data in the GameState that points back at it through
-// the source card and an ability index. Design: docs/plans/05-riftbound.md → "5.2 design"; how it runs:
+// the source card and an ability index. Design: docs/02-riftbound/design.md → "5.2 design"; how it runs:
 // services/game/CLAUDE.md.
 
 #include <optional>

@@ -1,7 +1,7 @@
 #pragma once
 // The simulated table (5.5): the true piles and spots of Buddy's cards behind the Backend interface, with seeded
 // faults per op (scans, feeds, takes, deals) and per command (a disturbed hand pile). Tests and the soak compare the
-// tracker's belief with this truth. Design: docs/plans/05-riftbound.md → "5.5 design".
+// tracker's belief with this truth. Design: docs/02-riftbound/design.md → "5.5 design".
 
 #include <array>
 #include <cstdint>

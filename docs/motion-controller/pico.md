@@ -133,7 +133,7 @@ Pinout (Pico 2 pin numbers are printed on the underside; pin 1 is next to the US
 | 39 (VSYS), 40 (VBUS) | — | **nothing** | Never connect servo 5 V here |
 | USB | power + data | Pi | The Pico's only power source |
 
-Hole-by-hole drawing: `docs/pico-setup.html`. The layout is for a 400-hole half-size board: 30 columns, rows a–j,
+Hole-by-hole drawing: `docs/motion-controller/pico-setup.html`. The layout is for a 400-hole half-size board: 30 columns, rows a–j,
 one pair of rails along each long edge. Hole letters and the rail order differ between brands: go by the Pico's pin
 numbers and the rails' printed colours (red line = +, blue line = −). Only the rails on the pin 1–20 side are used: that
 side has no power pins, VBUS/VSYS are on the other.

@@ -6,7 +6,7 @@
 //   Pico → Pi   <id> OK [buddy-motion <fw> <protocol>] | <id> OK clamped <us> | <id> ERR <reason>
 //               * DONE <ch> <us> | * RELAXED <reason> | * BOOT <fw> [watchdog]
 //
-// Guide: docs/guides/02-02-motion-controller.md, step 6.
+// Guide: docs/motion-controller/pico.md, step 6.
 
 #include <array>
 #include <cstddef>

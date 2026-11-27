@@ -11,11 +11,10 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 | `CLAUDE.md` | Roadmap, architecture, decisions, progress, open work, rules (this file) |
 | `README.md` | Front page for Dev: what Buddy is, where to read what, everyday commands (`deploy/run.sh` examples) |
 | `buddy-hardware.md` | Current parts and tools |
-| `docs/guides/XX-YY-name.md` | Detailed guide per step of the current phase, e.g. `docs/guides/02-01-printer.md` |
-| `docs/plans/XX-YY-name.md` | Plan for a step before its guide exists: decisions, parts, order of work; replaced by the guide |
-| `docs/plans/05-riftbound.md` | Phase 5 plan: Riftbound against Dev (engine, AI, hand pile model, `game`/`table` services, steps) |
-| `docs/guides/05-live-game.md` | Temporary: Dev's live Riftbound game with real cards (#53), notes into the issue |
-| `docs/guides/0N-setup-summary.md` | A finished phase condensed into one file (rebuild, config, tests, troubleshooting); replaces its step guides |
+| `docs/01-voice.md` | Phase 1 condensed: rebuild, config, every voice feature (1.2–1.17), troubleshooting |
+| `docs/02-riftbound/design.md` | Riftbound software: decisions, pile model, architecture, each step's design and as built |
+| `docs/02-riftbound/live-game.md` | Temporary: Dev's live Riftbound game with real cards (#53), notes into the issue |
+| `docs/motion-controller/` | Side project: Pico 2 + servos (`pico.md`, wiring sheet `pico-setup.html`), motion service (`service.md`) |
 | `docs/voice-training.md` | Recurring workflow: record, train, score and install speech-to-text on Dev's voice |
 | `docs/3d-printing.md` | Living printing reference: materials, slicer baseline, design rules, measured tolerances, troubleshooting, print log |
 | `skeleton/CLAUDE.md` | Code quick reference: service pattern (C++ and Python), shared helpers, deploy scripts, tests |
@@ -28,8 +27,8 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 
 - Read this file and `buddy-hardware.md` before answering about setup, parts or next steps.
 - The progress table is the current status.
-- Work only Dev can do at the end of a phase (recordings, hardware tests) goes into one temporary guide
-  (`docs/guides/0N-cleanup.md`) that Dev deletes when done; every other doc describes the state after it.
+- Work only Dev can do (recordings, prints, hardware tests) goes into the phase's issue as checkboxes; docs describe
+  the state after it.
 - If a request contradicts a file, point it out and ask which is correct.
 
 ---
@@ -56,7 +55,7 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 | 2 – Head | 2.1 printer: guide not written yet. 2.2 motion controller: Pi setup, firmware and flash done; wiring and servo test (guide steps 1–3, 9) open. 2.3 motion service + demo gesture ("cut off Andi's balls"): code and tests done, deployed 2026-10-29 (waits with `connected:false` while the Pico is unplugged); Verify open. 2.4 eyes: postponed (Dev, 2026-10-30). 2.5 head pan/tilt and 2.6 head & body: plans in `docs/plans/` | 🟨 |
 | 3 – Hand | 3.1 – 3.4 | ⬜ |
 | 4 – Arm & vision | 4.1 – 4.3 | ⬜ |
-| 5 – Riftbound | plan in `docs/plans/05-riftbound.md` (#18); 5.1 – 5.6 software against a simulated table now, 5.7+ hardware after Phase 4. 5.1 card data & decks: done 2026-11-01 (#19, both lists checked against the boxes). 5.2 rules engine (#20): design, state, setup and mulligan done 2026-10-31 (#21); turns, runes, costs, Burn Out and random games done 2026-10-31 (#22); playing cards, chain, priority and cleanups done 2026-10-31 (#23); abilities, targeting, costs and layers done 2026-10-31 (#24); movement, showdowns, combat and scoring done 2026-10-31 (#25); game actions and the decks' keywords done 2026-11-01 (#26); hidden information, replay and the 1000-game gate done 2026-11-01 (#27): **5.2 done**. 5.3 cards: every card of both decks with rules, one test each, the 1000-game gate with rules done 2026-11-01 (#33): **5.3 done**, rulings in the plan ("5.3 as built"), all confirmed by Dev 2026-11-01. 5.4 AI: design and sub-issues 2026-11-01 (#39); arena (#34) and v1 greedy (#35, 190/200 vs random) done 2026-11-01; engine speed (#36: 2.6× with checks, 3.8× engine only on the Pi, same games) done 2026-11-01; v2 ISMCTS (#37, 160/200 vs greedy at 1000 iterations) and Pi budget + tuning (#38: 2 s, 3 threads, ~78k iterations, p95 2.003 s) done 2026-11-01: **5.4 done**. 5.5 `table` + sim (#45): protocol, tracker, sim faults, engine moves → table commands, soak (10k greedy games under stress: 0 unrecovered at `confirm_reads` 3) and the `table` service done 2026-11-04: **5.5 done**. 5.6 `game` + panel: design and sub-issues 2026-11-04 (#46: #47–#53; Dev plays real cards); engine: binding revealed cards, public view, replay reveals, Vision peek timing done 2026-11-16 (#47); session: step protocol and Buddy's side done 2026-11-16 (#48); Dev's real cards (options by card, reveal prompts, SimDev, 50 SimDev games clean) done 2026-11-16 (#49); public state, commands, voice lines (payload + leak test, command host, voice per action group) done 2026-11-16 (#50); session soak and terminal play: **the gate passed** (1000 stress games SimDev greedy vs Buddy greedy: 0 unrecovered, 0 desyncs, 0 leaks; 50 vs ISMCTS clean; real cards cost Dev ~65 taps per game) and `buddy-game --sim` in the terminal done 2026-11-16 (#51); Dev declares, the referee records (no picks from Dev's placeholders, the gate again clean) done 2026-11-16 (#73); service and deploy: `buddy@game` on the Pi (journal: a restart resumes the game, table timeout and restart pauses, AI on its own thread; a stress bot game and a mid-game restart played to the end on the Pi, ears unaffected while Buddy thinks) done 2026-11-16 (#52); Riftbound page on the panel (`#riftbound`: board, Dev's moves on their cards, prompts, resume/concede, new game; two #52 bugs fixed: big seeds didn't restore, a table back on the broker ended the game) done 2026-11-16, Dev's live game open (#53) | 🟨 |
+| 5 – Riftbound | plan in `docs/02-riftbound/design.md` (#18); 5.1 – 5.6 software against a simulated table now, 5.7+ hardware after Phase 4. 5.1 card data & decks: done 2026-11-01 (#19, both lists checked against the boxes). 5.2 rules engine (#20): design, state, setup and mulligan done 2026-10-31 (#21); turns, runes, costs, Burn Out and random games done 2026-10-31 (#22); playing cards, chain, priority and cleanups done 2026-10-31 (#23); abilities, targeting, costs and layers done 2026-10-31 (#24); movement, showdowns, combat and scoring done 2026-10-31 (#25); game actions and the decks' keywords done 2026-11-01 (#26); hidden information, replay and the 1000-game gate done 2026-11-01 (#27): **5.2 done**. 5.3 cards: every card of both decks with rules, one test each, the 1000-game gate with rules done 2026-11-01 (#33): **5.3 done**, rulings in the plan ("5.3 as built"), all confirmed by Dev 2026-11-01. 5.4 AI: design and sub-issues 2026-11-01 (#39); arena (#34) and v1 greedy (#35, 190/200 vs random) done 2026-11-01; engine speed (#36: 2.6× with checks, 3.8× engine only on the Pi, same games) done 2026-11-01; v2 ISMCTS (#37, 160/200 vs greedy at 1000 iterations) and Pi budget + tuning (#38: 2 s, 3 threads, ~78k iterations, p95 2.003 s) done 2026-11-01: **5.4 done**. 5.5 `table` + sim (#45): protocol, tracker, sim faults, engine moves → table commands, soak (10k greedy games under stress: 0 unrecovered at `confirm_reads` 3) and the `table` service done 2026-11-04: **5.5 done**. 5.6 `game` + panel: design and sub-issues 2026-11-04 (#46: #47–#53; Dev plays real cards); engine: binding revealed cards, public view, replay reveals, Vision peek timing done 2026-11-16 (#47); session: step protocol and Buddy's side done 2026-11-16 (#48); Dev's real cards (options by card, reveal prompts, SimDev, 50 SimDev games clean) done 2026-11-16 (#49); public state, commands, voice lines (payload + leak test, command host, voice per action group) done 2026-11-16 (#50); session soak and terminal play: **the gate passed** (1000 stress games SimDev greedy vs Buddy greedy: 0 unrecovered, 0 desyncs, 0 leaks; 50 vs ISMCTS clean; real cards cost Dev ~65 taps per game) and `buddy-game --sim` in the terminal done 2026-11-16 (#51); Dev declares, the referee records (no picks from Dev's placeholders, the gate again clean) done 2026-11-16 (#73); service and deploy: `buddy@game` on the Pi (journal: a restart resumes the game, table timeout and restart pauses, AI on its own thread; a stress bot game and a mid-game restart played to the end on the Pi, ears unaffected while Buddy thinks) done 2026-11-16 (#52); Riftbound page on the panel (`#riftbound`: board, Dev's moves on their cards, prompts, resume/concede, new game; two #52 bugs fixed: big seeds didn't restore, a table back on the broker ended the game) done 2026-11-16, Dev's live game open (#53) | 🟨 |
 
 Legend: ⬜ not started · 🟨 in progress · ✅ done
 
@@ -71,7 +70,7 @@ What's left right now, in order. Update it with the progress table; GitHub issue
 2. **Live check** for #12: "Hey Jarvis, play Spotify" ducks, plays, and Buddy answers without delay (idle loops changed).
 3. **Decisions** in `docs/plans/02-05-head-pan-tilt.md` and `02-06-head-body.md` (end of each), then fill in
    `docs/plans/02-06-cad-prompt.md` (measurements after 2.1 and the parts order).
-4. **Riftbound live game** (#53): `docs/guides/05-live-game.md`: a full game against Buddy with real cards on the
+4. **Riftbound live game** (#53): `docs/02-riftbound/live-game.md`: a full game against Buddy with real cards on the
    page, notes into #53. Then tick 5.6 and close #53 and #46.
 
 **Claude** (code and guides):
@@ -81,7 +80,7 @@ What's left right now, in order. Update it with the progress table; GitHub issue
 3. 2.5 / 2.6 per `docs/plans/` once Dev has made their decisions: neck module CAD (prompt stage 1), joint table,
    `behaviour` service; then body CAD (stage 2). 2.4 eyes later (decide: Pico or Pi drives the display, 2.2 → Notes
    for later phases).
-4. Phase 5 (#18) per `docs/plans/05-riftbound.md`, runs in parallel with the hardware steps: 5.6 `game` service +
+4. Phase 5 (#18) per `docs/02-riftbound/design.md`, runs in parallel with the hardware steps: 5.6 `game` service +
    panel (#46) built (#47–#53, #73: "5.6 as built"); after Dev's live game, Dev's notes (pacing, prompts, layout).
    5.7+ hardware after Phase 4.
 
@@ -152,7 +151,7 @@ Update this table when a decision is made or changed.
 
 ## Phase 1 – Voice assistant ✅
 
-Summary of every step, rebuild order, config and troubleshooting: `docs/guides/01-setup-summary.md` (incl. the extras
+Summary of every step, rebuild order, config and troubleshooting: `docs/01-voice.md` (incl. the extras
 1.13 Hue lights, 1.14 web panel, 1.15 Nest speakers, 1.16 messenger and 1.17 system monitor).
 Speech-to-text training: `docs/voice-training.md`.
 
@@ -183,8 +182,8 @@ Speech-to-text training: `docs/voice-training.md`.
 | Step | Summary | Guide |
 |---|---|---|
 | 2.1 3D printer | Set up the Bambu Lab X2D + AMS. Print tolerance tests (holes, clearances, PETG with PLA support interface) to find CAD offsets. | `docs/guides/02-01-printer.md` |
-| 2.2 Motion controller | Pico 2 H, servos on its hardware PWM, separate 5 V servo supply. USB serial link to the Pi, firmware flashed from the Pi (D17). | `docs/guides/02-02-motion-controller.md` |
-| 2.3 Motion service | `[motion]`: MQTT commands → Pico serial protocol. | `docs/guides/02-03-motion-service.md` |
+| 2.2 Motion controller | Pico 2 H, servos on its hardware PWM, separate 5 V servo supply. USB serial link to the Pi, firmware flashed from the Pi (D17). | `docs/motion-controller/pico.md` |
+| 2.3 Motion service | `[motion]`: MQTT commands → Pico serial protocol. | `docs/motion-controller/service.md` |
 | 2.4 Eyes | Round display (e.g. GC9A01) with states: idle, listening, thinking, playing. | `docs/guides/02-04-eyes.md` |
 | 2.5 Head pan/tilt | Two servos. Head turns toward the user on wake word. | `docs/guides/02-05-head.md` |
 | 2.6 Head & body design | Onshape CAD, print head and body housing the Pi (PETG; PLA only away from heat). Retrain speech-to-text afterwards (the mic sounds different). | `docs/guides/02-06-body-design.md` |
@@ -208,7 +207,7 @@ Speech-to-text training: `docs/voice-training.md`.
 
 ## Phase 5 – Riftbound
 
-Buddy plays Riftbound against Dev with real cards. Plan, decisions and architecture: `docs/plans/05-riftbound.md` (D21).
+Buddy plays Riftbound against Dev with real cards. Plan, decisions and architecture: `docs/02-riftbound/design.md` (D21).
 
 | Step | Summary |
 |---|---|

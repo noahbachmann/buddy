@@ -1,7 +1,7 @@
 #pragma once
 // AI players (5.4): what a player sees and answers. A player never gets the referee's GameState, only view(s, seat)
 // and both decklists (Buddy knows Dev's precon list): a leak is impossible by construction. Design:
-// docs/plans/05-riftbound.md → "5.4 design".
+// docs/02-riftbound/design.md → "5.4 design".
 
 #include <compare>
 #include <cstdint>

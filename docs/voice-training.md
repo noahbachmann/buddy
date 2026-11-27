@@ -2,7 +2,7 @@
 
 How Buddy's whisper model gets trained on your voice, your room and your names, and how to redo it. Everything runs
 from the PC: recording happens on the Pi through ssh, training on the PC's NVIDIA GPU, scoring on the Pi with the real
-whisper.cpp build. Phase 1 history and numbers: `guides/01-setup-summary.md` → 1.7.
+whisper.cpp build. Phase 1 history and numbers: `docs/01-voice.md` → 1.7.
 
 ```
  PC                                          Pi

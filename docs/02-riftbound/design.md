@@ -1,15 +1,16 @@
-# Phase 5 – Riftbound: plan
+# Riftbound: design
 
-> A plan, not a guide: decisions, architecture and the order of work for Buddy playing Riftbound against Dev. Step
-> guides (`docs/guides/05-XX-*.md`) replace the parts of this file as steps get built. ⚠️ = untested assumption.
+> How Buddy's Riftbound software is built and why: decisions, pile model, architecture, each step's design and what
+> was built. Open work lives in the issues (#18; the hardware: #93–#95). How the code runs: `skeleton/services/game/CLAUDE.md`,
+> `skeleton/services/table/CLAUDE.md`. ⚠️ = untested assumption.
 
 ## Goal
 
 Dev plays Riftbound (Riot's League of Legends TCG) against Buddy with real cards. Buddy knows the rules, picks its plays
 and handles its own cards: draw, scan, hand pile, play to the right spot.
 
-The hardware needs the arm (4.1), the camera (4.2) and a card-handling mechanism, so it comes last. The software gets
-built now and tested against a **simulated table**, the same way 2.3 motion was built before the Pico was wired.
+The hardware (dispensers and the playfield machine, Phases 3–5) comes after the software, which is tested against a
+**simulated table**.
 
 **Done when (software, 5.1–5.6):** Dev plays a full game against Buddy on the web panel. Buddy's side runs on the
 simulated table with injected scan errors, which Buddy detects and corrects. Buddy's hand never shows on the panel.
@@ -834,23 +835,6 @@ Riftbound). What building it changed against the design above:
 - **Not built:** voice input ("pass"), thinking during Dev's turn (5.6 design → Later), card images (the catalogue
   has text only; Riftcodex images would need the internet on the panel).
 
-## Hardware notes for Phase 4 (decide there, not now)
-
-- **Scanning:** the code is ~1.5 mm text. The head camera (4.2) won't read that at table distance, so it needs a fixed
-  close-up camera at a scan spot. The Pi 5 has two camera ports, so a second camera fits. ⚠️
-- **Hand tray:** keep the hand pile face-down on a clear tray with that camera underneath. The bottom card faces the
-  camera, so "scan to confirm" costs no movement, and Dev still can't see Buddy's hand.
-- **Taking the bottom card** is a hard grasp for a hobby-servo arm. Card dealer machines do exactly "eject the bottom
-  card" with one friction roller. A roller-fed tray, with the arm only placing cards, is probably far easier than
-  pinching a card off the bottom of a pile. The pile ops above fit either design.
-- **Dispenser (Dev's design, 2026-11-07):** hand pile H on a belt roller over the camera, B on a lift, both in one
-  box: `parts/dispenser/` (roller done, feed into B still stops 15 mm short: README → Open). A pusher on a lead screw
-  moves all of B back over the divider onto H: the hardware does **`stack(B onto H)`**, not `stack(H onto B)`, so the
-  tracker must use the rotation variant above. ⚠️ Before 5.7: `Tracker::merge()` (table) stacks H onto B and swaps
-  the tray names; with this hardware H stays on the roller and B goes on top of it, so merge and the sim must follow.
-- **Dev's cards:** for now Dev taps them on the panel. Reading Dev's cards on the table with the camera is an optional
-  extra later.
-
 ## Equipment as printed (Dev, 2026-11-01; for 5.3)
 
 Riftcodex has neither the Might Bonus (137) nor the Effect Text (136.2: inactive until attached, then appended to the
@@ -863,8 +847,3 @@ unit's rules text, 718.3), only the rules text (the Equip line).
 
 Built in 5.3 (#29): `CardRules::might_bonus()` and `effect_keywords()`, which `traits()` adds to the unit while the
 gear is attached.
-
-## Open for Dev
-
-- **5.3 rulings:** the table in "5.3 as built" against the physical cards.
-- **When to slot Phase 5** relative to 2.x and 3: the software can run in parallel; the hardware waits for 4.1 and 4.2.

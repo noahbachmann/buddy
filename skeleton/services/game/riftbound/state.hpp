@@ -1,7 +1,7 @@
 #pragma once
 // The state of one Riftbound Duel (Core Rules 2026-10-09, rule 487) as a plain value: copying a GameState copies the
 // whole game, so search (5.4) can clone it freely. Objects and zones refer to each other by index; the only pointers
-// go to immutable card data (CardDb). Design: docs/plans/05-riftbound.md → "5.2 design".
+// go to immutable card data (CardDb). Design: docs/02-riftbound/design.md → "5.2 design".
 
 #include <array>
 #include <cstdint>

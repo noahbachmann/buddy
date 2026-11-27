@@ -2,7 +2,7 @@
 // Paying Energy and Power (131, 357, 445) from the rune pool and the basic runes' two abilities (164.2): exhaust for
 // [1], recycle for Power of the rune's domain.
 //
-// Payment rule (docs/plans/05-riftbound.md → "5.2 design"): the player picks *what* to play, the engine pays. The pool
+// Payment rule (docs/02-riftbound/design.md → "5.2 design"): the player picks *what* to play, the engine pays. The pool
 // goes first (it empties anyway), then runes: recycle exhausted runes before ready ones, exhaust the runes about to be
 // recycled before the others (one rune gives [1] and then its Power). The one choice left is the domain when runes of
 // several domains could pay a Power symbol: a Recycle decision with one rune per domain.

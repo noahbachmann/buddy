@@ -1,7 +1,7 @@
 # services/web – web panel (D19)
 
 HTTP ⇄ MQTT bridge plus a static page. No skill logic: the page sends the same commands brain does, the skills answer
-with their retained state. User-facing behaviour and troubleshooting: `docs/guides/01-setup-summary.md` → 1.14.
+with their retained state. User-facing behaviour and troubleshooting: `docs/01-voice.md` → 1.14.
 
 ## Server (C++, `web_core` + `main.cpp`)
 

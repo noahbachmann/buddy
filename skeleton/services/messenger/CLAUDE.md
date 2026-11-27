@@ -1,7 +1,7 @@
 # services/messenger – Dev's Telegram chat (D22)
 
 Delivers notices and questions from any service to Dev's private chat with Buddy's bot and hands answers back on
-the bus. User-facing behaviour, pairing, troubleshooting: `docs/guides/01-setup-summary.md` → 1.16. Payloads:
+the bus. User-facing behaviour, pairing, troubleshooting: `docs/01-voice.md` → 1.16. Payloads:
 `shared/topics.json` (`messenger_cmd`, `messenger_event`, `messenger_state`).
 
 | File | What |

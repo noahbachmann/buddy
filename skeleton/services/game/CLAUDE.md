@@ -7,7 +7,7 @@ Dev declares what a cost discards, the referee never picks from Dev's placeholde
 journal, restarts and table timeouts; the panel's options on public objects, a table back on the broker asked
 again)
 and where the next work plugs in.
-Why it is built this way: `docs/plans/05-riftbound.md` → "5.2 design", "5.3 as built" (with the rulings, confirmed by Dev),
+Why it is built this way: `docs/02-riftbound/design.md` → "5.2 design", "5.3 as built" (with the rulings, confirmed by Dev),
 "5.4 design", "5.5 design"/"as built". Sub-issues: 5.2 #20, 5.3 #33, 5.4 #39, 5.5 #45. Rules text: `~/buddy/data/riftbound/core-rules-2026-10-09.txt`
 on the VM (grep the rule number); full card text: `~/buddy/data/riftbound/cards.json` (VM and Pi, not in Git).
 
