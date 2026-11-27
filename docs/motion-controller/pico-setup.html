@@ -105,7 +105,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
 
 <main>
   <header>
-    <div class="eyebrow">Buddy · Phase 2 · Step 2.2 motion controller</div>
+    <div class="eyebrow">Buddy · side project · motion controller</div>
     <h1>Pico 2 H servo controller</h1>
     <p class="lede">The Pi 5 sends text commands over USB to a Raspberry Pi Pico 2 H. The Pico drives the servos from its own hardware PWM, keeps every servo inside its limits, and lets go of all of them when the Pi goes quiet. The servos run from a separate 5 V supply.</p>
     <div class="chips">
@@ -317,8 +317,8 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
           <tr><td class="n">3</td><td>GND</td><td>Ground rail (shared ground)</td></tr>
           <tr><td class="n">4 · GP2</td><td>Servo ch0, head pan</td><td>330 Ω → servo 0 signal</td></tr>
           <tr><td class="n">5 · GP3</td><td>Servo ch1, head tilt</td><td>330 Ω → servo 1 signal</td></tr>
-          <tr class="reserved"><td class="n">6–12 · GP4–GP9</td><td>Servo ch2–ch7</td><td>Reserved for the hand (Phase 3)</td></tr>
-          <tr class="reserved"><td class="n">14–17, 19–20 · GP10–GP15</td><td>SPI1</td><td>Reserved for the round display (2.4)</td></tr>
+          <tr class="reserved"><td class="n">6–12 · GP4–GP9</td><td>Servo ch2–ch7</td><td>Free</td></tr>
+          <tr class="reserved"><td class="n">14–17, 19–20 · GP10–GP15</td><td>SPI1</td><td>Kept free for a display</td></tr>
           <tr class="never"><td class="n">39 VSYS · 40 VBUS</td><td>—</td><td>Nothing. Never servo 5 V.</td></tr>
           <tr><td>USB</td><td>Power + data</td><td>Pi 5, the Pico's only power source</td></tr>
         </tbody>

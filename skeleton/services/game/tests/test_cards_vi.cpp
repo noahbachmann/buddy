@@ -1,4 +1,4 @@
-// The Vi deck's cards (5.3, cards/vi_unleashed.cpp): one test per card, the card text in front of it; random games of
+// The Vi deck's cards (2.3, cards/vi_unleashed.cpp): one test per card, the card text in front of it; random games of
 // every registered card at the end.
 #include <gtest/gtest.h>
 

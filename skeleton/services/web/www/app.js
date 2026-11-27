@@ -693,7 +693,7 @@ function screenerChats(s) {
   return `Chats (${s.chat_mode ?? "off"}): ${parts.length ? parts.join(", ") : "none"}`;
 }
 
-// --- riftbound (5.6) --------------------------------------------------------------------------------------------
+// --- riftbound (2.6) --------------------------------------------------------------------------------------------
 
 // buddy/game/state is built from cards everyone knows (public_view): Buddy's hand is a count, Dev's real cards are
 // named by Dev in prompts. Dev answers with `act {v, i}` (one of `options`) or `reveal {v, cards}` (the prompt).

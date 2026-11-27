@@ -12,7 +12,7 @@ and handles its own cards: draw, scan, hand pile, play to the right spot.
 The hardware (dispensers and the playfield machine, Phases 3–5) comes after the software, which is tested against a
 **simulated table**.
 
-**Done when (software, 5.1–5.6):** Dev plays a full game against Buddy on the web panel. Buddy's side runs on the
+**Done when (software, 2.1–2.6):** Dev plays a full game against Buddy on the web panel. Buddy's side runs on the
 simulated table with injected scan errors, which Buddy detects and corrects. Buddy's hand never shows on the panel.
 
 ## Decisions (2026-10-31)
@@ -65,7 +65,7 @@ believes in (a misread at draw), table reports the corrected hand; game fixes it
                                      │ ▲   "draw", "play hand card X to battlefield 2"
                                      ▼ │   drawn / done / failed / hand corrected
                                    [table] piles + hand tracker ──► sim backend (now)
-                                                               └─► scanner + arm via [motion] (Phase 4+)
+                                                               └─► dispensers + playfield machine (Phases 3–5)
 ```
 
 - **`game`** (C++): rules state, legal moves, AI, and *which* cards are in Buddy's hand. Libraries: `riftbound` (engine,
@@ -75,7 +75,7 @@ believes in (a misread at draw), table reports the corrected hand; game fixes it
   scans and recovers. The backend is swappable: `sim` now (virtual piles with seeded fault injection: misread, double
   feed, pile disturbed, wrong card drawn), hardware later. game never knows whether the table is simulated, so the
   MQTT boundary gets tested from day one.
-- One service, one job: game decides, table handles cards, and later table drives `motion`, which only knows joints.
+- One service, one job: game decides, table handles cards, and later table drives the dispensers and the playfield machine (Phases 3–5).
 
 ### Engine (`services/game/riftbound/`)
 
@@ -87,7 +87,7 @@ believes in (a misread at draw), table reports the corrected hand; game fixes it
 - **Partial information:** Dev's hand and deck order are unknown to Buddy. The engine is a referee that only learns
   Dev's cards when they're played or revealed. The AI samples the unknown cards from Dev's decklist (determinization).
 - `legal_actions(state)` and `apply(state, action)`. Mid-resolution choices ("choose a unit") are actions too,
-  so the AI, the panel and the tests share one loop ("5.2 design" below).
+  so the AI, the panel and the tests share one loop ("2.2 design" below).
 - Cards: one C++ class per card (`cards/<set>/<num>_<slug>.cpp`) on a small library of effect primitives (deal damage,
   draw, move, buff, ready/exhaust, grant keyword…).
 - Deterministic RNG seeded per game. Seed + action log replays a game exactly, and that's the bug-report format.
@@ -98,36 +98,36 @@ believes in (a misread at draw), table reports the corrected hand; game fixes it
   best one.
 - **v2 ISMCTS:** Monte Carlo tree search over legal moves, re-sampling Dev's hidden cards per iteration, truncated
   playouts scored by v1's evaluation, with a time budget per decision (start: 2 s on 4 threads on the Pi 5 ⚠️).
-- How: "5.4 design" below. The AI sees only `view(s, p)` and both decklists: Buddy knows Dev's list (Dev, 2026-11-01:
+- How: "2.4 design" below. The AI sees only `view(s, p)` and both decklists: Buddy knows Dev's list (Dev, 2026-11-01:
   always an unmodified deck; which one comes with `new`, so a new deck needs no AI change).
 
 ### MQTT (`shared/topics.json`)
 
 | Topic | Direction | Notes |
 |---|---|---|
-| `buddy/game/cmd` | → game | `{"action": …}`: `new {buddy: zed\|vi, seed?, dev: human\|greedy\|random}`, `act {v, i}` (one of Dev's options), `reveal {v, cards: [code…]}` (Dev's answer to a prompt), `resume`, `concede` (5.6 design, built in #50) |
+| `buddy/game/cmd` | → game | `{"action": …}`: `new {buddy: zed\|vi, seed?, dev: human\|greedy\|random}`, `act {v, i}` (one of Dev's options), `reveal {v, cards: [code…]}` (Dev's answer to a prompt), `resume`, `concede` (2.6 design, built in #50) |
 | `buddy/game/state` | game → | retained, built from `public_view` only (cards everyone knows): board, scores, Buddy's status, Dev's options or prompt, log, card catalogue. Never Buddy's hand. |
-| `buddy/table/cmd` | game → table | `setup`, `deal`, `peek`/`peek_done`, `play {id, to}`, `move`, `exhaust`, `token`, `remove`, `rescan_hand`, … with a `seq` (5.5 design). `"web": false`: it moves the arm later (D19). |
+| `buddy/table/cmd` | game → table | `setup`, `deal`, `peek`/`peek_done`, `play {id, to}`, `move`, `exhaust`, `token`, `remove`, `rescan_hand`, … with a `seq` (2.5 design). `"web": false`: it moves the arm later (D19). |
 | `buddy/table/event` | table → game | `done {seq, cards}`, `failed {seq, reason}`, `hand_corrected {hand, replaced, extra, missing}` |
 | `buddy/table/debug` | table → | retained belief (debug; not `/state`: web would stream Buddy's hand to the browser) |
 
 **Dev's moves** come from a Riftbound page on the web panel: the board, Dev's legal actions as buttons, and pass/respond
-prompts during showdowns and the chain. Dev plays real cards (5.6 design): the page asks for a card when it turns public. Voice for common
+prompts during showdowns and the chain. Dev plays real cards (2.6 design): the page asks for a card when it turns public. Voice for common
 moves ("pass", "I attack the left battlefield") comes after that.
 
 ## Steps
 
 | Step | Content | Done when |
 |---|---|---|
-| 5.1 Card data & decks | `deploy/pi/fetch-cards.sh` → `~/buddy/data/riftbound/cards.json` (pruned, not in Git). Code parser, printing → card map, decklist format (Piltover Archive text). Both decklists in `services/game/decks/`; a small card fixture for tests in the repo. | `buddy-game --deck <file> --check` lists every card; an unknown code is a clear error |
-| 5.2 Rules engine core | Turn structure, runes/energy/power, units, moves, battlefields, showdowns, combat, chain/priority, conquer/hold scoring and the win condition, mulligan. Keywords only as the two decks need them. gtest per rules section. | 1000 seeded random-vs-random games without assertion failures under ASan/UBSan |
-| 5.3 Cards of both decks | Every card in both decklists, one test each. Dev reviews odd rulings. | both decks load, per-card tests green |
-| 5.4 AI player | v1 heuristic, then v2 ISMCTS | v1 beats random ≥ 180 / 200; v2 beats v1 ≥ 115 / 200 (95 % Wilson lower bound > 50 %) at a fixed iteration budget; decision time on the Pi p95 ≤ budget + 10 % |
-| 5.5 `table` service + sim ✅ | piles, primitive ops, hand tracker, verify/recover, fault injection. Property tests: random op sequences with faults always end in the correct state. | 10k games' worth of pile ops with faults: zero unrecovered states; scans per play reported (done 2026-11-04, #45: "5.5 as built") |
-| 5.6 `game` service + panel page | session (table acts before the state commits, scanned cards bound into the engine), Dev's real cards, MQTT, Riftbound page, voice lines via `buddy/voice/say`, `buddy-game --sim` (#46) | the phase's "Done when" above, with Dev's real cards; before it the session soak: 1000 games under stress, 0 unrecovered, 0 desyncs, 0 leaks |
-| 5.7+ Hardware | card scanner, hand tray mechanism, card placement, reading Dev's cards | separate plan after Phase 4 |
+| 2.1 Card data & decks | `deploy/pi/fetch-cards.sh` → `~/buddy/data/riftbound/cards.json` (pruned, not in Git). Code parser, printing → card map, decklist format (Piltover Archive text). Both decklists in `services/game/decks/`; a small card fixture for tests in the repo. | `buddy-game --deck <file> --check` lists every card; an unknown code is a clear error |
+| 2.2 Rules engine core | Turn structure, runes/energy/power, units, moves, battlefields, showdowns, combat, chain/priority, conquer/hold scoring and the win condition, mulligan. Keywords only as the two decks need them. gtest per rules section. | 1000 seeded random-vs-random games without assertion failures under ASan/UBSan |
+| 2.3 Cards of both decks | Every card in both decklists, one test each. Dev reviews odd rulings. | both decks load, per-card tests green |
+| 2.4 AI player | v1 heuristic, then v2 ISMCTS | v1 beats random ≥ 180 / 200; v2 beats v1 ≥ 115 / 200 (95 % Wilson lower bound > 50 %) at a fixed iteration budget; decision time on the Pi p95 ≤ budget + 10 % |
+| 2.5 `table` service + sim ✅ | piles, primitive ops, hand tracker, verify/recover, fault injection. Property tests: random op sequences with faults always end in the correct state. | 10k games' worth of pile ops with faults: zero unrecovered states; scans per play reported (done 2026-11-04, #45: "2.5 as built") |
+| 2.6 `game` service + panel page | session (table acts before the state commits, scanned cards bound into the engine), Dev's real cards, MQTT, Riftbound page, voice lines via `buddy/voice/say`, `buddy-game --sim` (#46) | the phase's "Done when" above, with Dev's real cards; before it the session soak: 1000 games under stress, 0 unrecovered, 0 desyncs, 0 leaks |
+| Hardware | hand dispenser, deck dispenser, playfield machine | Phases 3–5 (#93–#95) |
 
-### 5.1 as built (2026-10-31, #19)
+### 2.1 as built (2026-10-31, #19)
 
 - **Data:** `setup.sh cards` (= `deploy/pi/fetch-cards.sh`, curl + stdlib python3; the Pi has no jq) → 1304 printings,
   930 cards, 8 sets; one entry per line, re-run for new sets. `BUDDY_GAME_CARDS` moves the file.
@@ -150,11 +150,11 @@ moves ("pass", "I attack the left battlefield") comes after that.
   Both checked against the boxes by Dev (2026-11-01). The files list names, not codes: a name is the card the rules
   need, a code only one of its printings (`--check` shows them all).
 - **Commands:** `deploy/run.sh game --check` (all decks), `--deck zed-vendetta --check`, `--code "OGN • 007a/298"`.
-  `deploy.sh game` installs the binary and decks without a unit until 5.6.
+  `deploy.sh game` installs the binary and decks without a unit until 2.6.
 - **Tests:** `services/game/tests/data/cards.json` = every printing of the two decks' cards (text removed); edge
   cases (conflicts, bad entries) inline in `test_card_db.cpp`.
 
-### 5.2 design (#21)
+### 2.2 design (#21)
 
 The engine in `services/game/riftbound/`, Core Rules 2026-10-09. Three goals: one loop for the AI, the panel and the
 tests; a state that's cheap to copy (search clones it thousands of times per decision); every rule testable by its
@@ -174,7 +174,7 @@ number.
   matches its zone, occupancy of the one-card zones.
 - **The only pointers** go to immutable data: `const Card*` into the `CardDb`, later `const CardRules*` into the card
   registry. No `std::function`, no `shared_ptr`. Zones are `std::vector` for now: ~110 objects, ~20 small
-  allocations per copy. 5.4 measures before anything smarter (fixed-capacity vectors).
+  allocations per copy. 2.4 measures before anything smarter (fixed-capacity vectors).
 - **Temporary modifications** ("+2 might this turn", granted keywords) aren't object fields. They're continuous
   effects in a list on the state, applied through the layers (479, #24), as plain data: source `ObjRef`, rules +
   ability index, subject `ObjRef`, duration.
@@ -207,7 +207,7 @@ Death Mark, any-domain costs): a `Recycle` decision, one `Pick` per candidate do
 domains in non-decreasing order and only picks that keep the rest payable, so each set of runes has one path. One
 candidate = no decision. Which ready runes get exhausted never matters to the rules, so it's never asked. ⚠️
 `cards.json` gives only the number of Power symbols: they count as the card's domains (any domain for a colorless
-card); a card printed otherwise sets its cost in its rules (5.3). Add abilities on other cards (gear) join with #24.
+card); a card printed otherwise sets its cost in its rules (2.3). Add abilities on other cards (gear) join with #24.
 
 **Tasks: HOT FEPR (334)**
 
@@ -221,7 +221,7 @@ card); a card printed otherwise sets its cost in its rules (5.3). Add abilities 
   chain item's resolution is one task, so no cleanup happens inside it (321). A cleanup that changed something
   re-arms the flag (322).
 
-**Card hooks** (5.3 fills them, #24 dispatches)
+**Card hooks** (2.3 fills them, #24 dispatches)
 
 One `CardRules` subclass per card, registered by name (`cards/<set>/<num>_<slug>.cpp`). The engine asks it; it holds
 no game state. Shape (exact signatures come with #24):
@@ -256,7 +256,7 @@ struct CardRules {
 
 **Vanilla mode and test cards**
 
-- `GameOptions::vanilla`: stats only, card text ignored. For tests and the random games until 5.3. Otherwise
+- `GameOptions::vanilla`: stats only, card text ignored. For tests and the random games until 2.3. Otherwise
   `new_game()` refuses every card without an implementation, all named in one error (D21). Basic runes are built
   in (164).
 - `tests/test_cards.hpp`: cards defined in code with exactly the stats a test needs, no `cards.json`;
@@ -272,7 +272,7 @@ struct CardRules {
   in turn order (337.4, 340.4). With no chain, 335 gives the turn player priority (no Priority task).
 - Legality (358) is checked up front: `legal_actions` offers only legal plays, so 358.5's undo never happens.
 - Timing = the card's leading `[Action]`/`[Reaction]` keyword (`Card::timing`), read in vanilla mode too; the
-  fixture keeps just that keyword. Granted timing (Quick-Draw) comes from card rules (5.3).
+  fixture keeps just that keyword. Granted timing (Quick-Draw) comes from card rules (2.3).
 - Cleanup 323 runs in the rule's order with the combat/showdown steps as named placeholders for #25. The Ending phase
   is two tasks (ending step; Expiration = Ending Special Cleanup + next turn), so lethal damage kills before units
   heal.
@@ -300,7 +300,7 @@ struct CardRules {
 - Layers: each `traits()` call starts from printed values and re-applies until no passive adds anything new (478.2–
   478.3, each mod once per evaluation). Order: base might, keyword grants/losses (passives, then effects by
   timestamp), increases, "increased to" (481's dependency), decreases. Non-passive limits are snapshotted at creation
-  (`give_might`). Nothing is cached: 5.4 measures first.
+  (`give_might`). Nothing is cached: 2.4 measures first.
 - Cost: base → `SetBase` mods → additional and optional costs → increases → floored discounts, then the rest (the
   order a player would pick, 356.4.e) → ≥ 0. Optional costs are offered only when the total stays payable (355.16).
 - Fixed choices where the rules give one to a player, ⚠️ until a card needs them: the order of several replacement
@@ -360,7 +360,7 @@ struct CardRules {
   Release 0.63 ms per game (#25: 0.58). Random games over the keyword and cost test decks (40 each) and the ability
   deck pass every invariant.
 
-**As built (#27, hidden information, replay, the gate).** 5.2 is done. Decisions:
+**As built (#27, hidden information, replay, the gate).** 2.2 is done. Decisions:
 
 - **Knowledge per object**, not per zone: `Object::known` = a bit per player who knows which card it is (128).
   `move_to` sets it (public zone: everyone; hand: + owner; facedown: + controller; decks and set aside: unchanged),
@@ -381,10 +381,10 @@ struct CardRules {
   `riftbound`; `deploy/test.sh` skips them, `--riftbound` runs them (also `--pi`).
 - Measurements: gate under ASan/UBSan 26 s on the VM, 32 s on the Pi, 0 failures. Pi Release, 1000 games: 0.72 ms
   per game (1390 games/s, 146k actions/s), 17 turns, 105 actions; `sizeof(GameState)` 896 B, ~112 objects, a copy
-  0.83 µs (average over one game's states). The baseline for 5.4: ~1.2 M state copies per second per core before any
+  0.83 µs (average over one game's states). The baseline for 2.4: ~1.2 M state copies per second per core before any
   fixed-capacity containers.
 
-### 5.3 as built (2026-11-01, #33)
+### 2.3 as built (2026-11-01, #33)
 
 - **Cards:** `services/game/riftbound/cards/`: `vi_unleashed.cpp` (28), `zed_vendetta.cpp` (24), one `CardRules`
   per card with its text above it; basic runes need none. `CardDb::parse` attaches them by name, so a decklist with
@@ -404,7 +404,7 @@ struct CardRules {
   Release, 1000 games, seeds 0–999: **2.97 ms per game** with rules (336 games/s, 56k actions/s, 167 actions, 17
   turns, 6.5 spells and 0.8 chain plays per game, 500:500 wins) vs 0.74 ms vanilla (142k actions/s, 343:657). A
   state copy stays 0.85 µs; an action costs ~2.5× vanilla's: `traits()` asks every object's passives each call.
-  The first thing to profile when 5.4's search wants more playouts.
+  The first thing to profile when 2.4's search wants more playouts.
 
 #### Rulings (all confirmed by Dev, 2026-11-01)
 
@@ -430,12 +430,12 @@ in the card's file. "AI:" = how Dev plays it, for the search (#37), not a rule.
 | Star Spring | ✅ Dev, 2026-11-01: once per turn in total, not per player; the other unit is a target of the player who played. |
 | Valley of Idols | ✅ Dev, 2026-11-01. Tokens played there trigger it ("a unit"). |
 
-### 5.4 design (2026-11-01, #39)
+### 2.4 design (2026-11-01, #39)
 
 Sub-issues, in order: #34 player API and arena, #35 evaluation and v1 greedy, #36 engine speed, #37 v2 ISMCTS, #38 Pi
 budget, tuning, docs. Code in `services/game/riftbound/ai/` (pure, like the engine), `buddy-game --match`.
 
-**Why truncated playouts:** with rules the engine does 56k actions/s per core on the Pi (5.3) and a game is ~167
+**Why truncated playouts:** with rules the engine does 56k actions/s per core on the Pi (2.3) and a game is ~167
 actions, so full random playouts give ~330 per second per core: ~2600 in 2 s on 4 cores. Too few for plain MCTS over
 this branching. v2 plays each playout only a few actions (or to the end of the turn) and scores it with v1's `eval`,
 and the engine gets its own speed step (#36) before the search.
@@ -451,7 +451,7 @@ and the engine gets its own speed step (#36) before the search.
 | Measurement | `buddy-game --match <a> <b> [--games N] [--seed S] [--iterations N \| --budget-ms M] [--threads T] [--jobs J]`, players `random`, `greedy`, `ismcts`. Each pairing plays both decks from both seats, games in parallel. Reports wins with the 95 % Wilson interval, per deck, decision time p50/p95/max, iterations per decision. `GameChecks` after every action; a failure writes a replay. |
 | Pass marks | "> 50 % of 200 games" is noise, so: v1 vs random ≥ 180 / 200, v2 vs v1 ≥ 115 / 200 (Wilson lower bound > 50 %) at a fixed iteration budget on the VM. The Pi measures time, not strength. |
 
-Later, not 5.4: thinking during Dev's turn, reusing the tree between decisions, MO-ISMCTS. The hand pile's order never
+Later, not 2.4: thinking during Dev's turn, reusing the tree between decisions, MO-ISMCTS. The hand pile's order never
 weighs on the choice (Dev, 2026-11-01): play strength only, feeds are the table's cost.
 
 **As built (#34–#38, 2026-11-01).** Code in `services/game/riftbound/ai/`, how it runs: `services/game/CLAUDE.md`.
@@ -505,14 +505,14 @@ weighs on the choice (Dev, 2026-11-01): play strength only, feeds are the table'
   3 threads: p50 78k (p5 53k, shorter playouts), p95 2002.5 ms, max 2003.1 ms, 7 / 8 won. All within budget + 10 %
   (2.2 s). Dev used the voice during the
   3-thread run: wake word and speech-to-text (1.1 s) as usual, no xruns or watchdog hits. **Default for the service
-  (5.6): 3 threads, 2 s**: the fourth core stays for ears, which must hear "Hey Jarvis" while Buddy thinks; 3 threads
+  (2.6): 3 threads, 2 s**: the fourth core stays for ears, which must hear "Hey Jarvis" while Buddy thinks; 3 threads
   lose only a quarter of the iterations. Whether 70k beats 8000 by as much as 8000 beats 1000 isn't measured (one
-  match takes hours on the VM); 5.6 may still shorten the budget if waiting 2 s per decision feels slow. ⚠️
+  match takes hours on the VM); 2.6 may still shorten the budget if waiting 2 s per decision feels slow. ⚠️
 - Tests (`test_ai`): reproducible under an iteration budget (1 and 3 threads), takes the win in 1, ≥ 1000 searched
-  decisions in ISMCTS-vs-ISMCTS games all legal. 5.4's checks green on the Pi (`deploy/test.sh --pi --riftbound`:
+  decisions in ISMCTS-vs-ISMCTS games all legal. 2.4's checks green on the Pi (`deploy/test.sh --pi --riftbound`:
   611 tests).
 
-### 5.5 design (2026-11-04, #45)
+### 2.5 design (2026-11-04, #45)
 
 Sub-issues, in order: #40 protocol, pile model, tracker; #41 sim backend and faults; #42 engine moves → table
 commands; #43 soak and defaults (the gate); #44 service, deploy, docs. Code in `services/table/` (`table_core`,
@@ -529,7 +529,7 @@ and tokens.
 |---|---|
 | Ownership | table owns every physical card of Buddy's (piles, board spots, exhausted or not); game owns the rules and which object is which card. Dev's cards are never tracked. Battlefield cards don't move: not tracked. |
 | Ids | The table numbers each card it deals or sets up (`id`) and reports `{id, code}`. A card going back into a deck loses its id (a later deal gives a new one). Same-code copies in the hand are interchangeable: a play takes the nearest copy and keeps the asked id (the ids swap in the belief). |
-| Zones | Piles (hidden, ordered bottom → top): `deck`, `runes`, two hand trays (H and B, the names swap after every merge) and the scan **spot** (deals and takes land there, a placing arm moves its bottom card on). Spots (face up, cards by id): `base`, `bf0`/`bf1`, `fd0`/`fd1` (facedown), `chain`, `trash`, `banish`, `champion`, `legend`. Places a card can go: those spots, `hand` (top of H), `deck_top`, `deck_bottom`, `runes_bottom`. |
+| Zones | Piles (hidden, ordered bottom → top): `deck`, `runes`, two hand trays (H and B, the names swap after every merge) and the scan **spot** (deals and takes land there, the hand (Phase 5) moves its bottom card on). Spots (face up, cards by id): `base`, `bf0`/`bf1`, `fd0`/`fd1` (facedown), `chain`, `trash`, `banish`, `champion`, `legend`. Places a card can go: those spots, `hand` (top of H), `deck_top`, `deck_bottom`, `runes_bottom`. |
 | Backend | `scan(pile)` → code / unreadable / empty (bottom card), `feed(H → B)`, `take(H → spot)`, `deal(deck\|runes → spot)`, `stack(H onto B)`, `place(spot → place)`, `put(id → place)`, `turn(id, exhausted)`, `shuffle_trash_into_deck`, `token`, `remove`. Only scans, feeds, takes and deals fail; placing a held card and moving a card on a spot don't (sim). |
 | Reads | `confirm_reads` agreeing reads of the same pile give a code (an unreadable read doesn't count, a different code starts over; a bounded number of tries, then `unreadable`). Deals and plays read this way. |
 | Post-check | After placing the spot's card, scan the spot: it must be empty. A card left there came along by a double deal (→ back on the deck top) or a double take (→ top of B, which is exactly its place in the merged hand). Scanning the spot instead of the next hand card (the issue's first idea) also catches a double take of two same-code cards. |
@@ -537,13 +537,13 @@ and tokens.
 | Recover | Full scan passes H → B (each card read, then fed). A pass is accepted if it matches the believed multiset (adopts the order: a disturbed pile), else passes until two agree (max `max_passes` → `failed hardware`). The believed ids follow the scanned codes: same multiset → by code in order; otherwise an edit-distance alignment keeps ids where codes match, pairs the rest as `replaced` (a misread at draw), leftovers are `extra` (new id) or `missing`. `hand_corrected {hand, replaced, extra, missing}`; game decides (extra → back on the deck top). |
 | Sim faults | Seeded, per op: misread (a wrong code from the sim's codes), unreadable, double feed, missed feed, double take, double deal; per command: pile disturbed (two hand cards swap). |
 | Unrecovered | A wrong card played, `failed hardware`, or belief ≠ truth after a recovery or at game end (after a final `rescan_hand`). |
-| Engine → commands | The diff of two states can't order a Burn Out between two draws or tell which recycled card went down first, so the engine reports its physical moves: a thread-local move log in `move_to`/`create`, installed only around the referee's `new_game`/`apply` (search never logs). `physical_moves(before, after, log, seat)` turns one action's log into table commands: hops through the chain or "set aside" collapse (hand → chain → base = one play), consecutive deck → same place = one `deal`, deck → deck bottom = `peek` + `peek_done`, exhaust changes from the before/after diff. 5.6 uses it as is. |
+| Engine → commands | The diff of two states can't order a Burn Out between two draws or tell which recycled card went down first, so the engine reports its physical moves: a thread-local move log in `move_to`/`create`, installed only around the referee's `new_game`/`apply` (search never logs). `physical_moves(before, after, log, seat)` turns one action's log into table commands: hops through the chain or "set aside" collapse (hand → chain → base = one play), consecutive deck → same place = one `deal`, deck → deck bottom = `peek` + `peek_done`, exhaust changes from the before/after diff. 2.6 uses it as is. |
 | Workload | `buddy-game --table-workload --games N --seed S [greedy\|random]` → JSON lines: per game a `setup` (Buddy's seat, deck and rune order as home-printing codes with the engine objects), then commands with engine object ids (`deal` lists the objects it deals). `buddy-table --soak -` stands in for game. |
 
-Open for 5.6: whether game sends a play before or after `apply` and what happens on `failed`; the engine taking drawn
-codes in place of its own deck order; Vision `peek`s before the choice. Hardware details wait for 5.7+.
+Open for 2.6: whether game sends a play before or after `apply` and what happens on `failed`; the engine taking drawn
+codes in place of its own deck order; Vision `peek`s before the choice. Hardware details wait for Phase 3.
 
-### 5.5 as built (2026-11-04, #40–#44)
+### 2.5 as built (2026-11-04, #40–#44)
 
 Code: `shared/table_protocol.*`, `services/table/` (`table_core`: `tracker`, `table`, `sim`, `soak`; `buddy-table`),
 `services/game/table_moves.*` (`game_core`). How it runs: `services/table/CLAUDE.md`.
@@ -576,7 +576,7 @@ What the tests changed against the design above:
 | stress, 2, post-check off | 20 934 | 1 / 4 / 8 | 2 / 24 / 117 | 134 |
 | stress, 3, post-check off | 21 124 | 1 / 4 / 8 | 3 / 33 / 132 | 196 |
 
-Stress rates ⚠️ (guesses until 5.7 measures a scanner): misread 2 %, unreadable 5 %, double/missed feed 2 %,
+Stress rates ⚠️ (guesses until Phase 3 measures a scanner): misread 2 %, unreadable 5 %, double/missed feed 2 %,
 double take 1 %, double deal 1 % per op, disturbed 1 % per command. At `confirm_reads` 3 under stress: 2.1
 recoveries per game (max 7, the final rescan included), 4825 corrections in 10k games (all order fixes after a
 disturbed pile), no `failed`. Sim seeds 1–3: 0 unrecovered as well.
@@ -596,11 +596,11 @@ web streams every retained `buddy/+/state` to the browser, and this one holds Bu
 published by hand give `done` events and a consistent belief; the gate pipeline as written above (Release, `--jobs 3`)
 gives the VM's numbers exactly (same games, same faults) in 2.5 min. `deploy/test.sh --pi --riftbound`: 643 tests green.
 
-Open for 5.6 (unchanged from the design): whether game sends a play before or after `apply` and what happens on
+Open for 2.6 (unchanged from the design): whether game sends a play before or after `apply` and what happens on
 `failed`; the engine taking drawn codes in place of its own deck order (a misread public card is then the engine's
 problem too); Vision `peek`s before the choice (the workload only peeks when the card goes to the bottom).
 
-### 5.6 design (2026-11-04, #46)
+### 2.6 design (2026-11-04, #46)
 
 Sub-issues, in order: #47 engine: binding hidden cards, public view, replay lines; #48 session: step protocol and
 Buddy's side; #49 Dev's real cards; #50 public state, commands, voice lines; #51 session soak and terminal play (the
@@ -615,21 +615,21 @@ the table reads codes, and the deck is shuffled by the sim (later by hand), not 
 |---|---|
 | Binding | `bind(s, obj, card)` swaps `Object::card` with an object of the same owner holding that card, from a pool of cards Buddy doesn't know (Buddy: deck and rune deck; Dev: hand, deck, rune deck). Zones, `gen`, `known` unchanged, so views and determinizations stay valid. A misread hand card is rebound the same way; a disturbed pile gets `set_hand_order`. Replays get `bind`/`order` lines: seed + actions + binds reproduce a service game. |
 | Oracles | One per seat answers reveals: Buddy's = the table (`deal`/`peek` codes → cards), Dev's = a prompt on the panel ("which card did you burn?", "which runes did you channel?", "your battlefield?"). Tests and bot games: `SimDev`, a true shuffled deck that answers truthfully. |
-| Step protocol | Answers 5.5's first open point. `next = s; apply(next, a)` under the move log, `TableMoves::step` gives the commands. Commands and prompts run one at a time in log order; each revealed identity is bound on `s` and `next` re-applied. Whatever already ran must be a prefix of the new list, else a **desync** (pause, replay written; the soak counts them, expected 0: no deck card branches on a drawn or burned card's identity within the step). After the last `done`, `s = next`. The table always acts before the state commits. |
+| Step protocol | Answers 2.5's first open point. `next = s; apply(next, a)` under the move log, `TableMoves::step` gives the commands. Commands and prompts run one at a time in log order; each revealed identity is bound on `s` and `next` re-applied. Whatever already ran must be a prefix of the new list, else a **desync** (pause, replay written; the soak counts them, expected 0: no deck card branches on a drawn or burned card's identity within the step). After the last `done`, `s = next`. The table always acts before the state commits. |
 | Vision | Peek as soon as the engine shows Buddy the top card (Vision's `predict` opens the decision): bound before the AI chooses, `peek_done` follows the answer. `TableMoves` changes for it (#47). |
 | Failures | `not_in_hand` on Buddy's play (the step's first command): `hand_corrected` into `s`, extras back on the deck top, the AI decides again. `unreadable`: retry once, then pause. `hardware`, `missing`, a table restart: pause and say so; `resume` (after a `rescan_hand`) or `concede`. `replaced` → rebind + "I misread a card". |
 | Dev's options | Dev's hidden objects hold placeholder cards, never shown or trusted. Plays: the non-hand actions plus one "play C" per card C that could be in Dev's hand (decklist minus the copies known elsewhere), each checked on a copy with a hand object bound to C; choosing C binds it for real. Choices that reveal a hand card (discard costs) go by card, the others (mulligan) by count. An impossible entry is refused. **#73:** the referee never picks from the placeholders: Dev's discard costs are always asked, a cost that discards a spell is declared with the option. |
 | Public state | `buddy/game/state` comes only from `public_view(s)` (cards known to everyone): free of Buddy's hand and of Dev's placeholders by construction. Leak test: the JSON is the same after re-determinizing Buddy's hidden cards or Dev's placeholders. The card catalogue goes in once; web's JSON patches carry only changes afterwards. |
-| AI in the service | ISMCTS 2 s, 3 threads (5.4) on a worker thread; forced moves unasked; `nearest_copy` on Buddy's choice. |
+| AI in the service | ISMCTS 2 s, 3 threads (2.4) on a worker thread; forced moves unasked; `nearest_copy` on Buddy's choice. |
 | Voice | Game start, Buddy's plays/moves/attacks (one line per action group, never per pass), scoring, corrections, pauses, the result. Battlefields by card name in voice and panel ("I play Zed to Zaun Warrens"; Dev, 2026-11-16), never left/right. **Off by default, per game** (Dev, 2026-11-16): `new {voice}` / `voice {on}` from the page; off sends nothing to the voice service (no speech synthesized), not a mute. |
 | Gate | `buddy-game --sim --games 1000 --faults stress` (`SimDev` greedy vs Buddy greedy, both decks from both seats): 0 unrecovered, 0 desyncs, 0 leaks; 50 games vs ISMCTS (1000 iterations). Also reports Dev's prompts and taps per game: what real cards cost Dev ⚠️. |
 
-Later, not 5.6: voice input ("pass", "let's play Riftbound": STT doesn't know these words yet, next voice session),
+Later, not 2.6: voice input ("pass", "let's play Riftbound": STT doesn't know these words yet, next voice session),
 thinking during Dev's turn, a game that survives a *table* restart (the sim's piles are in memory; a *game* restart
 resumes from the replay). **D19:** `buddy/game/cmd` is on the web without a login; fine while the table is a sim,
-a login comes before the table drives motion (5.7).
+a login comes before the table drives hardware (Phase 3).
 
-### 5.6 as built (2026-11-16, #46: #47–#53, #73)
+### 2.6 as built (2026-11-16, #46: #47–#53, #73)
 
 **In short:** the gate passed (`buddy-game --sim --games 1000 --faults stress`, SimDev greedy vs Buddy greedy, both
 decks from both seats: **0 unrecovered, 0 desyncs, 0 leaks**, 5 × 1000 games after #73; SimDev random 1000 and 50 vs
@@ -657,7 +657,7 @@ whole game on a phone. Details per sub-issue below. Dev's live game: #53.
 - **Lost and found.** `missing` pauses; when Dev puts the card back, the rescan reports it as `extra`: the session
   matches it to the missing object by code instead of putting it on the deck top.
 - **Checks.** After every step engine = belief strictly (hand order and ids, codes, spots, exhausted, counts); belief
-  = truth with the hand as a multiset: a disturbed pile stays unnoticed until a play mismatches (as in 5.5). At game
+  = truth with the hand as a multiset: a disturbed pile stays unnoticed until a play mismatches (as in 2.5). At game
   end a rescan, then the order too. Each fault alone at 5× stress (at least 10 %): no desync, no pause, every game ends,
   replays reproduce the state. Unreadable alone hardly ever fails a deal (votes over 10 reads): the retry and the pause
   are forced by a backend wrapper.
@@ -737,7 +737,7 @@ tests and the soak run the same games and checks.
   battlefield, discards Dev didn't choose. The panel (#53) should make rune prompts one tap per domain count and keep
   the candidates in a stable order.
 - **Failure paths at stress never fire:** no pause, retry or re-decide in 3 050 stress games (confirm_reads 3 holds,
-  as in 5.5). At 5× stress (500 games, 120 faults per game) retries 0.08 and re-decides 0.01 per game, still 0 / 0 / 0
+  as in 2.5). At 5× stress (500 games, 120 faults per game) retries 0.08 and re-decides 0.01 per game, still 0 / 0 / 0
   and no pause. Pauses stay covered by the forced-failure tests (`Flaky`). The open point from #48 (a play the table
   fails `not_in_hand` that isn't Buddy's choice) didn't occur once.
 - **Found by the soak** (the first run: 9 of 1000 games failed):
@@ -748,7 +748,7 @@ tests and the soak run the same games and checks.
   - **The true-game check replayed a moot pick** (4 games): the placeholders held two spells so Dev chose the discard;
     the true hand held one, discarded unasked. The mirror of #49's "collapsed" case: skipped.
   - **The truth check ran while a peeked card was held** (3 games): a double deal under a Vision peek stays on the
-    spot until `peek_done`'s post-check puts it back (5.5's design); compared at the next step instead.
+    spot until `peek_done`'s post-check puts it back (2.5's design); compared at the next step instead.
   None was a session or table bug.
 - **ctest:** `RiftboundSimSoak.Games0`–`9`, 100 stress games (seeds 5100+), label `riftbound`, 35–45 s each under
   ASan in parallel; `deploy/test.sh --riftbound` now takes ~160 s wall on the VM (was ~75).
@@ -832,10 +832,10 @@ Riftbound). What building it changed against the design above:
 - **Buddy speaks only when asked** (Dev, 2026-11-16): a "Buddy speaks" checkbox at new game and a switch during
   it, off by default; replaces `BUDDY_GAME_VOICE`. Off, game publishes nothing on `buddy/voice/say`: checked on the
   Pi (a silent game had no line, not even the opening one; switched on mid-game, the lines came).
-- **Not built:** voice input ("pass"), thinking during Dev's turn (5.6 design → Later), card images (the catalogue
+- **Not built:** voice input ("pass"), thinking during Dev's turn (2.6 design → Later), card images (the catalogue
   has text only; Riftcodex images would need the internet on the panel).
 
-## Equipment as printed (Dev, 2026-11-01; for 5.3)
+## Equipment as printed (Dev, 2026-11-01; for 2.3)
 
 Riftcodex has neither the Might Bonus (137) nor the Effect Text (136.2: inactive until attached, then appended to the
 unit's rules text, 718.3), only the rules text (the Equip line).
@@ -845,5 +845,5 @@ unit's rules text, 718.3), only the rules text (the Equip line).
 | Serrated Dirk | +0 | [Assault] (= Assault 1, 807.1.b.3): the unit it's attached to has Assault |
 | Hextech Gauntlets | +3 | none (the only text is the Equip line Riftcodex has) |
 
-Built in 5.3 (#29): `CardRules::might_bonus()` and `effect_keywords()`, which `traits()` adds to the unit while the
+Built in 2.3 (#29): `CardRules::might_bonus()` and `effect_keywords()`, which `traits()` adds to the unit while the
 gear is attached.

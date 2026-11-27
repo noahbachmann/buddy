@@ -92,7 +92,7 @@ TEST(RiftboundReplay, AnIllegalActionIsTheProblem) {
     EXPECT_NE(last.find("action 10"), std::string::npos) << last;
 }
 
-// 5.6: seed + actions + binds and hand orders reproduce a service game.
+// 2.6: seed + actions + binds and hand orders reproduce a service game.
 TEST(RiftboundReplay, BindsAndOrdersRoundTrip) {
     const Deck vi = parse_deck(fixture(), deck_text("vi-unleashed")), zed = parse_deck(fixture(), deck_text("zed-vendetta"));
     Replay replay{.seed = 21, .vanilla = false, .decks = {deck_text("vi-unleashed"), deck_text("zed-vendetta")},

@@ -328,7 +328,7 @@ input.warmth { accent-color: var(--muted); }
 }
 .toast.show { transform: translate(-50%, 0); visibility: visible; }
 
-/* riftbound (5.6): Buddy's side on top, battlefields in the middle, Dev's side below */
+/* riftbound (2.6): Buddy's side on top, battlefields in the middle, Dev's side below */
 .rb-status-card .row { flex-wrap: wrap; }
 .rb-status-card .name { white-space: normal; }
 .rb-status-card.yours { border-color: var(--accent); }

@@ -1,6 +1,6 @@
 #pragma once
 // Hidden information (Core Rules 108, 128): what one player may know of a game, and states consistent with it. The
-// GameState is the referee's full truth; the AI (5.4) and the panel (5.6) work from a view. Which player knows which
+// GameState is the referee's full truth; the AI (2.4) and the panel (2.6) work from a view. Which player knows which
 // card is tracked in Object::known (move_to, recycle, predict).
 
 #include "deck.hpp"
@@ -17,7 +17,7 @@ const Card* hidden_card();
 // information: setup creates deck objects in shuffled order. Not playable: the engine needs real cards, so search
 // plays on determinize(view(…)).
 GameState view(const GameState& s, PlayerId p);
-// The game as a bystander sees it (the panel, 5.6): only cards everyone knows stay; neither hand nor any deck order.
+// The game as a bystander sees it (the panel, 2.6): only cards everyone knows stay; neither hand nor any deck order.
 GameState public_view(const GameState& s);
 
 // One state consistent with a view: per owner, the hidden objects get the deck's cards that no visible object

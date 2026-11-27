@@ -1,5 +1,5 @@
 #pragma once
-// A simulated Dev (5.6.3, #49) for tests, the soak and bot games: Dev's real cards as a true shuffled deck the
+// A simulated Dev (2.6.3, #49) for tests, the soak and bot games: Dev's real cards as a true shuffled deck the
 // referee never sees. It answers the session's prompts truthfully and plays with an ai::Player on the true state
 // (the referee's state with Dev's true cards in place of the placeholders), answering with one of dev_options().
 //

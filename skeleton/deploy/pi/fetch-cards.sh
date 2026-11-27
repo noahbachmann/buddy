@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Download the Riftbound card data (Riftcodex API, no key) into ~/buddy/data/riftbound/cards.json for game (Phase 5,
+# Download the Riftbound card data (Riftcodex API, no key) into ~/buddy/data/riftbound/cards.json for game (Phase 2,
 # D21). Runs ON the Pi; `setup.sh cards` calls it. Not in Git: Riot's card text, and new sets or errata only need a
 # re-run. Always fetches fresh; the old file stays until the new one is complete.
 #

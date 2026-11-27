@@ -165,7 +165,7 @@ RuleParser::RuleParser() {
     light(R"({L} (?:to|too) {C})", "color", 1, 2);  // "bedroom lights to white"; whisper writes "too" at times
 
     // Demo gesture for friends (motion "shake" on the demo servo). Whisper doesn't know "Andi's": live 2026-10-29 it
-    // heard "on these", "undies", "undistballs", so any ≤ 2 words (or one glued to "balls") count. Remove in 2.5.
+    // heard "on these", "undies", "undistballs", so any ≤ 2 words (or one glued to "balls") count. Remove with motion's demo joint.
     rules_.push_back({std::regex(R"(cut (off|of) ([a-z]+ ){0,2}[a-z]*balls)"), "gesture", "motion", 0, "shake"});
 
     auto add = [this](const char* pattern, const char* name, int query_group = 0, const char* fixed_query = "") {

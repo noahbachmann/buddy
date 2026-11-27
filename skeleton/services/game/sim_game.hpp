@@ -1,12 +1,12 @@
 #pragma once
-// Session games on a simulated table (5.6.5, #51): a Session with Buddy's side on an in-process table_core Table +
+// Session games on a simulated table (2.6.5, #51): a Session with Buddy's side on an in-process table_core Table +
 // Sim and Dev a SimDev, run the way the service runs it, with the checks after every step. The session tests, the
 // soak (`buddy-game --sim --games N`) and its ctest share it. Lives in game_sim (game_core + table_core): the
 // service's game_core stays free of the sim table.
 //
 // Checked after every committed step: the engine's view of Buddy's cards = the table's belief (hand order, ids, codes,
 // spots, exhausted, counts) = the sim's truth (the hand as a multiset: a disturbed pile stays unnoticed until a play
-// mismatches, 5.5); every card of Dev's that Buddy knows is SimDev's true one and came from a prompt or Dev's choice.
+// mismatches, 2.5); every card of Dev's that Buddy knows is SimDev's true one and came from a prompt or Dev's choice.
 // Sampled: the leak check (#50: the payload and Dev's options are the same for every arrangement of the hidden cards).
 // At the end: a rescan, then the belief = the truth with the order; the replay reproduces the state; the game with
 // Dev's true cards from the start replays legally into the same state.

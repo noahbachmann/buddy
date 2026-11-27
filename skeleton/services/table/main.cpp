@@ -1,5 +1,5 @@
-// table: Buddy's physical Riftbound cards (Phase 5, 5.5). Piles, hand order, scans and recovery behind
-// buddy/table/cmd; the sim backend until the hardware exists (5.7+). Protocol: shared/table_protocol.hpp; how it
+// table: Buddy's physical Riftbound cards (Phase 2, 2.5). Piles, hand order, scans and recovery behind
+// buddy/table/cmd; the sim backend until the hardware exists (Phase 3). Protocol: shared/table_protocol.hpp; how it
 // works: services/table/CLAUDE.md.
 //
 //   buddy-table                      live: buddy/table/cmd in, buddy/table/event out (one done/failed per seq),
@@ -130,7 +130,7 @@ int main(int argc, char** argv) {
     std::optional<Config> cfg;
     try {
         cfg.emplace();
-        if (cfg->backend != "sim") throw std::invalid_argument("BUDDY_TABLE_BACKEND: only \"sim\" exists until 5.7");
+        if (cfg->backend != "sim") throw std::invalid_argument("BUDDY_TABLE_BACKEND: only \"sim\" exists until the dispenser (Phase 3)");
         if (cfg->tracker.confirm_reads < 1) throw std::invalid_argument("BUDDY_TABLE_CONFIRM_READS must be ≥ 1");
     } catch (const std::exception& e) {
         std::cerr << "[table] " << e.what() << std::endl;

@@ -19,7 +19,7 @@ constexpr Rate kRates[] = {
     {"disturbed", &SimFaults::disturbed},
 };
 
-// The 5.5 stress rates (#43) ⚠️: guesses, not measurements.
+// The 2.5 stress rates (#43) ⚠️: guesses, not measurements.
 constexpr SimFaults kStress = {.misread = 0.02, .unreadable = 0.05, .double_feed = 0.02, .missed_feed = 0.02,
                                .double_take = 0.01, .double_deal = 0.01, .disturbed = 0.01};
 

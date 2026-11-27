@@ -1,7 +1,7 @@
 #pragma once
 // The joint table: the only place that maps joint names to Pico channels and pulse widths. Callers speak degrees
 // (0 = center); this file turns them into protocol v1 requests, clamped to each joint's range and slowed to its speed
-// cap. Guide 2.3 "Joints, not channels".
+// cap. docs/motion-controller/service.md "Joints, not channels".
 
 #include <map>
 #include <optional>

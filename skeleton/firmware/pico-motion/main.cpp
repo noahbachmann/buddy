@@ -1,4 +1,4 @@
-// Buddy motion controller: protocol v1 lines from the Pi (USB CDC) → servo PWM. Guide 2.2, steps 5–6.
+// Buddy motion controller: protocol v1 lines from the Pi (USB CDC) → servo PWM. Guide: docs/motion-controller/pico.md, steps 5–6.
 //
 // Safety: channels start without pulses; a channel moves only after LIMIT; no line for 2 s relaxes everything
 // (Pi or service gone); a main loop stuck for 500 ms resets the Pico (hardware watchdog) → back to no pulses.

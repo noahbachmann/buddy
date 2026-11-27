@@ -19,7 +19,7 @@
 //   activate 3 1               # <kind> [<obj>|-] [<n>]
 //   move - 255                 # obj "-" = no_obj (here: to base)
 //
-// A service game (5.6) also has the identities the outside world revealed, applied before the next action line:
+// A service game (2.6) also has the identities the outside world revealed, applied before the next action line:
 //
 //   buddy 1                    (header: the seat whose knowledge `bind` uses, bind() in state.hpp)
 //   bind 41 OGN-007a           # Vi's object 41 is that card: a scan, or Dev's entry
@@ -39,7 +39,7 @@
 
 namespace buddy::riftbound {
 
-// An identity revealed between two actions (5.6): a bind (obj is the card printed `code`) or a hand order.
+// An identity revealed between two actions (2.6): a bind (obj is the card printed `code`) or a hand order.
 struct Reveal {
     enum class Kind : std::uint8_t { Bind, Order };
     std::size_t before = 0;  // applied before actions[before]; actions.size() = after the last

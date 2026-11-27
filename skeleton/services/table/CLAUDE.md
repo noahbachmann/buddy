@@ -1,17 +1,17 @@
-# services/table – Buddy's physical Riftbound cards (5.5)
+# services/table – Buddy's physical Riftbound cards (2.5)
 
 What table does **now** (after #45: sim backend, soak gate passed). Why it's built this way and the soak numbers:
-`docs/02-riftbound/design.md` → "5.5 design", "5.5 as built". Protocol: `shared/include/buddy/table_protocol.hpp`.
+`docs/02-riftbound/design.md` → "2.5 design", "2.5 as built". Protocol: `shared/include/buddy/table_protocol.hpp`.
 The engine side (which commands a game step needs): `services/game/table_moves.*`.
 
 ## Files (`table_core`: no MQTT)
 
 | File | What |
 |---|---|
-| `backend.hpp` | The primitive ops, sim now, hardware 5.7+: `scan` (bottom card: code / unreadable / empty, empty is reliable), `feed` (H → B), `take` (H → spot), `deal` (deck top → spot), `stack`, `place` (the spot's bottom card → pile end or spot as an id), `put` (a card on a spot → pile or spot), `turn`, `shuffle_trash_into_deck`, `token`, `remove`. Piles: `Deck`, `Runes`, `TrayA`/`TrayB` (hand and buffer: the tracker swaps the names after every merge), `Spot` (the scan spot). `keeps_exhausted`: board → board moves keep the state, like the engine |
+| `backend.hpp` | The primitive ops, sim now, hardware from Phase 3: `scan` (bottom card: code / unreadable / empty, empty is reliable), `feed` (H → B), `take` (H → spot), `deal` (deck top → spot), `stack`, `place` (the spot's bottom card → pile end or spot as an id), `put` (a card on a spot → pile or spot), `turn`, `shuffle_trash_into_deck`, `token`, `remove`. Piles: `Deck`, `Runes`, `TrayA`/`TrayB` (hand and buffer: the tracker swaps the names after every merge), `Spot` (the scan spot). `keeps_exhausted`: board → board moves keep the state, like the engine |
 | `tracker` | `Belief` (hand bottom → top, spots by `Place`, deck/rune counts, a held peeked card) and the procedures: `read` (votes: `confirm_reads` reads of one code), `deal` (read, place, post-check: extras back on top), `play` (k feeds, confirm, take, place, post-check: an extra goes on B's top, merge; mismatch → merge, `recover`, `search` card by card through the spot), `recover` (passes through the spot until the multiset matches or two passes agree; `adopt`: by code, or an edit-distance alignment → `replaced`/`extra`/`missing`), `peek`/`peek_done` (Vision; a double deal under a card going back on top is fixed by dealing it again). Every procedure throws `Failure{reason}`; `OpCounts` cumulative |
 | `table` | `Command` → tracker → events: `hand_corrected` first (seq filled in), then exactly one `done`/`failed`; any backend exception = `failed hardware`; before any setup every command fails `no_game` (#52: a table that restarted lost its piles). The last command is idempotent (#52): the same command with the same seq gets its stored events again without running (game resends its command in flight after a restart or a timeout); setup always runs. `state()` = the belief as JSON (`buddy/table/debug`) |
-| `sim` | `Sim`: true piles (`Phys` with a serial) and spots, seeded faults per op (`SimFaults`, `parse_faults`: `stress` = the 5.5 rates), `placed()` (cards the spot gave away this command, not onto the trays: in a play the first is the card that left the hand), `compare(belief, hand_pile, hand_only)` = "" if the belief is the truth. `configure()` per setup (the service: decks from the command or `SIM-n` placeholders, shuffled) |
+| `sim` | `Sim`: true piles (`Phys` with a serial) and spots, seeded faults per op (`SimFaults`, `parse_faults`: `stress` = the 2.5 rates), `placed()` (cards the spot gave away this command, not onto the trays: in a play the first is the card that left the hand), `compare(belief, hand_pile, hand_only)` = "" if the belief is the truth. `configure()` per setup (the service: decks from the command or `SIM-n` placeholders, shuffled) |
 | `soak` | `StandIn` plays one workload game for game: engine objects → table ids (`deal`/`token`/`peek` map them in order), extra cards back on the deck top, a failed play or deal retried once; counts unrecovered (wrong card played per the engine's code, `failed`, belief ≠ truth after a recovery or after the final rescan). `soak()` reads JSON lines, `print_report()` |
 | `main.cpp` | Service (`BUDDY_TABLE_*`, sim only), `--cmd '<json>'…` (fresh sim, seq optional), `--soak <file\|->` |
 

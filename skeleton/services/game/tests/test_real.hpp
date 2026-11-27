@@ -1,5 +1,5 @@
 #pragma once
-// Tests of the decks' real cards (5.3): cards from the fixture (stats, no text) with their rules from cards/, a test
+// Tests of the decks' real cards (2.3): cards from the fixture (stats, no text) with their rules from cards/, a test
 // frame around them, and a random-game deck of everything a deck file registers so far.
 
 #include <span>

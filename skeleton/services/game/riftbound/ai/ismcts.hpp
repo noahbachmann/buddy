@@ -1,10 +1,10 @@
 #pragma once
-// v2 ISMCTS (5.4): single-observer information-set MCTS. One tree over action keys for the deciding player's
+// v2 ISMCTS (2.4): single-observer information-set MCTS. One tree over action keys for the deciding player's
 // information set; every iteration plays on a fresh determinization of the view, so the opponent's hidden cards
 // differ per iteration. Selection: UCB1 over the actions available in this determinization (availability counts),
 // one expansion, a truncated playout scored by eval() squashed to [0, 1]. Root parallelization: a tree and Rng per
 // thread, root visits summed, no locks. Accepted weakness: in the tree the opponent plays as if it saw our hand
-// (strategy fusion). Design: docs/02-riftbound/design.md → "5.4 design".
+// (strategy fusion). Design: docs/02-riftbound/design.md → "2.4 design".
 
 #include <array>
 #include <cstdint>

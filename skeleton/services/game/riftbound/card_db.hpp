@@ -34,7 +34,7 @@ inline constexpr Domains fury = 1, calm = 2, mind = 4, body = 8, chaos = 16, ord
 std::string domains_string(Domains d);  // "Fury+Order", "Colorless"
 
 // When a card may be played beyond its own Neutral Open main phase: Action 806 (showdowns too), Reaction 813 (closed
-// states too). Printed as the card's leading keyword; granted ones ("Quick-Draw") come from its rules (5.3).
+// states too). Printed as the card's leading keyword; granted ones ("Quick-Draw") come from its rules (2.3).
 enum class Timing : std::uint8_t { Normal, Action, Reaction };
 std::string_view to_string(Timing timing);
 // "[Reaction] (Play any time …)…" → Reaction. A keyword followed by "[>]" belongs to an ability, not the card.

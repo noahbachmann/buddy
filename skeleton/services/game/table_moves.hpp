@@ -1,7 +1,7 @@
 #pragma once
-// Engine → table (5.5, #42): what Buddy's physical cards do in one referee step, as table commands. The engine reports
+// Engine → table (2.5, #42): what Buddy's physical cards do in one referee step, as table commands. The engine reports
 // its moves through riftbound::move_log (state.hpp); a state diff can't order a Burn Out between two draws or say which
-// recycled card went down first. Design: docs/02-riftbound/design.md → "5.5 design". 5.6's game service uses this as is.
+// recycled card went down first. Design: docs/02-riftbound/design.md → "2.5 design". 2.6's game service uses this as is.
 
 #include <cstdint>
 #include <string>

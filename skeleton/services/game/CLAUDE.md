@@ -1,39 +1,39 @@
 # services/game – Riftbound engine quick reference
 
-What the engine does **now** (state after #53: 5.3, 5.4 and 5.5 done: arena, v1 greedy, engine speed, v2 ISMCTS, table
-moves; 5.6 engine side: binding revealed cards, public view, replay reveals; the session with Buddy's side and Dev's
+What the engine does **now** (state after #53: 2.3, 2.4 and 2.5 done: arena, v1 greedy, engine speed, v2 ISMCTS, table
+moves; 2.6 engine side: binding revealed cards, public view, replay reveals; the session with Buddy's side and Dev's
 real cards, SimDev; the panel's payload, Dev's commands, voice lines; the session soak (the gate) and terminal play;
 Dev declares what a cost discards, the referee never picks from Dev's placeholders; the service `buddy@game` with its
 journal, restarts and table timeouts; the panel's options on public objects, a table back on the broker asked
 again)
 and where the next work plugs in.
-Why it is built this way: `docs/02-riftbound/design.md` → "5.2 design", "5.3 as built" (with the rulings, confirmed by Dev),
-"5.4 design", "5.5 design"/"as built". Sub-issues: 5.2 #20, 5.3 #33, 5.4 #39, 5.5 #45. Rules text: `~/buddy/data/riftbound/core-rules-2026-10-09.txt`
+Why it is built this way: `docs/02-riftbound/design.md` → "2.2 design", "2.3 as built" (with the rulings, confirmed by Dev),
+"2.4 design", "2.5 design"/"as built". Sub-issues: 2.2 #20, 2.3 #33, 2.4 #39, 2.5 #45. Rules text: `~/buddy/data/riftbound/core-rules-2026-10-09.txt`
 on the VM (grep the rule number); full card text: `~/buddy/data/riftbound/cards.json` (VM and Pi, not in Git).
 
 ## Files (`riftbound/`, pure library, no MQTT)
 
 | File | What |
 |---|---|
-| `card_db`, `code`, `deck` | Card data, printed codes, decklists (5.1). `Card::timing` = leading `[Action]`/`[Reaction]` (`printed_timing()`); `Card::rules` = its `CardRules` (nullptr = not implemented) |
-| `state` | `GameState` value: objects (`ObjId` + `gen`, 124; `attached` = the unit an Equipment hangs on), zone id lists, `active` (ascending ids in board and legend zones, `active_zone()`: what rules loops walk instead of every object; kept by `move_to`/`create`), pools, battlefields (`controller`, `contested`), chain (`ChainItem` with targets, cost, step counters, unit location `to`, `play` = `played::` bits: Flow, Ambush, token to base / exhausted; `rep` = Repeat execution), `passes`, `showdown` (`Showdown`: focus, passes, attacker, damage assignment), tasks, decision, RNG, and the ability data: `triggered`, `effects`, `delayed`, `uses`, `links`. `move_to` (raw zone change, no events; carries attached gear, detaches it when its unit leaves the board, a token off the board → `Removed`), `create` (new object), `draw`, `burn`, `channel`, `recycle`, `bind`/`set_hand_order` (5.6, see Hidden information), `turn_state`, `chain_priority`, `lethal_damage`, `check_invariants` |
+| `card_db`, `code`, `deck` | Card data, printed codes, decklists (2.1). `Card::timing` = leading `[Action]`/`[Reaction]` (`printed_timing()`); `Card::rules` = its `CardRules` (nullptr = not implemented) |
+| `state` | `GameState` value: objects (`ObjId` + `gen`, 124; `attached` = the unit an Equipment hangs on), zone id lists, `active` (ascending ids in board and legend zones, `active_zone()`: what rules loops walk instead of every object; kept by `move_to`/`create`), pools, battlefields (`controller`, `contested`), chain (`ChainItem` with targets, cost, step counters, unit location `to`, `play` = `played::` bits: Flow, Ambush, token to base / exhausted; `rep` = Repeat execution), `passes`, `showdown` (`Showdown`: focus, passes, attacker, damage assignment), tasks, decision, RNG, and the ability data: `triggered`, `effects`, `delayed`, `uses`, `links`. `move_to` (raw zone change, no events; carries attached gear, detaches it when its unit leaves the board, a token off the board → `Removed`), `create` (new object), `draw`, `burn`, `channel`, `recycle`, `bind`/`set_hand_order` (2.6, see Hidden information), `turn_state`, `chain_priority`, `lethal_damage`, `check_invariants` |
 | `rules` | `CardRules` (the hooks a card implements), `AbilitySpec` (`builtin`: Empower, Equip), `TargetSpec`, `CostMod`, `Mod`; `Resolution` (what `resolve()` works with); `active_rules` (rules that work where the card is, none while attached); targets (`candidates`, `still_valid`, `target_slots`/`target_spec`: once per Repeat), `optional_costs` (card's, Accelerate, Repeats), `total_cost` (Flow base, Deflect), `payable`, `completable` (355.16: targets + cost can still work out); `predict`, `resolve_builtin` (Vision, Empower, Equip); `filters::`; `rules_of`/`active_rules` inline (hot) |
 | `actions` | Game actions abilities see: `kill`/`kill_all` (Die → Died), `deal`, `heal`, `exhaust`, `ready`, `recall`, `move` (Moved events, contests the destination), `contest`, `stun`, `buff`, `discard`, `empower`/`disempower`, `banish` (Banished event), `return_to_hand`, `add`, `pay_energy`, `attach`/`detach`, `play_token`; `emit` (queue triggers, Vision), `replaced` (replacement effects); layers `traits`/`might`/`has` (Assault/Shield while designated, Might Bonus of attached gear); `mighty`; `give`/`give_might`/`double_might`, `expire`, `prune`; `uses`, `link`/`linked`; `has_units_at` |
 | `tokens` | The decks' tokens with their rules: `bird()` (Deflect), `shadow_clone()` (attack trigger), `gold()` (Add [A]) |
 | `pay` | Rune payment of Energy, domain Power, then any-domain Power ([A]); which rune to recycle is the only choice (`Recycle` decision, one pick per domain) |
 | `engine` | `new_game`, `legal_actions`, `apply`, `concede`, `playable`, `describe`; the loop `run()`, `cleanup()`, `run_task()`, `finalize()`, `resolve_step()`, `place_triggers()`; showdowns and combat (`begin`, `pass_focus`, `score`, `establish_control`, damage assignment `assign_options`), Standard Move (`can_move`) |
 | `random_game` | `play_random()`: uniform random seats, `GameChecks` after every action (invariants, card count, turn start); vanilla or with rules; counts spells, chain plays, activations, triggers, choices, moves, showdowns, combats, scorings; `log` = the actions (failing one included) |
-| `hidden` | `view(s, p)`: objects p doesn't know (`Object::known` bit, set by `move_to`/`recycle`/`predict`) get `hidden_card()`, RNG reset; not playable. `public_view(s)`: only cards known to everyone (the panel's source, 5.6). `determinize(view, seat0, seat1, rng)`: per owner the decklist minus visible cards, shuffled onto the hidden objects (rune deck: runes), RNG reseeded |
-| `replay` | `Replay` (seed, vanilla, both decklists' text, actions; 5.6: `buddy` seat + `reveals`: `bind <obj> <code>` / `order <p> <ids…>` lines before the action they precede, `apply_reveal` with the game's `BindMemory`) ⇄ text (`parse_replay`, `to_text`: annotated by replaying), `run_replay` (GameChecks after every action; `buddy-game --replay`) |
+| `hidden` | `view(s, p)`: objects p doesn't know (`Object::known` bit, set by `move_to`/`recycle`/`predict`) get `hidden_card()`, RNG reset; not playable. `public_view(s)`: only cards known to everyone (the panel's source, 2.6). `determinize(view, seat0, seat1, rng)`: per owner the decklist minus visible cards, shuffled onto the hidden objects (rune deck: runes), RNG reseeded |
+| `replay` | `Replay` (seed, vanilla, both decklists' text, actions; 2.6: `buddy` seat + `reveals`: `bind <obj> <code>` / `order <p> <ids…>` lines before the action they precede, `apply_reveal` with the game's `BindMemory`) ⇄ text (`parse_replay`, `to_text`: annotated by replaying), `run_replay` (GameChecks after every action; `buddy-game --replay`) |
 | `rng` | xoshiro256\*\*, own `below`/`shuffle` (portable replays) |
 | `ai/player` | `Player` (`begin(seat, decks)`, `choose(view, actions)`: never the referee's state; `iterations()` of the last search), `RandomPlayer`; `ActionKey` / `key_of` (hand and trash cards by card, the rest by id), `distinct` |
 | `ai/arena` | `play_game` (forced moves applied unasked, `GameChecks` after every action, per-seat `SeatStats`: legal actions per decision, forced, time and iterations per asked decision, Choose runs), `play_match` (`PlayerFactory` per game, `pairing()`: seed S + i/2, players swapped every game, decks every other seed; `--jobs` threads, results independent of them), `wilson`, `percentile` |
 | `ai/eval` | `eval(s, p, Weights)`: points (steeper past 5), control, units + Might (more at battlefields), gear, hand size, runes in base, legend ready; mine − theirs, win/loss ±∞ |
 | `ai/greedy` | `greedy_choice(s)` on a full state: per `distinct` action apply + `play_on` to quiescence (anyone's Neutral Open priority or game over; own sub-decisions nested greedy up to `depth` 2, otherwise pass/decline/first) + `eval`; EndTurn = eval of the state now; ties → first. `mulligan_choice` (Energy ≥ 5 set aside). `GreedyPlayer` = one determinization per decision |
 | `ai/ismcts` | `ismcts_search(view, actions, decks, seed, IsmctsOptions)`: SO-ISMCTS. Per iteration a fresh `determinize`, descend the tree (edges = `ActionKey`, forced moves skipped as in the arena, UCB1 with availability counts, rewards from the chooser's side), expand one untried action, playout (`playout` random actions within the turn, then pass/decline to quiescence), reward = sigmoid(`eval` / `scale`), win/loss 1/0. The root uses the given actions merged by key on the view (a determinization would key an opponent's hidden card differently). Budget: `iterations` (split over `threads`, reproducible) or `budget_ms`; root parallel, visits summed, most visits wins, ties → action order. `IsmctsPlayer`: mulligan by greedy's rule |
-| `cards/` | The decks' cards (5.3, #33): `vi_unleashed.cpp`, `zed_vendetta.cpp` (one `CardRules` per card, its text above it, an `Entry` table at the end), `common.hpp` (`keywords({…})`, `cost()`, `discard()`, `count_named`, `battlefield_of`, `conquered_with`, `played_me`, `loot`, `Deathknell` base); `rules_for(name)`, attached by `CardDb::parse`: every loaded db (the test fixture too) has them |
+| `cards/` | The decks' cards (2.3, #33): `vi_unleashed.cpp`, `zed_vendetta.cpp` (one `CardRules` per card, its text above it, an `Entry` table at the end), `common.hpp` (`keywords({…})`, `cost()`, `discard()`, `count_named`, `battlefield_of`, `conquered_with`, `played_me`, `loot`, `Deathknell` base); `rules_for(name)`, attached by `CardDb::parse`: every loaded db (the test fixture too) has them |
 
-## Table moves (5.5, `game_core`: `table_moves.*`)
+## Table moves (2.5, `game_core`: `table_moves.*`)
 
 What Buddy's physical cards do per referee step, as table commands (`shared/table_protocol.hpp`; the table side:
 `services/table/CLAUDE.md`). `riftbound::move_log` (state.hpp): a thread-local log `move_to`/`create` append to,
@@ -47,11 +47,11 @@ in the answer's step (`TableMoves` remembers the card on the scan spot), deck �
 `peek_done`, created = `token`, a token gone =
 `remove`, hand → anywhere = `play`, else `move`; then exhaust/ready where the state differs from what the table shows.
 `nearest_copy(s, a)`: of same-card copies in hand play the lowest index (the table plays exactly the id asked, so the
-engine's hand order stays the pile's): game (5.6) calls it on Buddy's chosen action before `apply`.
+engine's hand order stays the pile's): game (2.6) calls it on Buddy's chosen action before `apply`.
 `workload_game` / `buddy-game --table-workload` = the soak's input. Tests: `tests/test_table_moves.cpp` (own
 executable `buddy-game-table-tests`, links `table_core`).
 
-## Session (5.6.2/5.6.3, `game_core`: `session.*`, `sim_dev.*`)
+## Session (2.6.2/2.6.3, `game_core`: `session.*`, `sim_dev.*`)
 
 One game, message-driven, no MQTT/threads/clock. Inputs: `start`, `on_table(event)`, `on_dev(option)` (one of
 `dev_options()`), `on_reveal(cards)` (the cards of `prompt()`), `on_ai(id, action)`, `resume`, `concede(p)`; after
@@ -182,7 +182,7 @@ input that can't be: `Refused` (the reason), nothing changes.
   leak check every 7th input, candidates on; `--jobs` threads, results independent of them; never throws (an
   exception is a problem). `SoakGame`: problems, leaks, desyncs, `SessionStats`, table recoveries/scans, faults,
   prompt cards, `taps()` (asked decisions + per prompt its cards + 1 + resumes), ms, the replay of a failed game.
-  `print_soak_report` = the table in the plan ("5.6 as built" → #51).
+  `print_soak_report` = the table in the plan ("2.6 as built" → #51).
 - **`buddy-game --sim --games N [--seed S] [--jobs J] [--faults …] [--dev greedy|random] [--buddy greedy|ismcts]
   [--iterations N]`**: the soak; a failed game writes `sim-replay-<seed>.txt` (`--replay` reads it). Gate: 1000
   games under stress, 9.6 s on the VM (Release, 8 jobs).
@@ -233,11 +233,11 @@ Priority actions: `Play` (hand cards, and trash cards with Flow, `playable()`: t
 `Object::known`: who knows which card it is. Public zone → everyone; into a hand → + owner; facedown → + controller;
 into a deck or set aside → unchanged (a card seen going to the bottom stays known); `recycle` of 2+ → nobody (random
 order); `predict` → + predictor. Setup creates deck objects after shuffling, so ids say nothing about cards. A card
-rule that looks at or reveals a hidden card (5.3) must set `known` too; `check_invariants` checks public and hand
+rule that looks at or reveals a hidden card (2.3) must set `known` too; `check_invariants` checks public and hand
 cards. `test_hidden.hpp`'s `views_along_a_game` checks after every action that a determinization is valid, has the
 same view and gives the deciding player the same legal actions: run it on any new deck.
 
-Revealed identities (5.6): the referee doesn't know Dev's real cards or the order of Buddy's physically shuffled deck,
+Revealed identities (2.6): the referee doesn't know Dev's real cards or the order of Buddy's physically shuffled deck,
 so the engine's cards for objects Buddy doesn't know are one possibility. `bind(s, obj, card, knower)` (knower = Buddy's
 seat) swaps `Object::card` with the first object (by id) of the same owner that holds `card` and sits in the pool:
 the owner's main and rune deck unknown to the knower, plus the hand if the owner isn't the knower. `obj` must not be
@@ -251,7 +251,7 @@ doesn't hold: the opening hand is the engine's guess until the table deals it (#
 state before it, where the first still sits in the pool; Dev's discard picked by card stays in hand until paid. A
 battlefield binds with one of its owner's removed battlefields (setup, Dev's choice; it's public otherwise).
 
-## Writing a card (5.3)
+## Writing a card (2.3)
 
 - One `CardRules` subclass, static instance, `Card::rules` points at it. Ability tables are `static constexpr` arrays
   (`AbilitySpec`, `TargetSpec`, `Cost`); build entries with a constexpr lambda when fields beyond the first are set
@@ -335,8 +335,8 @@ start, e.g. a determinization, skips its own turn).
   ISMCTS reproducible with 1 and 3 threads, takes the win in 1, ≥ 1000 searched decisions in ISMCTS-vs-ISMCTS games all legal: ~30 s under ASan), `test_hidden` (knowledge, view, determinize; views along random games, the
   ability deck's in `test_abilities`; real decks with rules too), `test_replay` (incl. binds/orders round trip), `test_session` (#48, own executable with `test_public_state`,
   `test_game_host`, `test_sim_soak`, `test_sim_terminal`), `test_gate` (1000 games of the real
-  decks, vanilla (5.2) and with rules (5.3); writes the replay of a failure).
-- `test_real.hpp` + `test_cards_vi.cpp` / `test_cards_zed.cpp` (5.3): real cards from the fixture with their rules
+  decks, vanilla (2.2) and with rules (2.3); writes the replay of a failure).
+- `test_real.hpp` + `test_cards_vi.cpp` / `test_cards_zed.cpp` (2.3): real cards from the fixture with their rules
   (`real(name)`), `real_deck` (test frame, Zap, the deck's runes), `fund` (pool energy/power), `zap_kill`; one
   `TEST(RiftboundVi|Zed, <Card>)` per card, and 40 random games of everything a deck file registers
   (`registered_deck`). Text for the frame's legend and battlefields: `s.obj(id).card = real(…)` / `set_field`;
@@ -359,8 +359,8 @@ start, e.g. a determinization, skips its own turn).
   random vs random 1000 games 479:521, decks 517:483; greedy vs random 190/200 (seed 1000: 196), greedy vs greedy
   Zed 146:54. Pi: greedy decision p50 0.24 ms, p95 3.4 ms, max 30 ms; identical games on VM and Pi.
   #37/#38: ismcts (1000 iterations, c 0.4, playout 10) vs greedy 160/200 (seeds 1000–1199: 325/400); ~55 µs per
-  iteration per core. Service default (5.6): `--budget-ms 2000 --threads 3` (the 4th core stays for ears), ~78k
-  iterations per decision on the Pi. Tuning results and what didn't help: plan → "5.4 as built".
+  iteration per core. Service default (2.6): `--budget-ms 2000 --threads 3` (the 4th core stays for ears), ~78k
+  iterations per decision on the Pi. Tuning results and what didn't help: plan → "2.4 as built".
 - A failing random game: `replay-<seed>.txt` in the current directory → `buddy-game --replay <file>` (or by hand:
   the action lines are `<kind> [<obj>|-] [<n>]`, cut it down to find the action).
 

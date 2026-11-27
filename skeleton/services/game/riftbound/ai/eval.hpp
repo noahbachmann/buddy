@@ -1,5 +1,5 @@
 #pragma once
-// How good a state is for one player (5.4): v1 greedy compares the states its actions lead to, v2 ISMCTS scores its
+// How good a state is for one player (2.4): v1 greedy compares the states its actions lead to, v2 ISMCTS scores its
 // truncated playouts with it. Reads only what that player's view shows too (hand sizes, not hand cards).
 
 #include "riftbound/state.hpp"

@@ -107,7 +107,7 @@ TEST(RiftboundHidden, ViewsAlongRandomGames) {  // real decks with and without r
     }
 }
 
-// 5.6: identities revealed from outside (table scans, Dev's real cards) bound into the state.
+// 2.6: identities revealed from outside (table scans, Dev's real cards) bound into the state.
 
 TEST(RiftboundHidden, BindSwapsWithAnUnknownCardOfTheOwner) {
     GameState s = new_game(vi(), zed(), {.seed = 4, .vanilla = true});

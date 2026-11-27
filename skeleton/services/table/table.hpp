@@ -2,7 +2,7 @@
 // buddy/table/cmd → tracker → buddy/table/event: one command, its events (hand_corrected first, then exactly one
 // done or failed for its seq). No MQTT, no backend of its own.
 //
-// The last command is idempotent (5.6, #52): game resends its one command in flight after a restart or a timeout,
+// The last command is idempotent (2.6, #52): game resends its one command in flight after a restart or a timeout,
 // and the same command with the same seq gets the events it got before, without running again. Setup always runs.
 
 #include <optional>

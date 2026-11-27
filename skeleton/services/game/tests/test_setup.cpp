@@ -125,7 +125,7 @@ TEST(RiftboundSetup, SeedDecidesOrderBattlefieldsAndFirstPlayer) {  // 114, 115,
 }
 
 TEST(RiftboundSetup, RealDecksNeedTheirCards) {  // D21: unimplemented = hard error, runes are built in
-    EXPECT_NO_THROW(new_game(vi(), zed(), {.seed = 1}));  // 5.3: every card of both decks
+    EXPECT_NO_THROW(new_game(vi(), zed(), {.seed = 1}));  // 2.3: every card of both decks
     Deck missing = zed();
     missing.battlefields[0] = test::card("Unwritten Field", CardType::Battlefield, 0);
     try {

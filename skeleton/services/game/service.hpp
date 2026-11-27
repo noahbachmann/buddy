@@ -1,5 +1,5 @@
 #pragma once
-// buddy-game without flags: the game service (5.6, #52). One GameHost behind MQTT: Dev's commands from
+// buddy-game without flags: the game service (2.6, #52). One GameHost behind MQTT: Dev's commands from
 // buddy/game/cmd, the table on buddy/table/{cmd,event}, Buddy's AI (ISMCTS) on a worker thread, the payload retained
 // on buddy/game/state, voice lines to buddy/voice/say, the game files in BUDDY_GAME_GAMES (a restart resumes the
 // unfinished game from its journal).

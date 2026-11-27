@@ -1,7 +1,7 @@
 # Card dispenser: roller (belt conveyor) and pusher
 
 The box (`dispenser.stl`, Dev's Onshape model) holds Buddy's hand in two piles: **H** on the left, face down over a
-camera, and **B** on the lift on the right (Phase 5 plan: hand trays H and B, `feed` / `take` / `stack`). This module adds
+camera, and **B** on the lift on the right (Phase 3, #93; pile model: `docs/02-riftbound/design.md`, hand trays H and B, `feed` / `take` / `stack`). This module adds
 the roller under H and the pusher on the right wall. The roller moves the **bottom card** of H either way:
 
 Compared with `dispenser.stl`: the roller's back plate and the lift's screw sit 8.5 mm further back (`shift`, the 4023

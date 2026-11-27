@@ -1,6 +1,6 @@
 #pragma once
 // `buddy-game --sim` without --games (#51): Dev plays Buddy in the terminal with real cards, through the same
-// GameHost and payload the panel gets (5.6.4): the board is printed from buddy/game/state's payload, Dev answers with
+// GameHost and payload the panel gets (2.6.4): the board is printed from buddy/game/state's payload, Dev answers with
 // the payload's option index (`act`) or names the prompt's cards (`reveal`). Buddy's side runs on an in-process sim
 // table (with --faults) and Buddy's AI answers at once. Nothing Dev sees comes from anywhere but the payload.
 

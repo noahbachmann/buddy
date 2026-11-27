@@ -1,4 +1,4 @@
-# 2.2 – Motion controller
+# Motion controller: Pico 2 + servos
 
 > Items marked ⚠️ are untested assumptions: check them while you build and tell Claude what you found.
 
@@ -52,8 +52,8 @@ the price or stock wasn't visible when this was written.
 | 6 | Jumper wires M/M 30 cm, 22 AWG | 1 × 10 | 5 ⚠️ | Thicker wires for the 5 V / GND supply leads | [Digitec 5997881](https://www.digitec.ch/de/s1/product/oem-jumperkabel-10-stk-mm-30cm-22awg-elektronikkabel-stecker-5997881) |
 | 7 | Male pin header 1 × 40, 2.54 mm, straight | 1 pack | 4 ⚠️ | Break off 3-pin pieces: the servo plug pushes onto them in the breadboard | [Digitec 5997724](https://www.digitec.ch/de/s1/product/oem-stiftleiste-1-x-40-polig-rastermass-254mm-schwarz-elektronikkabel-stecker-5997724) |
 | 8 | Electrolytic capacitor 1000 µF, 25 V, radial | 2 | 2 × 2 ⚠️ | Buffers the servos' current spikes (step 1) | [Digitec 5848462 (Velleman)](https://www.digitec.ch/de/s1/product/velleman-elco-radial-1000f-25v-kondensator-5848462) |
-| 9 | Resistor assortment 1/4 W, 1 % (330 Ω used now) | 1 | 19 | One per servo signal line; the rest is for the display (2.4) and later | [Galaxus 25475139 (Purecrea 600 pcs)](https://www.galaxus.ch/de/s1/product/purecrea-widerstand-set-600-stk-assortiert-14w-1-genauigkeit-widerstand-25475139) |
-| 10 | MG90S metal-gear micro servo, 180° | 4 | 4 × 9 ⚠️ | 2 for this step and the 2.5 pan/tilt, 2 spares or hand tests | [Galaxus 24962704 (Waveshare)](https://www.galaxus.ch/en/s1/product/waveshare-micro-servo-mg90s-mit-metallgetriebe-motor-electronics-modules-24962704) |
+| 9 | Resistor assortment 1/4 W, 1 % (330 Ω used now) | 1 | 19 | One per servo signal line; the rest for later | [Galaxus 25475139 (Purecrea 600 pcs)](https://www.galaxus.ch/de/s1/product/purecrea-widerstand-set-600-stk-assortiert-14w-1-genauigkeit-widerstand-25475139) |
+| 10 | MG90S metal-gear micro servo, 180° | 4 | 4 × 9 ⚠️ | 2 for this step, 2 spares | [Galaxus 24962704 (Waveshare)](https://www.galaxus.ch/en/s1/product/waveshare-micro-servo-mg90s-mit-metallgetriebe-motor-electronics-modules-24962704) |
 | 11 | Multimeter UNI-T UT33C+ | 1 | 20 | Measure the supply and the rail under load; you need it for every hardware step from here on. Dev has an XL830L instead: same job | [Galaxus 25236531](https://www.galaxus.ch/de/s4/product/unit-multimeter-uni-t-ut33c-hand-multimeter-multimeter-25236531) |
 | | **Total** | | **≈ 160** | | |
 
@@ -65,8 +65,8 @@ Notes on the choices:
   deliver ~3 A at 5 V.
 - **MG90S (#10):** buy the 180° version, not the "360°" continuous-rotation one, which can't hold a position. Coscorp's
   "MG90" is a different, weaker servo. ⚠️ MG90S stall current is ~0.7 A at 5 V according to sellers, with no
-  manufacturer datasheet. Torque is 2.0 kg·cm, fine for a light head; re-check against the 2.6 head weight.
-- **Not needed now:** soldering iron (2.4 or 3.x), a PCA9685, logic-level shifters (the MG90S accepts the Pico's 3.3 V
+  manufacturer datasheet. Torque is 2.0 kg·cm, fine for light loads.
+- **Not needed now:** soldering iron, a PCA9685, logic-level shifters (the MG90S accepts the Pico's 3.3 V
   signal ⚠️).
 
 Fallbacks if Galaxus is out of stock: Bastelgarage (most Purecrea items are theirs) and pi-shop.ch (Pico 2H).
@@ -82,7 +82,7 @@ it. A spike like that drops the Pi's supply voltage: undervoltage throttling, US
 corrupts the microSD. So the servos get their own supply, and the Pi only ever sends the signal wire.
 
 **Supply size.** Head 2 × 0.7 A + hand 5 × 0.7 A = 4.9 A worst case, if everything stalls at once (it won't, but the
-supply must not collapse when several do). 5 A is enough through Phase 3; the stronger arm servos (Phase 4) get their own
+supply must not collapse when several do). 5 A is enough for ~7 micro servos; stronger servos get their own
 supply decision.
 
 **Why the grounds must be connected.** The servo reads its signal as "voltage between the signal wire and *its* GND".
@@ -128,8 +128,8 @@ Pinout (Pico 2 pin numbers are printed on the underside; pin 1 is next to the US
 | 3 (GND) | GND | ground rail (−) | **Shared ground**, see step 1 |
 | 4 (GP2) | servo ch0 = head pan | 330 Ω → servo 0 signal (orange) | |
 | 5 (GP3) | servo ch1 = head tilt | 330 Ω → servo 1 signal (orange) | |
-| 6–12 (GP4–GP9) | servo ch2–ch7 | reserved: hand (Phase 3) | |
-| 14–17, 19–20 (GP10–GP15) | SPI1 | reserved: round display (2.4) ⚠️ final in 2.4 | If the Pi drives the display, these go to the arm (Phase 4) |
+| 6–12 (GP4–GP9) | servo ch2–ch7 | free | |
+| 14–17, 19–20 (GP10–GP15) | SPI1 | free (kept for an SPI display) | |
 | 39 (VSYS), 40 (VBUS) | — | **nothing** | Never connect servo 5 V here |
 | USB | power + data | Pi | The Pico's only power source |
 
@@ -199,8 +199,7 @@ The step warns if either is missing.
 
 ### 5. Firmware: `skeleton/firmware/pico-motion/`
 
-One folder per Pico role, named `pico-<what it does>`. This Pico drives every servo of the robot: head (2), hand (5,
-Phase 3), arm (2–3, Phase 4), about 10 of its 16 outputs. A second Pico would get its own folder, and only then would
+One folder per Pico role, named `pico-<what it does>`. This Pico drives every servo (16 outputs). A second Pico would get its own folder, and only then would
 shared code move into `firmware/common`.
 
 The firmware lives inside `skeleton/` so `deploy.sh` syncs it and it can share the protocol header with the motion
@@ -215,7 +214,7 @@ skeleton/firmware/pico-motion/
 ├── main.cpp           ← main loop: read lines, run ramps at 50 Hz, link watchdog, hardware watchdog
 ├── servo.hpp/.cpp     ← PWM setup, limits, ramp state
 └── board.hpp          ← pin map from step 3 (channel → GPIO)
-skeleton/shared/include/buddy/motion_protocol.hpp  ← parse/format, shared with services/motion (2.3)
+skeleton/shared/include/buddy/motion_protocol.hpp  ← parse/format, shared with services/motion (`service.md`)
 ```
 
 Behaviour:
@@ -231,7 +230,7 @@ Behaviour:
 | "Relax" | PWM compare level 0: pin stays low | A servo without pulses stops driving its motor: limp, no current |
 
 ⚠️ When a channel gets its first pulse after power-up, the servo jumps to that position at full speed: it doesn't know
-where it is. For the head this is harmless; for the hand and arm (Phase 3/4), the motion service sends the *expected*
+where it is. For a loose servo this is harmless; under load, the motion service sends the *expected*
 rest position first.
 
 ### 6. Protocol v1
@@ -348,18 +347,14 @@ fingers to load it.
 | `/dev/ttyACM0` exists but not `/dev/buddy-pico` | udev rule missing or product string differs: `udevadm info -a /dev/ttyACM0 \| grep product` |
 | picotool: `No accessible RP-series devices` / permission denied | picotool's udev rules not installed: `setup.sh pico`, then replug |
 | `picotool load -f` can't reboot the Pico | Running firmware hung or built without the USB reset interface: BOOTSEL flash |
-| Servo hums at an end stop | Limits too wide for this servo: narrow `LIMIT` (2.5 calibrates them) |
+| Servo hums at an end stop | Limits too wide for this servo: narrow `LIMIT` (calibrate per joint) |
 | Servo turns continuously | You have a 360° (continuous) MG90S: wrong variant |
 
-## Notes for later phases
+## Notes
 
-- **2.3:** `services/motion` owns `/dev/buddy-pico`: picocom and the service can't both have the port open. The service
-  sends the `LIMIT`s on every connect (the Pico forgets them on reset).
-- **2.4:** the display gets SPI1 on GP10–GP15. Whether the Pico or the Pi (own SPI) drives it is a 2.4 decision. A
-  display isn't motion: preferred is the Pi or a separate `firmware/pico-eyes`, which frees GP10–GP15 for the arm.
-- **2.5:** limits and centre per servo get calibrated with the head mechanics: `LIMIT` values in µs per joint.
-- **2.6:** the breadboard becomes a soldered perfboard or a small custom PCB inside the body: first soldering. Keep the
-  servo rail and Pico on one board with short supply leads.
-- **Phase 3:** 5 hand servos on GP4–GP8; the 5 A supply covers them (step 1). Check the rail voltage with all 7 moving.
-- **Phase 4:** arm servos (MG996R-class, ~2.5 A stall each) need their own supply and probably 6 V: a new decision then.
-- **When the parts arrive:** add a "Motion" section to `buddy-hardware.md` (Pico 2H, supply model, servo type).
+Side project since 2026-11-27: the head, hand and arm phases were dropped, so no servo has a mechanism yet.
+
+- `services/motion` owns `/dev/buddy-pico`: picocom and the service can't both have the port open. The service sends
+  the `LIMIT`s on every connect (the Pico forgets them on reset).
+- Limits and centre per servo get calibrated once a servo sits in a mechanism: `LIMIT` values in µs per joint.
+- More than ~7 servos or bigger ones (MG996R-class, ~2.5 A stall each) need their own supply, probably 6 V.

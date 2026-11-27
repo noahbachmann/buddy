@@ -1,6 +1,6 @@
 #pragma once
-// Random-vs-random games over two decks, in vanilla mode or with the cards' rules: the engine's test bed (5.2), later
-// 5.4's baseline. Both
+// Random-vs-random games over two decks, in vanilla mode or with the cards' rules: the engine's test bed (2.2), later
+// 2.4's baseline. Both
 // seats pick uniformly among legal_actions(); after every action the state must pass check_invariants() and the
 // turn checks in play_random().
 

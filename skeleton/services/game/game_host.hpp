@@ -1,5 +1,5 @@
 #pragma once
-// The game service's logic without MQTT or threads (5.6, #50): Dev's commands from buddy/game/cmd, one Session at a
+// The game service's logic without MQTT or threads (2.6, #50): Dev's commands from buddy/game/cmd, one Session at a
 // time, a SimDev for bot games, and the panel's payload with its version `v`. The service (#52) feeds it commands,
 // table events and the AI's answers, and sends what take() returns.
 //

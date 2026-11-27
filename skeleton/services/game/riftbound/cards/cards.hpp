@@ -1,5 +1,5 @@
 #pragma once
-// The decks' cards (5.3, D21): one CardRules per card name, written from the card text (Riftcodex home printing;
+// The decks' cards (2.3, D21): one CardRules per card name, written from the card text (Riftcodex home printing;
 // Might Bonus and effect text of Equipment from the printed card, plan → "Equipment as printed"). CardDb::parse
 // attaches them, so every loaded card with an entry here is implemented. Basic runes need none (engine).
 

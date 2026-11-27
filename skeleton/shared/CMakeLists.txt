@@ -56,7 +56,7 @@ target_link_libraries(buddy_shared PUBLIC
 add_library(buddy_names STATIC src/names.cpp)
 target_include_directories(buddy_names PUBLIC include)
 
-# game ⇄ table protocol (Riftbound 5.5): no MQTT, linked by both services and their tests.
+# game ⇄ table protocol (Riftbound 2.5): no MQTT, linked by both services and their tests.
 add_library(buddy_table_protocol STATIC src/table_protocol.cpp)
 target_include_directories(buddy_table_protocol PUBLIC include)
 target_link_libraries(buddy_table_protocol PUBLIC nlohmann_json::nlohmann_json)

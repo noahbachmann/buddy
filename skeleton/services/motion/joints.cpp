@@ -8,9 +8,9 @@ namespace buddy::motion {
 
 namespace {
 
-// ⚠️ values: measured in 2.5 once the servos sit in the head.
+// ⚠️ values: measured once a servo sits in a mechanism.
 constexpr std::array table = {
-    // Demo servo on ch0 for "cut off Andi's balls" (gestures.cpp), not a body joint: head_pan takes ch0 in 2.5 and this
+    // Demo servo on ch0 for "cut off Andi's balls" (gestures.cpp), not a body joint: a real joint takes ch0 later and this
     // row goes together with the gesture. ±80° on an MG90S without a horn ⚠️.
     Joint{.name = "demo", .channel = 0, .min_us = 700, .max_us = 2300, .center_us = 1500, .us_per_deg = 10,
           .max_deg_per_s = 400},

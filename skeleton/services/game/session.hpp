@@ -1,7 +1,7 @@
 #pragma once
-// One Riftbound game between Buddy and Dev (5.6.2, #48): the referee's state, Buddy's table and AI, message-driven.
-// No MQTT, no threads, no clock: the service (5.6.6) feeds it table events, Dev's commands and the AI's answers, and
-// sends what take() returns. Design: docs/02-riftbound/design.md → "5.6 design".
+// One Riftbound game between Buddy and Dev (2.6.2, #48): the referee's state, Buddy's table and AI, message-driven.
+// No MQTT, no threads, no clock: the service (2.6.6) feeds it table events, Dev's commands and the AI's answers, and
+// sends what take() returns. Design: docs/02-riftbound/design.md → "2.6 design".
 //
 // Step protocol for one action a (Buddy's or Dev's):
 //   1. next = s; apply(next, a) under MoveRecorder; TableMoves::step gives Buddy's table commands (deals split into

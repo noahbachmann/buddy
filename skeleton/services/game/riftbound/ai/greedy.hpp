@@ -1,5 +1,5 @@
 #pragma once
-// v1 greedy (5.4): per legal action, apply it on one determinization, play on to quiescence and eval(). The best
+// v1 greedy (2.4): per legal action, apply it on one determinization, play on to quiescence and eval(). The best
 // wins, ties by action order. Quiescence = the game is over or someone has Neutral Open priority (the main phase
 // with an empty chain and no showdown). On the way the deciding player's own sub-decisions (targets, costs, picks)
 // are chosen greedily too (nested up to GreedyOptions::depth), the opponent passes and declines every choice.

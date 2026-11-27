@@ -1,5 +1,5 @@
 #pragma once
-// The arena (5.4): AI players against each other on the referee's state. Each seat gets only its view; a decision
+// The arena (2.4): AI players against each other on the referee's state. Each seat gets only its view; a decision
 // with one legal action is applied without asking (forced). GameChecks after every action, the action log for a
 // replay on failure. `buddy-game --match` runs matches; the tests use play_game directly.
 

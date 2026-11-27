@@ -304,7 +304,7 @@ std::string SimGame::compare() const {
         const int held = belief.held ? 1 : 0;  // a peeked card: still the deck's top for the engine
         if (static_cast<int>(s.player(b).main_deck.size()) != belief.deck + held) return "deck count differs";
         if (static_cast<int>(s.player(b).rune_deck.size()) != belief.runes) return "rune deck count differs";
-        // the hand's order only as a multiset: a disturbed pile stays unnoticed until a play mismatches (5.5);
+        // the hand's order only as a multiset: a disturbed pile stays unnoticed until a play mismatches (2.5);
         // final_check() rescans and compares the order too
         table::Belief b2 = belief;
         const auto& pile = sim.pile(table.tracker().hand_pile());

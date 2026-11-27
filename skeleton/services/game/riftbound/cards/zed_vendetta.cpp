@@ -188,7 +188,7 @@ struct ZedWithoutASound : CardRules {
         const ObjId me = r.self(), clone = r.target();
         if (me == no_obj || clone == no_obj) return Status::Done;
         const auto mine = battlefield_of(r.s, me).value_or(to_base), theirs = battlefield_of(r.s, clone).value_or(to_base);
-        if (mine == theirs) return Status::Done;  // ⚠️ same location: no move at all (plan → 5.3 rulings)
+        if (mine == theirs) return Status::Done;  // ⚠️ same location: no move at all (plan → 2.3 rulings)
         move(r.s, {me}, theirs, by(r));
         move(r.s, {clone}, mine, by(r));
         return Status::Done;

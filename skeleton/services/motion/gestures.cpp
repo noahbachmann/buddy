@@ -7,7 +7,7 @@ namespace buddy::motion {
 namespace {
 
 const std::vector<Gesture>& table() {
-    // Demo for friends ("Hey Jarvis, cut off Andi's balls"): remove together with the demo joint (joints.cpp) in 2.5.
+    // Demo for friends ("Hey Jarvis, cut off Andi's balls"): remove together with the demo joint (joints.cpp).
     static const std::vector<Gesture> t = {
         {.name = "shake",
          .reply = "As you wish.",

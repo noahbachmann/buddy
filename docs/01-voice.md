@@ -37,10 +37,10 @@ Nest. While Buddy listens or speaks, the music is turned down. Starts on power-o
   (remove its plastic cap first), clear of the blades. Board supported from below while pressing the pins.
 - **Jabra in a black USB 2 port** (blue USB 3 stays free). USB only, no Bluetooth.
 - **27 W supply** (5.1 V / 5 A) unlocks the 1.6 A USB budget (else 600 mA). Check: `od -An -tu4 --endian=big /proc/device-tree/chosen/power/max_current` → `5000`.
-- **GPIO header stays free**: motion goes through the Pico over USB (2.2). Bare board: no metal near the GPIO pins (5 V next to GND).
+- **GPIO header stays free**: motion goes through the Pico over USB (`docs/motion-controller/`). Bare board: no metal near the GPIO pins (5 V next to GND).
 - **Shutdown rule**: `sudo poweroff`, wait for the green LED to stop, then unplug. Pulling power while the OS runs risks the microSD.
-- Later: 2.6 housing needs an intake above the blower and a vent at its side exhaust (PETG: it sits near the Pi's heat); keep the Jabra
-  mic away from the exhaust. Camera (4.2) uses a CAM/DISP flat-cable connector.
+- A housing needs an intake above the blower and a vent at its side exhaust (PETG: it sits near the Pi's heat); keep the Jabra
+  mic away from the exhaust. A camera uses a CAM/DISP flat-cable connector.
 
 ## 1.3 OS setup
 
@@ -445,7 +445,7 @@ what Spotify plays on **any** device (cover, title, artist, "on <device>"), a pr
 previous and volume on that device, and the speaker list (tap one = move the music there): the Nests (1.15) plus
 whatever Spotify sees (DESKTOP-1, Pixel 8 while its app is open), never Soloist's "Buddy". Tab **Hue** (`#hue`): pick a room or zone, set its lights (live), name, Save →
 scene; scene list per room/zone: tap = recall and load for editing, ✕ = delete (asks first). Tab **Riftbound**
-(`#riftbound`, Phase 5.6): play Riftbound against Buddy with real cards (`skeleton/services/web/CLAUDE.md` →
+(`#riftbound`, Phase 2.6): play Riftbound against Buddy with real cards (`skeleton/services/web/CLAUDE.md` →
 Riftbound page). Fixed chips
 `voice` (green = ears, brain and voice all online; shows listening/speaking), `hue`, `spotify`, `speakers`. The list lives in
 `SERVICE_CHIPS` in `app.js`: add new services there.

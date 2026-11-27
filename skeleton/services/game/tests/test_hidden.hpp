@@ -81,7 +81,7 @@ inline std::string views_along_a_game(const Deck& seat0, const Deck& seat1, std:
     return s.winner ? std::string{} : "seed " + std::to_string(seed) + ": no winner";
 }
 
-// A random bind as the session does it (5.6): an object `knower` doesn't know, of either owner, becomes a card from its
+// A random bind as the session does it (2.6): an object `knower` doesn't know, of either owner, becomes a card from its
 // owner's pool (state.hpp bind). Returns the bind made (obj, card), nullopt if there's nothing to bind. `buddy_only`:
 // only the knower's own cards. `memory`: the game's binds (state.hpp BindMemory), as the session and run_replay keep them.
 inline std::optional<std::pair<ObjId, const Card*>> random_bind(GameState& s, PlayerId knower, Rng& rng,

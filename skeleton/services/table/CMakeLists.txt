@@ -1,4 +1,4 @@
-# Riftbound table (5.5): Buddy's physical cards. table_core = tracker (belief + pile procedures), the command layer
+# Riftbound table (2.5): Buddy's physical cards. table_core = tracker (belief + pile procedures), the command layer
 # and the sim backend; no MQTT, linked by the service, its tests and game's table-move tests.
 add_library(table_core STATIC
     sim.cpp

@@ -31,7 +31,7 @@ with their retained state. User-facing behaviour and troubleshooting: `docs/01-v
 
 `index.html` holds the static skeleton, including the forms: re-rendered inputs would lose typed text and focus.
 
-## Riftbound page (`#riftbound`, 5.6)
+## Riftbound page (`#riftbound`, 2.6)
 
 Everything from `buddy/game/state` (public cards only, `services/game/CLAUDE.md` → Public state); commands to
 `buddy/game/cmd`. Buddy's side on top, battlefields in the middle (units one compact line each), Dev's side below.

@@ -1,4 +1,4 @@
-// Session games (5.6.2, #48; Dev's real cards #49): Buddy's side through an in-process table_core Table + Sim, Dev a
+// Session games (2.6.2, #48; Dev's real cards #49): Buddy's side through an in-process table_core Table + Sim, Dev a
 // SimDev (greedy; the #48 tests with the placeholders as its truth, the SimDev games with a true shuffled deck). After
 // every step Buddy's cards as the engine sees them = the table's belief = the sim's truth, Dev's cards Buddy knows =
 // SimDev's truth, and every card of Dev's that Buddy learned was prompted or named; at the end the session's replay

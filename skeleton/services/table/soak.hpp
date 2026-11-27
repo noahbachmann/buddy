@@ -1,5 +1,5 @@
 #pragma once
-// The soak (5.5, #43): a workload of engine games (buddy-game --table-workload) played against the sim, with table
+// The soak (2.5, #43): a workload of engine games (buddy-game --table-workload) played against the sim, with table
 // standing in for game: objects map to the ids the table reports, hand_corrected is adopted (extra cards back on the
 // deck top), a failed play or deal is retried once. Counts what wasn't recovered and what the table paid per play.
 

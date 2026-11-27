@@ -1,5 +1,5 @@
 // 1000 seeded random-vs-random games over the real decks without a failed check, under ASan/UBSan in
-// deploy/test.sh --riftbound (and --pi): 5.2's "Done when" (#20) in vanilla mode, 5.3's (#33) with every card's
+// deploy/test.sh --riftbound (and --pi): 2.2's "Done when" (#20) in vanilla mode, 2.3's (#33) with every card's
 // rules. A failure writes its replay next to the test (buddy-game --replay <file>).
 #include <gtest/gtest.h>
 

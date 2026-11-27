@@ -167,7 +167,7 @@ ReplayResult run_replay(const Replay& replay, const CardDb& db,
     ReplayResult result;
     std::string last = "setup";
     try {
-        // a session's replay (5.6): Dev's discards were asked (#73)
+        // a session's replay (2.6): Dev's discards were asked (#73)
         const auto ask = replay.buddy ? static_cast<std::uint8_t>(1u << opponent(*replay.buddy)) : std::uint8_t{0};
         result.state = new_game(seat0, seat1, {.seed = replay.seed, .vanilla = replay.vanilla, .ask_discard = ask});
         GameChecks checks(result.state);

@@ -1,7 +1,7 @@
 #pragma once
-// The simulated table (5.5): the true piles and spots of Buddy's cards behind the Backend interface, with seeded
+// The simulated table (2.5): the true piles and spots of Buddy's cards behind the Backend interface, with seeded
 // faults per op (scans, feeds, takes, deals) and per command (a disturbed hand pile). Tests and the soak compare the
-// tracker's belief with this truth. Design: docs/02-riftbound/design.md → "5.5 design".
+// tracker's belief with this truth. Design: docs/02-riftbound/design.md → "2.5 design".
 
 #include <array>
 #include <cstdint>
@@ -26,11 +26,11 @@ struct SimFaults {
     double disturbed = 0;    // two hand cards swap before a command
     bool operator==(const SimFaults&) const = default;
 };
-// "misread=0.02,unreadable=0.05,…", "stress" (the 5.5 stress rates), "none" or "". Throws std::invalid_argument.
+// "misread=0.02,unreadable=0.05,…", "stress" (the 2.5 stress rates), "none" or "". Throws std::invalid_argument.
 SimFaults parse_faults(std::string_view text);
 std::string to_string(const SimFaults& f);
 
-// What the game starts with, bottom → top. shuffle: the decks are shuffled at setup (5.6), else dealt in this order
+// What the game starts with, bottom → top. shuffle: the decks are shuffled at setup (2.6), else dealt in this order
 // (the soak plays the engine's order).
 struct SimSetup {
     std::vector<std::string> deck, runes;

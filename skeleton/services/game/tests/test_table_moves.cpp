@@ -1,4 +1,4 @@
-// Engine moves → table commands (5.5, #42): random and greedy games over the real decks, both decks from both seats.
+// Engine moves → table commands (2.5, #42): random and greedy games over the real decks, both decks from both seats.
 // After every action the commands for Buddy's seat run on a fault-free sim (through table's StandIn, as the soak
 // does), and the sim's truth must be the engine's zones: hand order, deck and rune order, every spot with exhausted.
 // Coverage counters make sure the games went through draws, Burn, channel, Vision, mulligan, Burn Out, recycle,
@@ -202,7 +202,7 @@ private:
             problem = "turn " + std::to_string(s.turn) + " (" + what + "): " + diff;
         }
     }
-    // Vision (5.6): a peek ends its step (only exhaust/ready after it) with the seat's keep-or-recycle decision open on
+    // Vision (2.6): a peek ends its step (only exhaust/ready after it) with the seat's keep-or-recycle decision open on
     // the known top card; the next step starts with peek_done.
     std::string check_peeks(const std::vector<TableMove>& cmds) {
         if (peeked_ != no_obj && (cmds.empty() || cmds[0].cmd.kind != CommandKind::PeekDone)) {
@@ -314,8 +314,8 @@ TEST(RiftboundTableMoves, BurnOut) {
     EXPECT_EQ(r.problem, "");
 }
 
-// 5.5's gate in small (#43): 200 random-player games' workload against the sim under the stress rates and the
-// defaults, nothing unrecovered. The full gate (10 000 greedy games) runs from the command line: plan → "5.5 as built".
+// 2.5's gate in small (#43): 200 random-player games' workload against the sim under the stress rates and the
+// defaults, nothing unrecovered. The full gate (10 000 greedy games) runs from the command line: plan → "2.5 as built".
 TEST(RiftboundTableMoves, SoakUnderStress) {
     const Deck vi = deck("vi-unleashed"), zed = deck("zed-vendetta");
     std::stringstream lines;

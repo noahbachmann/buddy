@@ -1,7 +1,7 @@
-# 5.6 live game: Dev plays Buddy with real cards (temporary)
+# 2.6 live game: Dev plays Buddy with real cards (temporary)
 
 Temporary guide: Dev's part of #53 (the phase's software "Done when"). Delete this file when the game is played and
-the notes are in #53; then tick 5.6 in `CLAUDE.md` and close #53 and #46.
+the notes are in #53; then tick 2.6 in `CLAUDE.md` and close #53 and #46.
 
 ## Goal
 

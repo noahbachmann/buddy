@@ -1,5 +1,5 @@
-// game: Riftbound against Dev (Phase 5, D21): card data and decks (5.1), the rules engine (5.2), the decks' cards
-// (5.3), the AI (5.4), Buddy's table moves (5.5), the session with Dev's real cards and the service (5.6).
+// game: Riftbound against Dev (Phase 2, D21): card data and decks (2.1), the rules engine (2.2), the decks' cards
+// (2.3), the AI (2.4), Buddy's table moves (2.5), the session with Dev's real cards and the service (2.6).
 //
 //   buddy-game                              the service (#52, service.hpp): buddy/game/cmd in, buddy/game/state out,
 //                                           the table over MQTT, the AI on its own thread, a restart resumes the game
@@ -21,11 +21,11 @@
 //                                           writes its replay. --iterations/--budget-ms/--threads/--tune set ismcts
 //                                           (tune keys: c, playout, scale and eval's Weights by name)
 //   buddy-game --table-workload [greedy|random] [--games N] [--seed S] [--jobs J] [--deck A --deck B]
-//                                           Buddy's physical card moves for the table soak (5.5) as JSON lines on
+//                                           Buddy's physical card moves for the table soak (2.5) as JSON lines on
 //                                           stdout: game i = seed S+i, Buddy in seat i % 2, decks swapped every
 //                                           other pair; `| buddy-table --soak -`
 //   buddy-game --sim [--faults none|stress|…] [--buddy greedy|ismcts] [--iterations N] [--seed S] [--deck A --deck B]
-//                                           play Buddy in the terminal with your real cards (5.6): the panel's payload
+//                                           play Buddy in the terminal with your real cards (2.6): the panel's payload
 //                                           as text, Buddy's side on an in-process sim table; Buddy plays deck A
 //   buddy-game --sim --games N [--seed S] [--jobs J] [--faults …] [--dev greedy|random] [--buddy greedy|ismcts]
 //              [--iterations N] [--deck A --deck B]
@@ -153,7 +153,7 @@ std::string read_file(const fs::path& path) {
     return text.str();
 }
 
-// What 5.4's search pays per node: the size of a state and the time to copy one, over every state of one game.
+// What 2.4's search pays per node: the size of a state and the time to copy one, over every state of one game.
 void measure_copies(const Deck& a, const Deck& b, std::uint64_t seed, const std::vector<Action>& log, bool vanilla) {
     GameState s = new_game(a, b, {.seed = seed, .vanilla = vanilla});
     constexpr int repeats = 20;

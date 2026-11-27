@@ -1,4 +1,4 @@
-// motion: joints in degrees (MQTT) → protocol v1 on the Pico's USB serial port (guide 2.3, D17).
+// motion: joints in degrees (MQTT) → protocol v1 on the Pico's USB serial port (docs/motion-controller/service.md, D17).
 //
 //   buddy-motion                       live: buddy/motion/cmd in, retained buddy/motion/state out; gestures also
 //                                      publish their reply to buddy/voice/say

@@ -1,7 +1,7 @@
 #pragma once
 // The state of one Riftbound Duel (Core Rules 2026-10-09, rule 487) as a plain value: copying a GameState copies the
-// whole game, so search (5.4) can clone it freely. Objects and zones refer to each other by index; the only pointers
-// go to immutable card data (CardDb). Design: docs/02-riftbound/design.md → "5.2 design".
+// whole game, so search (2.4) can clone it freely. Objects and zones refer to each other by index; the only pointers
+// go to immutable card data (CardDb). Design: docs/02-riftbound/design.md → "2.2 design".
 
 #include <array>
 #include <cstdint>
@@ -477,7 +477,7 @@ std::vector<ObjId>* zone_list(GameState& s, Zone zone, PlayerId player, std::uin
 
 enum class Pos { Top, Bottom };
 
-// Physical moves for the table (5.5, game_core's table_moves): while this thread has a log installed, move_to and
+// Physical moves for the table (2.5, game_core's table_moves): while this thread has a log installed, move_to and
 // create append to it, in the order the cards move. Only the referee installs one, around new_game and apply; search
 // copies never log. Off, it costs one thread-local load per move.
 struct LoggedMove {
@@ -515,7 +515,7 @@ void channel(GameState& s, PlayerId p, int n);
 // is which any more (Object::known cleared).
 void recycle(GameState& s, std::vector<ObjId> ids);
 
-// Identities the outside world reveals (5.6): the table's scans of Buddy's cards, Dev's real cards. The engine's
+// Identities the outside world reveals (2.6): the table's scans of Buddy's cards, Dev's real cards. The engine's
 // cards for objects `knower` doesn't know are only one possibility; bind makes `obj` the card that turned out to be
 // there. It swaps Object::card with another object of the same owner holding `card`, taken from the pool of cards
 // `knower` doesn't know: the owner's main and rune deck, plus their hand if the owner isn't `knower` (Dev's hand is
@@ -525,7 +525,7 @@ void recycle(GameState& s, std::vector<ObjId> ids);
 // (the state is unchanged); already `card` = true. `keep`: objects bound before in the same reveal group (one step's
 // reveals, or one replay's lines before the same action) never give their card away: two copies dealt in one step
 // are bound one after the other on the state before the step, where both still sit in the pool.
-// A battlefield (5.6, #49) swaps with one of its owner's battlefields that left the game at setup (487.5): the
+// A battlefield (2.6, #49) swaps with one of its owner's battlefields that left the game at setup (487.5): the
 // engine picks one at random, the player chose theirs; only meaningful before the first action.
 // The opening hand (#50): new_game drew it, so during Setup a card of the knower's own hand also swaps with another
 // of the knower's hand objects the opponent doesn't know and `keep` doesn't hold (one the table hasn't dealt yet).
@@ -542,7 +542,7 @@ public:
 private:
     std::vector<std::pair<ObjId, std::uint16_t>> bound_;  // obj, gen when bound
 };
-// The table's hand order after a disturbed pile (5.6): `ids` must be a permutation of p's hand. false = it isn't.
+// The table's hand order after a disturbed pile (2.6): `ids` must be a permutation of p's hand. false = it isn't.
 bool set_hand_order(GameState& s, PlayerId p, const std::vector<ObjId>& ids);
 
 // Every object in exactly one zone list (or chain item), matching its zone/owner/controller/where; occupancy of

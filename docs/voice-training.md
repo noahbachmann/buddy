@@ -193,13 +193,13 @@ installed one on the Pi and asks whether to install it. Live clips are never tes
 fixed yardstick, so the before/after numbers stay comparable. Install only if intent clearly improves (box sessions
 especially); otherwise keep collecting.
 
-Worth a run at ~100 new live clips (`deploy/train.sh check` lists the count per session). After the Jabra moves (2.6),
+Worth a run at ~100 new live clips (`deploy/train.sh check` lists the count per session). After the Jabra moves,
 the old clips still help, but record a fresh test session first so the eval measures the new position.
 
 ## When to retrain
 
 - New artists or playlists whisper gets wrong (add sentences to the corpus, `deploy/record.sh <label> new`).
-- The mic sounds different: Jabra moved into the body (Phase 2.6), another room.
+- The mic sounds different: Jabra moved (e.g. into a housing), another room.
 - Enough live clips labelled (~100, `deploy/train.sh history`).
 
 Each run trains on all sessions; nothing is ever thrown away.

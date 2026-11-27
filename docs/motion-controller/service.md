@@ -1,10 +1,10 @@
-# 2.3 – Motion service
+# Motion service
 
 > Items marked ⚠️ are untested assumptions: check them while you build and tell Claude what you found.
 
 ## Goal
 
-`[motion]`, a C++ service on the Pi, turns MQTT commands into the Pico's serial protocol (2.2). The rest of Buddy speaks
+`[motion]`, a C++ service on the Pi, turns MQTT commands into the Pico's serial protocol (`pico.md`). The rest of Buddy speaks
 in joints and degrees (`demo: 30`). Only motion knows channels, microseconds and the serial port.
 
 ```
@@ -23,7 +23,7 @@ in joints and degrees (`demo: 30`). Only motion knows channels, microseconds and
 
 ## Prerequisites
 
-- 2.2 done: firmware flashed, `/dev/buddy-pico` exists, the picocom test passes.
+- `pico.md` done: firmware flashed, `/dev/buddy-pico` exists, the picocom test passes.
 - The service owns the port: close picocom before starting it.
 
 ## Design
@@ -34,15 +34,15 @@ A joint table in code (`services/motion/joints.cpp`) is the only place that maps
 
 | Field | demo | head_tilt | Meaning |
 |---|---|---|---|
-| `channel` | 0 (GP2) | 1 (GP3) | Pico channel (2.2 pinout) |
+| `channel` | 0 (GP2) | 1 (GP3) | Pico channel (`pico.md` pinout) |
 | `min_us` / `max_us` | 700 / 2300 ⚠️ | 1100 / 1900 ⚠️ | Sent as `LIMIT` on every connect; the Pico enforces them |
 | `center_us` | 1500 ⚠️ | 1500 ⚠️ | 0° |
 | `us_per_deg` | 10 ⚠️ | 10 ⚠️ | MG90S ≈ 2000 µs over 180° ⚠️ |
 | `max_deg_per_s` | 400 | 90 | Speed cap: the service stretches `ms` if a move would be faster |
 
-`demo` is the loose servo on ch0 for the demo gesture below (±80°, no horn, nothing to jam), not a body joint. In 2.5
-`head_pan` (1000 / 2000 µs, 120°/s ⚠️) takes ch0 and the `demo` row goes together with the gesture. The ⚠️ values get
-measured in 2.5 once the servos sit in the head. The table is code, not `buddy.env`: it describes this
+`demo` is the loose servo on ch0 for the demo gesture below (±80°, no horn, nothing to jam), not a body joint. Once a
+servo sits in a mechanism, a real joint takes ch0 and the `demo` row goes together with the gesture. The ⚠️ values get
+measured then. The table is code, not `buddy.env`: it describes this
 robot's mechanics, not a host, and changes with the CAD, so it belongs in Git next to it. Degrees outside the joint's
 range are clamped by the service; µs outside the limits are clamped again by the Pico.
 
@@ -66,7 +66,7 @@ range are clamped by the service; µs outside the limits are clamped again by th
 
 ### Demo gesture: "Hey Jarvis, cut off Andi's balls"
 
-A showcase for friends, removed in 2.5 with the `demo` joint:
+A showcase for friends, removed with the `demo` joint:
 
 ```
 ears ─"Cut off Andi's balls."─► brain ─{"action":"gesture","query":"shake"}─► motion ─► voice/say "As you wish."
@@ -79,7 +79,7 @@ ears ─"Cut off Andi's balls."─► brain ─{"action":"gesture","query":"shak
 - motion plays the steps itself (timing independent of MQTT) and speaks the reply (D11). Disconnected Pico: "My motors
   aren't connected."; unknown gesture name: "I don't know that move."
 
-A multi-joint `move` is what a gesture step is; Phase 3 gestures (wave, high five) become rows in the gesture table.
+A multi-joint `move` is what a gesture step is; new gestures become rows in the gesture table.
 
 `motion_state` is published on change only: (dis)connect, an accepted move (targets), relax. A relaxed or unknown joint is
 `null`. After a reconnect every joint is `null` until the next command: the service doesn't know where an unpowered servo
@@ -97,7 +97,7 @@ Pattern from `skeleton/CLAUDE.md`. New files in `services/motion/`:
 | `joints.hpp/.cpp` | Table above; `deg → µs` with clamping; `plan_move()` with the speed cap (unknown position = worst case over the range) |
 | `gestures.hpp/.cpp` | Gesture table (steps + reply) and `GesturePlayer` (when the next step is due; no I/O) |
 | `command.hpp/.cpp` | `buddy/motion/cmd` JSON → `Command` |
-| `motion_protocol.hpp` | Shared with the firmware (2.2, `shared/include/buddy/`) |
+| `motion_protocol.hpp` | Shared with the firmware (`pico.md`, `shared/include/buddy/`) |
 | `tests/test_*.cpp` | GoogleTest against `motion_core` (= everything but `main.cpp`), see Steps 4 |
 
 **Pico missing ≠ crash.** Without `/dev/buddy-pico` the service stays up, `status` stays `online`, `state.connected` is
@@ -112,7 +112,7 @@ via the handshake. The Pico relaxes by itself 2 s after the last PING, so a hung
 ### Config (`deploy/config/buddy.env.example`)
 
 ```bash
-# motion (2.3): the Pico (udev symlink from setup.sh pico)
+# motion: the Pico (udev symlink from setup.sh pico)
 #BUDDY_MOTION_DEVICE=/dev/buddy-pico
 # 1 = log every serial line in both directions (debugging only: noisy)
 #BUDDY_MOTION_DEBUG=0
@@ -131,7 +131,7 @@ buddy-motion --raw "1 MOVE 0 1500 300"     # one protocol line, prints the reply
 ## Steps
 
 Steps 1–5 are done (code, topics, deploy wiring and tests on 2026-10-29, deployed the same day). What's left for you:
-the Verify table, once 2.2 is wired and the Pico is plugged in. Step 5 again only after code changes.
+the Verify table, once the Pico is wired (`pico.md`) and the Pico is plugged in. Step 5 again only after code changes.
 
 1. **Code:** `services/motion/` as above, plus `add_subdirectory(services/motion)` in `CMakeLists.txt` and
    `install(TARGETS buddy-motion … COMPONENT motion)` (no new libraries: termios is libc). Joints and the serial link go
@@ -145,7 +145,7 @@ the Verify table, once 2.2 is wired and the Pico is plugged in. Step 5 again onl
 
    | Suite | Checks |
    |---|---|
-   | `MotionProtocol` (`shared/tests/`) | from 2.2: format/parse round trips, malformed lines |
+   | `MotionProtocol` (`shared/tests/`) | from `pico.md`: format/parse round trips, malformed lines |
    | `MotionJoints` | deg → µs, clamping at both ends, speed cap stretches `ms`, multi-joint moves arrive together |
    | `MotionGestures`, `MotionCommand` | gesture table uses real joints within range and ends limp, player timing, command JSON |
    | `RuleParser.DemoGesture`, corpus `extra` rows | brain: the phrase and whisper's spellings of "Andi's" |
@@ -182,21 +182,17 @@ Expected right after the deploy: `buddy/motion/status online` and `buddy/motion/
 | Symptom | Cause / fix |
 |---|---|
 | `connected:false`, log says `/dev/buddy-pico: Device or resource busy` | picocom or a CLion run still holds the port |
-| `connected:false`, `No such file` | Pico unplugged or udev rule missing: 2.2 step 8 |
+| `connected:false`, `No such file` | Pico unplugged or udev rule missing: `pico.md` step 8 |
 | Handshake fails with `protocol version` | Firmware older than the service: `deploy/deploy.sh --firmware` |
 | Servos limp after ~2 s even while the service runs | PINGs aren't arriving: main loop blocked (check the watchdog log) or `BUDDY_MOTION_DEBUG=1` to see the traffic |
-| A joint moves the wrong way | Swap the sign in its `us_per_deg` (calibration, 2.5) |
+| A joint moves the wrong way | Swap the sign in its `us_per_deg` (calibration) |
 | Servo buzzes or strains at ±80° in the demo | The MG90S's travel ends earlier: narrow `demo`'s `min_us`/`max_us` in `joints.cpp` |
 | "Sorry, I didn't catch that." for the demo | `deploy/logs.sh brain` shows the transcript: add whisper's spelling to the rule in `rules.cpp` |
 | Killed every 60 s by the systemd watchdog | A blocking serial call in the main loop: serial I/O belongs on the reader thread |
 
-## Notes for later phases
+## Notes
 
-- **2.4 Eyes:** if the Pico drives the display, the protocol gets a `EYES <state>` command and motion gets
-  `{"action":"eyes",…}` or a separate `buddy/eyes/cmd` topic. Decide in 2.4; protocol v1 stays compatible either way.
-- **2.5 "turn on wake word":** motion only executes commands; it must not subscribe to `buddy/ears/wake` (one service,
-  one job). Who decides *that* the head turns (brain, or a small behaviour service) is the 2.5 design question.
-- **Phase 3:** hand joints are new rows in the joint table; gestures are timed sequences of multi-joint moves sent by
-  their owner. Fine-grained sequences may want a `seq` action on the Pico later, to stay smooth over MQTT latency.
-- **Phase 4:** face tracking sends small, frequent moves (10–20 Hz). The `ms`-ramp protocol handles that, but measure the
-  MQTT → servo latency before tuning.
+Side project since 2026-11-27 (head, hand and arm phases dropped). Motion only executes commands; it never subscribes
+to events like `buddy/ears/wake` (one service, one job). Gestures are timed sequences of multi-joint moves sent by
+their owner; fine-grained ones may want a `seq` action on the Pico later. Measure the MQTT → servo latency before
+anything sends frequent small moves.

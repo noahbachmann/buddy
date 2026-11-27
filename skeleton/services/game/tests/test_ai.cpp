@@ -1,4 +1,4 @@
-// The AI (5.4, riftbound/ai/): action keys, the arena (players see only views, matches are reproducible), eval,
+// The AI (2.4, riftbound/ai/): action keys, the arena (players see only views, matches are reproducible), eval,
 // v1 greedy on hand-built states, v2 ISMCTS (reproducible, wins in 1, only legal actions).
 #include <gtest/gtest.h>
 

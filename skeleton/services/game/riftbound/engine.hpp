@@ -1,7 +1,7 @@
 #pragma once
 // The rules engine's one loop, the same for the AI, the panel and the tests: the engine runs until a player has to
 // choose, stops at GameState::decision, and legal_actions() / apply() answer it. Design: docs/02-riftbound/design.md
-// → "5.2 design".
+// → "2.2 design".
 
 #include <cstdint>
 #include <stdexcept>
@@ -15,15 +15,15 @@ namespace buddy::riftbound {
 
 struct GameOptions {
     std::uint64_t seed = 0;
-    // Stats and the timing keyword only, card text ignored: random games over the real decks before their cards exist (5.2). Tests only;
+    // Stats and the timing keyword only, card text ignored: random games over the real decks before their cards exist (2.2). Tests only;
     // without it every card needs its implementation (D21).
     bool vanilla = false;
     // Bit p: player p's discard costs are always a Choose, even when the hand holds just the cards needed. The
-    // session sets it for Dev (5.6, #73): Dev's hand holds placeholders, the referee must never pick from it.
+    // session sets it for Dev (2.6, #73): Dev's hand holds placeholders, the referee must never pick from it.
     std::uint8_t ask_discard = 0;
 };
 
-// Card has rules the engine can run: the basic runes (164) and every card with Card::rules (5.3 registers them).
+// Card has rules the engine can run: the basic runes (164) and every card with Card::rules (2.3 registers them).
 bool is_implemented(const Card& card);
 
 // A move that legal_actions() doesn't offer right now.
