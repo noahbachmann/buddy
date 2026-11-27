@@ -1,7 +1,7 @@
 // Skeletons of the PC case parts: the real parts (../lib.scad) cut down to what decides the fit: outlines, the
 // lid's slit tabs, every screw boss, tab and hole, a few top-module nut pockets. Same geometry, a fraction of the
 // filament: print these, assemble them on the hardware, then print the real parts.
-include <../lib.scad>
+include <../../src/lib.scad>
 
 // --- skeleton params ---------------------------------------------------------------
 skel_band  = 6;          // rim kept round the cover-top and cover-bottom outlines

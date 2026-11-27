@@ -1,13 +1,18 @@
-"""Module config: a folder with `cad.toml`.
+"""Module config: a folder with `src/cad.toml`.
+
+    <module>/            print plates (`cad plate`), README
+    <module>/stl/        single parts (`cad build`)
+    <module>/src/        cad.toml, .scad files (paths below are relative to it), renders/
+
 
     assembly = "assembly.scad"      # optional: posed preview, rendered with OpenSCAD colours
 
-    [parts.upper-arm-top]           # one table per printable part; file defaults to <name>.scad
+    [parts.lid]                     # one table per printable part; file defaults to <name>.scad
     [parts.couplers]
     file = "couplers.scad"
     defines = { n = 2 }             # optional -D overrides for this part
 
-    [plates.1-petg]                 # optional: one print job = one STL in <module>/plates (`cad plate`)
+    [plates.1-petg]                 # optional: one print job = one STL in <module>/ (`cad plate`)
     note = "PETG · 0.2 mm"          # material and slicer settings, printed with the plate
     parts = ["a", "b", "b", ["c", "c-support"]]   # repeat = more copies; a list = one group in its own frame
     bed = [254, 254]                # optional: usable bed for this plate (default 230 × 230, room for brims)
@@ -24,6 +29,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 CONFIG = "cad.toml"
+SRC = "src"
 TOOLS_DIR = Path(__file__).resolve().parents[2]
 
 
@@ -60,16 +66,20 @@ class Module:
         return self.dir.name
 
     @property
+    def src_dir(self) -> Path:
+        return self.dir / SRC
+
+    @property
     def stl_dir(self) -> Path:
         return self.dir / "stl"
 
     @property
     def plate_dir(self) -> Path:
-        return self.dir / "plates"
+        return self.dir   # the plates are what Dev opens: the module root
 
     @property
     def render_dir(self) -> Path:
-        return self.dir / "renders"
+        return self.src_dir / "renders"
 
     def select(self, names: list[str]) -> list[Part]:
         unknown = [n for n in names if n not in self.parts]
@@ -79,7 +89,7 @@ class Module:
 
 
 def resolve(arg: str) -> Path:
-    """CLI target: as given if it exists, else relative to the parts root (`cad build arm` from anywhere)."""
+    """CLI target: as given if it exists, else relative to the parts root (`cad build dispenser` from anywhere)."""
     p = Path(arg)
     if p.exists():
         return p
@@ -94,39 +104,45 @@ def find_module(path: Path) -> Module | None:
     d = path.resolve()
     if d.is_file():
         d = d.parent
-    return load(d) if (d / CONFIG).is_file() else None
+    for c in (d, *d.parents):   # the root, stl/, src/ or below (src/ref/)
+        if c.name == SRC and (c / CONFIG).is_file():
+            return load(c.parent)
+        if (c / SRC / CONFIG).is_file():
+            return load(c)
+    return None
 
 
 def load(d: Path) -> Module:
     d = d.resolve()
-    if not (d / CONFIG).is_file():
-        raise SystemExit(f"{d}: no {CONFIG}, not a module")
-    with open(d / CONFIG, "rb") as f:
+    src, cfg = d / SRC, d / SRC / CONFIG
+    if not cfg.is_file():
+        raise SystemExit(f"{d}: no {SRC}/{CONFIG}, not a module")
+    with open(cfg, "rb") as f:
         raw = tomllib.load(f)
     parts = {}
     for name, spec in raw.get("parts", {}).items():
-        file = d / spec.get("file", f"{name}.scad")
+        file = src / spec.get("file", f"{name}.scad")
         if not file.is_file():
-            raise SystemExit(f"{d / CONFIG}: part {name}: {file.name} missing")
+            raise SystemExit(f"{cfg}: part {name}: {file.name} missing")
         parts[name] = Part(name, file, dict(spec.get("defines", {})))
     plates = {}
     for name, spec in raw.get("plates", {}).items():
         items = [[i] if isinstance(i, str) else list(i) for i in spec.get("parts", [])]
         unknown = sorted({n for i in items for n in i} - parts.keys())
         if not items or unknown:
-            raise SystemExit(f"{d / CONFIG}: plate {name}: " + (f"unknown part(s) {', '.join(unknown)}" if unknown else "no parts"))
+            raise SystemExit(f"{cfg}: plate {name}: " + (f"unknown part(s) {', '.join(unknown)}" if unknown else "no parts"))
         bed = spec.get("bed")
         if bed is not None and (len(bed) != 2 or not all(isinstance(v, (int, float)) and 0 < v <= 256 for v in bed)):
-            raise SystemExit(f"{d / CONFIG}: plate {name}: bed must be [w, d] in mm, at most 256 (X2D)")
+            raise SystemExit(f"{cfg}: plate {name}: bed must be [w, d] in mm, at most 256 (X2D)")
         place = spec.get("place")
         if place is not None and (len(place) != len(items) or not all(
                 len(q) == 3 and all(isinstance(v, (int, float)) for v in q) for q in place)):
-            raise SystemExit(f"{d / CONFIG}: plate {name}: place needs one [x, y, turn] per item")
+            raise SystemExit(f"{cfg}: plate {name}: place needs one [x, y, turn] per item")
         gap = spec.get("gap")
         if gap is not None and not (isinstance(gap, (int, float)) and gap >= 0):
-            raise SystemExit(f"{d / CONFIG}: plate {name}: gap must be a number ≥ 0")
+            raise SystemExit(f"{cfg}: plate {name}: gap must be a number ≥ 0")
         plates[name] = Plate(name, spec.get("note", ""), items, tuple(float(v) for v in bed) if bed else None,
                              [tuple(float(v) for v in q) for q in place] if place else None,
                              float(gap) if gap is not None else None)
     asm = raw.get("assembly")
-    return Module(d, parts, d / asm if asm else None, plates)
+    return Module(d, parts, src / asm if asm else None, plates)

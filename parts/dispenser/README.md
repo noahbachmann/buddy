@@ -227,7 +227,8 @@ which prints solid). Same print: on its back, no supports. `case.scad` stays as 
 
 ## Files
 
-All dimensions are in `params.scad`, in `dispenser.stl`'s own coordinates. Run `parts/cad build dispenser` for the
+The folder holds the print plates ("Print"), `stl/` the single parts and `src/` everything below. All dimensions are in
+`params.scad`, in `dispenser.stl`'s own coordinates. Run `parts/cad build dispenser` for the
 STLs and `parts/cad render dispenser` for the sheets (`parts/CLAUDE.md`).
 
 | File | What | Print |
@@ -253,13 +254,12 @@ STLs and `parts/cad render dispenser` for the sheets (`parts/CLAUDE.md`).
 | `border-pin.scad` | Pin with a head, 9×: holds the borders through the case's screw holes | head down |
 | `fit-test.scad` | Fit test for the printed joints: peg holes (vertical, horizontal), steel pin holes | as in the file |
 | `pilot-test.scad` | Pilot test: M3 pilot holes 2.6…3.0 in a 6 mm wall, as in the roller plates' feet | as in the file |
-| `plates/` | Print jobs: `cad.toml` → `[plates]`, built by `parts/cad plate dispenser` ("Print") | as in the file |
 | `make_copy.py` | `ref/` (box, lift, 4023 from `dispenser.stl`) + `dispenser-roller.stl` (case, roller, pusher, lift, lift motor under the floor) | – |
 | `check_pusher.py` | Collisions over the pusher's stroke with the lift at push height and a full pile, and of the lift with its nut (lowest, 2 between, push height) with the box, the pusher at home and its own motor and coupling | – |
 
 ```bash
-cd parts/tools && uv run python ../dispenser/make_copy.py    # after any change, also regenerates ref/
-cd parts/tools && uv run python ../dispenser/check_pusher.py # after a pusher, lift or box change: must print 0 overlapping
+cd parts/tools && uv run python ../dispenser/src/make_copy.py # after any change, also regenerates ref/
+cd parts/tools && uv run python ../dispenser/src/check_pusher.py # after a pusher, lift or box change: must print 0 overlapping
 ```
 
 ## Parts
@@ -309,7 +309,7 @@ the left wall and 2 through the divider into border H, 3 through the right wall 
 fit there by design. Border B's pins hold against gravity: a pin that slides out of B means its hole is
 too big, not a pin that's too short.
 
-**Fit test first** (`plates/0-fit-test.stl`, PETG 0.2 mm, 10 % infill, ~15 min). Holes 1…6 count from the chamfered corner:
+**Fit test first** (`0-fit-test.stl`, PETG 0.2 mm, 10 % infill, ~15 min). Holes 1…6 count from the chamfered corner:
 
 | Hole | 1 | 2 | 3 | 4 | 5 | 6 |
 |---|---|---|---|---|---|---|
@@ -349,9 +349,9 @@ its number: it goes into `nut_flank` / `bore_gap`, and that part is reprinted fr
 
 **Result (Dev, 2026-11-17):** nut ring 1 fits (0.10 per flank), so `nut_flank` = 0.10. Bore ring 1 (0.10) is too tight,
 ring 2 (0.15) very slightly loose, so `bore_gap` = 0.125 ⚠️ (between two tested steps). The gear and nuts from 1b
-(bore 0.10, nuts 0.15) are replaced by `plates/1c-reprint.stl`.
+(bore 0.10, nuts 0.15) are replaced by `1c-reprint.stl`.
 
-**Pilot test** (`plates/0c-pilot-test.stl`, PETG 0.2 mm, ~10 min). The first roller plates had Ø2.5 pilots: an M3
+**Pilot test** (`0c-pilot-test.stl`, PETG 0.2 mm, ~10 min). The first roller plates had Ø2.5 pilots: an M3
 machine screw (core Ø2.39) can't be turned into them by hand (Dev, 2026-11-25). Vertical holes print ~0.1 small, so
 that hole was the screw's core: the thread had to push aside its full depth of PETG, and a machine screw has no
 cutting edge. 2.5 is the pilot for screws made for plastic (PT/K30 type), not for M3 machine screws. The test block
@@ -364,7 +364,7 @@ corner:
 
 Turn an M3×12 into each hole with an Allen key or a screwdriver, all the way, then tighten it gently. Pick the
 **tightest hole it goes into without a fight** that still grips: the screw doesn't spin freely when tightened and
-doesn't pull out by hand. Tell Claude the number: it goes into `screw_pilot` and `plates/2b-roller-reprint.stl`
+doesn't pull out by hand. Tell Claude the number: it goes into `screw_pilot` and `2b-roller-reprint.stl`
 is rebuilt and reprinted. Already printed plates: a drill bit of that size turned by hand (fingers or a pin vise)
 opens the holes in soft PETG, no machine needed.
 
@@ -389,9 +389,9 @@ in use, the fix is a cross pin through coupling and screw, not tighter threads.
 
 ## Print (Bambu X2D)
 
-**Print from `plates/`**: one STL per print job, parts already in print orientation, laid out and spaced, centred.
+**Print the `.stl` files in this folder**: one per print job, parts already in print orientation, laid out and spaced, centred.
 Drag one file into Bambu Studio, pick the filament and the settings in its row, slice, print. `stl/` holds the single
-parts (for reprints, e.g. only the left gate). `parts/cad plate dispenser` rebuilds the plates from `cad.toml`.
+parts (for reprints, e.g. only the left gate). `parts/cad plate dispenser` rebuilds them from `src/cad.toml`.
 
 | Plate | Parts | Filament | Settings (rest: Bambu's preset) |
 |---|---|---|---|

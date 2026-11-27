@@ -1,8 +1,23 @@
 # parts/ – printable parts
 
 Parametric OpenSCAD, one folder per module (`dispenser/`, `pc-case/` (#87), `hex-driver/`). A module is a folder with a
-`cad.toml`. The CAD environment is built in #54: toolchain, `cad build` and `cad render` exist; `cad check/sweep/slice`
+`src/cad.toml`. The CAD environment is built in #54: toolchain, `cad build` and `cad render` exist; `cad check/sweep/slice`
 come next.
+
+## Module layout
+
+Dev opens a module to print: its root holds only the plates.
+
+```
+<module>/
+├── 0-fit-test.stl …   ← print plates (`cad plate`): nothing else .stl here (a full `cad plate` deletes strays)
+├── README.md
+├── stl/               ← single parts (`cad build`)
+├── skeleton/          ← pc-case only: the fit-test skeleton, a module of its own with the same layout
+└── src/               ← cad.toml, .scad, scripts, reference models (`dispenser.stl`, `ref/`); renders/ (gitignored)
+```
+
+Paths in `cad.toml`, includes and scripts are relative to `src/`.
 
 ## Toolchain
 
@@ -25,8 +40,8 @@ come next.
 
 ```bash
 parts/cad build dispenser [part…]                  # STLs into dispenser/stl (binary), stats per part; any WARNING fails
-parts/cad plate dispenser [plate…]                 # print jobs from cad.toml [plates] → dispenser/plates/*.stl
-parts/cad render dispenser [part…]                 # PNG sheets into dispenser/renders/ (gitignored), paths printed
+parts/cad plate dispenser [plate…]                 # print jobs from src/cad.toml [plates] → dispenser/*.stl
+parts/cad render dispenser [part…]                 # PNG sheets into dispenser/src/renders/ (gitignored)
 parts/cad render dispenser lift --section y=0 --section z=10       # + 2D cuts
 parts/cad render dispenser -D push=0.5             # -D goes to every file rendered (poses for the assembly)
 parts/cad render some.scad | some.stl [-o dir]     # loose files; a module's assembly file renders as assembly
@@ -39,10 +54,10 @@ cd parts/tools && uv run pytest -q                 # tool tests (fixtures in tes
   (solid), bed/overhang/roof areas.
 - **Section**: filled 2D cut, 1 mm / 10 mm grid, world axis names kept. Use it for walls, bearing seats, nut slots,
   cable channels: anything inside.
-- **Plates** (`tools/src/cad/plate.py`): `[plates.<name>]` in `cad.toml` lists parts (repeat = copies; a list =
+- **Plates** (`tools/src/cad/plate.py`): `[plates.<name>]` in `src/cad.toml` lists parts (repeat = copies; a list =
   one group kept in its common frame, e.g. parts that print in one frame) and a `note` (filament, settings). Parts
   turn only about Z, pack into rows on 230 × 230 (`bed = [w, d]` per plate for parts wider than that, ≤ 256) with 8 mm gaps, centred. One STL per plate = one object in Bambu
-  Studio: settings apply to the whole plate, auto brim judges the whole plate. Dev prints from `plates/`.
+  Studio: settings apply to the whole plate, auto brim judges the whole plate. Dev prints from the module root.
   Shelves can't nest one part into another's corner: `place = [[x, y, turn°], …]` (one per item, bbox min corner
   after the turn) fixes the layout instead, `gap` sets the minimum distance; `cad plate` checks the real footprints
   against it and the bed (the PC case's covers: an L round a box, as Dev laid them out in Bambu Studio).
@@ -58,13 +73,13 @@ section through every fit (bearing seat, slot, channel). Numbers can't see a mis
 ## Rules
 
 - STL only. 3MF files (e.g. `tray/tray.3mf`) are Dev's print projects: never read, write or regenerate them.
-- STLs are committed already in print orientation (+Z up = build direction), binary. So are `plates/`: rebuild
+- STLs are committed already in print orientation (+Z up = build direction), binary. So are the plates: rebuild
   them (`cad plate <module>`) whenever a part on them changes.
 - Dev drags a plate in and prints: no arranging. A part that needs support gets none in the file: Bambu Studio
   generates it. Turn supports on in that plate's `note` and README row.
 - Every dimension in the module's `params.scad`; design rules and fits from `docs/3d-printing.md`.
 - `tray/` has no source (Dev's own): change only on request, by editing the STL directly (lid rim gap: `docs/3d-printing.md` → Fits).
-- `dispenser/dispenser.stl` is Dev's Onshape box: never modify it. Roller and pusher are built in its coordinates;
+- `dispenser/src/dispenser.stl` is Dev's Onshape box: never modify it. Roller and pusher are built in its coordinates;
   `make_copy.py` writes `ref/` (box, lift, 4023 cut out of it) and the combined copy `dispenser-roller.stl`. The case
   (`case.scad`: `ref/box.stl` + `case_add()` − `box_cuts()`, prints on its back) (`case-spares.scad`: the same minus `spare_cuts()`, less filament; `case.stl` stays) and the lift (`lift.scad`) are ours
   now; cards/roller/lift positions differ from `dispenser.stl` (README top). The case prints with −Y up: anything
@@ -89,12 +104,12 @@ section through every fit (bearing seat, slot, channel). Numbers can't see a mis
 - trimesh's `polygons_full` can come back empty for valid rings (a cut exactly through a peg's axis in its socket):
   `render.section` then falls back to the closed rings, so check a blank section against the mesh.
 - A param change rebuilds STLs in other parts than the one being worked on (fits are shared): commit every changed
-  `stl/`, `plates/` and `dispenser-roller.stl` with it. `git status` clean under `parts/` after a commit. Dev prints
+  `stl/`, plate and `dispenser-roller.stl` with it. `git status` clean under `parts/` after a commit. Dev prints
   from GitHub: a stale plate there printed the borders with the pre-test fits (2026-11-11).
 - A cut extruded `big` along its axis runs on through every wall behind it: bound cuts to their own feature (the PC
   case's nut pockets notched the far wall, 2026-11-24). Catch slivers by slicing and eroding each layer by 0.4 mm:
   a polygon that vanishes is thinner than two lines.
-- Manifold booleans need watertight input: an open reference mesh (e.g. `dispenser/ref/lift.stl`) silently intersects
+- Manifold booleans need watertight input: an open reference mesh (e.g. `dispenser/src/ref/lift.stl`) silently intersects
   as 0. Check `is_watertight` before trusting an overlap volume.
 - BOSL2's thread `$slop` is radial (4·$slop on the diameter). On a TR thread that's ¼ at the flanks: size thread gaps per
-  flank and convert (`tr8_thread()` in `dispenser/lib.scad`). Every bore from the fit values, never a picked number.
+  flank and convert (`tr8_thread()` in `dispenser/src/lib.scad`). Every bore from the fit values, never a picked number.

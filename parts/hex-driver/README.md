@@ -14,7 +14,7 @@ the screw: lever for snugging. Long arm in the screw: reach, spin it fast by the
 
 ## Print
 
-`plates/0-pla.stl`: PLA · 0.12 mm · 4 walls · 100 % · no supports. Lying flat, a hex flat on the bed.
+`0-pla.stl`: PLA · 0.12 mm · 4 walls · 100 % · no supports. Lying flat, a hex flat on the bed.
 
 Why flat: standing, every layer seam crossed the hex, so a twist sheared it along one layer. Lying flat, the
 perimeters run along the hex and the L can't break at a layer under bending. The fit differs from the old standing

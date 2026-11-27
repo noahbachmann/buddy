@@ -1,8 +1,8 @@
 """`cad` command line. Run via the `parts/cad` wrapper.
 
     cad build <module> [part…] [-D name=value]         STLs into <module>/stl, strict (warnings fail)
-    cad plate <module> [plate…]                        print plates ([plates] in cad.toml) into <module>/plates
-    cad render <module|file.scad|file.stl> [part…]     PNG sheets into <dir>/renders, paths printed
+    cad plate <module> [plate…]                        print plates ([plates] in src/cad.toml) into <module>/
+    cad render <module|file.scad|file.stl> [part…]     PNG sheets into <module>/src/renders (loose files: <dir>/renders)
         --section z=40 --section x=0                   2D cuts per part
         -D elbow=60                                    OpenSCAD defines (poses, variants)
 """
@@ -57,8 +57,7 @@ def cmd_plate(a: argparse.Namespace) -> int:
                                             if unknown else f"no [plates] in {config.CONFIG}"))
     plates = [mod.plates[n] for n in a.plates] if a.plates else list(mod.plates.values())
     names = sorted({n for p in plates for i in p.items for n in i})
-    mod.plate_dir.mkdir(exist_ok=True)
-    if not a.plates:   # full run: drop files of plates that no longer exist
+    if not a.plates:   # full run: drop files of plates that no longer exist (the root holds only plates)
         for old in mod.plate_dir.glob("*.stl"):
             if old.stem not in mod.plates:
                 old.unlink()
@@ -177,7 +176,7 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("parts", nargs="*")
     r.add_argument("--section", action="append", default=[], metavar="AXIS=MM")
     r.add_argument("-D", dest="define", action="append", default=[], metavar="NAME=VALUE")
-    r.add_argument("-o", "--out", help="output folder (default: <module>/renders)")
+    r.add_argument("-o", "--out", help="output folder (default: <module>/src/renders)")
     r.set_defaults(fn=cmd_render)
 
     a = ap.parse_args(argv)

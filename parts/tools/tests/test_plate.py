@@ -40,24 +40,26 @@ def test_pack_too_big():
 
 
 def test_config_plates(tmp_path):
-    (tmp_path / "a.scad").write_text("cube(1);")
-    (tmp_path / config.CONFIG).write_text(
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "a.scad").write_text("cube(1);")
+    (tmp_path / "src" / config.CONFIG).write_text(
         '[parts.a]\n[parts.b]\nfile = "a.scad"\n[plates.p1]\nnote = "PLA"\nparts = ["a", "a", ["a", "b"]]\n')
     mod = config.load(tmp_path)
     assert mod.plates["p1"].items == [["a"], ["a"], ["a", "b"]]
     assert mod.plates["p1"].note == "PLA"
-    (tmp_path / config.CONFIG).write_text('[parts.a]\n[plates.p1]\nparts = ["a", "zz"]\n')
+    (tmp_path / "src" / config.CONFIG).write_text('[parts.a]\n[plates.p1]\nparts = ["a", "zz"]\n')
     with pytest.raises(SystemExit, match="zz"):
         config.load(tmp_path)
 
 
 def test_config_plate_bed(tmp_path):
-    (tmp_path / "a.scad").write_text("cube(1);")
-    (tmp_path / config.CONFIG).write_text('[parts.a]\n[plates.p1]\nparts = ["a"]\nbed = [254, 250]\n[plates.p2]\nparts = ["a"]\n')
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "a.scad").write_text("cube(1);")
+    (tmp_path / "src" / config.CONFIG).write_text('[parts.a]\n[plates.p1]\nparts = ["a"]\nbed = [254, 250]\n[plates.p2]\nparts = ["a"]\n')
     mod = config.load(tmp_path)
     assert mod.plates["p1"].bed == (254.0, 250.0)
     assert mod.plates["p2"].bed is None
-    (tmp_path / config.CONFIG).write_text('[parts.a]\n[plates.p1]\nparts = ["a"]\nbed = [300, 250]\n')
+    (tmp_path / "src" / config.CONFIG).write_text('[parts.a]\n[plates.p1]\nparts = ["a"]\nbed = [300, 250]\n')
     with pytest.raises(SystemExit, match="bed"):
         config.load(tmp_path)
 
@@ -91,10 +93,22 @@ def test_place_turns_and_checks_gap_and_bed():
 
 
 def test_config_plate_place(tmp_path):
-    (tmp_path / "a.scad").write_text("cube(1);")
-    (tmp_path / config.CONFIG).write_text('[parts.a]\n[plates.p1]\nparts = ["a", "a"]\nplace = [[0, 0, 90], [5, 6, 0]]\ngap = 4\n')
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "a.scad").write_text("cube(1);")
+    (tmp_path / "src" / config.CONFIG).write_text('[parts.a]\n[plates.p1]\nparts = ["a", "a"]\nplace = [[0, 0, 90], [5, 6, 0]]\ngap = 4\n')
     p = config.load(tmp_path).plates["p1"]
     assert p.place == [(0, 0, 90), (5, 6, 0)] and p.gap == 4
-    (tmp_path / config.CONFIG).write_text('[parts.a]\n[plates.p1]\nparts = ["a", "a"]\nplace = [[0, 0, 90]]\n')
+    (tmp_path / "src" / config.CONFIG).write_text('[parts.a]\n[plates.p1]\nparts = ["a", "a"]\nplace = [[0, 0, 90]]\n')
     with pytest.raises(SystemExit, match="place"):
         config.load(tmp_path)
+
+
+def test_find_module_from_any_folder(tmp_path):
+    (tmp_path / "src" / "ref").mkdir(parents=True)
+    (tmp_path / "stl").mkdir()
+    (tmp_path / "src" / "a.scad").write_text("cube(1);")
+    (tmp_path / "src" / config.CONFIG).write_text("[parts.a]\n")
+    for p in (tmp_path, tmp_path / "src" / "a.scad", tmp_path / "src" / "ref", tmp_path / "stl"):
+        mod = config.find_module(p)
+        assert mod is not None and mod.dir == tmp_path.resolve()
+    assert mod.plate_dir == mod.dir and mod.render_dir == mod.dir / "src" / "renders"
