@@ -4,6 +4,8 @@
 
 #include "riftbound/pay.hpp"
 #include "riftbound/random_game.hpp"
+#include "riftbound/tokens.hpp"
+#include "riftbound/actions.hpp"
 #include "test_real.hpp"
 
 using namespace buddy::riftbound;
@@ -470,6 +472,29 @@ TEST(RiftboundVi, TrappingGrounds) {
         EXPECT_EQ(count_on_board(s, o, "Bird"), 0);
         expect_ok(s);
     }
+}
+
+// Dev's game, turn 10 (#97): 3 damage against a 0-Might Shadow Clone. Its lethal damage is 1 (142.4.b), so 2 are
+// excess (confirmed by Dev): no Bird.
+TEST(RiftboundVi, TrappingGroundsZeroMightUnitNeedsOne) {
+    GameState s = vi_game();
+    const PlayerId p = s.first_player, o = opponent(p);
+    const std::uint8_t b = s.obj(s.battlefields[0].card).owner == p ? 0 : 1;
+    set_field(s, b, real("Trapping Grounds"));
+    play_token(s, tokens::shadow_clone(), o, played::to_base);
+    settle(s);
+    ObjId clone = no_obj;
+    for (const ObjId id : s.player(o).base) if (s.obj(id).card->token) clone = id;
+    ASSERT_NE(clone, no_obj);
+    move_to(s, clone, Zone::Battlefield, o, b);
+    s.battlefields[b].controller = o;
+    s.cleanup_due = false;
+    move_units(s, b, {ready_in_base(s, p, real("Vi, Destructive"))});  // 3 Might
+    both_pass(s);
+    settle(s);
+    EXPECT_EQ(s.battlefields[b].controller, p);
+    EXPECT_EQ(count_on_board(s, p, "Bird"), 0);
+    expect_ok(s);
 }
 
 // "The first time a player plays a non-token unit here each turn, they may move another unit they control here to
