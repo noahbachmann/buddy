@@ -144,6 +144,12 @@ TEST(RiftboundCardDb, BadPrintingsAreSkipped) {
                                                        "skipped ogn-003-298: unknown type Contraption"}));
 }
 
+TEST(RiftboundCardDb, TextWithoutHtmlEntities) {  // Riftcodex: "[Action][&gt;]", "&quot;…&quot;"
+    const auto db = CardDb::parse(doc({printing("ogn-001-298", "Brute", "Unit",
+                                                {{"text", "[Action][&gt;] Draw. It has &quot;Hi&quot; &amp; more."}})}));
+    EXPECT_EQ(db.find_name("Brute")->text, "[Action][>] Draw. It has \"Hi\" & more.");
+}
+
 TEST(RiftboundCardDb, NotACardFile) {
     EXPECT_THROW(CardDb::parse(json::object()), std::runtime_error);
     EXPECT_THROW(CardDb::load("/nonexistent/cards.json"), std::runtime_error);

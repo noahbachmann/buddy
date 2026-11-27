@@ -3,7 +3,9 @@
 #include <algorithm>
 #include <fstream>
 #include <stdexcept>
+#include <string_view>
 #include <tuple>
+#include <utility>
 
 #include <nlohmann/json.hpp>
 
@@ -41,6 +43,29 @@ std::optional<int> opt_int(const json& j, const char* key) {
     const auto it = j.find(key);
     if (it == j.end() || !it->is_number_integer()) return std::nullopt;
     return it->get<int>();
+}
+
+// Riftcodex text carries HTML entities ("[Action][&gt;]", "&quot;…&quot;"): plain text from here on.
+std::string decode_entities(const std::string& in) {
+    static constexpr std::pair<std::string_view, std::string_view> named[] = {
+        {"&gt;", ">"}, {"&lt;", "<"}, {"&amp;", "&"}, {"&quot;", "\""}, {"&apos;", "'"}, {"&#39;", "'"}};
+    std::string out;
+    out.reserve(in.size());
+    for (std::size_t i = 0; i < in.size();) {
+        bool hit = false;
+        if (in[i] == '&') {
+            for (const auto& [from, to] : named) {
+                if (std::string_view(in).substr(i, from.size()) == from) {
+                    out += to;
+                    i += from.size();
+                    hit = true;
+                    break;
+                }
+            }
+        }
+        if (!hit) out += in[i++];
+    }
+    return out;
 }
 
 std::string str(const json& j, const char* key) {
@@ -201,7 +226,7 @@ CardDb CardDb::parse(const json& doc) {
                 if (t.is_string()) c.tags.push_back(t.get<std::string>());
             }
         }
-        c.text = str(p, "text");
+        c.text = decode_entities(str(p, "text"));
         c.timing = printed_timing(c.text);
         const auto set = sets.find(code->set);
         c.printings.push_back({.code = *code, .label = {}, .set_name = set != sets.end() ? set->second.name : code->set,
