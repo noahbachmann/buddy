@@ -84,6 +84,7 @@ struct DevPrompt {
     };
     Kind kind = Kind::Deck;
     std::vector<ObjId> objs;  // answer with one card each, in this order
+    std::vector<ObjId> known;  // Runes: channelled with them, already known to Buddy (recycled in view), not asked
     bool operator==(const DevPrompt&) const = default;
 };
 std::string_view to_string(DevPrompt::Kind k);

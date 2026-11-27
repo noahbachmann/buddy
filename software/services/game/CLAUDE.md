@@ -139,7 +139,7 @@ input that can't be: `Refused` (the reason), nothing changes.
   `facedown` count), `chain` (`kind`, `card`, `controller`, `finalized`, `targets`), `showdown`, `options` (DevToAct:
   `i`, `text` = `option_text` on the public view, `group`, `card` only when named, `obj` = the object it acts on only
   when public: the panel puts the option on that card, #53), `prompt` (`kind`, `n`, `candidates`: code +
-  `left`, runes with `domain`), `log` (`turn`, `player`, `text`, `cards`: codes of the public cards the line names, #97). Players are `buddy`/`dev`, never seats. `catalogue(decks)`: every card + the
+  `left`, runes with `domain`; runes: `known` = codes channelled with them that Buddy saw recycled, not asked, #97), `log` (`turn`, `player`, `text`, `cards`: codes of the public cards the line names, #97). Players are `buddy`/`dev`, never seats. `catalogue(decks)`: every card + the
   three tokens by `code_of` key. The overload with `(s, options)` is for the leak test.
 - **`GameHost`**: one `Session` (+ `SimDev` for `dev: greedy|random`, answered inside at once). `command(json)` →
   `Reply {ok, message}`: `new {buddy: vi|zed, seed?, dev}` (refused while a game runs; Buddy = seat 0, the first

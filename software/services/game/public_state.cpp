@@ -274,6 +274,14 @@ json public_state(const Session& session, const GameState& s, const std::vector<
     }
     if (const DevPrompt* p = session.prompt()) {
         j["prompt"] = {{"kind", to_string(p->kind)}, {"n", p->objs.size()}, {"candidates", candidates(session, s, *p)}};
+        if (!p->known.empty()) {
+            const GameState pv = riftbound::public_view(s);
+            json known = json::array();
+            for (const ObjId id : p->known) {
+                if (pv.obj(id).card != riftbound::hidden_card()) known.push_back(code_of(pv, id));
+            }
+            j["prompt"]["known"] = known;
+        }
     }
     json log = json::array();
     for (const auto& l : session.log()) {

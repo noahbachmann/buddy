@@ -700,6 +700,20 @@ std::vector<Session::Item> Session::items(const GameState& base, const GameState
         out.push_back({std::move(m), std::nullopt});
     }
     for (; f < found.size(); ++f) add_prompt(found[f].second);
+    // Dev's runes channelled in this step that Buddy knew already: the prompt names them so Dev isn't left
+    // wondering why fewer runes are asked than channelled (#97)
+    std::vector<ObjId> known_runes;
+    for (const auto& m : log) {
+        if (m.id >= base.objects.size()) continue;
+        const auto& was = base.obj(m.id);
+        if (was.owner != cfg_.buddy && was.zone == Zone::RuneDeck && was.known & bit && m.to == Zone::Base &&
+            std::find(known_runes.begin(), known_runes.end(), m.id) == known_runes.end()) {
+            known_runes.push_back(m.id);
+        }
+    }
+    for (auto& item : out) {
+        if (item.prompt && item.prompt->kind == DevPrompt::Kind::Runes) item.prompt->known = known_runes;
+    }
     return out;
 }
 
