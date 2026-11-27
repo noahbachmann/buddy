@@ -364,17 +364,24 @@ void cleanup(GameState& s, CleanupKind kind = CleanupKind::Normal) {
         }
     }
     if (s.showdown && s.showdown->combat) {  // 323.2: designations follow who is at the combat's battlefield
-        const Showdown& sd = *s.showdown;
+        const Showdown sd = *s.showdown;
+        std::vector<Event> joined;
         for (const ObjId id : s.active) {
             Object& o = s.obj(id);
             if (o.card->type != CardType::Unit || !on_board(o.zone)) continue;
             const bool here = o.zone == Zone::Battlefield && o.where == sd.where;
             const Designation want = here ? side(sd, o.controller) : Designation::None;
             if (o.designation != want) {
+                // 466.2.c.3.a: a unit arriving mid-combat attacks/defends too (Dev's ruling: "When I attack" fires)
+                if (o.designation == Designation::None && sd.assigners == 0 && sd.left < 0) {
+                    joined.push_back(make_event(want == Designation::Attacker ? EventKind::Attack : EventKind::Defend,
+                                                o.ref(id), o.controller));
+                }
                 o.designation = want;
                 s.cleanup_due = true;
             }
         }
+        for (const Event& e : joined) emit(s, e);
     }
 
     // 323.4 (3a): lethal damage kills (429.1.a.2), simultaneously; death triggers queue

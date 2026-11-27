@@ -285,9 +285,10 @@ battlefield binds with one of its owner's removed battlefields (setup, Dev's cho
   "This combat" effects: `Duration::Combat`. Moving effects: `move(s, ids, where, cause)` (the caller checks the
   destination). Location of a unit: `zone == Battlefield` + `where`; the combat's battlefield: `s.showdown->where`.
 
+Units arriving mid-combat get their designation in a cleanup and an Attack/Defend event (466.2.c.3.a, Dev's ruling #97: Vi, Peacekeeper played into a combat stuns), only before damage is assigned.
+
 Known gaps (no deck card needs them; add when one does): designation triggers are placed turn player first, not
-attacker first (466.2.d.1: differs only if the non-turn player attacks); units arriving mid-combat get their
-designation but no Attack/Defend event; damage assignment ignores prevention (467.2.c.5) and units that can't be dealt
+attacker first (466.2.d.1: differs only if the non-turn player attacks); damage assignment ignores prevention (467.2.c.5) and units that can't be dealt
 damage (467.2.c.10); no "win/lose a combat" events (468.3); a unit changing controller at a battlefield doesn't contest
 (190.3.a.2); replacement order (372) and "may" replacements (371.2) are
 not decisions (fixed order: delayed newest first, then static by id); group targets (355.11), split damage (355.14),
@@ -346,7 +347,7 @@ start, e.g. a determinization, skips its own turn).
 - `buddy-game --random [--rules] --games 1000 --seed 0 --deck decks/vi-unleashed.txt --deck decks/zed-vendetta.txt`
   on the ASan build (`build-test/services/game/buddy-game`); `deploy/run.sh game --random …` on the Pi (Release).
   Prints a digest over every game (winner, turns, actions): an engine change that must not change play keeps it
-  (seeds 0–999: rules `3d5e09d0f25fa92b` since the champion plays from its zone (#97), `42705b80131137f7` before, `3fa44f83335b8657` at #36; vanilla `016550a92108975f`, `d04c2a02e1c41238` before #97), and "engine only" = the same games
+  (seeds 0–999: rules `94e126c9ceaa2418` since #97 (champion plays, late Attack events), `42705b80131137f7` before, `3fa44f83335b8657` at #36; vanilla `016550a92108975f`, `d04c2a02e1c41238` before #97), and "engine only" = the same games
   again with `legal_actions` + `apply` alone (what a playout pays). #36 on the Pi (Release): with rules 1.17 ms per
   game, 143k actions/s with checks, 244k engine only (#32: 2.97 ms, 56k / 64k); vanilla 196k / 448k. Gate with rules
   under ASan: 54 s on the VM. Profiling: `perf` on the VM (Release, `-fno-omit-frame-pointer -g`; the Pi has none).

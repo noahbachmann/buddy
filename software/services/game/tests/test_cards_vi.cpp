@@ -336,6 +336,24 @@ TEST(RiftboundVi, ViPeacekeeper) {
     expect_ok(s);
 }
 
+// Played by Ambush into a running combat: it gains Attacker in the cleanup and attacks (466.2.c.3.a, Dev's ruling #97)
+TEST(RiftboundVi, ViPeacekeeperJoiningACombatAttacks) {
+    GameState s = vi_game();
+    const PlayerId p = s.first_player, o = opponent(p);
+    const ObjId enemy = at_field(s, o, real("Mageseeker Investigator"), 0);  // 4 Might
+    const ObjId poro = ready_in_base(s, p, real("Loyal Poro"));
+    const ObjId vi = in_hand(s, p, real("Vi, Peacekeeper"));
+    move_units(s, 0, {poro});
+    ASSERT_TRUE(s.showdown && s.showdown->combat);
+    fund(s, p, 5, {domain::fury});
+    ASSERT_TRUE(offered(s, {ActionKind::Play, vi}));
+    play(s, vi);
+    settle(s);  // the play, then its attack trigger: the only enemy there
+    EXPECT_EQ(s.obj(vi).designation, Designation::Attacker);
+    EXPECT_TRUE(s.obj(enemy).stunned);
+    expect_ok(s);
+}
+
 // "[Fury], [E]: Deal 3 to a unit. Use this ability only while I'm at a battlefield."
 TEST(RiftboundVi, XerathFreed) {
     GameState s = vi_game();
