@@ -1160,6 +1160,9 @@ std::vector<Action> legal_actions(const GameState& s) {
             for (const ObjId id : s.player(d.player).hand) {
                 if (playable(s, d.player, id)) actions.push_back({ActionKind::Play, id});
             }
+            for (const ObjId id : s.player(d.player).champion) {  // 420.1.a: the Chosen Champion
+                if (playable(s, d.player, id)) actions.push_back({ActionKind::Play, id});
+            }
             for (const ObjId id : s.player(d.player).trash) {  // 829: Flow
                 if (playable(s, d.player, id)) actions.push_back({ActionKind::Play, id});
             }
@@ -1211,7 +1214,9 @@ bool is_legal(const GameState& s, const Action& a) {
     };
     switch (a.kind) {
         case ActionKind::Play:
-            return a.n == 0 && (contains(s.player(d.player).hand, a.obj) || contains(s.player(d.player).trash, a.obj)) &&
+            return a.n == 0 &&
+                   (contains(s.player(d.player).hand, a.obj) || contains(s.player(d.player).champion, a.obj) ||
+                    contains(s.player(d.player).trash, a.obj)) &&
                    playable(s, d.player, a.obj);
         case ActionKind::Activate: {
             if (a.obj >= s.objects.size()) return false;
@@ -1309,7 +1314,7 @@ bool playable(const GameState& s, PlayerId p, ObjId id) {
     if (o.zone == Zone::Trash) {  // 829.1.b
         if (rules == nullptr || !rules->flow_cost()) return false;
         item.play |= played::flow;
-    } else if (o.zone != Zone::Hand) {
+    } else if (o.zone != Zone::Hand && o.zone != Zone::ChampionZone) {  // 420.1.a
         return false;
     }
     if (!timing_allows(s, card.timing)) {  // 822.1.b: Ambush is a Reaction to a battlefield where p has units

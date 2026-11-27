@@ -310,3 +310,18 @@ TEST(RiftboundRandom, CostDecks) {  // Burn, discard a spell and banish-me costs
         EXPECT_TRUE(g.winner.has_value());
     }
 }
+
+TEST(RiftboundActions, ChampionPlaysFromItsZone) {  // 420.1.a: hand or Chosen Champion zone
+    GameState s = started(ruled(simple_deck("A")));
+    const PlayerId p = s.decision.player;
+    const ObjId champ = s.player(p).champion.front();
+    EXPECT_FALSE(offered(s, {ActionKind::Play, champ}));  // 2 runes, costs 3
+    s.player(p).pool.energy = 3;
+    ASSERT_TRUE(offered(s, {ActionKind::Play, champ}));
+    play(s, champ);
+    while (s.decision.kind == DecisionKind::Choose) apply(s, legal_actions(s).front());  // location: first = base
+    settle(s);
+    EXPECT_TRUE(s.player(p).champion.empty());
+    EXPECT_EQ(s.obj(champ).zone, Zone::Base);
+    EXPECT_TRUE(check_invariants(s).empty());
+}
