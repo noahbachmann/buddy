@@ -25,12 +25,14 @@ Status: ✅ printed and fine · 🔁 printed, replaced by a newer plate · ⏳ t
 | `2b-roller-reprint` | roller frame + back plate (split), Ø5.05 pin holes, Ø2.7 pilots | ⏳ |
 | `2c-borders` | borders H and B with the tie slots, 3 more border pins | 🔁 2026-11-26: B's 2 pin holes from below very slightly loose (log #10); tie slots hold nothing against a push to the front → `2d` |
 | `2d-borders` | border H with blind holes for 2 divider pins, border B (no slots, floor holes −0.025), 2 more border pins | ⏳ |
-| `3-pla` | pusher, lift | ❓ |
+| `3-pla` | pusher, lift | 🔁 2026-11-27: the pusher sat too loose on the guide ridge, its nut held by 2 pegs only → `3b` (lift unchanged) |
+| `1e-pusher-nut` | pusher nut with 4 pegs (replaces 1c's) | ⏳ |
+| `3b-pusher` | pusher: 4 nut peg holes, tighter groove on the guide ridge | ⏳ |
 | `stl/case` or `stl/case-spares` | case | ❓ Changed 2026-11-27: the divider's 2 holes at (y, z) = (−148, 73), (−148, 87) are Ø3.4 with a Ø6.4 × 1.4 counterbore on pile B's side (were Ø5.05 tie holes, 2026-11-26, which also added 3 Ø3.4 holes in the right wall). A case printed before needs a reprint ⚠️ |
 
 ## Next
 
-1. Print `2b` and `2d-borders` (PETG, plate 2's settings, no brim) and the case.
+1. Print `2b` and `2d-borders` (PETG, plate 2's settings, no brim) and the case; `1e` and `3b` (pusher).
 2. Border H in, its 2 pins through the left wall and 2 through the divider from pile B's side; then border B and its 5 pins (README → Assembly 8, 9).
 3. Roller: back plate in from the left, 4023 + gear + back pins, drums and O-rings, frame from the front, 4 × M3×12
    from below. Then the gap (README → Tuning the gap).
@@ -43,6 +45,7 @@ Newest first. Details in the commit bodies (`git log -- parts/dispenser`).
 
 | Date | Change | Print |
 |---|---|---|
+| 2026-11-27 | Pusher: nut held by 4 pegs like the lift's (tab round there, Ø22); groove on the guide ridge tighter: play front 0.2 → 0.1, back 1.2 → 0.8 | `3b`, `1e` |
 | 2026-11-27 | Ties dropped (slots open to the front: a push to the front slid the borders off): border H held at the divider by 2 border pins from pile B's side, heads sunk in counterbores, B in after H covers them; border B nothing at the divider | `2d`, case |
 | 2026-11-26 | Border B's pin holes from below −0.025 per side (were 0: the hanging pins fell out of the 2c print) | `stl/border-b` |
 | 2026-11-26 | Front borders held at both ends: 2 Ø5×20 dowel pins through the divider, borders slide on from the front; border B + 3 printed pins through the right wall | `2c` |

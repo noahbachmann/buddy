@@ -202,7 +202,8 @@ guide_h     = 3;             // above div_top: 2 into the groove with the bar on
 guide_top   = 1;             // flat top; back face 45° (the case prints on its back, -Y up)
 guide_taper = [0.6, 2];      // front face set back at each segment's ends (depth, length): the groove passes the
                              // borders' 0.2 play at the joints
-groove_play = [0.2, 1.2];    // front (contact), back: stepping onto the divider tilts the bar ~0.6 forward
+groove_play = [0.1, 0.8];    // front (contact), back: stepping onto the divider tilts the bar ~0.6 forward.
+                             // Was [0.2, 1.2]: the printed bar sat too loose on the ridge (Dev, 2026-11-27)
 groove_d    = guide_h + 0.5; // the bar still clears the ridge if it sits 1 lower (on the divider)
 bar_y      = [guide_yf - groove_play[0] - thin, push_y[0]];   // front leg `thin` in front of the groove
 

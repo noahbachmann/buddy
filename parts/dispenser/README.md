@@ -91,17 +91,17 @@ the lift in place and the 4023 turned. It also holds bought parts as stand-ins (
 - **The carriage is the lift turned 90°:** the plate (35 × 94.5 × 3) is the lift's plate, the bar along the front
   strip its riser, the tab with the TR8 nut its nut tab. One printed part, no rods, every wall 3 mm: the bar is an
   upside-down U (two legs, a deck on top, open below, an end wall at the plate), the gusset two side walls, the tab a
-  3 mm plate. The guide ridge runs inside the U.
+  3 mm plate, round around the nut (Ø22, room for its 4 pegs). The guide ridge runs inside the U.
 - **What keeps the nut from turning:** the carriage's weight. Its centre of mass hangs 26 mm behind the screw, so the
   plate presses its lower edge onto the lift (then onto the divider). That holds ~5 mNm (21 g printed). The screw's
   drag tries to lift the plate while pushing, at ~2 mNm per newton of push: the carriage only tips at ~2.5 N, and a
   full pile (30 cards) needs ~0.2 N.
 - **Guide against turning:** a ridge along X under the bar (front face y −150.4, z 96.04…99.04, flat 1 mm top, back at
-  45°) on the tops of border H, the divider and border B, inside the bar's U (y −150.6…−138.9, 7 high; under the tab
-  and the end wall a groove y −150.6…−145.2, 3.5 deep). Turning the plate's far end up moves the bar back (+Y): the groove's front wall meets the ridge 0.2 mm
-  later, 58 mm below the screw, so the far end (104 mm behind it) rises ≤ ~0.4 mm (~0.5 with the borders' print
+  45°) on the tops of border H, the divider and border B, inside the bar's U (y −150.5…−138.9, 7 high; under the tab
+  and the end wall a groove y −150.5…−145.6, 3.5 deep). Turning the plate's far end up moves the bar back (+Y): the groove's front wall meets the ridge 0.1 mm
+  later, 58 mm below the screw, so the far end (104 mm behind it) rises ≤ ~0.2 mm (~0.3 with the borders' print
   tolerance) however hard the screw drags. Turning the other way is what stepping onto the divider does (the bar moves
-  ~0.6 forward): 1.2 mm behind the ridge. Free in Z: the plate still rests on the lift by its weight, the guide only
+  ~0.6 forward): 0.8 mm behind the ridge (was 0.2 / 1.2: the printed bar sat too loose, Dev 2026-11-27). Free in Z: the plate still rests on the lift by its weight, the guide only
   stops the rise. Each ridge's front face is set back 0.6 mm at its ends, so the groove passes the joints between the
   three parts. At a jam the plate no longer rides up: the motor pushes into it, so keep the current moderate (needed
   for PLA anyway) and watch the TMC2209's stall value (StallGuard over UART) as a jam alarm.
@@ -112,7 +112,7 @@ the lift in place and the 4023 turned. It also holds bought parts as stand-ins (
 - **Where it runs:** three things fix the layout. The divider block (z 66…96) spans the full depth, so everything that
   crosses it stays above z 97. The lift's slope (from y −40.4 at the plate) rises to z 144 while pushing, so nothing may
   sit behind the cards. The cards cover y −131.4…−40.4, and the arm drops cards onto H from above. So the screw, the
-  coupling, the tab and the bar run in the **front strip** (bar y −153.6…−135.9); only the plate crosses the card area.
+  coupling, the tab and the bar run in the **front strip** (bar y −153.5…−135.9); only the plate crosses the card area.
 - **Pile height:** up to 35 mm (30 loose cards). The plate is as high as that pile; the motor and its lower screw
   sits on the notch's skin above it (plate top + 0.5 + 2), which sets the screw at z 155.69.
 - **Motor:** a 17HS4401 screwed flat onto the right wall's outer face (4× M3 from inside the box). The wall is
@@ -246,7 +246,7 @@ STLs and `parts/cad render dispenser` for the sheets (`parts/CLAUDE.md`).
 | `border-h.scad`, `border-b.scad` | Front borders of piles H and B, slide in from the front | on their end (as in the file) |
 | `pusher.scad` | Pusher carriage: plate, bar, nut tab | as placed, bottom down |
 | `lift.scad` | Lift: plate, slope, Dev's nut tab (replaces Dev's lift) | as placed, plate down, auto supports under the tab |
-| `pusher-nut.scad` | TR8x8 nut (4 starts) of the pusher: brass nut's flange, body Ø11, 2 pegs into the tab | flange down |
+| `pusher-nut.scad` | TR8x8 nut (4 starts) of the pusher: brass nut's flange, body Ø11, 4 pegs into the tab | flange down |
 | `plug-coupling.scad` | Rigid coupling without bolts: D-bore pressed onto the 5 mm shaft, TR8x8 thread the screw turns into (used) | motor end down |
 | `coupling.scad` | Older clamp coupling (round bores, 2× M3×12 across a slot): kept as the fallback | motor end down |
 | `lift-nut.scad` | TR8x8 nut of the lift: body Ø11, 45° cone up to the flange, 4 pegs into the tab | body down |
@@ -298,7 +298,7 @@ the frame being pulled flat onto the floor; the left wall and the gate's legs le
 | Joint | How | Fit |
 |---|---|---|
 | Lift nut → lift tab | 4 pegs on the flange's top into the tab (Ø3 holes at ±8). The screw pushes the nut up into the tab, the lift's weight keeps it there; the pegs only stop it turning | `fit_press` (vertical) |
-| Pusher nut → pusher tab | 2 pegs on the flange's tab side (above and below the screw). Pushing presses the flange onto the tab; the pressed pegs carry the light return stroke. No clip: a groove for one would cut into the nut's 1.3 mm wall under the thread | `fit_press_h` (horizontal, flat-topped teardrops) |
+| Pusher nut → pusher tab | 4 pegs on the flange's tab side (Ø3 holes at ±8, like the lift; the tab is round there, Ø22 like the flange). Pushing presses the flange onto the tab; the pressed pegs carry the light return stroke. No clip: a groove for one would cut into the nut's 1.3 mm wall under the thread | `fit_press_h` (horizontal, flat-topped teardrops) |
 | Frame → back plate | Ribs 0 and 1: 3 mm full-height tongues into pockets open at the back plate's top. They line the frame up; its 2 floor screws hold it | `tongue_fit` 0.1 per side ⚠️ untested |
 | Steel pins | Back ones in the back plate's blind holes, front ones pushed through the front plate into the bearings, flush with its outer face. All 4 holes Ø5.05 (Dev measured 2026-11-24: Ø5.2 printed ~5.2, Ø4.95 vertical printed 4.9) | `pin_hole` |
 | Borders H, B | 9 printed pins (`border-pin`): head outside (in the divider: sunk in a counterbore), through the case's Ø3.4 holes into the border | H (left wall, divider), B through the right wall: `fit_press` (vertical); B from below: `bpin_up_fit` (−0.025, tighter than `fit_press_h`: the pins hang and fall out at 0) |
@@ -400,11 +400,13 @@ parts (for reprints, e.g. only the left gate). `parts/cad plate dispenser` rebui
 | `1-petg-fine.stl` | drive drum, idler drum, motor gear, left gate, pusher nut, lift nut, 2 couplings, 4 border pins | PETG | 0.12 mm, 4 walls, 15 %, no supports, **brim: outer only** (the drums stand 107 mm on Ø15–18) |
 | `1d-plug-couplings.stl` | 2 plug couplings | PETG | 0.12 mm, 4 walls, **100 % infill**, no supports |
 | `1c-reprint.stl` | motor gear, pusher nut, lift nut with the thread test's values ("Thread test") | PETG | 0.12 mm, 4 walls, 15 %, no supports, **brim: outer only** (the lift nut) |
+| `1e-pusher-nut.stl` | pusher nut with 4 pegs (2026-11-27), replaces 1c's | PETG | 0.12 mm, 4 walls, 15 %, no supports |
 | `2-petg.stl` | roller frame, back plate, border H, border B: **after the fit test** | PETG | 0.20 mm, 4 walls, 15 %, no supports, **brim** (the back plate stands on its 6 mm edge) |
 | `2b-roller-reprint.stl` | roller frame, back plate: the split roller (2026-11-24) with Ø5.05 pin holes, Ø2.7 M3 pilots | PETG | as plate 2 |
 | `2c-borders.stl` | border H, border B with the tie slots and B's right-wall holes, 3 more border pins (2026-11-26) | PETG | as plate 2 (no brim needed) |
 | `2d-borders.stl` | border H held at the divider by 2 border pins (no tie slots), border B without tie slots, 2 more border pins (2026-11-27) | PETG | as plate 2 (no brim needed) |
 | `3-pla.stl` | pusher, lift: **after the fit test** | PLA | 0.20 mm, 4 walls, 15 %, **supports on: tree (auto), on build plate only** |
+| `3b-pusher.stl` | pusher with 4 nut peg holes and the tighter guide groove (2026-11-27), replaces plate 3's | PLA | 0.20 mm, 4 walls, 15 %, no supports |
 | `stl/case.stl` | case (a plate of its own) | PETG | 0.20 mm, 4 walls, 15 %, no supports, textured PEI |
 | `stl/case-spares.stl` | or this one instead: the case with ~112 g less PETG | PETG | as the case |
 
@@ -495,7 +497,7 @@ coupling's thread, turn it in until it jams, tighten.
 
 1. **Motor:** coupling pressed on the shaft (its middle at the shaft's tip, 24 mm from the face).
    Motor onto the right wall's outer face, boss in the wall's hole, 4× M3×6 from inside the box, **loosely** for now.
-2. **Nut:** body through the tab from the right (motor side), its 2 pegs pressed into the tab's holes above and below.
+2. **Nut:** body through the tab from the right (motor side), its 4 pegs pressed into the tab's holes around it.
 3. **Carriage in:** borders in, lift at push height (turn its screw by hand). The ridge is in the way of sliding the
    carriage straight into the notch, so put it in halfway along instead (plate over the lift, around x 100): from the
    front, held ~3 mm high, then set down with the groove over the ridge and the plate on the lift. Hold it there.
