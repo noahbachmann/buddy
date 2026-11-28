@@ -150,3 +150,67 @@ TEST(RiftboundDeck, LoadNamesTheFile) {
         EXPECT_EQ(e.problems()[0].rfind(kDir + "/decks/zed-vendetta.txt: line 2: unknown card", 0), 0u) << e.problems()[0];
     }
 }
+
+namespace {
+
+std::vector<std::string> names(const std::vector<const Card*>& cards) {
+    std::vector<std::string> out;
+    for (const Card* c : cards) out.push_back(c->name);
+    return out;
+}
+
+std::vector<std::pair<std::string, int>> entries(const std::vector<DeckEntry>& es) {
+    std::vector<std::pair<std::string, int>> out;
+    for (const auto& e : es) out.emplace_back(e.card->name, e.count);
+    return out;
+}
+
+} // namespace
+
+TEST(RiftboundDeck, ChampionOptions) {  // #98
+    const Deck vi = load_deck(fixture(), kDir + "/decks/vi-unleashed.txt");
+    EXPECT_EQ(names(champion_options(vi)),
+              (std::vector<std::string>{"Vi, Hotheaded", "Vi, Destructive", "Vi, Peacekeeper"}));
+    const Deck zed_deck = parse_deck(fixture(), zed());
+    EXPECT_EQ(names(champion_options(zed_deck)),
+              (std::vector<std::string>{"Zed, From the Shadows", "Zed, Without a Sound"}));
+}
+
+TEST(RiftboundDeck, WithChampionSwapsOneCopy) {
+    const Deck vi = load_deck(fixture(), kDir + "/decks/vi-unleashed.txt");
+    const Card* peacekeeper = champion_options(vi)[2];
+    const Deck d = with_champion(vi, peacekeeper);
+    EXPECT_EQ(d.champion, peacekeeper);
+    EXPECT_EQ(count(d.main, "Vi, Peacekeeper"), 1);
+    EXPECT_EQ(count(d.main, "Vi, Hotheaded"), 1);
+    EXPECT_EQ(d.main_size(), vi.main_size());
+    EXPECT_EQ(d.main.back().card, vi.champion);  // appended: the list order decides the shuffle
+
+    const Card* destructive = champion_options(vi)[1];  // its only copy: the entry goes
+    const Deck d2 = with_champion(vi, destructive);
+    EXPECT_EQ(count(d2.main, "Vi, Destructive"), 0);
+    EXPECT_EQ(d2.main.size(), vi.main.size());
+
+    // and back: the old champion's entry is counted up, not added again
+    const Deck back = with_champion(d, vi.champion);
+    EXPECT_EQ(back.champion, vi.champion);
+    EXPECT_EQ(count(back.main, "Vi, Hotheaded"), 0);
+    EXPECT_EQ(count(back.main, "Vi, Peacekeeper"), 2);
+
+    EXPECT_EQ(with_champion(vi, vi.champion).main.size(), vi.main.size());
+    EXPECT_THROW(with_champion(vi, vi.legend), std::invalid_argument);
+    EXPECT_THROW(with_champion(vi, vi.main[3].card), std::invalid_argument);  // Rengar: not Vi's
+}
+
+TEST(RiftboundDeck, FormatDeckReadsBack) {
+    const Deck vi = load_deck(fixture(), kDir + "/decks/vi-unleashed.txt");
+    for (const Card* c : champion_options(vi)) {
+        const Deck d = with_champion(vi, c);
+        const Deck again = parse_deck(fixture(), format_deck(d));
+        EXPECT_EQ(again.legend, d.legend);
+        EXPECT_EQ(again.champion, d.champion);
+        EXPECT_EQ(entries(again.main), entries(d.main));
+        EXPECT_EQ(entries(again.runes), entries(d.runes));
+        EXPECT_EQ(again.battlefields, d.battlefields);
+    }
+}

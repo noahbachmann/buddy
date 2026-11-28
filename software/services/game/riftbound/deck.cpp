@@ -35,6 +35,10 @@ std::string_view trim(std::string_view s) {
 
 std::string quoted(std::string_view s) { return "\"" + std::string(s) + "\""; }
 
+bool shares_tag(const Card& legend, const Card& c) {
+    return std::any_of(legend.tags.begin(), legend.tags.end(), [&](const auto& t) { return c.has_tag(t); });
+}
+
 struct Parsed {
     std::vector<DeckEntry> legend, champion, main, battlefields, runes;
 };
@@ -209,9 +213,6 @@ Deck parse_deck(const CardDb& db, std::string_view text) {
     // Domain identity and champion tag: need the legend (103.2.b, 103.3.a.2, 103.3.d.2).
     if (deck.legend != nullptr) {
         const Card& legend = *deck.legend;
-        const auto shares_tag = [&](const Card& c) {
-            return std::any_of(legend.tags.begin(), legend.tags.end(), [&](const auto& t) { return c.has_tag(t); });
-        };
         const auto check_identity = [&](const Card& c) {
             if ((c.domains & ~legend.domains) != 0) {
                 problems.push_back(c.name + " (" + domains_string(c.domains) + ") is outside the legend's domains " +
@@ -220,14 +221,14 @@ Deck parse_deck(const CardDb& db, std::string_view text) {
         };
         if (deck.champion != nullptr) {
             check_identity(*deck.champion);
-            if (!shares_tag(*deck.champion)) {
+            if (!shares_tag(legend, *deck.champion)) {
                 problems.push_back("Champion: " + deck.champion->name + " doesn't have " + legend.name +
                                    "'s champion tag (103.3.a.2)");
             }
         }
         for (const auto& [card, n] : copies) {
             if (card != deck.champion) check_identity(*card);
-            if (card->signature && !shares_tag(*card)) {
+            if (card->signature && !shares_tag(legend, *card)) {
                 problems.push_back(card->name + ": signature card of another champion (103.3.d.2)");
             }
         }
@@ -251,6 +252,58 @@ Deck load_deck(const CardDb& db, const std::string& path) {
         for (auto& p : problems) p = path + ": " + p;
         throw DeckError(std::move(problems));
     }
+}
+
+std::string format_deck(const Deck& deck) {
+    std::string out;
+    const auto section = [&](const char* name, const auto& lines) {
+        out += out.empty() ? "" : "\n";
+        out += name;
+        out += ":\n";
+        for (const auto& [n, card] : lines) out += std::to_string(n) + " " + card->name + "\n";
+    };
+    using Lines = std::vector<std::pair<int, const Card*>>;
+    const auto entries = [](const std::vector<DeckEntry>& es) {
+        Lines l;
+        for (const auto& e : es) l.emplace_back(e.count, e.card);
+        return l;
+    };
+    section("Legend", Lines{{1, deck.legend}});
+    section("Champion", Lines{{1, deck.champion}});
+    section("MainDeck", entries(deck.main));
+    Lines fields;
+    for (const Card* b : deck.battlefields) fields.emplace_back(1, b);
+    section("Battlefields", fields);
+    section("Runes", entries(deck.runes));
+    return out;
+}
+
+std::vector<const Card*> champion_options(const Deck& deck) {
+    std::vector<const Card*> out{deck.champion};
+    for (const auto& e : deck.main) {
+        const Card& c = *e.card;
+        if (c.champion && deck.legend != nullptr && shares_tag(*deck.legend, c) &&
+            std::find(out.begin(), out.end(), &c) == out.end()) {
+            out.push_back(&c);
+        }
+    }
+    return out;
+}
+
+Deck with_champion(const Deck& deck, const Card* card) {
+    const auto options = champion_options(deck);
+    if (std::find(options.begin(), options.end(), card) == options.end()) {
+        throw std::invalid_argument((card ? card->name : std::string("no card")) + " can't be the deck's champion");
+    }
+    if (card == deck.champion) return deck;
+    Deck d = deck;
+    const auto it = std::find_if(d.main.begin(), d.main.end(), [&](const DeckEntry& e) { return e.card == card; });
+    if (--it->count == 0) d.main.erase(it);
+    const auto old = std::find_if(d.main.begin(), d.main.end(), [&](const DeckEntry& e) { return e.card == d.champion; });
+    if (old != d.main.end()) ++old->count;
+    else d.main.push_back({d.champion, 1});
+    d.champion = card;
+    return d;
 }
 
 } // namespace buddy::riftbound

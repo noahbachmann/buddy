@@ -63,4 +63,15 @@ private:
 Deck parse_deck(const CardDb& db, std::string_view text);  // throws DeckError
 Deck load_deck(const CardDb& db, const std::string& path);  // throws DeckError (path in front) / std::runtime_error
 
+// The deck as text parse_deck reads back to the same Deck (entry order kept: it decides the shuffle).
+std::string format_deck(const Deck& deck);
+
+// Chosen at game start (#98, Dev's house rule; 103.3.a makes it a deck-building choice): every card of the deck that
+// could be its Chosen Champion (a champion unit with the legend's champion tag, 103.3.a.2), the decklist's champion
+// first, then the main deck's in list order. The cards stay the same, only which copy starts in the champion zone.
+std::vector<const Card*> champion_options(const Deck& deck);
+// `deck` with `card` as its Chosen Champion: one copy leaves the main deck, the old champion takes its place at the
+// end of the main list. Throws std::invalid_argument if `card` isn't one of champion_options(deck).
+Deck with_champion(const Deck& deck, const Card* card);
+
 } // namespace buddy::riftbound
