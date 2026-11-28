@@ -635,7 +635,9 @@ a login comes before the table drives hardware (Phase 3).
 decks from both seats: **0 unrecovered, 0 desyncs, 0 leaks**, 5 × 1000 games after #73, again with the champion pick (#98); SimDev random 1000 and 50 vs
 ISMCTS the same); what real cards cost Dev: 65 / 96 / 170 taps per game (avg / p95 / max), ~40 % of them prompts;
 `buddy@game` on the Pi resumes a game after a restart and survives table timeouts; the Riftbound page (#53) plays a
-whole game on a phone. Details per sub-issue below. Dev's live game: #53.
+whole game on a phone. **Done when met 2026-11-28:** Dev played a full game with real cards against Buddy on the panel
+(stress faults on, champion chosen): 13 turns in 23 min, Dev won 8–4; its replay runs clean, no refused command, no
+pause, "Hey Jarvis" answered while Buddy thought. Details per sub-issue below.
 
 
 **#48 session (2026-11-16):** `services/game/session.*` in `game_core`, how it runs: `services/game/CLAUDE.md` →
@@ -853,6 +855,11 @@ Riftbound). What building it changed against the design above:
   offered (`main_cards`). The gate with both sides' champions varied (seeds 1 and 1001, SimDev greedy; SimDev
   random; 50 vs ISMCTS 1000 iterations): **0 / 0 / 0** again, 10.2 prompts and 65 / 97 / 176 taps per game (the
   champion adds one prompt), 11.4 s per 1000 games (Release, VM, 8 jobs).
+- **After Dev's live game round 2 (2026-11-28, #53):** no rule errors. Panel: cards with moves show `!` instead
+  of a count (it was almost always 1); a move or location to the base sits on a *Base* button in Dev's base row,
+  like a battlefield's moves on its name (payload `options[].base`); while picking units to move, one tap picks a
+  unit (no sheet), picked units are highlighted (`decision.picked`); the turn line reads "your turn, main phase"; a
+  long unit name no longer widens a battlefield on a phone.
 - **Not built:** voice input ("pass"), thinking during Dev's turn (2.6 design → Later), card images (the catalogue
   has text only; Riftcodex images would need the internet on the panel).
 

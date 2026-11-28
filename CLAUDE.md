@@ -14,7 +14,6 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 | `buddy-hardware.md` | Current parts and tools |
 | `docs/01-voice.md` | Phase 1 condensed: rebuild, config, every voice feature (1.2–1.17), troubleshooting |
 | `docs/02-riftbound/design.md` | Riftbound software: decisions, pile model, architecture, each step's design and as built |
-| `docs/02-riftbound/live-game.md` | Temporary: Dev's live Riftbound game with real cards (#53), notes into the issue |
 | `docs/motion-controller/` | Side project: Pico 2 + servos (`pico.md`, wiring sheet `pico-setup.html`), motion service (`service.md`) |
 | `docs/voice-training.md` | Recurring workflow: record, train, score and install speech-to-text on Dev's voice |
 | `docs/3d-printing.md` | Living printing reference: materials, slicer baseline, design rules, measured tolerances, troubleshooting, print log |
@@ -53,7 +52,7 @@ This file is the single source of truth for roadmap, architecture, decisions, pr
 | 1 – Voice (extra) | 1.13 Hue lights, 1.14 web panel (#6), 1.15 Nest speakers over Bluetooth (D20, #17): done 2026-10-30 (side issue: Deferred → Bathroom Bluetooth) | ✅ |
 | 1 – Voice (extra) | 1.16 messenger: Buddy's notices and questions in Dev's Telegram chat (D22, #68): done 2026-11-15: paired, verified on the Pi (notice, button answer across a restart, offline → back online alert) | ✅ |
 | 1 – Voice (extra) | 1.17 system monitor: host metrics (CPU, RAM, disk, temp, fan, net, throttle flags) as per-host cards on the panel (D23, #70): done 2026-11-16 | ✅ |
-| 2 – Riftbound | Software against a simulated table (#18, design: `docs/02-riftbound/design.md`): 2.1 card data & decks, 2.2 rules engine, 2.3 cards of both decks, 2.4 AI (greedy + ISMCTS, 2 s on 3 threads on the Pi), 2.5 `table` + sim (soak: 0 unrecovered), 2.6 `game` service + panel page (#46: built and deployed 2026-11-16, the gate passed). Open: Dev's live game (#53) | 🟨 |
+| 2 – Riftbound | Software against a simulated table (#18, design: `docs/02-riftbound/design.md`): 2.1 card data & decks, 2.2 rules engine, 2.3 cards of both decks, 2.4 AI (greedy + ISMCTS, 2 s on 3 threads on the Pi), 2.5 `table` + sim (soak: 0 unrecovered), 2.6 `game` service + panel page (#46). Done 2026-11-28: Dev played a full live game with real cards on the panel (#53, Dev won 8–4 in 13 turns) | ✅ |
 | 3 – Hand dispenser | Hand pile + graveyard on one dispenser, a hold on top swaps the stacks (#93). `parts/dispenser`: roller, lift, pusher designed; plates being printed | 🟨 |
 | 4 – Deck dispenser | Draw pile, inserts on top and bottom for recycled cards (#94) | ⬜ |
 | 5 – Playfield & hand | A machine that moves over the mat and docks onto the dispensers; runes in it or in a small dispenser (#95) | ⬜ |
@@ -67,17 +66,15 @@ What's left right now, in order. Update it with the progress table; GitHub issue
 
 **Dev** (needs the hardware, the voice or the room):
 
-1. **Riftbound live game** (#53): `docs/02-riftbound/live-game.md`, notes into #53. Then tick 2.6, close #53 and #46.
-2. **Dispenser prints and assembly**: the checkboxes in #93.
-3. **Live check** for #12: "Hey Jarvis, play Spotify" ducks, plays, and Buddy answers without delay (idle loops changed).
-4. Side projects when wanted: screener to-dos in #66; motion controller wiring (`docs/motion-controller/pico.md` steps
+1. **Dispenser prints and assembly**: the checkboxes in #93.
+2. **Live check** for #12: "Hey Jarvis, play Spotify" ducks, plays, and Buddy answers without delay (idle loops changed).
+3. Side projects when wanted: screener to-dos in #66; motion controller wiring (`docs/motion-controller/pico.md` steps
    1–3, 9, then `service.md` Verify).
 
 **Claude** (code and guides):
 
 1. Phase 3 (#93): dispenser changes from Dev's prints; then the electronics and the `table` hardware backend.
-2. After Dev's live game: Dev's notes (pacing, prompts, layout) for 2.6.
-3. #13 voice seek ("fast-forward 30 seconds", "go back 2 minutes").
+2. #13 voice seek ("fast-forward 30 seconds", "go back 2 minutes").
 
 Phase 1 → Deferred lists what waits for a reason (wake word CPU, next voice session, custom "Hey buddy", LLM brain).
 
@@ -108,7 +105,7 @@ Phase 1 → Deferred lists what waits for a reason (wake word CPU, next voice se
 | D18 | Lights | Philips Hue via the Hue Bridge's local CLIP v2 API (no cloud, no Hue account): service `hue`. TLS verified against Hue's `root-bridge` CA (compiled in) with the bridge id as host name (`CURLOPT_RESOLVE` → bridge IP). Application key from `buddy-hue --pair` (link button) in `~/buddy/config/hue.json`. Live state from the bridge's eventstream → retained `buddy/hue/state`. Hue Bridge Pro would need its newer CA ⚠️. | ✅ |
 | D20 | Nest speakers | The two Nests play over **Bluetooth A2DP** (SBC) from the Pi: Spotify Soloist ("Buddy", hidden; sandboxed, weekly build update) → PipeWire sink `buddy_music` → the selected Nest; Buddy's voice → `buddy_voice` → that Nest while music plays there (60 %), else the Jabra. Service `speakers` (C++, `pactl`/`pw-link`/`bluetoothctl`, event-driven): connects on demand, one Nest at a time (the Pi refuses a second A2DP link), disconnects after 10 min without music, ducks `buddy_music` locally. spotify lists the Nests (`bt:<mac>`) in Soloist's place. Not Cast: Buddy can't start Spotify on an idle Nest (403 without Spotify's own desktop login), Soloist can't cast, Cast streaming lags ≥ 3.9 s (#16). | ✅ |
 | D19 | Web panel | Service `web` (C++, cpp-httplib pinned via FetchContent): static page + HTTP⇄MQTT bridge, no skill logic. Retained `buddy/+/state` and `/status` → browser (server-sent events); `POST /api/cmd/<svc>` → `buddy/<svc>/cmd` (non-planned command topics only). `http://buddy.local:8080`, LAN only, **no login**: Host allowlist (IP, `*.local`, `BUDDY_WEB_HOSTS`) against DNS rebinding, JSON-only same-origin POSTs against other sites in the same browser. Add auth before anything that moves (motion) goes on the page: `"web": false` in topics.json keeps `buddy/motion/cmd` off it. Riftbound (`#riftbound`, 2.6): `buddy/game/cmd` is on the page without a login while the table is a sim; a login comes before the table drives hardware (Phase 3). | ✅ |
-| D21 | Card game | Riftbound (Phase 2): **own C++ rules engine, no LLM**: code is the referee, search (heuristic, then ISMCTS over Dev's hidden cards) picks the plays. alpharune is reading material only (no license). Cards scoped to two precons (Vi, Unleashed; Zed, Vendetta); an unimplemented card is a hard error. Rules: Core Rules 2026-10-09 (the Rules Hub serves only the current document). Card data from the Riftcodex API, fetched on the Pi. Services `game` (rules, AI, which cards are in hand) and `table` (physical piles, hand order, scan/recover; sim backend now, the dispensers and the playfield machine from Phase 3). | ✅ |
+| D21 | Card game | Riftbound (Phase 2): **own C++ rules engine, no LLM**: code is the referee, search (heuristic, then ISMCTS over Dev's hidden cards) picks the plays. alpharune is reading material only (no license). Cards scoped to two precons (Vi, Unleashed; Zed, Vendetta); an unimplemented card is a hard error. House rule: each player picks their Chosen Champion per game from the legend's champion units (#98; Buddy by greedy self-play). Rules: Core Rules 2026-10-09 (the Rules Hub serves only the current document). Card data from the Riftcodex API, fetched on the Pi. Services `game` (rules, AI, which cards are in hand) and `table` (physical piles, hand order, scan/recover; sim backend now, the dispensers and the playfield machine from Phase 3). | ✅ |
 | D22 | Reaching Dev | Service `messenger` (C++, Telegram Bot API over libcurl): notices and questions from any service go to Dev's private **Telegram** chat with Buddy's own bot, answers come back on the bus (`buddy/messenger/cmd` → `buddy/messenger/event`). Named after the job: askers never see the vendor. Outbound HTTPS only (long poll; no open port, no webhook). Only the paired account's private chat is heard, everyone else gets no answer. Bot chats are **not end-to-end encrypted**: a service sends only what may sit on Telegram's servers. `cmd` is `"web": false` and `state` carries counts only (the panel has no login, D19); message texts never reach the journal. Bot token + chat from `buddy-messenger --pair` in `~/buddy/config/messenger.json`. A built-in watcher reports services that stay offline or keep restarting. Email dropped: replies need IMAP + quote parsing, Proton has IMAP only through its Bridge and SMTP tokens only for custom domains. "What's the status" / `/status` in the chat answers with one line per host (from `buddy/system*/state`, D23) plus the service watcher summary; other commands to Buddy from the chat ("lights off"): later. | ✅ |
 
 | D23 | Host monitoring | Own service `system` (C++, /proc + /sys + `vcgencmd get_throttled`), no node_exporter/Prometheus/Grafana: retained `buddy/system/state` every 5 s (published only on change), card per host on the panel, live values only. Extra hosts set `BUDDY_SYSTEM_NAME` → service `system-<name>` with its own client id and `buddy/system-<name>/{state,status}`, so everything (web's `buddy/+/state`, status, last will, messenger watcher) works unchanged. Dashboard-only; metric alerting (temp, disk) deliberately left to a later watcher. | ✅ |
@@ -174,7 +171,7 @@ Speech-to-text training: `docs/voice-training.md`.
   the Pi's antenna unshielded in a future housing. Quick check first: the phone on 5 GHz Wi-Fi.
 - **Persistent journald** (`Storage=persistent`, `SystemMaxUse=50M`) for boot post-mortems.
 
-## Phase 2 – Riftbound
+## Phase 2 – Riftbound ✅
 
 Buddy plays Riftbound against Dev with real cards (D21). Software first, against a simulated table (#18). Design and
 as built: `docs/02-riftbound/design.md`; how the code runs: `software/services/{game,table}/CLAUDE.md`.
@@ -221,7 +218,7 @@ buddy/
 ├── buddy-hardware.md        ← current hardware & software
 ├── docs/
 │   ├── 01-voice.md          ← Phase 1 condensed: rebuild, config, troubleshooting
-│   ├── 02-riftbound/        ← Riftbound design + as built, the live-game guide
+│   ├── 02-riftbound/        ← Riftbound design + as built
 │   ├── motion-controller/   ← side project: Pico 2 + servos, motion service
 │   ├── voice-training.md    ← speech-to-text training workflow
 │   └── 3d-printing.md       ← printing reference + print log (grows with every print)

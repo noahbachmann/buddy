@@ -22,7 +22,7 @@ Jabra mic → [ears] wake word, speech-to-text → [brain] intent → [spotify] 
 | Rebuild the Pi, config, every Phase 1 feature, troubleshooting | `docs/01-voice.md` |
 | Motion controller side project (Pico 2 + servos, motion service) | `docs/motion-controller/` |
 | How the Riftbound software is built and why | `docs/02-riftbound/design.md` |
-| Play Riftbound against Buddy (the first live game) | `docs/02-riftbound/live-game.md` (temporary) |
+| Play Riftbound against Buddy with your real cards | Panel `http://buddy.local:8080/#riftbound` → New game (*You play* = your deck); name your champion and battlefield, then the page is the referee. Buddy's cards live on the sim table until Phase 3 |
 | Train speech-to-text on your voice | `docs/voice-training.md` |
 | Print a part: settings, design rules, tolerances, print log | `docs/3d-printing.md` |
 | Parts in use | `buddy-hardware.md` |
