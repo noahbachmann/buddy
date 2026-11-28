@@ -7,6 +7,7 @@
 #include <sstream>
 
 #include "riftbound/ai/arena.hpp"
+#include "riftbound/ai/champion.hpp"
 #include "riftbound/ai/greedy.hpp"
 #include "riftbound/ai/ismcts.hpp"
 #include "riftbound/hidden.hpp"
@@ -279,4 +280,26 @@ TEST(RiftboundAi, IsmctsOnlyReturnsLegalActions) {
             searched += static_cast<int>(st.iterations.size());
         }
     }
+}
+
+TEST(RiftboundAi, ChampionPickReproducibleAcrossJobs) {  // #98
+    const auto& [vi, zed] = real_decks();
+    const auto one = ai::choose_champion(vi, zed, 7, {.games = 2, .jobs = 1});
+    const auto three = ai::choose_champion(vi, zed, 7, {.games = 2, .jobs = 3});
+    ASSERT_EQ(one.options.size(), 3u);
+    EXPECT_EQ(one.wins, three.wins);
+    EXPECT_EQ(one.card, three.card);
+    EXPECT_EQ(one.games, 2);
+    // the pick has the most wins, the earliest of a tie
+    const auto best = std::max_element(one.wins.begin(), one.wins.end()) - one.wins.begin();
+    EXPECT_EQ(one.card, one.options[static_cast<std::size_t>(best)]);
+}
+
+TEST(RiftboundAi, ChampionPickWithOneOptionPlaysNothing) {
+    const auto& [vi, zed] = real_decks();
+    Deck lone = zed;
+    std::erase_if(lone.main, [](const DeckEntry& e) { return e.card->champion; });
+    const auto pick = ai::choose_champion(lone, vi, 7);
+    EXPECT_EQ(pick.card, zed.champion);
+    EXPECT_EQ(pick.games, 0);
 }

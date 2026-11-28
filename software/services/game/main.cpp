@@ -53,6 +53,7 @@
 #include "buddy/config.hpp"
 #include "buddy/lifecycle.hpp"
 #include "riftbound/ai/arena.hpp"
+#include "riftbound/ai/champion.hpp"
 #include "riftbound/ai/greedy.hpp"
 #include "riftbound/ai/ismcts.hpp"
 #include "riftbound/card_db.hpp"
@@ -497,6 +498,23 @@ int sim_terminal(const CardDb& db, const std::vector<fs::path>& paths, std::uint
     return 0;
 }
 
+// #98: Buddy's champion pick for each deck against the other, with the wins per option and the time.
+int champion(const CardDb& db, const std::vector<fs::path>& paths, int games, std::uint64_t seed, int jobs) {
+    if (paths.size() < 2) throw std::runtime_error("--champion needs two decks");
+    const std::array<Deck, 2> decks{load_deck(db, paths[0]), load_deck(db, paths[1])};
+    for (int i = 0; i < 2; ++i) {
+        const auto start = std::chrono::steady_clock::now();
+        const auto pick = ai::choose_champion(decks[i], decks[1 - i], seed, {.games = games, .jobs = jobs});
+        const double s = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+        std::cout << std::format("{} vs {}: {} ({} games per option, {} jobs, {:.2f} s)\n", paths[i].stem().string(),
+                                 paths[1 - i].stem().string(), pick.card->name, pick.games, jobs, s);
+        for (std::size_t k = 0; k < pick.options.size(); ++k) {
+            std::cout << "  " << pick.options[k]->name << ": " << interval(pick.wins[k], pick.games) << "\n";
+        }
+    }
+    return 0;
+}
+
 int usage(const char* argv0) {
     std::cerr << "usage: " << argv0 << " --deck <name|file> --check | --check | --code <code>… |\n"
               << "       --random [--rules] [--games N] [--seed S] [--deck A --deck B] | --replay <file> |\n"
@@ -506,6 +524,7 @@ int usage(const char* argv0) {
               << "       --table-workload [greedy|random] [--games N] [--seed S] [--jobs J] [--deck A --deck B]\n"
               << "       --sim [--games N] [--seed S] [--jobs J] [--faults none|stress|…] [--dev greedy|random]\n"
               << "             [--buddy greedy|ismcts] [--iterations N] [--deck A --deck B]\n"
+              << "       --champion [--games N] [--seed S] [--jobs J] [--deck A --deck B]\n"
               << "       (no flags: the service)\n";
     return 2;
 }
@@ -527,7 +546,7 @@ int main(int argc, char** argv) {
         }
     }
     std::vector<std::string> deck_args;
-    bool check = false, random = false, rules = false, workload = false, greedy = true, sim = false;
+    bool check = false, random = false, rules = false, workload = false, greedy = true, sim = false, champ = false;
     std::string faults = "none", dev = "greedy", buddy = "greedy";
     std::string replay;
     std::array<std::string, 2> players;
@@ -548,6 +567,7 @@ int main(int argc, char** argv) {
             }
             else if (args[i] == "--replay" && value) replay = args[++i];
             else if (args[i] == "--sim") sim = true;
+            else if (args[i] == "--champion") champ = true;
             else if (args[i] == "--faults" && value) faults = args[++i];
             else if (args[i] == "--dev" && value) dev = args[++i];
             else if (args[i] == "--buddy" && value) buddy = args[++i];
@@ -572,7 +592,7 @@ int main(int argc, char** argv) {
         return usage(argv[0]);
     }
     const bool matching = !players[0].empty();
-    if ((code_index != 0) + check + random + !replay.empty() + matching + workload + sim != 1 || games < 1 || jobs < 1 ||
+    if ((code_index != 0) + check + random + !replay.empty() + matching + workload + sim + champ != 1 || games < 1 || jobs < 1 ||
         ismcts.iterations < 1 || ismcts.threads < 1 ||
         (rules && !random)) {
         return usage(argv[0]);
@@ -595,6 +615,7 @@ int main(int argc, char** argv) {
         if (paths.empty()) paths = all_decks(decks);
         if (random) return random_games(db, paths, games, seed, !rules);
         if (workload) return table_workload(db, paths, games, seed, jobs, greedy);
+        if (champ) return champion(db, paths, games_given ? games : ai::ChampionOptions{}.games, seed, jobs);
         if (matching) return match(db, paths, players, games_given ? games : 200, seed, jobs, ismcts);
         if (sim) {
             if (buddy != "greedy" && buddy != "ismcts") throw std::runtime_error("--buddy greedy or ismcts");

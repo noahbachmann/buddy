@@ -2,6 +2,7 @@
 # MQTT, linked by the service and its tests.
 add_library(riftbound STATIC
     riftbound/ai/arena.cpp
+    riftbound/ai/champion.cpp
     riftbound/ai/eval.cpp
     riftbound/ai/greedy.cpp
     riftbound/ai/ismcts.cpp
