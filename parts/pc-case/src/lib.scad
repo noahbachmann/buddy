@@ -11,6 +11,8 @@ cy1 = cooler_y[1] + side_gap + wall_t;     // and back
 lid_x1 = seam_x + wall_t + lid_ext;        // lid's edges past the seams (it reaches under the cover's bosses)
 lid_y1 = seam_y + wall_t + lid_ext;
 cb_head = z_top - head_room;                // seam screw head recess: floor, then a 45° cone to the clearance hole
+pw_x0 = seam_x + plate_wall_in;             // left wall's outer face over the silver plate
+assert(pw_x0 + wall_t < cooler_x[0] - side_gap, "left wall over the plate hits the cooler");
 // Circle through three points: the fan-side arc of the cooler outline.
 function circ(p) = let(
   a = p[0], b = p[1], c = p[2],
@@ -164,6 +166,7 @@ module cover_openings_2d() {
     translate(fan_c) circle(r = fan_in_r + bar);
     for (x = cover_grid_x) rect([x - bar / 2, x + bar / 2], [-big, big]);
     for (y = cover_grid_y) rect([-big, big], [y - bar / 2, y + bar / 2]);
+    rect([-big, pw_x0 + wall_t + 3], [board[1], big]);   // solid skin over the moved-in wall
   }
 }
 // Seam screw from the cover's top: head recessed (45° cone under the recess: a roof in print, no bridge), clearance
@@ -180,7 +183,9 @@ module at_seam_screws() for (q = seam_screws()) translate([q[0], q[1], 0]) child
 module cover() let(zv = [vent_margin, z_ceil - vent_margin]) difference() {
   linear_extrude(z_top) { cover_2d(); seam_bosses_2d(); }
   translate([0, 0, -1]) linear_extrude(z_ceil + 1)
-    difference() { rect([seam_x + wall_t, cx1 - wall_t], [seam_y + wall_t, cy1 - wall_t]); seam_bosses_2d(); }
+    difference() { rect([seam_x + wall_t, cx1 - wall_t], [seam_y + wall_t, cy1 - wall_t]); seam_bosses_2d();
+                   rect([-big, pw_x0 + wall_t], [board[1] + tray_gap, big]); }   // left wall over the plate: moved in
+  box([seam_x - 1, pw_x0], [board[1] + tray_gap, cy1 + 1], [-1, z_ceil]);   // outside it, only the skin stays
   translate([0, 0, z_ceil - 1]) linear_extrude(cover_skin + 2) cover_openings_2d();
   box([-big, tray_wall_x + tray_gap], [-big, board[1] + tray_gap], [-1, z_lid1]);
   box([-big, plate_x1 + tray_gap], [board[1] + tray_gap, big], [-1, plate_clear]);

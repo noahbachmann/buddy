@@ -35,7 +35,7 @@ function slit_span(y) = [slit_c0 + slot_pitch * floor((y - skel_joint / 2 - slit
                          slit_c0 + slot_pitch * ceil((y + skel_joint / 2 - slit_c0) / slot_pitch)];
 // Corners, plus where the walls step down: past the ribbon opening (a post on its edge left a 0.5 mm sliver) and
 // at the silver plate.
-function cover_corners() = [[seam_x, cy1], [cx1, cy1], [cx1, seam_y], [cable_cover_x + 1 + skel_post / 2, seam_y],
+function cover_corners() = [[pw_x0, cy1], [cx1, cy1], [cx1, seam_y], [cable_cover_x + 1 + skel_post / 2, seam_y],
                             [plate_x1 + tray_gap, cy1]];
 module cover_top_skeleton() intersection() {
   cover();

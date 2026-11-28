@@ -75,6 +75,9 @@ right_gap  = side_gap + felt_t;   // cooler to the cover's right wall
 // printed lid fits (Dev 2026-11-28), its screw holes set them; 16 off the cooler since it moved.
 seam_x = 179;            // vertical seam (for y ≥ seam_y)
 seam_y = 113;            // horizontal seam (for x ≥ seam_x)
+// Over the silver plate (y > the tray) the left wall stands this far in from the seam; the stub of back wall outside
+// it goes, the top skin stays (Dev 2026-11-28).
+plate_wall_in = 10;
 
 // --- M3 hardware ---------------------------------------------------------------
 m3_clear  = 3.4;         // screw passes: clearance, not a fit
