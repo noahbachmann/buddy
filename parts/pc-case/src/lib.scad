@@ -245,7 +245,13 @@ module cover_bottom() {
   for (x = bottom_tabs_front) bottom_tab(false, x, seam_y + wall_t + 0.2);
   for (x = bottom_tabs_back) bottom_tab(false, x, cy1 - wall_t - 0.2 - tab_t);
   for (y = bottom_tabs_right) bottom_tab(true, y, cx1 - wall_t - 0.2 - tab_t);
+  fan_rests();
 }
+// Ribs the fan rests on, from the thin floor up fan_rest_h; they overlap into the floor (no coplanar faces).
+module fan_rests() for (x = fan_rest_xs)
+  box([x - fan_rest_w / 2, x + fan_rest_w / 2], [fan_y0 + 3, cooler_y[1] - 3], [fan_floor_t / 2, fan_floor_t + fan_rest_h]);
+assert(min(fan_rest_xs) - fan_rest_w / 2 > max(fan_c[0] + fan_in_r, tray_wall_x + tray_gap) && max(fan_rest_xs) + fan_rest_w / 2 < fan_x1 + side_gap,
+       "fan rests off the fan floor or under the intake");
 
 // --- fit-check: flat template of the cooler corner, laid over the hardware ----------------
 module fit_check() linear_extrude(1.6) {

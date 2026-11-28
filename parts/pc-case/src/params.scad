@@ -30,6 +30,11 @@ cooler_y = [129, 257];   // 128 deep at the heatsink; back edge 47 past the tray
 cooler_h = 38;           // fan and heatsink alike
 fan_floor_t = 0.8;      // cover-bottom's floor under the fan: lies flat on the table, carries no bending (Dev 2026-11-25)
 cooler_z0 = fan_floor_t; // the fan housing stands on it
+// The fan hangs 6 above the floor (Dev's photo 2026-11-28: the cooler is held by its heat pipe): ribs on the floor
+// carry it there. Outside the hub's bottom intake (fan_c ± fan_in_r).
+fan_rest_h  = 6;
+fan_rest_xs = [282, 298]; // rib centres, along y
+fan_rest_w  = 3.2;
 hs_dz    = 13;           // ⚠️ heatsink's underside above the fan's base (ruler photo 2026-11-24): the floor runs under it
 hs_z0    = cooler_z0 + hs_dz;
 fan_x1   = 304;          // ⚠️ fan housing ↔ heatsink (fit-check photo): the fan stands on the table left of this

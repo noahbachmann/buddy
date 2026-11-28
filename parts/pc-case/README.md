@@ -15,7 +15,7 @@ stays: it continues behind the board, under the cover's left and back walls.
 | `fit-check` | Flat template of the cooler corner: cover outline, cooler outline + 1 mm, tray's right and back edges | `0-fit-check` | 6 g |
 | `hook-test` | One lid front-edge hook with 10 mm of the lid's front band each side, cut from the real lid: snap it over the tray's front edge to check reach, hook and play | `0-hook-test`, top down | 4 g |
 | `cover-top` | Over the cooler (4 mm off the heatsink on the right: felt), standing on cover-bottom: lattice top (1.2), slotted intake over the fan hub, exhaust slits over the heatsink's outlet face (from 14.8 mm up), windows. Its walls facing the tray stand on the lid and carry 4 screw bosses (lid to top, head recessed); over the tray wall and the silver plate its walls stop above them | `1-cover-top`, top down | 67 g |
-| `cover-bottom` | Lattice floor (1.6) under the raised heatsink and in front of it; solid 0.8 floor under the fan outside the tray (it lies flat on the table: no bending to carry) that the fan stands on; 5 low nut tabs (≤ 11.6, under the heatsink) for cover-top | `1-cover-bottom`, floor down | 26 g |
+| `cover-bottom` | Lattice floor (1.6) under the raised heatsink and in front of it; solid 0.8 floor under the fan outside the tray (it lies flat on the table: no bending to carry) that the fan stands on; 5 low nut tabs (≤ 11.6, under the heatsink) for cover-top; 2 ribs on the fan floor that hold the fan 6 mm up | `1-cover-bottom`, floor down | 31 g |
 | `lid` | Lattice plate between the tray walls (front 60 mm over the metal shield: open; ~14 mm windows behind it), 4 tabs into the slits beside the board that carry it, a 25 mm wall down its back edge with 3 hooks, 14 top-module and 4 cover nut bosses underneath, 3 cable notches, thinner over the CPU | `2-lid`, top down, 252 mm wide: alone on the plate | 93 g |
 
 All: PETG, 0.20 mm, 3 walls, 15 %, no supports (no overhang > 45°, no bridge, no floating layer; the lid's two 3 mm
@@ -47,7 +47,7 @@ hook overhangs print without). Plates 2.4 mm.
 - Cable notches: left edge y 54–66 (ribbon out through the left slit), right edge y 104–128 (ribbons out over the
   right tray wall; the cover's front wall is open there up to 38 mm), back edge x 160–176 (antenna wires).
 
-**Before the real parts:** `skeleton/` has fit-test skeletons of lid, cover-top and cover-bottom (105 g together,
+**Before the real parts:** `skeleton/` has fit-test skeletons of lid, cover-top and cover-bottom (110 g together,
 same geometry where it matters): assemble them on the hardware first (`skeleton/README.md`).
 
 ## Hardware
@@ -114,6 +114,9 @@ strip).
   45° cone down to the 3.4 hole (the head's seat; in print a roof at 45°, no bridge). M3 × 8: head seat at 36.45,
   through 2.4 of boss and the lid into the pressed nut, tip 1.2 out under the boss.
 - Clearance holes 3.4 mm, slip-fit nut slots 5.7 × 2.7, press-fit pockets 5.6 across flats.
+- The fan hangs 6 mm above the fan floor (Dev's photo 2026-11-28): 2 ribs (3.2 wide, x 282 and 298, outside the
+  hub's bottom intake) carry it there. ⚠️ The model still stands the fan on the floor with `cooler_h` 38, which can't
+  both be true with the cover-top (40.4) fitting: the housing is ~6 lower than the heatsink stack, not measured.
 - The fan floor lifts the cooler 0.8 mm. The cooler also hangs on the CPU by its heat pipe: if it can't rise that much,
   the floor levers on it. Check with the skeleton (`skeleton/README.md`, step 3); `fan_floor_t` 0.6 is the fallback.
 - `cover-top` is one solid (outline extruded, inside hollowed, bosses added, then cut away over the tray and the plate):

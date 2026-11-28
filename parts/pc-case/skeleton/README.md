@@ -8,7 +8,7 @@ then print the real parts (`../plates`).
 |---|---|---|---|
 | `lid-skeleton` | Rim (10.5 mm: the lid's solid band), the back wall, the 4 slit tabs, the 4 cover nut bosses, one cross with its 7 top-module nut bosses (the press-fit test) | `2-lid-skeleton`, top down, 252 wide: alone | 53 g |
 | `cover-top-skeleton` | Top rim (top + upper 3 mm of the walls), corner posts, full-height wall strips at all 9 screws (4 seam bosses, 5 floor tabs) | `1-cover-top-skeleton`, top down | 30 g |
-| `cover-bottom-skeleton` | Floor rim, the whole 0.8 fan floor (it sets the fan's height) and the 5 nut tabs | `1-cover-bottom-skeleton`, floor down | 20 g |
+| `cover-bottom-skeleton` | Floor rim, the whole 0.8 fan floor (it sets the fan's height) and the 5 nut tabs, the fan ribs | `1-cover-bottom-skeleton`, floor down | 25 g |
 
 Print at the real parts' settings (PETG, 0.20 mm, 3 walls): the nut pockets and slit tabs must come out the same.
 100 g against 180 g for the real set.
