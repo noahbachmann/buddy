@@ -3,10 +3,14 @@
 Temporary guide: Dev's part of #53 (the phase's software "Done when"). Delete this file when the game is played and
 the notes are in #53; then tick 2.6 in `CLAUDE.md` and close #53 and #46.
 
+**Round 2.** Round 1 (2026-11-27) ended in a concede on turn 12; its fixes are in #97 (champion playable from its
+zone, log column, undo, effects on the tiles). New since then: you choose your champion each game, Buddy picks its own
+(#98).
+
 ## Goal
 
-One full game against Buddy on the Riftbound page, with your real cards, Buddy's side on the sim table under stress
-faults. Notes on pacing, prompts and layout go into #53.
+One full game against Buddy on the Riftbound page, **played to the end** (no concede), with your real cards, Buddy's
+side on the sim table under stress faults. Notes on pacing, prompts and layout go into #53.
 
 ## Prerequisites
 
@@ -31,8 +35,11 @@ faults. Notes on pacing, prompts and layout go into #53.
 2. **New game** on the page (bottom): *Buddy plays* = the other deck, *You play* = **your real cards**, *Buddy
    speaks* as you like → Start.
 
-3. **Setup:** put one of your battlefields down, then answer *Which battlefield did you put down?* (tap it,
-   Confirm). Draw 4, mulligan on the page (*Set aside a card* per card you put back, then *Keep*); put the set-aside
+3. **Setup:** Buddy says (or the board shows) which champion it picked: a second after Start, it plays a few quick
+   games per option first. Put down your champion (any of your champion units: Vi Hotheaded / Destructive /
+   Peacekeeper, Zed From the Shadows / Without a Sound) and answer *Which champion did you put down?*; the
+   decklist's champion goes into your deck if you chose another one. Then put one of your battlefields down and
+   answer *Which battlefield did you put down?* (tap it, Confirm). Draw 4, mulligan on the page (*Set aside a card* per card you put back, then *Keep*); put the set-aside
    cards on the bottom yourself and draw replacements.
 
 4. **Play as usual, the page is the referee:**
@@ -43,6 +50,8 @@ faults. Notes on pacing, prompts and layout go into #53.
      burn, a discard you didn't pick), the page asks which one. Runes come as combinations ("1 × Fury + 1 × Order"):
      one tap, Confirm.
    - Move your physical cards the way the page says; Buddy's cards stay on the sim table (only the board shows them).
+   - **Mis-tapped?** *Undo my last step* takes back your own steps as long as Buddy hasn't moved since.
+   - **Log:** on a wide screen (≥ 1024 px) it's a column on the left; card names in it open the card.
    - **Hey Jarvis:** say "Hey Jarvis" 3–4 times while the page shows *Buddy is thinking…*. Buddy must answer each
      time (#52 checked recorded clips under load, not the live mic).
 
