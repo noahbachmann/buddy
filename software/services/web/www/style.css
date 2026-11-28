@@ -350,12 +350,15 @@ input.warmth { accent-color: var(--muted); }
 /* a side: in play on the left, legend over the waiting champion on the right */
 .rb-side-body { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: start; }
 .rb-play { align-content: flex-start; min-height: 58px; }
+/* a move or location to the base: the base is the target, like a battlefield's name */
+.rb-play.can { padding: 6px; border: 1px solid var(--accent); border-radius: 12px; }
+.rb-base-name { flex-basis: 100%; }
 .rb-zones { display: grid; gap: 6px; padding-left: 8px; border-left: 1px dashed var(--line); }
 .rb-fx { white-space: normal !important; color: var(--accent) !important; }
 .rb-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
 .rb-field {
   display: grid; gap: 6px; align-content: space-between; padding: 8px; min-height: 150px;
-  border: 1px dashed var(--line); border-radius: 14px;
+  min-width: 0; border: 1px dashed var(--line); border-radius: 14px;  /* min-width: a long unit name mustn't widen the page */
 }
 .rb-field.fight { border: 2px solid var(--bad); }
 .rb-field.can { border-style: solid; border-color: var(--accent); }
@@ -363,6 +366,8 @@ input.warmth { accent-color: var(--muted); }
   position: relative; display: flex; justify-content: center; gap: 6px; padding: 6px; border: 0; border-radius: 8px;
   background: var(--track); color: var(--text); font: inherit; font-weight: 600; font-size: 0.85rem; cursor: pointer;
 }
+.rb-field > * { min-width: 0; }  /* grid items: a long name ellipsizes instead of widening the field */
+.rb-field-name span { min-width: 0; overflow-wrap: anywhere; }
 .rb-field-tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
 .rb-units { flex-direction: column; flex-wrap: nowrap; gap: 4px; }
 .rb-units.dev { justify-content: flex-end; }

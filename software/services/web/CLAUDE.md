@@ -42,9 +42,12 @@ Everything from `buddy/game/state` (public cards only, `services/game/CLAUDE.md`
   (`rbLinked`).
 - "↶ Undo my last step" beside Concede while the payload's `undo` is true (`undo {v}`, #97). The runes prompt names
   the runes it doesn't ask for (`prompt.known`).
-- `rbPlace(g)`: each option goes on a board object (`obj` shown on the board: badge with the count), else on a hand
-  tile by `card` (every card Dev could hold, sorted by name: Buddy doesn't know Dev's hand), else the bar (pass,
-  keep, done, optional costs). `rbAll`: every option as a list (fallback).
+- `rbPlace(g)`: each option goes on Dev's base (`base`: a "Base" button in the base row, like a battlefield's name;
+  one option acts at once, more open the base sheet), else on a board object (`obj` shown on the board: a `!` badge,
+  `rbMark`), else on a hand tile by `card` (every card Dev could hold, sorted by name: Buddy doesn't know Dev's
+  hand), else the bar (pass, keep, done, optional costs). `rbAll`: every option as a list (fallback).
+- Picking units to move (`direct`: Choose with purpose `move`): a tap on a unit with one option is the pick, no
+  sheet; `decision.picked` units get the `picked` look.
 - The card sheet (`<dialog id="rb-sheet">`, `rbOpen({id}|{code}|{pile, who})`): card text (`rbText`: `:rb_…:` →
   symbols), the object's state, its moves; rebuilt on updates only when its sig changes.
 - `rbPrompt(g)`: Dev names cards that turned public; tap a candidate per copy, Confirm at `n`; runes as whole
