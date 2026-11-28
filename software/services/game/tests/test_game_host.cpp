@@ -19,6 +19,7 @@ game::HostConfig host_config() {
         cfg.decks[key] = {parse_deck(db(), text), text};
     }
     cfg.random_seed = [] { return std::uint64_t{42}; };
+    cfg.champion.games = 0;  // the decklist's champion: self-play is slow under ASan (#98)
     return cfg;
 }
 

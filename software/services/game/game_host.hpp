@@ -29,6 +29,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include "riftbound/ai/champion.hpp"
 #include "riftbound/card_db.hpp"
 #include "riftbound/deck.hpp"
 #include "session.hpp"
@@ -44,6 +45,7 @@ struct HostDeck {
 struct HostConfig {
     std::map<std::string, HostDeck, std::less<>> decks;  // "vi", "zed": what `new` accepts for `buddy`
     std::function<std::uint64_t()> random_seed;           // `new` without a seed; unset: std::random_device
+    riftbound::ai::ChampionOptions champion;              // Buddy's pick at `new` (#98); games 0: the decklist's
 };
 
 // A command's answer: ok, or why not (Dev reads it on the panel).

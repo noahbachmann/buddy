@@ -17,6 +17,7 @@ game::HostConfig host_config() {
         cfg.decks[key] = {parse_deck(db(), text), text};
     }
     cfg.random_seed = [] { return std::uint64_t{42}; };
+    cfg.champion.games = 0;  // the decklist's champion: self-play is slow under ASan (#98)
     return cfg;
 }
 
@@ -286,6 +287,51 @@ TEST(RiftboundJournal, ASeedAboveInt64Restores) {
     game::GameHost typed(db(), host_config());  // the same seed typed on the bus: parsed JSON, unsigned
     EXPECT_TRUE(typed.command(json::parse(R"({"action":"new","buddy":"vi","dev":"human","seed":9223372036854775813})")).ok);
     EXPECT_FALSE(typed.command(json::parse(R"({"action":"new","buddy":"vi","dev":"human","seed":-1})")).ok);
+}
+
+// #98: Buddy's champion goes into the journal's `new` line, picked or given; a restore takes it from there (the
+// fresh host's own pick, games 0, would be the decklist's) and doesn't search again.
+TEST(RiftboundJournal, BuddysChampionComesFromTheJournal) {
+    const auto decks = host_config().decks;
+    const Deck& vi = decks.at("vi").deck;
+    const Deck& zed = decks.at("zed").deck;
+    const auto line_champion = [](const std::vector<std::string>& journal) {
+        return json::parse(journal.front())["cmd"]["champion"].get<std::string>();
+    };
+    {  // given: Vi, Peacekeeper
+        const Card* peacekeeper = riftbound::champion_options(vi)[2];
+        game::GameHost host(db(), host_config());
+        ASSERT_TRUE(host.command({{"action", "new"}, {"buddy", "vi"}, {"dev", "human"},
+                                  {"champion", peacekeeper->home().code.str()}}).ok);
+        EXPECT_EQ(host.session()->config().decks[0].champion, peacekeeper);
+        const auto out = host.take();
+        EXPECT_EQ(line_champion(out.journal), peacekeeper->home().code.str());
+        EXPECT_EQ(host.state()["players"]["buddy"]["champion"][0]["card"], peacekeeper->home().code.str());
+        game::GameHost fresh(db(), host_config());
+        fresh.restore(out.journal);
+        EXPECT_EQ(fresh.session()->config().decks[0].champion, peacekeeper);
+        EXPECT_EQ(fresh.session()->replay_text(), host.session()->replay_text());  // the replay header: the deck as played
+        EXPECT_EQ(fresh.state(), host.state());
+    }
+    {  // picked by self-play: the AI's pick for the game's seed
+        auto cfg = host_config();
+        cfg.champion.games = 1;  // one greedy game per option: ~4 s per game under ASan
+        game::GameHost host(db(), cfg);
+        ASSERT_TRUE(host.command({{"action", "new"}, {"buddy", "vi"}, {"dev", "human"}}).ok);
+        const Card* want = riftbound::ai::choose_champion(vi, zed, 42, {.games = 1}).card;
+        EXPECT_EQ(host.session()->config().decks[0].champion, want);
+        const auto out = host.take();
+        EXPECT_EQ(line_champion(out.journal), want->home().code.str());
+        game::GameHost fresh(db(), host_config());
+        fresh.restore(out.journal);
+        EXPECT_EQ(fresh.session()->config().decks[0].champion, want);
+    }
+    game::GameHost host(db(), host_config());
+    for (const std::string& code : {zed.champion->home().code.str(), vi.legend->home().code.str(), std::string("XYZ-999")}) {
+        const auto r = host.command({{"action", "new"}, {"buddy", "vi"}, {"dev", "human"}, {"champion", code}});
+        EXPECT_FALSE(r.ok) << code;
+        EXPECT_EQ(host.session(), nullptr) << code;
+    }
 }
 
 // A journal that doesn't fit the game: restore throws, naming the line.

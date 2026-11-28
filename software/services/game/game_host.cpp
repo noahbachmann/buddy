@@ -135,7 +135,7 @@ Reply GameHost::command(const json& cmd) {
 }
 
 Reply GameHost::start(const json& cmd) {
-    only(cmd, {"buddy", "seed", "dev", "voice"});
+    only(cmd, {"buddy", "seed", "dev", "voice", "champion"});
     if (session_ && session_->status() != Status::Over) throw Bad{"a game is running: concede first"};
     const std::string buddy = text(cmd, "buddy");
     const auto mine = cfg_.decks.find(buddy);
@@ -147,10 +147,28 @@ Reply GameHost::start(const json& cmd) {
     const std::uint64_t seed = cmd.contains("seed") ? number(cmd, "seed") : cfg_.random_seed();
     const bool voice = flag(cmd, "voice", false);  // off unless asked: no TTS work for a silent game
 
+    // #98: Buddy's Chosen Champion, by self-play unless given (the journal's line gives it: a restore doesn't search)
+    const riftbound::Deck& listed = mine->second.deck;
+    const auto options = riftbound::champion_options(listed);
+    const riftbound::Card* champion = nullptr;
+    if (cmd.contains("champion")) {
+        const std::string code = text(cmd, "champion");
+        const auto found = db_.find_code(code);
+        if (!found.card) throw Bad{code + ": " + found.error};
+        if (std::find(options.begin(), options.end(), found.card) == options.end()) {
+            throw Bad{found.card->name + " can't be Buddy's champion"};
+        }
+        champion = found.card;
+    } else {
+        champion = riftbound::ai::choose_champion(listed, theirs->second.deck, seed, cfg_.champion).card;
+    }
+    const riftbound::Deck buddy_deck = riftbound::with_champion(listed, champion);
+
     // Buddy sits in seat 0: the first player is the engine's coin flip (seed), seats mean nothing else.
     SessionConfig sc;
-    sc.decks = {mine->second.deck, theirs->second.deck};
-    sc.deck_texts = {mine->second.text, theirs->second.text};
+    sc.decks = {buddy_deck, theirs->second.deck};
+    sc.deck_texts = {champion == listed.champion ? mine->second.text : riftbound::format_deck(buddy_deck),
+                     theirs->second.text};
     sc.buddy = 0;
     sc.seed = seed;
     out_ = {};  // the old game's unsent outputs are moot
@@ -169,6 +187,7 @@ Reply GameHost::start(const json& cmd) {
     json line = cmd;
     line["seed"] = seed;
     line["voice"] = voice;
+    line["champion"] = champion->home().code.str();
     record({{"cmd", line}});
     session_->start();
     if (bot_) bot_->begin(session_->state(), sc.decks[0], sc.decks[1]);

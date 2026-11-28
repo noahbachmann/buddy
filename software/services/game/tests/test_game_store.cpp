@@ -20,6 +20,7 @@ game::HostConfig host_config() {
         const std::string text = deck_text(file);
         cfg.decks[key] = {parse_deck(db(), text), text};
     }
+    cfg.champion.games = 0;  // the decklist's champion: self-play is slow under ASan (#98)
     return cfg;
 }
 

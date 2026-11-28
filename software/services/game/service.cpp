@@ -130,7 +130,8 @@ int run_service(const riftbound::CardDb& db, const fs::path& decks_dir) {
     if (cfg.ismcts.budget_ms < 100) throw std::invalid_argument("BUDDY_GAME_BUDGET_MS must be ≥ 100");
     if (cfg.ismcts.threads < 1) throw std::invalid_argument("BUDDY_GAME_THREADS must be ≥ 1");
     if (cfg.table_timeout_s < 1) throw std::invalid_argument("BUDDY_GAME_TABLE_TIMEOUT_S must be ≥ 1");
-    const HostConfig host_cfg = host_config(db, decks_dir);
+    HostConfig host_cfg = host_config(db, decks_dir);
+    host_cfg.champion.jobs = cfg.ismcts.threads;  // the champion pick blocks the loop for a moment at `new` (#98)
     GameStore store(cfg.games);
 
     BlockingQueue<Input> queue;
