@@ -402,6 +402,12 @@ SoakGame soak_game(const CardDb& db, const std::array<std::string, 2>& deck_text
         c.deck_texts = out.swapped ? std::array{deck_texts[1], deck_texts[0]} : deck_texts;
         c.decks = {parse_deck(db, c.deck_texts[0]), parse_deck(db, c.deck_texts[1])};
         c.buddy = out.buddy;
+        {  // #98: Buddy's champion varies too (its pick by self-play is the host's, too slow for the soak)
+            riftbound::Rng pick(out.seed * 13 + 5);
+            const auto options = riftbound::champion_options(c.decks[c.buddy]);
+            c.decks[c.buddy] = riftbound::with_champion(c.decks[c.buddy], options[pick.below(options.size())]);
+            c.deck_texts[c.buddy] = riftbound::format_deck(c.decks[c.buddy]);
+        }
         c.seed = out.seed;
         c.faults = o.faults;
         c.sim_seed = out.seed * 7 + 3;

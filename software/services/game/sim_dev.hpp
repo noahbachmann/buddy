@@ -23,7 +23,7 @@ public:
     // `shuffle` false: the placeholders are the truth (the scripted Dev of the #48 tests).
     SimDev(PlayerId seat, std::unique_ptr<riftbound::ai::Player> player, std::uint64_t seed, bool shuffle = true);
 
-    // Right after Session::start(): `s` = its state. Deals the true deck, runes and battlefield.
+    // Right after Session::start(): `s` = its state. Deals the true deck, runes, battlefield and champion (#98).
     void begin(const riftbound::GameState& s, const riftbound::Deck& seat0, const riftbound::Deck& seat1);
     // Dev's decision: one of `options` (Session::dev_options(), state `s`). Throws std::logic_error if the move
     // SimDev's player picks on the true state isn't among them (a gap in the options).

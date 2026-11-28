@@ -37,6 +37,15 @@ void SimDev::begin(const GameState& s, const riftbound::Deck& seat0, const riftb
         rng_.shuffle(cards);
         for (std::size_t i = 0; i < ids->size(); ++i) truth_[(*ids)[i]] = cards[i];
     }
+    // #98: Dev's champion, any of the deck's options; the old one goes where a copy of it was
+    const auto options = riftbound::champion_options(seat_ == 0 ? seat0 : seat1);
+    const Card* pick = options[rng_.below(options.size())];
+    const ObjId champ = s.player(seat_).champion.front();
+    for (const ObjId id : main) {
+        if (pick == truth_[champ] || truth_[id] != pick) continue;
+        std::swap(truth_[id], truth_[champ]);
+        break;
+    }
 }
 
 bool SimDev::hidden_hand(const GameState& s, ObjId obj) const {
