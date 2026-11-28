@@ -529,6 +529,8 @@ void recycle(GameState& s, std::vector<ObjId> ids);
 // are bound one after the other on the state before the step, where both still sit in the pool.
 // A battlefield (2.6, #49) swaps with one of its owner's battlefields that left the game at setup (487.5): the
 // engine picks one at random, the player chose theirs; only meaningful before the first action.
+// A Chosen Champion (#98, Dev's house rule: picked at game start) swaps during Setup with a copy in its owner's pool
+// (a champion unit with the legend's champion tag, 103.3.a.2); the old champion goes where that copy was.
 // The opening hand (#50): new_game drew it, so during Setup a card of the knower's own hand also swaps with another
 // of the knower's hand objects the opponent doesn't know and `keep` doesn't hold (one the table hasn't dealt yet).
 bool bind(GameState& s, ObjId obj, const Card* card, PlayerId knower, std::span<const ObjId> keep = {});

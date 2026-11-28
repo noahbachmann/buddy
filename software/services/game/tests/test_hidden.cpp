@@ -284,6 +284,29 @@ TEST(RiftboundHidden, BindABattlefield) {
     EXPECT_FALSE(bind(s, field, s.obj(s.player(1).main_deck.back()).card, 0));  // not a battlefield
 }
 
+TEST(RiftboundHidden, BindAChampionAtSetup) {  // #98: Dev's (seat 1) champion, chosen at game start
+    GameState s = new_game(zed(), vi(), {.seed = 4, .vanilla = true});
+    const ObjId champ = s.player(1).champion.front();
+    const Card* hotheaded = vi().champion;
+    const Card* destructive = champion_options(vi())[1];
+    ASSERT_TRUE(bind(s, champ, destructive, 0));
+    EXPECT_EQ(s.obj(champ).card, destructive);
+    int hot = 0, des = 0;  // the cards stay: the old champion is in Dev's deck or hand now
+    for (const Object& o : s.objects) {
+        if (o.owner != 1) continue;
+        hot += o.card == hotheaded;
+        des += o.card == destructive;
+    }
+    EXPECT_EQ(hot, 1);
+    EXPECT_EQ(des, 1);
+    EXPECT_EQ(check_invariants(s), std::vector<std::string>{});
+    EXPECT_TRUE(bind(s, champ, hotheaded, 0));  // and back
+    EXPECT_FALSE(bind(s, champ, zed().champion, 0));  // not in Dev's deck
+    EXPECT_FALSE(bind(s, champ, s.obj(s.player(1).legend.front()).card, 0));  // not a champion unit
+    s.phase = Phase::Main;  // only at game start
+    EXPECT_FALSE(bind(s, champ, destructive, 0));
+}
+
 TEST(RiftboundHidden, SetHandOrder) {
     GameState s = new_game(vi(), zed(), {.seed = 4, .vanilla = true});
     auto hand = s.player(0).hand;

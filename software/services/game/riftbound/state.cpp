@@ -333,13 +333,26 @@ bool bind(GameState& s, ObjId obj, const Card* card, PlayerId knower, std::span<
         }
         return false;
     }
-    if (o.known == everyone) return false;
-    if ((o.card->type == CardType::Rune) != (card->type == CardType::Rune)) return false;
     const auto in_pool = [&](const Object& x) {
         if (x.owner != o.owner || x.card != card || x.known & 1u << knower) return false;
         if (std::find(keep.begin(), keep.end(), static_cast<ObjId>(&x - s.objects.data())) != keep.end()) return false;
         return x.zone == Zone::MainDeck || x.zone == Zone::RuneDeck || (x.zone == Zone::Hand && x.owner != knower);
     };
+    if (o.zone == Zone::ChampionZone) {  // #98: chosen at game start, swaps with a copy the knower hasn't seen
+        if (s.phase != Phase::Setup || !card->champion || s.player(o.owner).legend.empty()) return false;
+        const Card& legend = *s.obj(s.player(o.owner).legend.front()).card;
+        if (std::none_of(legend.tags.begin(), legend.tags.end(), [&](const auto& t) { return card->has_tag(t); })) {
+            return false;
+        }
+        for (Object& x : s.objects) {
+            if (&x == &o || !in_pool(x)) continue;
+            std::swap(x.card, o.card);
+            return true;
+        }
+        return false;
+    }
+    if (o.known == everyone) return false;
+    if ((o.card->type == CardType::Rune) != (card->type == CardType::Rune)) return false;
     for (Object& x : s.objects) {
         if (&x == &o || !in_pool(x)) continue;
         std::swap(x.card, o.card);
