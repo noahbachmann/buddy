@@ -177,7 +177,8 @@ int run_service(const riftbound::CardDb& db, const fs::path& decks_dir) {
             const Session& s = *host->session();
             store.begin(file_stamp(), s.config().seed);
             ai.begin(++game, s.config());
-            std::cout << "[game] new game, seed " << s.config().seed << ", " << store.journal_path().filename().string()
+            std::cout << "[game] new game, seed " << s.config().seed << ", Buddy's champion "
+                      << s.config().decks[s.buddy()].champion->name << ", " << store.journal_path().filename().string()
                       << std::endl;
         }
         store.append(o.journal, o.replay, o.replay_text);
