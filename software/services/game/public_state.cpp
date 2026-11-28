@@ -192,6 +192,10 @@ struct Builder {
 json candidates(const Session& session, const GameState& s, const DevPrompt& p) {
     const auto& deck = session.config().decks[riftbound::opponent(session.buddy())];
     json out = json::array();
+    if (p.kind == DevPrompt::Kind::Champion) {  // #98: the decklist's champion first
+        for (const Card* c : riftbound::champion_options(deck)) out.push_back({{"code", c->home().code.str()}, {"left", 1}});
+        return out;
+    }
     if (p.kind == DevPrompt::Kind::Battlefield) {
         for (const Card* c : deck.battlefields) out.push_back({{"code", c->home().code.str()}, {"left", 1}});
         return out;

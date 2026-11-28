@@ -77,6 +77,7 @@ std::string pause_text(Pause p);
 // Dev's cards that turn visible without Dev choosing them: Dev names each one (#49).
 struct DevPrompt {
     enum class Kind : std::uint8_t {
+        Champion,     // the Chosen Champion Dev put down (#98), at setup first; only with more than one option
         Battlefield,  // the one Dev chose, at setup before the mulligans
         Hand,         // left Dev's hand unasked (a discard with no choice)
         Deck,         // off Dev's main deck (burned)

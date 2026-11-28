@@ -73,5 +73,8 @@ std::vector<const Card*> champion_options(const Deck& deck);
 // `deck` with `card` as its Chosen Champion: one copy leaves the main deck, the old champion takes its place at the
 // end of the main list. Throws std::invalid_argument if `card` isn't one of champion_options(deck).
 Deck with_champion(const Deck& deck, const Card* card);
+// The cards that can sit in the main deck during a game, once each: the main list's in order, then the decklist's
+// champion if the list has no other copy (it's there once Dev puts down another champion, #98).
+std::vector<const Card*> main_cards(const Deck& deck);
 
 } // namespace buddy::riftbound

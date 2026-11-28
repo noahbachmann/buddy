@@ -53,6 +53,7 @@ std::string_view to_string(Pause p) {
 
 std::string_view to_string(DevPrompt::Kind k) {
     switch (k) {
+        case DevPrompt::Kind::Champion: return "champion";
         case DevPrompt::Kind::Battlefield: return "battlefield";
         case DevPrompt::Kind::Hand: return "hand";
         case DevPrompt::Kind::Deck: return "deck";
@@ -119,8 +120,14 @@ std::vector<const Card*> dev_pool(const GameState& s, PlayerId buddy, std::span<
         held.insert(o.card);
     }
     std::vector<const Card*> out;
-    for (const auto& e : runes ? deck.runes : deck.main) {
-        if (held.contains(e.card) && std::find(out.begin(), out.end(), e.card) == out.end()) out.push_back(e.card);
+    std::vector<const Card*> cards;
+    if (runes) {
+        for (const auto& e : deck.runes) cards.push_back(e.card);
+    } else {
+        cards = riftbound::main_cards(deck);  // with the decklist's champion: in the deck once Dev chose another (#98)
+    }
+    for (const Card* c : cards) {
+        if (held.contains(c) && std::find(out.begin(), out.end(), c) == out.end()) out.push_back(c);
     }
     return out;
 }
@@ -357,9 +364,13 @@ void Session::start() {
     setup_ = table_setup(s_, log, cfg_.buddy);
     opening_.emplace();
     opening_->moves = moves_;
+    const PlayerId dev = riftbound::opponent(cfg_.buddy);
+    if (riftbound::champion_options(cfg_.decks[dev]).size() > 1) {  // #98: Dev's champion first, then the battlefield
+        opening_->list.push_back({{}, DevPrompt{DevPrompt::Kind::Champion, {s_.player(dev).champion.front()}, {}}});
+    }
     for (const auto& bf : s_.battlefields) {  // Dev's battlefield first: before both mulligans (113)
         if (s_.obj(bf.card).owner != cfg_.buddy) {
-            opening_->list.push_back({{}, DevPrompt{DevPrompt::Kind::Battlefield, {bf.card}}});
+            opening_->list.push_back({{}, DevPrompt{DevPrompt::Kind::Battlefield, {bf.card}, {}}});
         }
     }
     for (TableMove& m : split(opening_->moves.step(s_, log))) opening_->list.push_back({std::move(m), std::nullopt});
@@ -376,8 +387,8 @@ void Session::start() {
     c.runes = static_cast<int>(setup_.runes.size());
     for (const ObjId id : setup_.deck) c.sim_deck.push_back(code_of(s_, id));
     for (const ObjId id : setup_.runes) c.sim_runes.push_back(code_of(s_, id));
-    out_.voice.push_back(s_.first_player == cfg_.buddy ? "Let's play Riftbound. I go first."
-                                                       : "Let's play Riftbound. You go first.");
+    out_.voice.push_back("Let's play Riftbound. My champion is " + s_.obj(setup_.champion).card->name + ". " +
+                         (s_.first_player == cfg_.buddy ? "I go first." : "You go first."));
     setup_cmd_ = c;
     send(std::move(c), Kind::Setup);
 }
@@ -442,11 +453,13 @@ void Session::on_reveal(const std::vector<const Card*>& cards) {
         if (rune != (p->kind == DevPrompt::Kind::Runes) || field != (p->kind == DevPrompt::Kind::Battlefield)) {
             refuse(c->name + " can't come from your " + std::string(to_string(p->kind)));
         }
+        const bool champion = p->kind == DevPrompt::Kind::Champion;
         const ObjId obj = p->objs[i];
         changed = changed || s.obj(obj).card != c;
         if (!riftbound::bind(s, obj, c, cfg_.buddy, bound.keep(s, cfg_.buddy))) {
-            refuse(field ? c->name + " isn't one of your battlefields"
-                         : "you have no " + c->name + " left that I haven't seen");
+            refuse(field      ? c->name + " isn't one of your battlefields"
+                   : champion ? c->name + " can't be your champion"
+                              : "you have no " + c->name + " left that I haven't seen");
         }
         bound.add(s, obj);
     }
@@ -692,7 +705,7 @@ std::vector<Session::Item> Session::items(const GameState& base, const GameState
         if (!out.empty() && out.back().prompt && out.back().prompt->kind == kind) {
             out.back().prompt->objs.push_back(id);
         } else {
-            out.push_back({{}, DevPrompt{kind, {id}}});
+            out.push_back({{}, DevPrompt{kind, {id}, {}}});
         }
     };
     for (TableMove& m : moves) {

@@ -377,7 +377,9 @@ TEST(RiftboundSession, DevActionsAreChecked) {
 // #49: Dev names their battlefield first (before both mulligans); impossible answers are refused and change nothing.
 TEST(RiftboundSession, DevNamesTheBattlefieldFirst) {
     Game g("vi-unleashed", "zed-vendetta", 0, 390);
-    g.stop_when = [&] { return g.session->status() == Status::DevToReveal; };
+    g.stop_when = [&] {  // SimDev names the champion first (#98)
+        return g.session->status() == Status::DevToReveal && g.session->prompt()->kind == game::DevPrompt::Kind::Battlefield;
+    };
     g.run();
     ASSERT_EQ(g.session->status(), Status::DevToReveal);
     const game::DevPrompt p = *g.session->prompt();
@@ -408,6 +410,53 @@ TEST(RiftboundSession, DevNamesTheBattlefieldFirst) {
     EXPECT_EQ(g.session->state().obj(field).card, other);
     EXPECT_NE(g.session->replay_text().find("bind " + std::to_string(field) + " " + other->home().code.str()),
               std::string::npos);
+    g.stop_when = nullptr;
+    g.run();
+    EXPECT_EQ(g.session->status(), Status::Over) << g.session->pause_message();
+    EXPECT_TRUE(g.problems.empty()) << g.problems.front();
+    EXPECT_EQ(g.replay_problem(), "");
+}
+
+// #98: Dev names their Chosen Champion before the battlefield; only one of the deck's champion options is taken, and
+// the decklist's champion, put back, is one Dev can still hold and play.
+TEST(RiftboundSession, DevNamesTheChampionFirst) {
+    Game g("vi-unleashed", "zed-vendetta", 0, 392);
+    g.stop_when = [&] { return g.session->status() == Status::DevToReveal; };
+    g.run();
+    ASSERT_EQ(g.session->status(), Status::DevToReveal);
+    const game::DevPrompt p = *g.session->prompt();
+    ASSERT_EQ(p.kind, game::DevPrompt::Kind::Champion);
+    const GameState& s = g.session->state();
+    ASSERT_EQ(p.objs, std::vector<ObjId>{s.player(g.dev_seat()).champion.front()});
+    EXPECT_EQ(s.decision.kind, DecisionKind::Mulligan);
+    const auto options = champion_options(g.session->config().decks[g.dev_seat()]);
+    ASSERT_EQ(options.size(), 2u);
+    const ObjId champ = p.objs[0];
+    ASSERT_EQ(s.obj(champ).card, options[0]);
+    g.check_truth = false;  // the test names a champion of its own, not SimDev's
+
+    const Card* legend = s.obj(s.player(g.dev_seat()).legend.front()).card;
+    const Card* field = s.obj(s.battlefields[1].card).card;
+    const Card* unit = nullptr;  // a unit of Dev's deck that isn't a champion
+    for (const ObjId id : s.player(g.dev_seat()).main_deck) {
+        if (s.obj(id).card->type == CardType::Unit && !s.obj(id).card->champion) unit = s.obj(id).card;
+    }
+    ASSERT_NE(unit, nullptr);
+    const GameState before = s;
+    for (const auto& wrong : std::vector<std::vector<const Card*>>{{}, {options[1], options[1]}, {legend}, {field}, {unit}}) {
+        EXPECT_THROW(g.session->on_reveal(wrong), game::Refused);
+        EXPECT_TRUE(g.session->state() == before);
+        EXPECT_EQ(g.session->status(), Status::DevToReveal);
+    }
+    g.session->on_reveal({options[1]});
+    EXPECT_EQ(g.session->state().obj(champ).card, options[1]);
+    EXPECT_NE(g.session->replay_text().find("bind " + std::to_string(champ) + " " + options[1]->home().code.str()),
+              std::string::npos);
+    const auto pool = game::dev_pool(g.session->state(), g.session->buddy(), {}, g.session->config().decks[g.dev_seat()], false);
+    EXPECT_NE(std::find(pool.begin(), pool.end(), options[0]), pool.end()) << "the decklist's champion is back in the pool";
+    ASSERT_EQ(g.session->status(), Status::DevToReveal);  // then the battlefield
+    EXPECT_EQ(g.session->prompt()->kind, game::DevPrompt::Kind::Battlefield);
+    EXPECT_TRUE(has_voice(g, "My champion is " + g.session->state().obj(g.session->state().player(0).champion.front()).card->name));
     g.stop_when = nullptr;
     g.run();
     EXPECT_EQ(g.session->status(), Status::Over) << g.session->pause_message();

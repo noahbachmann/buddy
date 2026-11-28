@@ -709,7 +709,7 @@ const RB_PURPOSE = {
   "assign damage": "Assign combat damage",
 };
 const RB_PROMPT = {
-  battlefield: "Which battlefield did you put down?", hand: "Which card left your hand?",
+  champion: "Which champion did you put down?", battlefield: "Which battlefield did you put down?", hand: "Which card left your hand?",
   deck: "Which card came off your deck?", runes: "Which runes did you channel?",
 };
 

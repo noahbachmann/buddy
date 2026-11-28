@@ -81,16 +81,16 @@ std::string SimGame::candidates_problem() const {
     for (const auto& o : session->dev_options()) {
         if (o.card && !o.discards() && o.action.kind == ActionKind::Play) offered.insert(o.card);
     }
-    for (const auto& e : cfg.decks[dev_seat()].main) {
-        const bool is_offered = offered.contains(e.card);
-        if (!pool.contains(e.card)) {
-            if (is_offered) return e.card->name + " offered, but Buddy has seen every copy";
+    for (const Card* card : riftbound::main_cards(cfg.decks[dev_seat()])) {
+        const bool is_offered = offered.contains(card);
+        if (!pool.contains(card)) {
+            if (is_offered) return card->name + " offered, but Buddy has seen every copy";
             continue;
         }
         GameState copy = s;
-        if (!riftbound::bind(copy, h, e.card, session->buddy())) return "can't bind " + e.card->name;
+        if (!riftbound::bind(copy, h, card, session->buddy())) return "can't bind " + card->name;
         if (playable(copy, dev_seat(), h) != is_offered) {
-            return e.card->name + (is_offered ? " offered, but not playable" : " playable, but not offered");
+            return card->name + (is_offered ? " offered, but not playable" : " playable, but not offered");
         }
     }
     return {};
@@ -161,7 +161,8 @@ void SimGame::run() {
             case Status::DevToReveal: {
                 const DevPrompt p = *session->prompt();
                 for (const ObjId id : p.objs) {
-                    if (buddy_knows(session->state(), id) && p.kind != DevPrompt::Kind::Battlefield) {
+                    if (buddy_knows(session->state(), id) && p.kind != DevPrompt::Kind::Battlefield &&
+                        p.kind != DevPrompt::Kind::Champion) {
                         problems.push_back("prompt for a card Buddy knows: " + std::to_string(id));
                     }
                     announced_.insert(id);

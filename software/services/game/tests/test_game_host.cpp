@@ -304,8 +304,25 @@ TEST(RiftboundGameHost, CommandsAreChecked) {
     ASSERT_TRUE(g.host.command({{"action", "new"}, {"buddy", "vi"}, {"dev", "human"}, {"voice", true}}).ok);  // seed from random_seed
     g.dev = [] { return false; };
     g.run();
-    ASSERT_TRUE(g.host.session()->status() == Status::DevToReveal);  // Dev's battlefield first
+    ASSERT_TRUE(g.host.session()->status() == Status::DevToReveal);  // Dev's champion first (#98), then the battlefield
     EXPECT_EQ(g.host.session()->config().seed, 42u);
+    ASSERT_EQ(g.host.state()["prompt"]["kind"], "champion");
+    ASSERT_EQ(g.host.state()["prompt"]["candidates"].size(), 2u);  // Zed: Master of Shadows' two champions
+    {
+        const auto options = champion_options(g.host.session()->config().decks[1]);
+        for (std::size_t i = 0; i < options.size(); ++i) {  // champion_options' order: the decklist's first
+            EXPECT_EQ(g.host.state()["prompt"]["candidates"][i]["code"], options[i]->home().code.str());
+        }
+    }
+    const auto v0 = g.host.v();
+    refused({{"action", "reveal"}, {"v", v0}, {"cards", {g.host.state()["players"]["dev"]["legend"]["card"]}}},
+            "can't be your champion");
+    const std::string champion = g.host.state()["prompt"]["candidates"][1]["code"];
+    ASSERT_TRUE(g.host.command({{"action", "reveal"}, {"v", v0}, {"cards", {champion}}}).ok);
+    g.run();
+    EXPECT_EQ(g.host.state()["players"]["dev"]["champion"][0]["card"], champion);
+    ASSERT_TRUE(g.host.session()->status() == Status::DevToReveal);
+    ASSERT_EQ(g.host.state()["prompt"]["kind"], "battlefield");
     const auto v = g.host.v();
     const auto n = g.host.state()["prompt"]["candidates"].size();
     EXPECT_EQ(n, 3u);

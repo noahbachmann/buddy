@@ -290,6 +290,13 @@ std::vector<const Card*> champion_options(const Deck& deck) {
     return out;
 }
 
+std::vector<const Card*> main_cards(const Deck& deck) {
+    std::vector<const Card*> out;
+    for (const auto& e : deck.main) out.push_back(e.card);
+    if (deck.champion && std::find(out.begin(), out.end(), deck.champion) == out.end()) out.push_back(deck.champion);
+    return out;
+}
+
 Deck with_champion(const Deck& deck, const Card* card) {
     const auto options = champion_options(deck);
     if (std::find(options.begin(), options.end(), card) == options.end()) {

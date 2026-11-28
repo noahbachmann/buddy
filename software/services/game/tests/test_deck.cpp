@@ -176,6 +176,16 @@ TEST(RiftboundDeck, ChampionOptions) {  // #98
               (std::vector<std::string>{"Zed, From the Shadows", "Zed, Without a Sound"}));
 }
 
+TEST(RiftboundDeck, MainCardsIncludeTheDecklistsChampion) {  // #98: Dev's deck pool once another champion is down
+    const Deck vi = load_deck(fixture(), kDir + "/decks/vi-unleashed.txt");
+    const auto cards = main_cards(vi);
+    ASSERT_EQ(cards.size(), vi.main.size() + 1);  // Vi, Hotheaded has no copy in the main list
+    EXPECT_EQ(cards.back(), vi.champion);
+    for (std::size_t i = 0; i < vi.main.size(); ++i) EXPECT_EQ(cards[i], vi.main[i].card);
+    const Deck d = with_champion(vi, champion_options(vi)[2]);  // Peacekeeper keeps a copy in the list
+    EXPECT_EQ(main_cards(d).size(), d.main.size());
+}
+
 TEST(RiftboundDeck, WithChampionSwapsOneCopy) {
     const Deck vi = load_deck(fixture(), kDir + "/decks/vi-unleashed.txt");
     const Card* peacekeeper = champion_options(vi)[2];
