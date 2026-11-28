@@ -4,13 +4,14 @@
 # Usage: deploy/deploy.sh [--setup] [--firmware] [service ...]
 #   --setup     run deploy/pi/setup.sh on the Pi first (asks for your sudo password)
 #   --firmware  build firmware/pico-motion on the Pi and flash the Pico (D17); alone: no services
-#   service     e.g. "ears"; default: all services in SERVICES
+#   service     e.g. "ears"; default: all services in SERVICES (off ones like screener only when named)
 #
 # Env: BUDDY_HOST (default "buddy", the alias from ~/.ssh/config)
 set -euo pipefail
 
 HOST="${BUDDY_HOST:-buddy}"
-SERVICES=(ears brain spotify hue web voice motion speakers table messenger game system screener)
+# screener: off for now (Dev, 2026-11-28), unit disabled on the Pi; deploy only when named
+SERVICES=(ears brain spotify hue web voice motion speakers table messenger game system)
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"   # project root = parent of deploy/
 
 setup=false
