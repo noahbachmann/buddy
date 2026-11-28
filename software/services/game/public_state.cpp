@@ -12,6 +12,7 @@
 namespace buddy::game {
 
 using nlohmann::json;
+using riftbound::ActionKind;
 using riftbound::Card;
 using riftbound::CardType;
 using riftbound::GameState;
@@ -272,6 +273,11 @@ json public_state(const Session& session, const GameState& s, const std::vector<
             // the public object it acts on: the panel puts the option on that card (never a hidden one: placeholder)
             const ObjId obj = o.action.obj;
             if (obj != no_obj && obj < pv.objects.size() && !b.hidden(obj)) e["obj"] = obj;
+            // a move or location to Dev's base: the panel puts it on the base row, like a battlefield's on its name
+            const auto k = o.action.kind;
+            const bool to_base =
+                (k == ActionKind::Move || (k == ActionKind::Pick && obj == no_obj)) && o.action.n == riftbound::to_base;
+            if (to_base) e["base"] = true;
             list.push_back(e);
         }
         j["options"] = list;
