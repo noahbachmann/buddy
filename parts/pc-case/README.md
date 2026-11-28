@@ -114,7 +114,7 @@ strip).
   45° cone down to the 3.4 hole (the head's seat; in print a roof at 45°, no bridge). M3 × 8: head seat at 36.45,
   through 2.4 of boss and the lid into the pressed nut, tip 1.2 out under the boss.
 - Clearance holes 3.4 mm, slip-fit nut slots 5.7 × 2.7, press-fit pockets 5.6 across flats.
-- The fan hangs 6 mm above the fan floor (Dev's photo 2026-11-28): 2 ribs (3.2 wide, x 282 and 298, outside the
+- The fan hangs 6 mm above the fan floor (Dev's photo 2026-11-28): 2 ribs (3.2 wide, x 276 and 292, outside the
   hub's bottom intake) carry it there. ⚠️ The model still stands the fan on the floor with `cooler_h` 38, which can't
   both be true with the cover-top (40.4) fitting: the housing is ~6 lower than the heatsink stack, not measured.
 - The fan floor lifts the cooler 0.8 mm. The cooler also hangs on the CPU by its heat pipe: if it can't rise that much,
