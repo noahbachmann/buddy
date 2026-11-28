@@ -24,7 +24,7 @@ void card_codes(const nlohmann::json& j, std::vector<std::string>& out) {
 } // namespace
 
 TEST(RiftboundPublicState, SameForEveryArrangementOfHiddenCards) {
-    long compared = 0, effects = 0, linked = 0, known_runes = 0, to_base = 0;
+    long compared = 0, effects = 0, linked = 0, known_runes = 0, to_base = 0, picked = 0;
     std::set<std::string> statuses;
     for (int i = 0; i < 4; ++i) {
         const auto& [d0, d1] = kDecks[static_cast<std::size_t>(i % 2)];
@@ -44,6 +44,13 @@ TEST(RiftboundPublicState, SameForEveryArrangementOfHiddenCards) {
                 if (o.contains("base") != says_base) g.problems.push_back("base flag on \"" + text + "\"");
                 if (o.contains("base") && o.contains("obj")) g.problems.push_back("base option with an obj: " + text);
                 to_base += o.contains("base");
+            }
+            if (want.contains("decision") && want["decision"].contains("picked")) {
+                ++picked;
+                const std::string all = want.dump();
+                for (const auto& id : want["decision"]["picked"]) {
+                    if (all.find("\"id\":" + id.dump()) == std::string::npos) g.problems.push_back("picked object not shown");
+                }
             }
             std::vector<std::string> codes;
             card_codes(want, codes);
@@ -66,7 +73,8 @@ TEST(RiftboundPublicState, SameForEveryArrangementOfHiddenCards) {
     EXPECT_GT(effects, 0);  // some payload showed a spell's effect on a unit (#97)
     EXPECT_GT(linked, 0);
     EXPECT_GT(known_runes, 0);
-    EXPECT_GT(to_base, 0);  // a move or a location to Dev's base, flagged for the base row  // a channel that brought back a rune recycled in view
+    EXPECT_GT(to_base, 0);
+    EXPECT_GT(picked, 0);  // a Choose with picks so far (units to move), marked on the panel  // a move or a location to Dev's base, flagged for the base row  // a channel that brought back a rune recycled in view
     for (const char* s : {"setup", "dev_to_act", "dev_to_reveal", "thinking", "acting", "over"}) {
         EXPECT_TRUE(statuses.contains(s)) << s;
     }

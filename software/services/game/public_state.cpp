@@ -255,6 +255,13 @@ json public_state(const Session& session, const GameState& s, const std::vector<
     if (d.kind != riftbound::DecisionKind::None) {
         j["decision"] = {{"player", b.who(d.player)}, {"kind", riftbound::to_string(d.kind)},
                          {"purpose", riftbound::to_string(d.purpose)}};
+        // what a Choose has picked so far (units to move, …): the panel marks them. Public objects only.
+        json picked = json::array();
+        for (const auto i : d.chosen) {
+            const ObjId id = d.options[i].obj;
+            if (id != no_obj && id < pv.objects.size() && !b.hidden(id)) picked.push_back(id);
+        }
+        if (!picked.empty()) j["decision"]["picked"] = picked;
     }
     json fields = json::array();
     for (std::size_t i = 0; i < pv.battlefields.size(); ++i) fields.push_back(b.battlefield(i));

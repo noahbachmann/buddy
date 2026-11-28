@@ -143,7 +143,7 @@ input that can't be: `Refused` (the reason), nothing changes.
   `battlefields` (`id` = the battlefield's object, `card`, `owner`, `controller`, `contested`, `units.{buddy,dev}`,
   `facedown` count), `chain` (`kind`, `card`, `controller`, `finalized`, `targets`), `showdown`, `options` (DevToAct:
   `i`, `text` = `option_text` on the public view, `group`, `card` only when named, `obj` = the object it acts on only
-  when public: the panel puts the option on that card, #53; `base` = a move or location to Dev's base: on the base row), `prompt` (`kind`, `n`, `candidates`: code +
+  when public: the panel puts the option on that card, #53; `base` = a move or location to Dev's base: on the base row), `decision.picked` (a Choose's picks so far that are public: the panel marks them), `prompt` (`kind`, `n`, `candidates`: code +
   `left`, runes with `domain`; runes: `known` = codes channelled with them that Buddy saw recycled, not asked, #97), `log` (`turn`, `player`, `text`, `cards`: codes of the public cards the line names, #97). Players are `buddy`/`dev`, never seats. `catalogue(decks)`: every card + the
   three tokens by `code_of` key. The overload with `(s, options)` is for the leak test.
 - **`GameHost`**: one `Session` (+ `SimDev` for `dev: greedy|random`, answered inside at once). `command(json)` →
