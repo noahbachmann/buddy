@@ -60,7 +60,7 @@ cd parts/tools && uv run pytest -q                 # tool tests (fixtures in tes
   Studio: settings apply to the whole plate, auto brim judges the whole plate. Dev prints from the module root.
   Shelves can't nest one part into another's corner: `place = [[x, y, turn°], …]` (one per item, bbox min corner
   after the turn) fixes the layout instead, `gap` sets the minimum distance; `cad plate` checks the real footprints
-  against it and the bed (the PC case's covers: an L round a box, as Dev laid them out in Bambu Studio).
+  against it and the bed (the PC case's covers used it, an L round a box, until they grew past one bed, 2026-11-28).
 - **Assembly sheet**: OpenSCAD's own preview from 4 directions (gimbal camera), keeps `color()` and `%` ghosts.
 - Print classes (`tools/src/cad/mesh.py`): +Z = build direction, lowest Z = bed, 45° counts as fine (teardrops,
   chamfers). Numbers are surface areas, not yet judged: `cad check` (next) adds the rules.

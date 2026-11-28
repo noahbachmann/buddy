@@ -15,12 +15,13 @@ parts = ["fit-check"]
 note = "PETG · 0.20 mm · 3 walls · 15 % · top down · no supports: one lid hook, snap it over the tray's front edge first"
 parts = ["hook-test"]
 
-[plates.1-cover]
-note = "PETG · 0.20 mm · 3 walls · 15 % · cover-top top down, cover-bottom floor down · no supports · 252 mm wide: the two alone"
-parts = ["cover-top", "cover-bottom"]
-bed = [254, 254]
-place = [[0, 0, 90], [96, 90, 0]]   # cover-bottom's L round cover-top's corner (Dev 2026-11-27)
-gap = 5
+[plates.1-cover-top]
+note = "PETG · 0.20 mm · 3 walls · 15 % · top down · no supports"
+parts = ["cover-top"]
+
+[plates.1-cover-bottom]
+note = "PETG · 0.20 mm · 3 walls · 15 % · floor down · no supports"
+parts = ["cover-bottom"]
 
 [plates.2-lid]
 note = "PETG · 0.20 mm · 3 walls · 15 % · top down · no supports · 252 mm wide: nothing else on the plate"

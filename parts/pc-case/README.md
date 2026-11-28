@@ -12,10 +12,10 @@ stays: it continues behind the board, under the cover's left and back walls.
 
 | Part | What | Print | PETG (solid, max) |
 |---|---|---|---|
-| `fit-check` | Flat template of the cooler corner: cover outline, cooler outline + 1 mm, tray's right and back edges | `0-fit-check` | 5 g |
+| `fit-check` | Flat template of the cooler corner: cover outline, cooler outline + 1 mm, tray's right and back edges | `0-fit-check` | 6 g |
 | `hook-test` | One lid front-edge hook with 10 mm of the lid's front band each side, cut from the real lid: snap it over the tray's front edge to check reach, hook and play | `0-hook-test`, top down | 4 g |
-| `cover-top` | Over the cooler (4 mm off the heatsink on the right: felt), standing on cover-bottom: lattice top (1.2), slotted intake over the fan hub, exhaust slits over the heatsink's outlet face (from 14.8 mm up), windows. Its walls facing the tray stand on the lid and carry 4 screw bosses (lid to top, head recessed); over the tray wall and the silver plate its walls stop above them | `1-cover` (with cover-bottom nested round it), top down | 64 g |
-| `cover-bottom` | Lattice floor (1.6) under the raised heatsink and in front of it; solid 0.8 floor under the fan outside the tray (it lies flat on the table: no bending to carry) that the fan stands on; 5 low nut tabs (≤ 11.6, under the heatsink) for cover-top | `1-cover`, floor down | 24 g |
+| `cover-top` | Over the cooler (4 mm off the heatsink on the right: felt), standing on cover-bottom: lattice top (1.2), slotted intake over the fan hub, exhaust slits over the heatsink's outlet face (from 14.8 mm up), windows. Its walls facing the tray stand on the lid and carry 4 screw bosses (lid to top, head recessed); over the tray wall and the silver plate its walls stop above them | `1-cover-top`, top down | 67 g |
+| `cover-bottom` | Lattice floor (1.6) under the raised heatsink and in front of it; solid 0.8 floor under the fan outside the tray (it lies flat on the table: no bending to carry) that the fan stands on; 5 low nut tabs (≤ 11.6, under the heatsink) for cover-top | `1-cover-bottom`, floor down | 26 g |
 | `lid` | Lattice plate between the tray walls (front 60 mm over the metal shield: open; ~14 mm windows behind it), 4 tabs into the slits beside the board that carry it, a 25 mm wall down its back edge with 3 hooks, 14 top-module and 4 cover nut bosses underneath, 3 cable notches, thinner over the CPU | `2-lid`, top down, 252 mm wide: alone on the plate | 93 g |
 
 All: PETG, 0.20 mm, 3 walls, 15 %, no supports (no overhang > 45°, no bridge, no floating layer; the lid's two 3 mm
@@ -24,7 +24,7 @@ hook overhangs print without). Plates 2.4 mm.
 ## The lid in the tray
 
 - Edges 0.3 mm inside the tray walls' inner faces: 252.0 wide (252.6 between the walls: the 250 lid skeleton was one
-  tab width short, the 251.4 one 0.6, Dev 2026-11-25), ~97 from its right edge to the heatsink's end (95 from the tray
+  tab width short, the 251.4 one 0.6, Dev 2026-11-25), ~104 from its right edge to the heatsink's end (102 from the tray
   wall's outer face).
 - Top at 34, plate 31.6–34: 3.6 above the tray walls (28), so the walls no longer guide its edges; the slit tabs
   (now 31.6 tall) locate it. The gap between wall tops and plate stays open (air).
@@ -47,7 +47,7 @@ hook overhangs print without). Plates 2.4 mm.
 - Cable notches: left edge y 54–66 (ribbon out through the left slit), right edge y 104–128 (ribbons out over the
   right tray wall; the cover's front wall is open there up to 38 mm), back edge x 160–176 (antenna wires).
 
-**Before the real parts:** `skeleton/` has fit-test skeletons of lid, cover-top and cover-bottom (89 g together,
+**Before the real parts:** `skeleton/` has fit-test skeletons of lid, cover-top and cover-bottom (105 g together,
 same geometry where it matters): assemble them on the hardware first (`skeleton/README.md`).
 
 ## Hardware
@@ -82,7 +82,8 @@ at z 34, 6.4 under the cover's top. Screw length ≈ module base + 5 (1.9 mm of 
 Measured (Dev, 2026-11-24): tray 250 between its side walls (252.6 after two lid skeleton prints, 2026-11-25), walls 28, 3 mm slits, board 8 mm above the silver plate;
 cooler 162 × 128 (heatsink) / 115 (fan) × 38, the fan on the table, the heatsink ~13 mm above it (ruler photo); case ≤ 40 high (40.4 accepted for the fan floor,
 2026-11-25); heatsink end 100 from the right wall's inner face (98 with the 252), 95 from
-its outer face; cooler 40 past the tray's back edge; fan housing 200 from its left edge (the 12 mm left of it: bracket
+its outer face; cooler 40 past the tray's back edge (both 7 short: the first real cover sat 7 too far back and
+reached the heatsink 2 short of the lid's holes, Dev 2026-11-28; now 102 and 47, the lid unchanged); fan housing 200 from its left edge (the 12 mm left of it: bracket
 strip).
 
 ⚠️ Not measured, all in `params.scad`:
@@ -91,17 +92,18 @@ strip).
 - Slit spans (`slit_tabs_left/right`) and cable notches: from photos.
 - Silver plate top under the board (`plate_z` 1), its edge beside the fan (`plate_x1` 200) and how high plate, foam
   pads and antenna wires reach there (`plate_clear` 14: the cover's walls stop above it).
-- Where the tray's right wall ends towards the fan (the ghost assumes at the cooler, y 122).
+- Where the tray's right wall ends towards the fan (the ghost assumes at the cooler, y 129).
 - Heatsink underside above the fan's base (`hs_dz` 13, the floor tabs stay under it), fan ↔ heatsink boundary
-  (`fan_x1` 297) and the fan's front edge (`fan_y0` 137): where the floor steps from 1.6 lattice to 0.8 solid.
+  (`fan_x1` 304) and the fan's front edge (`fan_y0` 144): where the floor steps from 1.6 lattice to 0.8 solid.
 
 ## Design notes
 
 - Cover-top's right wall stands 4 mm off the heatsink (back wall 1): the heat pipe's end nearly touched it (Dev
   2026-11-26). The 3 mm is for self-adhesive felt or 2–3 mm cork on the wall's inside where the pipe is, only on the
-  solid parts (front corner y 113–128, below the slits up to z 14.8): over the exhaust slits it would block the
+  solid parts (front corner y 113–135, below the slits up to z 14.8): over the exhaust slits it would block the
   heatsink's outlet.
-- Lid and cover split along two straight seams 9 mm off the cooler. The lid reaches 4 mm past the cover's seam walls,
+- Lid and cover split along two straight seams (x 179, y 113: fixed by the printed lid), 16 mm off the cooler (9
+  before the cooler moved 7, 2026-11-28). The lid reaches 4 mm past the cover's seam walls,
   under their bosses. Inside, the cover is open towards the board: the heat pipe and fan cable cross freely, and the
   blower also pulls air through the lid's lattice.
 - Both parts print top down: the lid's tabs, wall and bosses point down in use, so nothing on the lid points up. That's

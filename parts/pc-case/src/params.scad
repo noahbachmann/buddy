@@ -11,7 +11,7 @@ $fn = 64;
 // put (95 from the wall's outer face, fit-check).
 board    = [252.6, 210];
 board_h  = 28;           // the tray's side walls
-tray_wall_x = 255;       // outer face of the tray's right wall (95 to the heatsink end)
+tray_wall_x = 255;       // outer face of the tray's right wall (102 to the heatsink end)
 // 3 mm slits between the board's edges and the tray's side walls: the lid's tabs drop in and stand on the silver
 // plate the board sits on (board 8 mm above it)
 slit_w    = 3;
@@ -23,21 +23,23 @@ plate_z   = 1;           // ⚠️ top of the silver plate under the board: the 
 // they stop above it (and above the antenna wires running along the fan's edge).
 plate_x1    = 200;       // ⚠️
 plate_clear = 14;        // ⚠️ plate + its foam pads at the fan edge, with room for the antenna wires
-cooler_x = [188, 350];   // 162 wide; right edge 95 past the tray's right wall (outer face)
-cooler_y = [122, 250];   // 128 deep at the heatsink; back edge 40 past the tray's back edge
+// Cooler 7 further right and back than first measured (Dev 2026-11-28: the cover printed 7 short on both axes, the
+// lid fits): the seams below stay where the lid is, the cooler and everything placed by it moved.
+cooler_x = [195, 357];   // 162 wide; right edge 102 past the tray's right wall (outer face)
+cooler_y = [129, 257];   // 128 deep at the heatsink; back edge 47 past the tray's back edge
 cooler_h = 38;           // fan and heatsink alike
 fan_floor_t = 0.8;      // cover-bottom's floor under the fan: lies flat on the table, carries no bending (Dev 2026-11-25)
 cooler_z0 = fan_floor_t; // the fan housing stands on it
 hs_dz    = 13;           // ⚠️ heatsink's underside above the fan's base (ruler photo 2026-11-24): the floor runs under it
 hs_z0    = cooler_z0 + hs_dz;
-fan_x1   = 297;          // ⚠️ fan housing ↔ heatsink (fit-check photo): the fan stands on the table left of this
-fan_y0   = 137;          // ⚠️ fan housing's front edge: the thin floor behind it
+fan_x1   = 304;          // ⚠️ fan housing ↔ heatsink (fit-check photo): the fan stands on the table left of this
+fan_y0   = 144;          // ⚠️ fan housing's front edge: the thin floor behind it
 // Fan housing's front-left corner: an arc through these points, cut out of the cooler's rectangle. Read off the
 // fit-check photo (2026-11-24); the bracket strip left of the housing reaches x 188.
-seam_pts = [[195, 178], [203, 149], [226, 139]];   // ⚠️
-fan_c    = [239, 196];   // ⚠️ fan hub
+seam_pts = [[202, 185], [210, 156], [233, 146]];   // ⚠️
+fan_c    = [246, 203];   // ⚠️ fan hub
 fan_in_r = 26;           // ⚠️ intake opening around the hub
-fins_y   = [128, 246];   // ⚠️ heatsink outlet face (right side, x 350)
+fins_y   = [135, 253];   // ⚠️ heatsink outlet face (right side, x 357)
 
 // cable notches in the lid's edges (green in the photo) ⚠️
 cable_left  = [54, 66];    // y: ribbon out through the left slit
@@ -64,9 +66,10 @@ side_gap = 1;            // cooler to the cover's back wall
 // Right wall: the heat pipe's end nearly touched it (Dev 2026-11-26): room for felt/cork on the wall's inside
 felt_t     = 3;          // self-adhesive felt sheet (or 2–3 mm cork)
 right_gap  = side_gap + felt_t;   // cooler to the cover's right wall
-// Lid ↔ cover split: two straight seams, far enough from the cooler for the seam wall and a screw head.
-seam_x = cooler_x[0] - 9;   // vertical seam (for y ≥ seam_y)
-seam_y = cooler_y[0] - 9;   // horizontal seam (for x ≥ seam_x)
+// Lid ↔ cover split: two straight seams, far enough from the cooler for the seam wall and a screw head. Fixed: the
+// printed lid fits (Dev 2026-11-28), its screw holes set them; 16 off the cooler since it moved.
+seam_x = 179;            // vertical seam (for y ≥ seam_y)
+seam_y = 113;            // horizontal seam (for x ≥ seam_x)
 
 // --- M3 hardware ---------------------------------------------------------------
 m3_clear  = 3.4;         // screw passes: clearance, not a fit
@@ -120,14 +123,14 @@ cable_cover_x = 262;     // cover's front wall open from the tray wall to here, 
 
 // --- cover ----------------------------------------------------------------------
 // cover-bottom ↔ cover-top: nut tabs on the floor inside the walls, under the raised heatsink; screws from outside
-bottom_tabs_front = [280, 330];   // x, through the front wall
-bottom_tabs_right = [160, 215];   // y, through the right wall
-bottom_tabs_back  = [310];        // x, through the back wall
+bottom_tabs_front = [287, 337];   // x, through the front wall
+bottom_tabs_right = [167, 222];   // y, through the right wall
+bottom_tabs_back  = [317];        // x, through the back wall
 bottom_tab_h = 10;               // above the floor: stays under the heatsink (hs_z0)
 tab_t = 5.6;             // tab with a nut slot: 2.7 slot + ~1.45 each side
 tab_w = 14;
-cover_grid_x = [220, 260, 300, 330];   // cover lattice lines
-cover_grid_y = [150, 190, 220];
+cover_grid_x = [227, 267, 307, 337];   // cover lattice lines
+cover_grid_y = [157, 197, 227];
 
 // --- airflow --------------------------------------------------------------------
 slot_w     = 3;          // grille slits
