@@ -183,9 +183,15 @@ module at_seam_screws() for (q = seam_screws()) translate([q[0], q[1], 0]) child
 module cover() let(zv = [vent_margin, z_ceil - vent_margin]) difference() {
   linear_extrude(z_top) { cover_2d(); seam_bosses_2d(); }
   translate([0, 0, -1]) linear_extrude(z_ceil + 1)
-    difference() { rect([seam_x + wall_t, cx1 - wall_t], [seam_y + wall_t, cy1 - wall_t]); seam_bosses_2d();
-                   rect([-big, pw_x0 + wall_t], [board[1] + tray_gap, big]); }   // left wall over the plate: moved in
-  box([seam_x - 1, pw_x0], [board[1] + tray_gap, cy1 + 1], [-1, z_ceil]);   // outside it, only the skin stays
+    difference() {
+      union() {
+        rect([seam_x + wall_t, cx1 - wall_t], [seam_y + wall_t, cy1 - wall_t]);
+        rect([pw_x0 + wall_t, plate_x1 + tray_gap], [cy1 - wall_t - 1, cy1 + 1]);   // back wall starts at the plate's edge
+      }
+      seam_bosses_2d();
+      rect([-big, pw_x0 + wall_t], [board[1] + tray_gap, big]);   // left wall over the plate: moved in
+    }
+  box([seam_x - 1, pw_x0], [board[1] + tray_gap, cy1 + 1], [-1, z_top + 1]);   // nothing outside it, skin too
   translate([0, 0, z_ceil - 1]) linear_extrude(cover_skin + 2) cover_openings_2d();
   box([-big, tray_wall_x + tray_gap], [-big, board[1] + tray_gap], [-1, z_lid1]);
   box([-big, plate_x1 + tray_gap], [board[1] + tray_gap, big], [-1, plate_clear]);
