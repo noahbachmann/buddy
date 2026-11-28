@@ -632,7 +632,7 @@ a login comes before the table drives hardware (Phase 3).
 ### 2.6 as built (2026-11-16, #46: #47–#53, #73)
 
 **In short:** the gate passed (`buddy-game --sim --games 1000 --faults stress`, SimDev greedy vs Buddy greedy, both
-decks from both seats: **0 unrecovered, 0 desyncs, 0 leaks**, 5 × 1000 games after #73; SimDev random 1000 and 50 vs
+decks from both seats: **0 unrecovered, 0 desyncs, 0 leaks**, 5 × 1000 games after #73, again with the champion pick (#98); SimDev random 1000 and 50 vs
 ISMCTS the same); what real cards cost Dev: 65 / 96 / 170 taps per game (avg / p95 / max), ~40 % of them prompts;
 `buddy@game` on the Pi resumes a game after a restart and survives table timeouts; the Riftbound page (#53) plays a
 whole game on a phone. Details per sub-issue below. Dev's live game: #53.
@@ -843,6 +843,16 @@ Riftbound). What building it changed against the design above:
   - **Panel:** log as a left column from 1024 px with linked card names, passes that say what they pass ("let Vault
     Breaker resolve", "pass focus at …"), effects on tiles, in-play vs legend/champion split, undo of Dev's own steps
     while Buddy hasn't moved since (~200 ms on the Pi at turn 5: the host replays the game's journal).
+- **Chosen Champion per game (Dev, 2026-11-28, #98):** a house rule (103.3.a makes it a deck-building choice): the
+  same cards, only which copy starts in the champion zone changes. Options = every champion unit with the legend's
+  champion tag (Vi: Hotheaded, Destructive, Peacekeeper; Zed: From the Shadows, Without a Sound). Dev names theirs
+  in a prompt before the battlefield; Buddy picks by greedy self-play (24 games per option, both seats, Dev's
+  champion random: Buddy picks first without seeing it; common random numbers across options): 1.3 s (Vi) / 0.9 s
+  (Zed) on the Pi at `new`, journaled. Picks on the Pi: Vi, Destructive for 4 of 4 seeds. Found by a SimDev game: Dev's pool
+  walked the main list, which leaves out the decklist's champion, so after Dev put down another one it was never
+  offered (`main_cards`). The gate with both sides' champions varied (seeds 1 and 1001, SimDev greedy; SimDev
+  random; 50 vs ISMCTS 1000 iterations): **0 / 0 / 0** again, 10.2 prompts and 65 / 97 / 176 taps per game (the
+  champion adds one prompt), 11.4 s per 1000 games (Release, VM, 8 jobs).
 - **Not built:** voice input ("pass"), thinking during Dev's turn (2.6 design → Later), card images (the catalogue
   has text only; Riftcodex images would need the internet on the panel).
 

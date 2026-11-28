@@ -86,6 +86,11 @@ input that can't be: `Refused` (the reason), nothing changes.
   channelled) is one prompt. `on_reveal`: binds on a copy (kind checked: runes, battlefields, the rest), re-applies
   the step, the items up to the prompt must stay; then commits the binds. Dev's battlefield = the setup step's first
   item (before both mulligans; `bind` swaps it with a removed one).
+- **Chosen Champion (#98, Dev's house rule):** the deck's options = `champion_options(deck)` (the decklist's
+  champion, then main-list champion units with the legend's tag). Dev's: a `champion` prompt before the battlefield
+  (only with more than one option); `bind` swaps the champion zone's object with an unseen copy (Setup only). Dev's
+  pool walks `main_cards(deck)` (main list + the decklist's champion: in the deck once Dev put down another).
+  Buddy's: picked by the host before the session (`SessionConfig::decks` already swapped); the opening line names it.
 - **Setup:** `setup` with `sim_deck`/`sim_runes` (home-printing codes); the opening deals from new_game's log run as a
   step without action, bound on `s` directly. new_game drew the hand already, so a dealt card the guess put on a
   hand object not dealt yet swaps from there (`bind` during Setup, #50; `BindMemory` keeps dealt hand cards).
@@ -142,8 +147,10 @@ input that can't be: `Refused` (the reason), nothing changes.
   `left`, runes with `domain`; runes: `known` = codes channelled with them that Buddy saw recycled, not asked, #97), `log` (`turn`, `player`, `text`, `cards`: codes of the public cards the line names, #97). Players are `buddy`/`dev`, never seats. `catalogue(decks)`: every card + the
   three tokens by `code_of` key. The overload with `(s, options)` is for the leak test.
 - **`GameHost`**: one `Session` (+ `SimDev` for `dev: greedy|random`, answered inside at once). `command(json)` →
-  `Reply {ok, message}`: `new {buddy: vi|zed, seed?, dev}` (refused while a game runs; Buddy = seat 0, the first
-  player is the engine's coin flip; `voice` default false), `act {v, i}`, `reveal {v, cards: [code…]}`, `undo {v}` (#97), `resume`,
+  `Reply {ok, message}`: `new {buddy: vi|zed, seed?, dev, champion?}` (refused while a game runs; Buddy = seat 0, the first
+  player is the engine's coin flip; `voice` default false; Buddy's champion: `ai::choose_champion`, greedy self-play,
+  `HostConfig::champion.games` (24) per option on `BUDDY_GAME_THREADS` jobs: 1.3 s for Vi's 3 options on the Pi, the
+  loop blocks meanwhile; `champion` = a code of the options sets it; tests use games 0 = the decklist's), `act {v, i}`, `reveal {v, cards: [code…]}`, `undo {v}` (#97), `resume`,
   `concede`, `voice {on}`; an unknown
   field or value, a stale `v`, the wrong status → refused, nothing changes (numbers: unsigned too, seeds use 64
   bits, #53). `on_table`, `on_ai` pass through. `table_reconnected()`: the command in flight to resend when the
@@ -161,7 +168,8 @@ input that can't be: `Refused` (the reason), nothing changes.
   late answer is dropped), `HostOutputs::replay_text` makes `GameStore::append` rewrite the replay file. The journal
   keeps the undone line and gets `{"cmd":{"action":"undo"}}`; `restore` replays the undo the same way. Cost: a
   restore of the game so far per undo (~2 s for a full game under ASan on the VM).
-- **Journal (#52):** every input that changed something is a JSON line (`{"cmd"}` accepted, `new` with its seed;
+- **Journal (#52):** every input that changed something is a JSON line (`{"cmd"}` accepted, `new` with its seed and Buddy's
+  `champion`: a restore doesn't search again;
   `{"table"}` the in-flight seq's events; `{"ai": {id, action}}`; `{"table_lost": "timeout"|"restart"}`).
   `restore(lines)` feeds them into a fresh host with `take()` after each (the service does the same, so `v`
   matches) and returns what's open: payload, the command in flight (not while paused), the AI's question. Strict: a
